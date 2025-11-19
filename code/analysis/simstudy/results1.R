@@ -25,7 +25,7 @@
 #
 #########################################################################
 
-rm(list=ls())
+rm(list = ls())
 load("simdata.RData")
 ns <- dim(y)[1]
 nt <- dim(y)[2]
@@ -47,59 +47,95 @@ source("../../R/auxfunctions.R")
 
 probs <- c(0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 0.995)
 
-quant.score <- array(NA, dim=c(length(probs), (nsets * ngroups), nmethods, nsettings))
-brier.score <- array(NA, dim=c(length(probs), (nsets * ngroups), nmethods, nsettings))
+quant.score <- array(NA, dim = c(length(probs), (nsets * ngroups), nmethods, nsettings))
+brier.score <- array(NA, dim = c(length(probs), (nsets * ngroups), nmethods, nsettings))
 
 # storage for the interval endpoints
 intervals <- c(0.01, 0.025, 0.05, 0.1, 0.9, 0.95, 0.975, 0.99)
-beta.0 <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
-beta.1 <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
-beta.2 <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
-tau.alpha <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                             nsettings))
-tau.beta  <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                             nsettings))
-rho   <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                         nsettings))
-nu    <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                         nsettings))
-gamma <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                         nsettings))
+beta.0 <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+beta.1 <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+beta.2 <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+tau.alpha <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+tau.beta <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+rho <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+nu <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+gamma <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
 # not all methods use skew or multiple partitions
-lambda <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
+lambda <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
 
 skew.methods <- c(2, 4)
 
 #### Making revisions
 load(filename)
 
-quant.score.rev <- array(NA, dim=c(length(probs), (nsets * ngroups), nmethods, nsettings))
-brier.score.rev <- array(NA, dim=c(length(probs), (nsets * ngroups), nmethods, nsettings))
+quant.score.rev <- array(NA, dim = c(length(probs), (nsets * ngroups), nmethods, nsettings))
+brier.score.rev <- array(NA, dim = c(length(probs), (nsets * ngroups), nmethods, nsettings))
 
 # storage for the interval endpoints
-beta.0.rev <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
-beta.1.rev <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
-beta.2.rev <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
-tau.alpha.rev <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                             nsettings))
-tau.beta.rev  <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                             nsettings))
-rho.rev   <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                         nsettings))
-nu.rev    <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                         nsettings))
-gamma.rev <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                         nsettings))
+beta.0.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+beta.1.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+beta.2.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+tau.alpha.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+tau.beta.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+rho.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+nu.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
+gamma.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
 # not all methods use skew or multiple partitions
-lambda.rev <- array(NA, dim=c(length(intervals), (nsets * ngroups), nmethods,
-                          nsettings))
+lambda.rev <- array(NA, dim = c(
+  length(intervals), (nsets * ngroups), nmethods,
+  nsettings
+))
 
 quant.score.rev[, , , 1:7] <- quant.score
 brier.score.rev[, , , 1:7] <- brier.score
@@ -121,63 +157,70 @@ beta.2 <- beta.2.rev
 tau.alpha <- tau.alpha.rev
 tau.beta <- tau.beta.rev
 rho <- rho.rev
-nu  <- nu.rev
+nu <- nu.rev
 gamma <- gamma.rev
 lambda <- lambda.rev
 
-rm(list = c("quant.score.rev", "brier.score.rev", "beta.0.rev", "beta.1.rev",
-            "beta.2.rev", "tau.alpha.rev", "tau.beta.rev", "rho.rev", "nu.rev",
-            "gamma.rev", "lambda.rev"))
+rm(list = c(
+  "quant.score.rev", "brier.score.rev", "beta.0.rev", "beta.1.rev",
+  "beta.2.rev", "tau.alpha.rev", "tau.beta.rev", "rho.rev", "nu.rev",
+  "gamma.rev", "lambda.rev"
+))
 
 
-iters <- 20000; burn <- 10000
+iters <- 20000
+burn <- 10000
 settings <- c(1, 2, 3, 4, 5, 6, 8)
 for (setting in settings) {
-  filename <- paste("scores", setting, ".RData", sep="")
+  filename <- paste("scores", setting, ".RData", sep = "")
   prefix <- "results/"
   cat("start setting", setting, "\n")
   for (set in 1:50) {
-    thresholds <- quantile(y[, , set, setting], probs=probs, na.rm=T)
+    thresholds <- quantile(y[, , set, setting], probs = probs, na.rm = T)
     validate <- y[!obs, , set, setting]
-    
+
     # for(setting in 1:nsettings){
     for (method in 1:nmethods) {
-      dataset <- paste(prefix, setting, "-", method, "-", set, ".RData", sep="")
+      dataset <- paste(prefix, setting, "-", method, "-", set, ".RData", sep = "")
       load(dataset)
-      
+
       fit <- fit.1
       if (method == 6) {
         pred <- fit$yp[10001:20000, , ]
         brier.score[, set, method, setting] <- BrierScore(pred, thresholds,
-                                                          validate, trans=TRUE)
+          validate,
+          trans = TRUE
+        )
       } else {
         pred <- fit$yp
-        brier.score[, set, method, setting] <- BrierScore(pred, thresholds,
-                                                          validate)
+        brier.score[, set, method, setting] <- BrierScore(
+          pred, thresholds,
+          validate
+        )
         quant.score[, set, method, setting] <- QuantScore(pred, probs, validate)
       }
-      
-      
+
+
       if (method != 6) {
-        beta.0[, set, method, setting] <- quantile(fit$beta[, 1], probs=intervals)
-        beta.1[, set, method, setting] <- quantile(fit$beta[, 2], probs=intervals)
-        beta.2[, set, method, setting] <- quantile(fit$beta[, 3], probs=intervals)
-        tau.alpha[, set, method, setting] <- quantile(fit$tau.alpha, probs=intervals)
-        tau.beta[, set, method, setting] <- quantile(fit$tau.beta, probs=intervals)
-        rho[, set, method, setting] <- quantile(fit$rho, probs=intervals)
-        nu[, set, method, setting] <- quantile(fit$nu, probs=intervals)
-        gamma[, set, method, setting] <- quantile(fit$gamma, probs=intervals)
+        beta.0[, set, method, setting] <- quantile(fit$beta[, 1], probs = intervals)
+        beta.1[, set, method, setting] <- quantile(fit$beta[, 2], probs = intervals)
+        beta.2[, set, method, setting] <- quantile(fit$beta[, 3], probs = intervals)
+        tau.alpha[, set, method, setting] <- quantile(fit$tau.alpha, probs = intervals)
+        tau.beta[, set, method, setting] <- quantile(fit$tau.beta, probs = intervals)
+        rho[, set, method, setting] <- quantile(fit$rho, probs = intervals)
+        nu[, set, method, setting] <- quantile(fit$nu, probs = intervals)
+        gamma[, set, method, setting] <- quantile(fit$gamma, probs = intervals)
         if (method %in% skew.methods) {
-          lambda[, set, method, setting] <- quantile(fit$lambda, probs=intervals)
+          lambda[, set, method, setting] <- quantile(fit$lambda, probs = intervals)
         }
       }
-      
+
       rm(fit, fit.1)
       cat("\t method", method, "\n")
     }
-    
+
     cat("dataset", set, "\n")
-    
+
     if (set %% 10 == 0) {
       save(
         quant.score, brier.score, beta.0, beta.1, beta.2,
@@ -188,4 +231,3 @@ for (setting in settings) {
     }
   }
 }
-
