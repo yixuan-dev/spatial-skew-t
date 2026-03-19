@@ -3,8 +3,20 @@ s <- cbind(c(-1, 1), c(0, 0))
 
 reps <- 1000000
 prob <- 0
-plot(s)
+plot(
+  s,
+  main = "Nearest-knot overlap check (r = 1, 1 knot per quadrant)",
+  xlab = "x",
+  ylab = "y"
+)
 abline(h = 0, v = 0)
+legend(
+  "topright",
+  legend = c("Sites s", "Knots when same nearest knot"),
+  pch = c(1, 19),
+  col = c("black", "dodgerblue"),
+  bty = "n"
+)
 
 for (i in 1:reps) {
   # get a point in every quadrant of the circle
@@ -39,8 +51,20 @@ area <- pi * r^2
 
 reps <- 500000
 prob <- 0
-plot(s)
+plot(
+  s,
+  main = "Nearest-knot overlap check (r = 2, 2 knots per quadrant)",
+  xlab = "x",
+  ylab = "y"
+)
 abline(h = 0, v = 0)
+legend(
+  "topright",
+  legend = c("Sites s", "Knots when same nearest knot"),
+  pch = c(1, 19),
+  col = c("black", "dodgerblue"),
+  bty = "n"
+)
 set.seed(1)
 for (i in 1:reps) {
   this.knot <- 0
@@ -102,8 +126,22 @@ area <- pi * r^2
 
 reps <- 500000
 prob <- 0
-plot(s, ylim = c(-r, r), xlim = c(-r, r))
+plot(
+  s,
+  ylim = c(-r, r),
+  xlim = c(-r, r),
+  main = "Nearest-knot overlap check (r = 2, 8 knots over full disk)",
+  xlab = "x",
+  ylab = "y"
+)
 abline(h = 0, v = 0)
+legend(
+  "topright",
+  legend = c("Sites s", "First found overlap case"),
+  pch = c(1, 19),
+  col = c("black", "dodgerblue"),
+  bty = "n"
+)
 set.seed(1)
 for (i in 1:reps) {
 
@@ -120,13 +158,16 @@ for (i in 1:reps) {
   d <- rdist(s, knots)
   idx1 <- which(d[1, ] == min(d[1, ]))
   idx2 <- which(d[2, ] == min(d[2, ]))
+  hit <- as.integer(idx1 == idx2)
+  prob <- prob + hit / reps
   
-  if (idx1 == idx2) {
+  if (hit == 1) {
     points(knots, col = "dodgerblue", pch = 19)
-    stop()
+    message("found one case")
+    break
   }
-  prob <- prob + (idx1 == idx2) / reps
 }
+cat("Estimated overlap probability up to break:", prob, "\n")
 
 
 r <- 2
@@ -135,8 +176,22 @@ area <- pi * r^2
 
 reps <- 10000000
 prob <- 0
-plot(s, ylim = c(-r, r), xlim = c(-r, r))
+plot(
+  s,
+  ylim = c(-r, r),
+  xlim = c(-r, r),
+  main = "Nearest-knot overlap check (r = 2, 2 knots per quadrant, long run)",
+  xlab = "x",
+  ylab = "y"
+)
 abline(h = 0, v = 0)
+legend(
+  "topright",
+  legend = c("Sites s", "Knots when same nearest knot"),
+  pch = c(1, 19),
+  col = c("black", "dodgerblue"),
+  bty = "n"
+)
 set.seed(1)
 for (i in 1:reps) {
   this.knot <- 0

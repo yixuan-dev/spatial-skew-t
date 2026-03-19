@@ -2,31 +2,39 @@ library(fields)
 library(mvtnorm)
 library(sn)
 
-rm(list=ls())
-source('../../../R/mcmc_cont_lambda.R', chdir=T)
-source('../../../R/auxfunctions.R')
+rm(list = ls())
+
+# Cross-platform fallback: quartz is unavailable on Windows.
+if (!exists("quartz", mode = "function")) {
+  quartz <- function(...) {
+    invisible(NULL)
+  }
+}
+
+source("../../../R/mcmc_cont_lambda.R", chdir = T)
+source("../../../R/auxfunctions.R")
 
 # Setup from Brian
 load("../ozone_data.RData")
-S <- cbind(x[s[, 1]], y[s[, 2]])  # expands the grid of x, y locs where we have CMAQ
+S <- cbind(x[s[, 1]], y[s[, 2]]) # expands the grid of x, y locs where we have CMAQ
 
 # S[582, ] is near Lincoln, NE  (40.8106N, 96.6803W)
 # S[1069, ] is near Topeka, KS  (39.0558N, 95.6894W)
 # distance from rdist is around 216 and actual distance between cities is 212.6km
 
 # Exclude if site is missing more than 50% of its days
-excl   <- which(rowMeans(is.na(Y)) > 0.50)
-index  <- index[-excl]
-Y      <- Y[-excl, ]
-S      <- S[-excl, ]
+excl <- which(rowMeans(is.na(Y)) > 0.50)
+index <- index[-excl]
+Y <- Y[-excl, ]
+S <- S[-excl, ]
 
-image.plot(x, y, matrix(CMAQ[, 5], nx, ny), main="CMAQ output (ppb) - 2005-07-01 - no thin AQS sites")
-points(S)       # Locations of monitoring stations
-lines(borders)  # Add state lines
+image.plot(x, y, matrix(CMAQ[, 5], nx, ny), main = "CMAQ output (ppb) - 2005-07-01 - no thin AQS sites")
+points(S) # Locations of monitoring stations
+lines(borders) # Add state lines
 
 # for presentation
-quartz(width=8, height=6)
-plot(S, axes=F, ylab="", xlab="", ylim=c(-1600, 1300), xlim=c(-2300, 2400))
+quartz(width = 8, height = 6)
+plot(S, axes = F, ylab = "", xlab = "", ylim = c(-1600, 1300), xlim = c(-2300, 2400))
 lines(borders)
 
 #### start data preprocessing
@@ -49,13 +57,15 @@ nNE <- round(mean(NE) * total)
 nNW <- round(mean(NW) * total)
 nSE <- round(mean(SE) * total)
 nSW <- round(mean(SW) * total)
-keep.these <- c(sample(which(NE), nNE), sample(which(NW), nNW),
-                sample(which(SE), nSE), sample(which(SW), nSW))
+keep.these <- c(
+  sample(which(NE), nNE), sample(which(NW), nNW),
+  sample(which(SE), nSE), sample(which(SW), nSW)
+)
 
-index      <- index[keep.these]
-Y          <- Y[keep.these, ]
-S          <- S[keep.these, ]
-cmaq       <- CMAQ[index, ]
+index <- index[keep.these]
+Y <- Y[keep.these, ]
+S <- S[keep.these, ]
+cmaq <- CMAQ[index, ]
 
 
 # center and scale CMAQ data
@@ -64,7 +74,7 @@ cmaq <- (cmaq - mean(cmaq)) / sd(cmaq)
 # add in intercept
 nt <- ncol(Y)
 ns <- nrow(Y)
-X <- array(1, dim=c(nrow(cmaq), nt, 2))
+X <- array(1, dim = c(nrow(cmaq), nt, 2))
 for (t in 1:nt) {
   X[, t, 2] <- cmaq[, t]
 }
@@ -76,38 +86,41 @@ y <- y / 1000
 #### end data preprocessing
 
 # Plot CMAQ
-image.plot(x, y, matrix(CMAQ[, 5], nx, ny), main="CMAQ output (ppb) - US")
-points(S)       # Locations of monitoring stations
-lines(borders/1000)  # Add state lines
+image.plot(x, y, matrix(CMAQ[, 5], nx, ny), main = "CMAQ output (ppb) - US")
+points(S) # Locations of monitoring stations
+lines(borders / 1000) # Add state lines
 
 # Plot a day's data
-quartz(width=8, height=6)
-quilt.plot(x=S[, 1], y=S[, 2], z=Y[, 10], nx=100, ny=100,
-           xaxt="n", xlim=c(-2.5, 2.5),
-           yaxt="n", ylim=c(-1.65, 1.3)
-#            main="Ozone values on 10 July 2005"
-           )
-lines(borders/1000)
+quartz(width = 8, height = 6)
+quilt.plot(
+  x = S[, 1], y = S[, 2], z = Y[, 10], nx = 100, ny = 100,
+  xaxt = "n", xlim = c(-2.5, 2.5),
+  yaxt = "n", ylim = c(-1.65, 1.3)
+  #            main="Ozone values on 10 July 2005"
+)
+lines(borders / 1000)
 
 # Plot a day's data - presentation
-quartz(width=8, height=6)
-quilt.plot(x=S[, 1], y=S[, 2], z=Y[, 10], nx=100, ny=100,
-           xaxt="n", xlim=c(-2.5, 2.5),
-           yaxt="n", ylim=c(-1.65, 1.3))
-lines(borders/1000)
+quartz(width = 8, height = 6)
+quilt.plot(
+  x = S[, 1], y = S[, 2], z = Y[, 10], nx = 100, ny = 100,
+  xaxt = "n", xlim = c(-2.5, 2.5),
+  yaxt = "n", ylim = c(-1.65, 1.3)
+)
+lines(borders / 1000)
 
 #### 2-fold cross validation
 set.seed(1)
-cv.idx <- sample(nrow(S), nrow(S), replace=F)
+cv.idx <- sample(nrow(S), nrow(S), replace = F)
 cv.1 <- cv.idx[1:400]
 cv.2 <- cv.idx[401:800]
-cv.lst <- list(cv.1=cv.1, cv.2=cv.2)
+cv.lst <- list(cv.1 = cv.1, cv.2 = cv.2)
 
 beta.init <- 0
 tau.init <- 1
 
 #### find the duplicated sites and slightly jitter to make covariance pos dev
-set.seed(548837)  # jitter
+set.seed(548837) # jitter
 d <- rdist(S)
 same <- which(d == 0, arr.ind = TRUE)
 same <- same[same[, 1] != same[, 2], ]
@@ -120,7 +133,13 @@ while (nrow(same) > 0) {
   print(nrow(same))
 }
 
-save(Y, X, S, beta.init, tau.init, cv.lst, file="us-all-setup.RData")
+save(Y, X, S, beta.init, tau.init, cv.lst, file = "us-all-setup.RData")
+
+# In batch reproduction mode, setup is complete here.
+# The remaining sections are exploratory diagnostics and plotting snippets.
+if (!interactive()) {
+  quit(save = "no", status = 0)
+}
 
 # Remove non-US locations (for making maps - not done yet)
 east <- s.p[, 1] > 2350
@@ -157,18 +176,18 @@ diag(dist) <- 0
 bins <- seq(0, 4, 0.5)
 
 probs <- c(0.9, 0.95, 0.99)
-threshs <- quantile(Y, probs=probs, na.rm=T)
-exceed <- matrix(NA, nrow=(length(bins) - 1), ncol=length(threshs))
-for (thresh in 1:length(threshs)){
+threshs <- quantile(Y, probs = probs, na.rm = T)
+exceed <- matrix(NA, nrow = (length(bins) - 1), ncol = length(threshs))
+for (thresh in 1:length(threshs)) {
   exceed.thresh <- att <- acc <- rep(0, (length(bins) - 1))
   for (t in 1:nt) {
     these <- which(Y[, t] > threshs[thresh])
     n.na <- sum(is.na(Y[, t]))
     for (b in 1:(length(bins) - 1)) {
-      for (site in these){
-        inbin <- (dist[site, ] > bins[b]) & (dist[site, ] < bins[b+1])
+      for (site in these) {
+        inbin <- (dist[site, ] > bins[b]) & (dist[site, ] < bins[b + 1])
         att[b] <- att[b] + sum(inbin) - sum(is.na(Y[inbin, t]))
-        acc[b] <- acc[b] + sum(Y[inbin, t] > threshs[thresh], na.rm=T)
+        acc[b] <- acc[b] + sum(Y[inbin, t] > threshs[thresh], na.rm = T)
       }
       if (att[b] == 0) {
         exceed.thresh[b] <- 0
@@ -181,20 +200,20 @@ for (thresh in 1:length(threshs)){
 }
 
 # par(mfrow=c(1, 2))
-xplot <- (1:(length(bins)-1)) - 0.5
-plot(xplot, exceed[, 1], type="o", ylim=c(0, 0.35), ylab="exceed", xaxt="n", xlab="bin distance / 1000", pch=1, lty=3, main="chi-plot ozone")
-axis(1, at=0:(length(bins)-2), labels=bins[-length(bins)])
+xplot <- (1:(length(bins) - 1)) - 0.5
+plot(xplot, exceed[, 1], type = "o", ylim = c(0, 0.35), ylab = "exceed", xaxt = "n", xlab = "bin distance / 1000", pch = 1, lty = 3, main = "chi-plot ozone")
+axis(1, at = 0:(length(bins) - 2), labels = bins[-length(bins)])
 for (line in 2:3) {
-	lines(xplot, exceed[, line], lty=line)
-	points(xplot, exceed[, line], pch=line)
+  lines(xplot, exceed[, line], lty = line)
+  points(xplot, exceed[, line], pch = line)
 }
-legend("topright", lty=1:3, pch=1:3, legend=probs, title="sample quantiles")
+legend("topright", lty = 1:3, pch = 1:3, legend = probs, title = "sample quantiles")
 
 # Making the chi plot
 # run preprocessing first
 # Residuals after lm
-nt   <- ncol(Y)
-ns   <- nrow(Y)
+nt <- ncol(Y)
+ns <- nrow(Y)
 y.lm <- Y[, 1]
 x.lm <- X[, 1, ]
 for (t in 2:nt) {
@@ -218,19 +237,19 @@ diag(dist) <- 0
 bins.h <- seq(0, 3.5, 0.25)
 
 probs <- c(0.9, 0.95, 0.99)
-threshs <- quantile(res, probs=probs, na.rm=T)
-exceed.h.res <- matrix(NA, nrow=(length(bins.h) - 1), ncol=length(threshs))
+threshs <- quantile(res, probs = probs, na.rm = T)
+exceed.h.res <- matrix(NA, nrow = (length(bins.h) - 1), ncol = length(threshs))
 
-for (thresh in 1:length(threshs)){
+for (thresh in 1:length(threshs)) {
   exceed.thresh <- att <- acc <- rep(0, (length(bins.h) - 1))
   for (t in 1:nt) {
-    these <- which(res[, t] > threshs[thresh])  # for a given day which sites exceed
+    these <- which(res[, t] > threshs[thresh]) # for a given day which sites exceed
     n.na <- sum(is.na(res[, t]))
     for (b in 1:(length(bins.h) - 1)) {
-      for (site in these){
-        inbin <- (dist[site, ] > bins.h[b]) & (dist[site, ] < bins.h[b+1])
+      for (site in these) {
+        inbin <- (dist[site, ] > bins.h[b]) & (dist[site, ] < bins.h[b + 1])
         att[b] <- att[b] + sum(inbin) - sum(is.na(res[inbin, t]))
-        acc[b] <- acc[b] + sum(res[inbin, t] > threshs[thresh], na.rm=T)
+        acc[b] <- acc[b] + sum(res[inbin, t] > threshs[thresh], na.rm = T)
       }
       if (att[b] == 0) {
         exceed.thresh[b] <- 0
@@ -242,32 +261,35 @@ for (thresh in 1:length(threshs)){
   exceed.h.res[, thresh] <- exceed.thresh
 }
 
-par(mar=c(5.1, 5.1, 4.1, 2.1))
+par(mar = c(5.1, 5.1, 4.1, 2.1))
 xplot <- bins.h[-length(bins.h)] + 0.125
-plot(xplot, exceed.h.res[, 1], type="b", pch=21, lty=1, lwd=2,
-     xlim=c(0, 3.75), xaxt="n", xlab="bin distance (km) / 1000",
-     ylim=c(0, 0.35), ylab=bquote(paste(hat(chi)[c], "(h)")),
-     # main=bquote(paste(chi, "(h) for ozone residuals")),
-     cex.lab=1.5, cex.axis=1.5, cex.main=2
-     )
-axis(1, at=bins, cex.axis=1.5)
+plot(xplot, exceed.h.res[, 1],
+  type = "b", pch = 21, lty = 1, lwd = 2,
+  xlim = c(0, 3.75), xaxt = "n", xlab = "bin distance (km) / 1000",
+  ylim = c(0, 0.35), ylab = bquote(paste(hat(chi)[c], "(h)")),
+  # main=bquote(paste(chi, "(h) for ozone residuals")),
+  cex.lab = 1.5, cex.axis = 1.5, cex.main = 2
+)
+axis(1, at = bins, cex.axis = 1.5)
 for (line in 2:3) {
-	lines(xplot, exceed.h.res[, line], lty=1, pch=(20 + line), type="b", lwd=2)
+  lines(xplot, exceed.h.res[, line], lty = 1, pch = (20 + line), type = "b", lwd = 2)
 }
 # abline(v=1, lty=3, lwd=2)
-legend("topright", lty=1, pch=21:23, legend=c("c = q(0.90)", "c = q(0.95)", "c = q(0.99)"),
-       title="Sample quantiles", cex=1.5, lwd=2, pt.bg="white")
+legend("topright",
+  lty = 1, pch = 21:23, legend = c("c = q(0.90)", "c = q(0.95)", "c = q(0.99)"),
+  title = "Sample quantiles", cex = 1.5, lwd = 2, pt.bg = "white"
+)
 
 # chi(t) plot
 max.lag <- 5
-exceed.t.res <- matrix(NA, nrow=max.lag, ncol=length(threshs))
+exceed.t.res <- matrix(NA, nrow = max.lag, ncol = length(threshs))
 
-for (thresh in 1:length(threshs)){
+for (thresh in 1:length(threshs)) {
   exceed.thresh <- att <- acc <- rep(0, max.lag)
   for (site in 1:ns) {
-    these <- which(res[site, ] > threshs[thresh])  # for a site which days exceed
+    these <- which(res[site, ] > threshs[thresh]) # for a site which days exceed
     n.na <- sum(is.na(res[site, ]))
-    for (t in these){
+    for (t in these) {
       for (lag in 1:max.lag) {
         att[lag] <- att[lag] + 1
         acc[lag] <- acc[lag] + sum(these == (t + lag))
@@ -279,27 +301,30 @@ for (thresh in 1:length(threshs)){
 }
 
 xplot <- seq(1, 5, 1)
-plot(xplot, exceed.t.res[, 1], type="b", pch=21, lty=1, lwd=2,
-     xlim=c(0.5, 5.5), xaxt="n", xlab="lag",
-     ylim=c(0, 0.37), ylab=bquote(paste(hat(chi)[c], "(t)")),
-     # main=bquote(paste(chi, "(t) for ozone residuals")),
-     cex.lab=1.5, cex.axis=1.5, cex.main=2
+plot(xplot, exceed.t.res[, 1],
+  type = "b", pch = 21, lty = 1, lwd = 2,
+  xlim = c(0.5, 5.5), xaxt = "n", xlab = "lag",
+  ylim = c(0, 0.37), ylab = bquote(paste(hat(chi)[c], "(t)")),
+  # main=bquote(paste(chi, "(t) for ozone residuals")),
+  cex.lab = 1.5, cex.axis = 1.5, cex.main = 2
 )
-axis(1, at=xplot, cex.axis=1.5)
+axis(1, at = xplot, cex.axis = 1.5)
 for (line in 2:3) {
-	lines(xplot, exceed.t.res[, line], lty=1, pch=(20 + line), type="b", lwd=2)
+  lines(xplot, exceed.t.res[, line], lty = 1, pch = (20 + line), type = "b", lwd = 2)
 }
-legend("topright", lty=1, pch=21:23, legend=c("c = q(0.90)", "c = q(0.95)", "c = q(0.99)"),
-       title="Sample quantiles", pt.bg="white", cex=1.5, lwd=2)
+legend("topright",
+  lty = 1, pch = 21:23, legend = c("c = q(0.90)", "c = q(0.95)", "c = q(0.99)"),
+  title = "Sample quantiles", pt.bg = "white", cex = 1.5, lwd = 2
+)
 
 # qq plot of residuals
 library(sn)
-res.qq <- sort(as.vector(res))  # sorted residuals
+res.qq <- sort(as.vector(res)) # sorted residuals
 theory.qq <- rep(NA, length(res.qq))
 for (i in 1:length(theory.qq)) {
-	theory.qq[i] <- i / (length(theory.qq) + 1)
+  theory.qq[i] <- i / (length(theory.qq) + 1)
 }
-res.qq <- (res.qq - mean(res.qq, na.rm=T)) / sd(res.qq)
+res.qq <- (res.qq - mean(res.qq, na.rm = T)) / sd(res.qq)
 
 xplot <- qt(theory.qq, 10)
 plot(xplot, res.qq)
@@ -318,16 +343,17 @@ llike.st <- function(params, y) {
 pars <- c(0, 1, 0, 3)
 fit <- optim(par = pars, fn = llike.st, y = res.qq)$par
 
-xi     <- fit[1]  # location
-omega  <- exp(fit[2])  # logscale
-lambda <- fit[3]  # slant
-nu     <- fit[4]  # degrees of freedom
+xi <- fit[1] # location
+omega <- exp(fit[2]) # logscale
+lambda <- fit[3] # slant
+nu <- fit[4] # degrees of freedom
 
 xplot <- qt(theory.qq, 10)
 xplot <- (xplot - mean(xplot))
 plot(xplot[these], res.qq[these],
-     xlab = "Theoretical Quantile", ylab = "Observed Quantile",
-     cex = 1.5, cex.lab = 1.5, cex.axis = 1.5, cex.main = 2)
+  xlab = "Theoretical Quantile", ylab = "Observed Quantile",
+  cex = 1.5, cex.lab = 1.5, cex.axis = 1.5, cex.main = 2
+)
 abline(0, 1)
 
 quartz(width = 6, height = 6)
@@ -336,8 +362,9 @@ par(mfrow = c(1, 2), mar = c(5.1, 4.7, 4.1, 2.1))
 xplot <- qnorm(theory.qq)
 xplot <- (xplot - mean(xplot))
 plot(xplot[these], res.qq[these],
-     xlab = "Theoretical Quantile", ylab = "Observed Quantile",
-     cex = 1.5, cex.lab = 1.5, cex.axis = 1.5, cex.main = 2, pch = 20)
+  xlab = "Theoretical Quantile", ylab = "Observed Quantile",
+  cex = 1.5, cex.lab = 1.5, cex.axis = 1.5, cex.main = 2, pch = 20
+)
 abline(0, 1)
 
 # xplot <- qst(theory.qq, xi = xi, omega = omega, alpha = lambda, nu = nu)
@@ -346,9 +373,10 @@ xplot <- qst(theory.qq, alpha = 1, nu = 10)
 
 xplot <- (xplot - mean(xplot))
 plot(xplot[these], res.qq[these],
-     xlab="Theoretical Quantile", ylab="Observed Quantile",
-     #main="Q-Q plot: Skew-t with 10 d.f. and alpha = 1"
-     cex=1.5, cex.lab=1.5, cex.axis=1.5, cex.main=2, pch = 20)
+  xlab = "Theoretical Quantile", ylab = "Observed Quantile",
+  # main="Q-Q plot: Skew-t with 10 d.f. and alpha = 1"
+  cex = 1.5, cex.lab = 1.5, cex.axis = 1.5, cex.main = 2, pch = 20
+)
 abline(0, 1)
 
 dev.print(width = 12, height = 6, device = pdf, file = "plots/qq-res.pdf")
@@ -359,26 +387,26 @@ library(fields)
 library(mvtnorm)
 library(sn)
 
-rm(list=ls())
-source('../../../R/mcmc.R', chdir=T)
-source('../../../R/auxfunctions.R')
+rm(list = ls())
+source("../../../R/mcmc.R", chdir = T)
+source("../../../R/auxfunctions.R")
 
 # Setup from Brian
 load("../ozone_data.RData")
-S <- cbind(x[s[, 1]], y[s[, 2]])  # expands the grid of x, y locs where we have CMAQ
+S <- cbind(x[s[, 1]], y[s[, 2]]) # expands the grid of x, y locs where we have CMAQ
 
 # Exclude if site is missing more than 50% of its days
-excl  <- which(rowMeans(is.na(Y)) > 0.50)
+excl <- which(rowMeans(is.na(Y)) > 0.50)
 index <- index[-excl]
-Y     <- Y[-excl, ]
-S     <- S[-excl, ]
-cmaq  <- CMAQ[index, ]
-cmaq  <- (cmaq - mean(cmaq)) / sd(cmaq)  # center and scale CMAQ data
+Y <- Y[-excl, ]
+S <- S[-excl, ]
+cmaq <- CMAQ[index, ]
+cmaq <- (cmaq - mean(cmaq)) / sd(cmaq) # center and scale CMAQ data
 
 # add in intercept
 nt <- ncol(Y)
 ns <- nrow(Y)
-X  <- array(1, dim=c(nrow(cmaq), nt, 2))
+X <- array(1, dim = c(nrow(cmaq), nt, 2))
 for (t in 1:nt) {
   X[, t, 2] <- cmaq[, t]
 }
@@ -395,16 +423,16 @@ for (t in 2:nt) {
   x.lm <- rbind(x.lm, X[, t, c(1, 2)])
 }
 
-ozone.stlm  <- selm(y.lm ~ x.lm[, 2], family="ST")  # automatically includes int
-ozone.lm    <- lm(y.lm ~ x.lm[, 2])
-ozone.res   <- residuals(ozone.stlm)
-ozone.dp    <- ozone.stlm@param$dp
+ozone.stlm <- selm(y.lm ~ x.lm[, 2], family = "ST") # automatically includes int
+ozone.lm <- lm(y.lm ~ x.lm[, 2])
+ozone.res <- residuals(ozone.stlm)
+ozone.dp <- ozone.stlm@param$dp
 ozone.omega <- ozone.dp[3]
 ozone.alpha <- ozone.dp[4]
-ozone.nu    <- ozone.dp[5]
+ozone.nu <- ozone.dp[5]
 
-probs <- seq(0.000001, 0.999999, length=length(ozone.res))
-ozone.quant.obs <- quantile(ozone.res, probs=probs)
+probs <- seq(0.000001, 0.999999, length = length(ozone.res))
+ozone.quant.obs <- quantile(ozone.res, probs = probs)
 ozone.quant.the <- rep(0, length(ozone.res))
 for (i in 1:33) {
   start <- (i - 1) * 1000 + 1
@@ -414,23 +442,27 @@ for (i in 1:33) {
     end <- length(ozone.res)
   }
   print(paste("start =", start))
-  ozone.quant.the[start:end] <- qst(probs[start:end], xi=0, omega=ozone.omega,
-                                    alpha=ozone.alpha, nu=ozone.nu)
+  ozone.quant.the[start:end] <- qst(probs[start:end],
+    xi = 0, omega = ozone.omega,
+    alpha = ozone.alpha, nu = ozone.nu
+  )
 }
-save.image(file="ozone-qq.RData")
+save.image(file = "ozone-qq.RData")
 
 load("ozone-qq.RData")
 library(sn)
-plot(ozone.quant.the, ozone.quant.obs, main="Q-Q plot for ozone data")
+plot(ozone.quant.the, ozone.quant.obs, main = "Q-Q plot for ozone data")
 
 # we don't necessarily need to have all quantiles for the Q-Q plot. Just focus
 # on the tails
 quantiles <- (1:32692) / (32692 + 1)
 include <- c(1:500, 32192:32692)
 include.quant <- quantiles[c(1:500, 32192:32692)]
-ozone.quant.sub.obs <- quantile(ozone.res, probs=include.quant)
-ozone.quant.sub.the <- qst(include.quant, xi=0, omega=ozone.omega,
-                           alpha=ozone.alpha, nu=ozone.nu)
+ozone.quant.sub.obs <- quantile(ozone.res, probs = include.quant)
+ozone.quant.sub.the <- qst(include.quant,
+  xi = 0, omega = ozone.omega,
+  alpha = ozone.alpha, nu = ozone.nu
+)
 
 plot(ozone.quant.sub.the, ozone.quant.sub.obs)
 abline(0, 1)
@@ -488,22 +520,22 @@ abline(0, 1)
 # nt <- ncol(aqs)
 # X <- array(1, dim=c(ns, nt, 7))
 # for(t in 1:nt){
-  # X[, t, 2] <- s[, 1]    # Long
-  # X[, t, 3] <- s[, 2]    # Lat
-  # X[, t, 4] <- s[, 1]^2  # Long^2
-  # X[, t, 5] <- s[, 2]^2  # Lat^2
-  # X[, t, 6] <- s[, 1] * s[, 2]  # Interaction
-  # X[, t, 7] <- aqs.cmaq[, t]   # CMAQ
+# X[, t, 2] <- s[, 1]    # Long
+# X[, t, 3] <- s[, 2]    # Lat
+# X[, t, 4] <- s[, 1]^2  # Long^2
+# X[, t, 5] <- s[, 2]^2  # Lat^2
+# X[, t, 6] <- s[, 1] * s[, 2]  # Interaction
+# X[, t, 7] <- aqs.cmaq[, t]   # CMAQ
 # }
 
 # X.scale <- array(1, dim=c(ns, nt, 7))
 # for(t in 1:nt){
-  # X[, t, 2] <- s.scale[, 1]    # Long
-  # X[, t, 3] <- s.scale[, 2]    # Lat
-  # X[, t, 4] <- s.scale[, 1]^2  # Long^2
-  # X[, t, 5] <- s.scale[, 2]^2  # Lat^2
-  # X[, t, 6] <- s.scale[, 1] * s.scale[, 2]  # Interaction
-  # X[, t, 7] <- aqs.cmaq[, t]   # CMAQ
+# X[, t, 2] <- s.scale[, 1]    # Long
+# X[, t, 3] <- s.scale[, 2]    # Lat
+# X[, t, 4] <- s.scale[, 1]^2  # Long^2
+# X[, t, 5] <- s.scale[, 2]^2  # Lat^2
+# X[, t, 6] <- s.scale[, 1] * s.scale[, 2]  # Interaction
+# X[, t, 7] <- aqs.cmaq[, t]   # CMAQ
 # }
 
 
