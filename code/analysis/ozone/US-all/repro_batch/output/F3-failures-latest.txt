@@ -1,12 +1,3 @@
-Generated at: 2026-03-19 22:37:22
+Generated at: 2026-03-22 02:28:39
 Run label: F3
-Failed settings (6):
-51, 52, 53, 54, 55, 56
-
-Rerun helpers:
-source("us-all-51.R")
-source("us-all-52.R")
-source("us-all-53.R")
-source("us-all-54.R")
-source("us-all-55.R")
-source("us-all-56.R")
+No failed settings in this run.

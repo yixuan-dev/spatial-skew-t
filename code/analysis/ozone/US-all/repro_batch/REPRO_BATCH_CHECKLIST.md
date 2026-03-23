@@ -78,3 +78,32 @@ Numerical values may differ slightly due to platform/R/BLAS/RNG differences.
 ## Notes
 - `us-all-results-quick.R` can still be used as a preflight sanity check, but it is not the final criterion.
 - Prefer checkpointing after each batch and rerun only missing settings.
+
+---
+
+## AR2 smoke phase (comparison workflow gate)
+
+This phase validates AR2 wiring and output contract before any large AR2 run.
+
+### Scope
+- AR2 smoke settings: `101, 102, 103`
+- Loader: `ar2_load.R` (keeps `package_load.R` unchanged)
+- Expected outputs:
+	- `results/us-all-101.RData`
+	- `results/us-all-102.RData`
+	- `results/us-all-103.RData`
+
+### Run options
+- By batch alias:
+	- `Rscript repro_batch/batch_auto_check.R --batch=AR2_SMOKE --label=AR2-SMOKE --stop-on-batch-failure`
+- Equivalent explicit settings:
+	- `Rscript repro_batch/batch_auto_check.R --settings=101,102,103 --label=AR2-SMOKE --stop-on-batch-failure`
+
+### Acceptance checks (smoke gate)
+- `AR2-SMOKE-run-status-latest.csv` reports all settings with `run_status = ok`.
+- Each `results/us-all-<setting>.RData` exists for `101:103`.
+- Each fit object has prediction samples available for scoring:
+	- `fit[[1]][['yp']]` and `fit[[2]][['yp']]` are present and non-empty.
+
+### Next step after passing smoke
+- Proceed to build/extend AR2 settings for full comparison and aggregate with a dedicated results script (without altering baseline `us-all-results.R`).
