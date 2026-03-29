@@ -36,6 +36,38 @@ if Rscript is in PATH, you can simply run:
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" us-all-run.R 114
 ```
 
+### 使用 PowerShell 7 平行腳本（`run-parallel-ps7.ps1`）
+
+如果你要同時跑多個 settings，建議直接使用已儲存的腳本：`run-parallel-ps7.ps1`。
+
+```powershell
+Set-Location "D:\Github\spatial-skew-t\code\analysis\ozone\US-all"
+.\run-parallel-ps7.ps1
+```
+
+腳本內容如下（與目前檔案一致）：
+
+```powershell
+Set-Location "D:\Github\spatial-skew-t\code\analysis\ozone\US-all"
+
+$settings = 1,3..74      # 或自己改成 1..124
+$throttle = 4               # 同時最多幾個進程（建議先 2~4）
+$backend = "legacy"        # legacy / ar2
+$runMode = "prod"          # dev / prod
+$results = "results_new"   # 預設輸出資料夾
+
+$settings | ForEach-Object -Parallel {
+  $s = $_
+  Set-Location "D:\Github\spatial-skew-t\code\analysis\ozone\US-all"
+  $env:US_ALL_MCMC_BACKEND = $using:backend
+  $env:US_ALL_RUN_MODE = $using:runMode
+  $env:US_ALL_RESULTS_DIR = $using:results
+  Rscript us-all-run.R $s
+} -ThrottleLimit $throttle
+```
+
+> 若終端機不是 PowerShell 7，`ForEach-Object -Parallel` 會不可用。請先確認版本，或改用 `Start-Job` 版本。
+
 ---
 
 ## 🔧 環境變數配置
@@ -387,6 +419,7 @@ CV 2 finished. Fold sec: 145.67 | Avg sec/dataset: 134.56
 ```
 D:\Github\spatial-skew-t\code\analysis\ozone\US-all\
 ├── us-all-run.R              ← 統一執行入口（本討論的主角）
+├── run-parallel-ps7.ps1      ← PowerShell 7 平行執行腳本
 ├── package_load.R            ← Legacy 後端依賴
 ├── ar2_load.R                ← AR2 後端依賴
 ├── ar3_load.R                ← （未來）AR3 後端依賴
