@@ -30,6 +30,12 @@ Rscript us-all-run.R 1:124
 Rscript us-all-run.R 1:20 50:60 100:114
 ```
 
+if Rscript is in PATH, you can simply run:
+
+```powershell
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" us-all-run.R 114
+```
+
 ---
 
 ## 🔧 環境變數配置
