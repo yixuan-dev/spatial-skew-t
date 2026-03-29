@@ -11,7 +11,7 @@ if (!exists("update_params_cpp_init")) {
 source('update_params.R')
 
 mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
-                 min.s, max.s,  # don't want to specify defaults
+                 min.s = c(-2.25, -1.55), max.s = c(2.35, 1.30),
                  thresh.all = 0, thresh.quant = TRUE, nknots = 1,
                  keep.knots = FALSE,
                  iters = 5000, burn = 1000, update = 100, thin = 1,

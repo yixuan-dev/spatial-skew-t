@@ -1,0 +1,9 @@
+"quantile","rank","setting","rel_brier_to_gaussian","method","knots","thresh","CMAQ","TS","ar2","is_baseline","is_proposed"
+0.95,1,111,0.985568316004244,"skew-t",7,50,"yes","yes","yes",FALSE,TRUE
+0.95,2,120,0.988640940047673,"skew-t",10,50,"yes","yes","yes",FALSE,TRUE
+0.98,1,58,0.97343131219246,"skew-t",6,50,"yes","yes","",TRUE,FALSE
+0.98,2,55,0.973652178984649,"skew-t",5,50,"yes","yes","",TRUE,FALSE
+0.99,1,68,0.946636327446131,"t",9,75,"yes","yes","",TRUE,FALSE
+0.99,2,8,0.950005025467124,"skew-t",5,50,"yes","no","",TRUE,FALSE
+0.995,1,124,0.953374437154472,"t",15,75,"yes","yes","yes",FALSE,TRUE
+0.995,2,68,0.955641233668561,"t",9,75,"yes","yes","",TRUE,FALSE

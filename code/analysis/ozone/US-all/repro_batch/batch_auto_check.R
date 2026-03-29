@@ -14,24 +14,30 @@ rm(list = ls())
 #   Rscript repro_batch/batch_auto_check.R --full-done --dry-run --stop-on-batch-failure
 #   Rscript repro_batch/batch_auto_check.R --full-done --dry-run --continue-on-error
 # Notes:
-# - The --full-done mode runs all batches sequentially (F1 to F6) and creates checkpoints after each batch. By default, it continues even if a batch has failures, but you can change this behavior with --stop-on-batch-failure or --continue-on-error.
+# - The --full-done mode runs all non-AR2 batches sequentially (F1 to F13) and creates checkpoints after each batch. By default, it continues even if a batch has failures, but you can change this behavior with --stop-on-batch-failure or --continue-on-error.
 #
 # & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\repro_batch\batch_auto_check.R" --batch=F6 --label=F6 --stop-on-batch-failure
 
 main <- function() {
-    default_f1_settings <- c(1, 2, 3, 4, 5, 7, 8, 9, 11, 12, 13, 15, 16, 17)
     ar2_smoke_settings <- c(101, 102, 103)
 
     batch_map <- list(
-        F1 = default_f1_settings,
-        F2 = c(33, 34, 35, 36, 38, 39, 40, 41, 43, 44, 45, 46),
-        F3 = c(51, 52, 53, 54, 55, 56),
-        F4 = c(57, 58, 59, 60, 61, 62),
-        F5 = c(63, 64, 65, 66, 67, 68),
-        F6 = c(69, 70, 71, 72, 73, 74),
-        F7 = 101:108,
-        F8 = 109:116,
-        F9 = 117:124,
+        F1 = 1:2,
+        F2 = 3:8,
+        F3 = 9:14,
+        F4 = 15:20,
+        F5 = 21:26,
+        F6 = 27:32,
+        F7 = 33:38,
+        F8 = 39:44,
+        F9 = 45:50,
+        F10 = 51:56,
+        F11 = 57:62,
+        F12 = 63:68,
+        F13 = 69:74,
+        F14 = 101:108,
+        F15 = 109:116,
+        F16 = 117:124,
         AR2_SMOKE = ar2_smoke_settings,
         A1 = ar2_smoke_settings
     )
@@ -102,7 +108,7 @@ main <- function() {
         run_settings <- batch_map[[batch_arg]]
         run_label <- ifelse(is.na(label_arg), batch_arg, label_arg)
     } else {
-        run_settings <- default_f1_settings
+        run_settings <- batch_map[["F1"]]
         run_label <- ifelse(is.na(label_arg), "F1", label_arg)
     }
 
@@ -127,7 +133,7 @@ main <- function() {
 
     cat("Run label:", run_label, "\n")
     if (full_done) {
-        cat("Mode: full-done (F1 -> F6 sequential)\n")
+        cat("Mode: full-done (F1 -> F13 sequential)\n")
         cat("Batch failure policy:", ifelse(continue_on_error, "continue-on-error", "stop-on-batch-failure"), "\n")
     } else {
         cat("Settings:", paste(run_settings, collapse = ", "), "\n")
@@ -293,7 +299,7 @@ main <- function() {
     }
 
     if (full_done) {
-        full_batch_order <- c("F1", "F2", "F3", "F4", "F5", "F6")
+        full_batch_order <- paste0("F", 1:13)
         all_status <- list()
         completed_batches <- character(0)
         stop_triggered <- FALSE
