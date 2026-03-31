@@ -62,7 +62,7 @@ cv_folds <- cv.lst
 beta_init_default <- beta.init
 tau_init_default <- tau.init
 
-run_mcmc <- if (backend == "ar2") mcmc_ar2 else mcmc
+run_mcmc <- mcmc
 run_maxstable <- if (exists("maxstable", mode = "function")) maxstable else NULL
 
 # Helper function to expand range expressions like "1:124" -> c("1", "2", ..., "124")

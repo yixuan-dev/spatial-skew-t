@@ -907,6 +907,6 @@ get.level.sca <- function(A, cuts) {  # minor speedup in scalar case
   return(lev)
 }
 
-# dlognormal <- function(logx, logmu, sig) {
-#   dnorm(logx, logmu, sig, log=T) - logx
-# }
+dlognormal <- function(logx, logmu, sig) {
+  dnorm(logx, logmu, sig, log=T) - logx
+}

@@ -63,7 +63,7 @@
 # source("update_params.R")
 # source("update_params_ar2.R")
 
-mcmc_ar2 <- function(y, s, x, s.pred = NULL, x.pred = NULL,
+mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                      min.s, max.s, # don't want to specify defaults
                      thresh.all = 0, thresh.quant = TRUE,
                      thresh.site.specific = FALSE, thresh.site = NULL,
