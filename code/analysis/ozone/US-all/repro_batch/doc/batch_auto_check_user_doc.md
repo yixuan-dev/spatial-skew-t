@@ -6,6 +6,10 @@ This document explains how to use:
 
 for batch execution and health-check of `US-all` experiment scripts (`us-all-<setting>.R`).
 
+Current implementation executes settings through the shared runner:
+
+- `us-all-run.R <setting>`
+
 ---
 
 ## What this script is for
@@ -158,14 +162,14 @@ In `--full-done`, each checkpoint batch (`F1`…`F13`) writes its own latest fil
 
 ## `run_status` values (status CSV)
 
-- `ok`: script ran and result file exists
+- `ok`: runner ran and result file exists
 - `already_present`: result existed; script not rerun (unless `--force`)
 - `dry_present`: dry-run saw result file present
 - `dry_missing`: dry-run saw result file missing
-- `script_missing`: `us-all-<setting>.R` not found
-- `missing_result`: script returned but expected `.RData` not found
-- `error`: script raised error and no result file exists
-- `error_result_exists`: script error occurred but result file exists
+- `script_missing`: `us-all-run.R` not found
+- `missing_result`: runner returned but expected `.RData` not found
+- `error`: runner raised error and no result file exists
+- `error_result_exists`: runner error occurred but result file exists
 
 Failure statuses tracked in summary are:
 
@@ -199,8 +203,8 @@ Failure statuses tracked in summary are:
 ## Minimal troubleshooting checklist
 
 - Check `repro_batch/output/<LABEL>-run-status-latest.csv` first.
-- If many `script_missing`: verify script files `us-all-<setting>.R` exist in project root.
-- If many `missing_result`: inspect each setting script for save path/result object logic.
+- If many `script_missing`: verify `us-all-run.R` exists in project root.
+- If many `missing_result`: inspect `us-all-run.R` and `settings.csv` mapping for save path/result object logic.
 - If many `error`: open `error_message` column in status CSV and rerun those settings individually.
 
 ---

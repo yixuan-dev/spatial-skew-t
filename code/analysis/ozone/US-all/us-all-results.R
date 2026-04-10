@@ -1,96 +1,96 @@
-rm(list = ls())
-library(compiler)
-enableJIT(3)
+# rm(list = ls())
+# library(compiler)
+# enableJIT(3)
 
-script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
-if (length(script_arg) > 0) {
-  script_path <- normalizePath(sub("^--file=", "", script_arg[1]), winslash = "/", mustWork = FALSE)
-  script_dir <- dirname(script_path)
-  if (dir.exists(script_dir)) {
-    setwd(script_dir)
-  }
-}
+# script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+# if (length(script_arg) > 0) {
+#   script_path <- normalizePath(sub("^--file=", "", script_arg[1]), winslash = "/", mustWork = FALSE)
+#   script_dir <- dirname(script_path)
+#   if (dir.exists(script_dir)) {
+#     setwd(script_dir)
+#   }
+# }
 
-load("us-all-setup.RData")
-source("../../../R/auxfunctions.R")
-settings <- read.csv("settings.csv")
+# load("us-all-setup.RData")
+# source("../../../R/auxfunctions.R")
+# settings <- read.csv("settings.csv")
 
-probs <- c(0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 0.995)
-thresholds <- quantile(Y, probs = probs, na.rm = T)
-nsets <- 2 # Number of cv sets
-nbetas <- 2 # number of betas
+# probs <- c(0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 0.995)
+# thresholds <- quantile(Y, probs = probs, na.rm = T)
+# nsets <- 2 # Number of cv sets
+# nbetas <- 2 # number of betas
 
-quant.score <- array(NA, dim = c(length(probs), nsets, 74))
-brier.score <- array(NA, dim = c(length(thresholds), nsets, 74))
+# quant.score <- array(NA, dim = c(length(probs), nsets, 74))
+# brier.score <- array(NA, dim = c(length(thresholds), nsets, 74))
 
-beta.0 <- array(NA, dim = c(5000, nsets, 74))
-beta.1 <- array(NA, dim = c(5000, nsets, 74))
-tau.alpha <- array(NA, dim = c(5000, nsets, 74))
-tau.beta <- array(NA, dim = c(5000, nsets, 74))
-lambda <- array(NA, dim = c(5000, nsets, 74))
+# beta.0 <- array(NA, dim = c(5000, nsets, 74))
+# beta.1 <- array(NA, dim = c(5000, nsets, 74))
+# tau.alpha <- array(NA, dim = c(5000, nsets, 74))
+# tau.beta <- array(NA, dim = c(5000, nsets, 74))
+# lambda <- array(NA, dim = c(5000, nsets, 74))
 
-phi.z <- array(NA, dim = c(5000, nsets, 74))
-phi.w <- array(NA, dim = c(5000, nsets, 74))
-phi.tau <- array(NA, dim = c(5000, nsets, 74))
+# phi.z <- array(NA, dim = c(5000, nsets, 74))
+# phi.w <- array(NA, dim = c(5000, nsets, 74))
+# phi.tau <- array(NA, dim = c(5000, nsets, 74))
 
-# load("us-all-results.RData")
-result.files <- list.files("results", pattern = "^us-all-[0-9]+\\.RData$", full.names = FALSE)
-done <- sort(as.integer(sub("^us-all-([0-9]+)\\.RData$", "\\1", result.files)))
-done <- done[!is.na(done) & done >= 1 & done <= 74]
-# quant.score <- savelist[[1]]
-# brier.score <- savelist[[2]]
-# beta.0 <- savelist[[3]]
-# beta.1 <- savelist[[4]]
-# probs <- savelist[[5]]
-# thresholds <- savelist[[6]]
+# # load("us-all-results-0401.RData")
+# result.files <- list.files("results", pattern = "^us-all-[0-9]+\\.RData$", full.names = FALSE)
+# done <- sort(as.integer(sub("^us-all-([0-9]+)\\.RData$", "\\1", result.files)))
+# done <- done[!is.na(done) & done >= 1 & done <= 74]
+# # quant.score <- savelist[[1]]
+# # brier.score <- savelist[[2]]
+# # beta.0 <- savelist[[3]]
+# # beta.1 <- savelist[[4]]
+# # probs <- savelist[[5]]
+# # thresholds <- savelist[[6]]
 
-for (i in 1:74) {
-  file <- paste("results/us-all-", i, ".RData", sep = "")
-  cat("start file", file, "\n")
-  if (i %in% done) {
-    load(file)
-    for (d in 1:nsets) {
-      if (i == 2) {
-        trans <- TRUE
-      } else {
-        trans <- FALSE
-      }
-      fit.d <- fit[[d]]
-      val.idx <- cv.lst[[d]]
-      validate <- Y[val.idx, ]
-      pred.d <- fit.d$yp[, , ]
-      quant.score[, d, i] <- QuantScore(pred.d, probs, validate, trans = trans)
-      brier.score[, d, i] <- BrierScore(pred.d, thresholds, validate,
-        trans = trans
-      )
-      if (i != 2) {
-        beta.0[, d, i] <- fit.d$beta[, 1]
-        beta.1[, d, i] <- fit.d$beta[, 2]
-        tau.alpha[, d, i] <- fit.d$tau.alpha
-        tau.beta[, d, i] <- fit.d$tau.beta
-        if (!is.null(fit.d$lambda)) {
-          lambda[, d, i] <- fit.d$lambda
-        }
-      }
-    }
-  }
-  cat("finish file", file, "\n")
-}
+# for (i in 1:74) {
+#   file <- paste("results/us-all-", i, ".RData", sep = "")
+#   cat("start file", file, "\n")
+#   if (i %in% done) {
+#     load(file)
+#     for (d in 1:nsets) {
+#       if (i == 2) {
+#         trans <- TRUE
+#       } else {
+#         trans <- FALSE
+#       }
+#       fit.d <- fit[[d]]
+#       val.idx <- cv.lst[[d]]
+#       validate <- Y[val.idx, ]
+#       pred.d <- fit.d$yp[, , ]
+#       quant.score[, d, i] <- QuantScore(pred.d, probs, validate, trans = trans)
+#       brier.score[, d, i] <- BrierScore(pred.d, thresholds, validate,
+#         trans = trans
+#       )
+#       if (i != 2) {
+#         beta.0[, d, i] <- fit.d$beta[, 1]
+#         beta.1[, d, i] <- fit.d$beta[, 2]
+#         tau.alpha[, d, i] <- fit.d$tau.alpha
+#         tau.beta[, d, i] <- fit.d$tau.beta
+#         if (!is.null(fit.d$lambda)) {
+#           lambda[, d, i] <- fit.d$lambda
+#         }
+#       }
+#     }
+#   }
+#   cat("finish file", file, "\n")
+# }
 
-savelist <- list(
-  quant.score, brier.score,
-  beta.0, beta.1,
-  probs, thresholds
-)
+# savelist <- list(
+#   quant.score, brier.score,
+#   beta.0, beta.1,
+#   probs, thresholds
+# )
 
-save(savelist, file = "us-all-results.RData")
+# save(savelist, file = "us-all-results-0401.RData")
 
 rm(list = ls())
 library(fields)
 source("../../../R/auxfunctions.R")
 load("../ozone_data.RData")
 load("us-all-setup.RData") # setup removes sites with too many missing obs
-load("us-all-results.RData")
+load("us-all-results-0401.RData")
 settings <- read.csv("settings.csv")
 
 quant.score <- savelist[[1]]
@@ -284,8 +284,6 @@ for (d in 1:2) {
   pred.d <- fit.d$yp[, , ]
   brier.score.site[val.idx, 3] <- BrierScoreSite(pred.d, 75, validate)
 }
-
-
 
 
 # get tau such that q(tau) = 75 for each site
@@ -910,13 +908,13 @@ for (i in 2:3) {
 }
 legend("topright", pch = c(21, 24, 23), lty = 1, legend = c("Gaussian", "skew-t, K=10, T=q(0)", "Max-stable"), pt.bg = "white")
 
-round(quant.score.mean[c(2, 6, 10, 14), c(6, 9:12)], 4)
-round(quant.score.se[c(10:13, 15:19), c(6, 9:12)], 4)
-round(brier.score.mean[c(10:19), c(6, 9:12)] * 1000, 3)
-round(brier.score.se[c(10:19), c(6, 9:12)] * 1000, 3)
+# round(quant.score.mean[c(2, 6, 10, 14), c(6, 9:12)], 4)
+# round(quant.score.se[c(10:13, 15:19), c(6, 9:12)], 4)
+# round(brier.score.mean[c(10:19), c(6, 9:12)] * 1000, 3)
+# round(brier.score.se[c(10:19), c(6, 9:12)] * 1000, 3)
 
-round(quant.score.mean, 4)
-round(brier.score.mean * 1000, 4)
+# round(quant.score.mean, 4)
+# round(brier.score.mean * 1000, 4)
 
 
 
@@ -989,7 +987,7 @@ yp <- y.pred
 np <- dim(yp)[2]
 niters <- dim(yp)[1]
 set.3.95.q <- apply(yp, c(1, 2), quantile, probs = 0.95)
-set.3.95.q <- apply(yp, c(1, 2), quantile, probs = 0.99)
+set.3.99.q <- apply(yp, c(1, 2), quantile, probs = 0.99)
 # set.3.95 <- apply(yp, c(2), quantile, probs=0.95)
 # set.3.99 <- apply(yp, c(2), quantile, probs=0.99)
 set.3.95 <- apply(set.3.95.q, 2, mean)

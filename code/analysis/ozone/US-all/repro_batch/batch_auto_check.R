@@ -15,6 +15,7 @@ rm(list = ls())
 #   Rscript repro_batch/batch_auto_check.R --full-done --dry-run --continue-on-error
 # Notes:
 # - The --full-done mode runs all non-AR2 batches sequentially (F1 to F13) and creates checkpoints after each batch. By default, it continues even if a batch has failures, but you can change this behavior with --stop-on-batch-failure or --continue-on-error.
+# - Execution lane now uses one shared runner: us-all-run.R <setting>
 #
 # & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\repro_batch\batch_auto_check.R" --batch=F6 --label=F6 --stop-on-batch-failure
 
@@ -123,6 +124,27 @@ main <- function() {
     project_dir <- normalizePath(file.path(script_dir, ".."), winslash = "/", mustWork = TRUE)
     results_dir <- file.path(project_dir, "results")
     output_dir <- file.path(script_dir, "output")
+    runner_file <- file.path(project_dir, "us-all-run.R")
+
+    resolve_rscript_path <- function() {
+        sys_r <- Sys.which("Rscript")
+        local_r <- file.path(
+            R.home("bin"),
+            ifelse(.Platform$OS.type == "windows", "Rscript.exe", "Rscript")
+        )
+
+        candidates <- c(sys_r, local_r)
+        candidates <- candidates[nzchar(candidates)]
+        candidates <- unique(normalizePath(candidates, winslash = "/", mustWork = FALSE))
+
+        hit <- candidates[file.exists(candidates)]
+        if (length(hit) == 0) {
+            stop("Cannot find Rscript executable. Please ensure Rscript is available.")
+        }
+        hit[1]
+    }
+
+    rscript_bin <- resolve_rscript_path()
 
     if (!dir.exists(results_dir)) {
         dir.create(results_dir, recursive = TRUE)
@@ -140,8 +162,8 @@ main <- function() {
     }
     cat("dry_run =", dry_run, "; force_run =", force_run, "\n\n")
 
-    run_one_setting <- function(setting, project_dir, results_dir, dry_run = FALSE, force_run = FALSE) {
-        script_file <- file.path(project_dir, sprintf("us-all-%d.R", setting))
+    run_one_setting <- function(setting, project_dir, results_dir, runner_file, rscript_bin, dry_run = FALSE, force_run = FALSE) {
+        script_file <- runner_file
         result_file <- file.path(results_dir, sprintf("us-all-%d.RData", setting))
 
         start_time <- Sys.time()
@@ -158,11 +180,21 @@ main <- function() {
         } else {
             err <- NULL
             tic <- proc.time()[3]
+            run_output <- character(0)
+            exit_status <- 0L
 
             tryCatch(
                 {
-                    script_env <- new.env(parent = globalenv())
-                    source(script_file, chdir = TRUE, local = script_env)
+                    run_output <- system2(
+                        command = rscript_bin,
+                        args = c(script_file, as.character(setting)),
+                        stdout = TRUE,
+                        stderr = TRUE
+                    )
+                    exit_attr <- attr(run_output, "status")
+                    if (!is.null(exit_attr)) {
+                        exit_status <- as.integer(exit_attr)
+                    }
                 },
                 error = function(e) {
                     err <<- conditionMessage(e)
@@ -171,7 +203,7 @@ main <- function() {
 
             elapsed_sec <- proc.time()[3] - tic
 
-            if (is.null(err)) {
+            if (is.null(err) && exit_status == 0L) {
                 if (file.exists(result_file)) {
                     run_status <- "ok"
                 } else {
@@ -179,6 +211,13 @@ main <- function() {
                     error_message <- "Script finished but result file not found."
                 }
             } else {
+                if (is.null(err)) {
+                    out_tail <- tail(run_output, 20)
+                    err <- paste(c(
+                        sprintf("Rscript exit status: %d", exit_status),
+                        out_tail
+                    ), collapse = "\n")
+                }
                 error_message <- err
                 if (file.exists(result_file)) {
                     run_status <- "error_result_exists"
@@ -242,8 +281,8 @@ main <- function() {
                 sprintf("Failed settings (%d):", length(failed_settings)),
                 paste(failed_settings, collapse = ", "),
                 "",
-                "Rerun helpers:",
-                paste(sprintf("source(\"us-all-%d.R\")", failed_settings), collapse = "\n")
+                "Rerun helpers (from US-all directory):",
+                paste(sprintf("Rscript us-all-run.R %d", failed_settings), collapse = "\n")
             )
         } else {
             fail_lines <- c(
@@ -289,6 +328,8 @@ main <- function() {
             run_one_setting,
             project_dir = project_dir,
             results_dir = results_dir,
+            runner_file = runner_file,
+            rscript_bin = rscript_bin,
             dry_run = dry_run,
             force_run = force_run
         )

@@ -1,9 +1,10 @@
-options(warn=2)
+options(warn = 2)
 library(fields)
 library(SpatialTools)
 library(mvtnorm)
 
-source('./package_load.R', chdir = TRUE)
+source("./package_load.R", chdir = TRUE)
+# source("./ar2_load.R", chdir = TRUE)
 load("../ozone_data.RData")
 load("results/us-all-full-1.RData")
 
@@ -15,19 +16,19 @@ y <- y / 1000
 CMAQ.cs <- (CMAQ - mean(CMAQ)) / sd(CMAQ)
 
 # where did we actually observe ozone
-S       <- cbind(x[s[, 1]], y[s[, 2]])  # expands the grid of x, y
-excl    <- which(rowMeans(is.na(Y)) > 0.50)  # remove where we're missing 50%
-index   <- index[-excl]
-S.o     <- S[-excl, ]
-cmaq.o  <- CMAQ.cs[index, ]
+S <- cbind(x[s[, 1]], y[s[, 2]]) # expands the grid of x, y
+excl <- which(rowMeans(is.na(Y)) > 0.50) # remove where we're missing 50%
+index <- index[-excl]
+S.o <- S[-excl, ]
+cmaq.o <- CMAQ.cs[index, ]
 
 # where to make the predictions: southeast is in [1000, 2000] x [-1000, 0]
 S.p <- expand.grid(x, y)
 keep.these <- (S.p[, 1] > 1.03 & S.p[, 1] < 1.7) &
-              (S.p[, 2] > -0.96 & S.p[, 2] < -0.40)
-S.p     <- S.p[keep.these, ]
+  (S.p[, 2] > -0.96 & S.p[, 2] < -0.40)
+S.p <- S.p[keep.these, ]
 CMAQ.cs <- (CMAQ - mean(CMAQ)) / sd(CMAQ)
-cmaq.p  <- CMAQ.cs[keep.these, ]
+cmaq.p <- CMAQ.cs[keep.these, ]
 
 # nx      <- length(unique(S.p[, 1]))
 # ny      <- length(unique(S.p[, 2]))
@@ -45,37 +46,39 @@ for (t in 1:nt) {
 }
 
 # preliminary setup
-nreps     <- dim(fit$tau)[1]
-d11       <- rdist(S.p, S.p)
-d22       <- rdist(S.o, S.o)
+nreps <- dim(fit$tau)[1]
+d11 <- rdist(S.p, S.p)
+d22 <- rdist(S.o, S.o)
 diag(d11) <- 0
 diag(d22) <- 0
-d12       <- rdist(S.p, S.o)
+d12 <- rdist(S.p, S.o)
 cov.model <- "matern"
-x.beta    <- matrix(0, ns, nt)
-taug      <- matrix(0, ns, nt)
-zg        <- matrix(0, ns, nt)
-g         <- matrix(0, ns, nt)
+x.beta <- matrix(0, ns, nt)
+taug <- matrix(0, ns, nt)
+zg <- matrix(0, ns, nt)
+g <- matrix(0, ns, nt)
 
 # storage
-y.pred    <- array(0, c(5000, np, nt))
+y.pred <- array(0, c(5000, np, nt))
 
 set.seed(1)
 for (i in 1:nreps) {
   # get values for current iteration from mcmc
-  rho   <- fit$rho[i]
-  nu    <- fit$nu[i]
+  rho <- fit$rho[i]
+  nu <- fit$nu[i]
   gamma <- fit$gamma[i]
-  beta  <- fit$beta[i, ]
-  tau   <- matrix(fit$tau[i, ], 1, nt)
+  beta <- fit$beta[i, ]
+  tau <- matrix(fit$tau[i, ], 1, nt)
   knots <- array(0, dim = c(1, 2, nt))
-  z     <- matrix(0, 1, nt)
-  y     <- fit$y[i, , ]  # want to use imputed y not true y
+  z <- matrix(0, 1, nt)
+  y <- fit$y[i, , ] # want to use imputed y not true y
   lambda <- 0
 
   # precision matrix
-  C <- gamma * simple.cov.sp(D = d22, sp.type = cov.model, sp.par = c(1, rho),
-                             error.var = 0, smoothness = nu, finescale.var = 0)
+  C <- gamma * simple.cov.sp(
+    D = d22, sp.type = cov.model, sp.par = c(1, rho),
+    error.var = 0, smoothness = nu, finescale.var = 0
+  )
   diag(C) <- 1
   prec <- chol2inv(chol(C))
 
@@ -83,23 +86,25 @@ for (i in 1:nreps) {
   g <- matrix(1, ns, nt)
   for (t in 1:nt) {
     x.beta[, t] <- X.o[, t, ] %*% beta
-    taug[, t]   <- tau[g[, t], t]
-    zg[, t]     <- z[g[, t], t]
+    taug[, t] <- tau[g[, t], t]
+    zg[, t] <- z[g[, t], t]
   }
 
-  mu  <- x.beta + lambda * zg
+  mu <- x.beta + lambda * zg
   res <- y - mu
 
-  y.pred[i, , ] <- predictY_cont_lambda(d11 = d11, d12 = d12, 
-                                        cov.model = cov.model, rho = rho, 
-                                        nu = nu, gamma = gamma, res = res, 
-                                        beta = beta, tau = tau, taug = taug, 
-                                        z = z, prec = prec, lambda = lambda,
-                                        s.pred = S.p, x.pred = X.p, 
-                                        knots = knots)
+  y.pred[i, , ] <- predictY_cont_lambda(
+    d11 = d11, d12 = d12,
+    cov.model = cov.model, rho = rho,
+    nu = nu, gamma = gamma, res = res,
+    beta = beta, tau = tau, taug = taug,
+    z = z, prec = prec, lambda = lambda,
+    s.pred = S.p, x.pred = X.p,
+    knots = knots
+  )
 
   if (i %% 500 == 0) {
     print(paste("Iter", i))
   }
 }
-save(y.pred, file=outputfile)
+save(y.pred, file = outputfile)

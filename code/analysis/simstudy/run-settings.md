@@ -1,16 +1,24 @@
-# run-setting5.R 使用說明
+# run-settings.R 使用說明（setting 旗標放最前）
 
-此腳本用於 data setting = 5（Skew-t, K=5, lambda=3）的複現實驗，支援：
+此腳本可執行任意 data setting（預設為 5：Skew-t, K=5, lambda=3）的複現實驗，支援：
 
 - `datasets` 向量輸入（例如 `1:5`、`20:28`）
 - `methods` 向量輸入（例如 `1:5`、`(1,2,6)`）
 - methods 1–5 的平行執行（PSOCK）
 - method 6（max-stable）以 `ms_threads` 控制 C++ threads
 
+> 檔名已由 `run-setting5.R` / `run-setting5.md` 調整為 `run-settings.R` / `run-settings.md`。
+
 ## 命令列格式
 
-`Rscript run-setting5.R [datasets] [workers] [ms_threads] [methods]`
+`Rscript run-settings.R [--setting=<id>|--setting <id>] [datasets] [workers] [ms_threads] [methods]`
 
+- 若提供 `--setting`，必須放在腳本名稱後的**第一個參數位置**。
+- 若未提供 `--setting`，預設使用 `setting = 5`。
+
+### 參數說明
+
+- `setting`：單一整數 setting（有效範圍依 `simdata.RData` 的 setting 維度）
 - `datasets`：dataset 向量表達式（範圍 1..50）
 - `workers`：methods 1–5 的平行 worker 數
 - `ms_threads`：method 6 的執行緒數
@@ -51,19 +59,19 @@
 
 每次任務輸出為：
 
-`results/5-<method_id>-<dataset_id>.RData`
+`results/<setting>-<method_id>-<dataset_id>.RData`
 
 例如：
 
 - `results/5-2-1.RData`
-- `results/5-6-28.RData`
+- `results/3-6-28.RData`
 
 ## Windows PowerShell 範例
 
 ```powershell
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-setting5.R" "1:5" 4 2 "1:6"
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-setting5.R" "20:28" 3 2 "1:5"
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-setting5.R" "1:5" 2 2 "(1,2,6)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=3 "1:5" 4 2 "1:6"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=4 "20:28" 3 2 "1:5"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 2 2 "(1,2,6)"
 ```
 
 ## 平行策略說明
