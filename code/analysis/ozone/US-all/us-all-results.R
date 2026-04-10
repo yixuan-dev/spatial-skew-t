@@ -1,3 +1,8 @@
+# ======================================================================
+# [00] OPTIONAL LEGACY BATCH ASSEMBLY (COMMENTED BLOCK)
+# Purpose: Historical code to aggregate CV outputs from per-model result
+# files and save a consolidated results object.
+# ======================================================================
 # rm(list = ls())
 # library(compiler)
 # enableJIT(3)
@@ -85,6 +90,10 @@
 
 # save(savelist, file = "us-all-results-0401.RData")
 
+# ======================================================================
+# [01] INITIALIZE ANALYSIS SESSION
+# Purpose: Load helper functions/data and unpack combined score objects.
+# ======================================================================
 rm(list = ls())
 library(fields)
 source("../../../R/auxfunctions.R")
@@ -100,6 +109,10 @@ beta.1 <- savelist[[4]]
 probs <- savelist[[5]]
 thresholds <- savelist[[6]]
 
+# ======================================================================
+# [02] COMPUTE MODEL-WISE SUMMARY STATISTICS
+# Purpose: Mean/SE of Quantile and Brier scores across CV splits.
+# ======================================================================
 quant.score.mean <- matrix(NA, 74, length(probs))
 brier.score.mean <- matrix(NA, 74, length(thresholds))
 
@@ -118,6 +131,10 @@ for (i in 1:74) {
   }
 }
 
+# ======================================================================
+# [03] IDENTIFY BEST MODELS BY THRESHOLD
+# Purpose: Find model IDs with minimum mean score at each threshold.
+# ======================================================================
 quant.score.mean[c(1:10, 13, 14, 17:19, 21, 23, 25, 26), ]
 for (i in 1:length(thresholds)) {
   print(which(quant.score.mean[, i] == min(quant.score.mean[, i], na.rm = T)))
@@ -127,6 +144,10 @@ for (i in 1:length(thresholds)) {
   print(which(brier.score.mean[, i] == min(brier.score.mean[, i], na.rm = T)))
 }
 
+# ======================================================================
+# [04] BUILD RELATIVE-TO-GAUSSIAN PERFORMANCE MATRICES
+# Purpose: Express each model's mean score as a ratio to Gaussian baseline.
+# ======================================================================
 bs.mean.ref.gau <- matrix(NA, nrow = 73, ncol = 11)
 qs.mean.ref.gau <- matrix(NA, nrow = 73, ncol = 11)
 for (i in 1:73) {
@@ -134,6 +155,10 @@ for (i in 1:73) {
   qs.mean.ref.gau[i, ] <- quant.score.mean[(i + 1), ] / quant.score.mean[1, ]
 }
 
+# ======================================================================
+# [05] SITE-LEVEL BRIER SCORES FOR SELECTED MODELS
+# Purpose: Compute per-site Brier scores at high threshold for key models.
+# ======================================================================
 # spatially plot brier scores for q(0.95): Gaussian, Skew-t 1, Skew-t 5 (T= 50)
 # Sym-t 10 (T = 75)
 val.idx <- c(cv.lst[[1]], cv.lst[[2]])
@@ -236,6 +261,10 @@ for (d in 1:2) {
   brier.score.site[start:end, 4] <- this.score * 100
 }
 
+# ======================================================================
+# [06] SPATIAL BRIER MAP VISUALIZATION
+# Purpose: Plot and export site-level Brier surfaces.
+# ======================================================================
 windows(width = 10, height = 14)
 zlim <- range(brier.score.site[, c(1, 4)])
 par(mfrow = c(2, 1))
@@ -267,6 +296,10 @@ lines(borders / 1000)
 dev.print(device = pdf, file = "plots/bs-site.pdf")
 dev.off()
 
+# ======================================================================
+# [07] ADDITIONAL SITE-LEVEL COMPARISON (MODELS 16, 36)
+# Purpose: Compare alternative candidate models at site level.
+# ======================================================================
 load("results/us-all-16.RData")
 for (d in 1:2) {
   fit.d <- fit[[d]]
@@ -286,6 +319,10 @@ for (d in 1:2) {
 }
 
 
+# ======================================================================
+# [08] LINK SITE OZONE REGIME TO PERFORMANCE
+# Purpose: Relate model performance to empirical site ozone behavior.
+# ======================================================================
 # get tau such that q(tau) = 75 for each site
 library(np)
 Y < 75
@@ -338,6 +375,10 @@ lines(ozone.quant.site[plot.ord], fitted(fit.np)[plot.ord], lty = 2)
 
 # create storage for all 800 sites
 
+# ======================================================================
+# [09] TOP-MODEL LOOKUP AT SELECTED QUANTILES
+# Purpose: Identify best and second-best settings under selected thresholds.
+# ======================================================================
 # find top two for selected quantiles
 score.compare <- bs.mean.ref.gau[, c(1, 6, 9:11)]
 idx <- which(score.compare[, 1] == min(score.compare[, 1], na.rm = T))
@@ -361,6 +402,10 @@ idx <- order(score.compare[, 4])[2]
 score.compare[idx, 4]
 idx <- order(score.compare[, 5])[2]
 score.compare[idx, 5]
+# ======================================================================
+# [10] COMPARATIVE SUMMARY PLOTS (TIME SERIES × THRESHOLD × KNOTS)
+# Purpose: Compare major modeling design choices using line summaries.
+# ======================================================================
 # three main plots (keep max-stable in all for now)
 #   time series vs no time-series
 #   3 different threshold levels
@@ -541,6 +586,10 @@ legend("bottomleft",
 bg <- c("firebrick1", "dodgerblue1", "darkolivegreen1", "orange1", "gray80")
 col <- c("firebrick4", "dodgerblue4", "darkolivegreen4", "orange4", "gray16")
 
+# ======================================================================
+# [11] PAPER-STYLE PANELS (TIME SERIES VS NON-TIME SERIES)
+# Purpose: Build publication-focused comparison figures.
+# ======================================================================
 # another set of plots, 1 time series, 1 no time series
 # bs-ozone.pdf
 these <- 6:11
@@ -646,6 +695,10 @@ abline(h = 1, lty = 2)
 dev.print(device = pdf, file = "../../../../LaTeX/plots/bs-ozone.pdf")
 
 
+# ======================================================================
+# [12] EXTENDED EXPLORATORY PLOTS
+# Purpose: Detailed diagnostics across knot counts and thresholds.
+# ======================================================================
 # one knot
 windows(width = 15, height = 12)
 par(mfrow = c(3, 2), mar = c(5.1, 5.1, 4.1, 2.1))
@@ -818,6 +871,10 @@ legend("bottomleft",
 
 
 
+# ======================================================================
+# [13] STATISTICAL SIGNIFICANCE CHECKS
+# Purpose: Wilcoxon tests for pairwise score differences.
+# ======================================================================
 wilcox.results.gau <- matrix(NA, nrow = length(probs), ncol = 4)
 part.best <- c(6, 33, 34, 35)
 for (i in 1:length(probs)) {
@@ -888,6 +945,10 @@ lines(xplot, bs.mean.ref.gau[45, c(10:11)], type = "b", col = col[2], bg = bg[2]
 lines(xplot, bs.mean.ref.gau[47, c(10:11)], type = "b", col = col[2], bg = bg[2], pch = 15) # 10 knots, no skew, time series
 lines(xplot, bs.mean.ref.gau[49, c(10:11)], type = "b", col = col[2], bg = bg[2], pch = 15) # 15 knots, no skew, time series
 
+# ======================================================================
+# [14] HEATMAP-STYLE SCORE SUMMARY
+# Purpose: Compact matrix view of selected quantile-score settings.
+# ======================================================================
 library(fields)
 xplot <- c(1:4)
 yplot <- c(1:4)
@@ -918,6 +979,10 @@ legend("topright", pch = c(21, 24, 23), lty = 1, legend = c("Gaussian", "skew-t,
 
 
 
+# ======================================================================
+# [15] POSTERIOR PREDICTION WORKFLOW
+# Purpose: Generate posterior exceedance and quantile summaries by model.
+# ======================================================================
 # posterior predictions
 rm(list = ls())
 load("../ozone_data.RData")
@@ -1065,35 +1130,35 @@ set.8.p.atleast1 <- 1 - set.8.p.0
 set.8.p.atleast2 <- 1 - (set.8.p.0 + set.8.p.1)
 set.8.p.atleast3 <- 1 - (set.8.p.0 + set.8.p.1 + set.8.p.2)
 
-# # 6 knots - Time series - T = 75
-# load('us-all-pred-59.RData')
-# yp <- y.pred
-# np <- dim(yp)[2]
-# set.59.95 <- apply(yp, c(2), quantile, probs=0.95)
-# set.59.99 <- apply(yp, c(2), quantile, probs=0.99)
-# set.59.p.below <- matrix(0, np, nt)
-# for (i in 1:np) { for (t in 1:nt) {
-#   set.59.p.below[i, t] <- mean(yp[, i, t] <= threshold)
-# } }
-# set.59.p.0 <- rep(0, np)
-# for(i in 1:np) {
-#   set.59.p.0[i] <- prod(set.59.p.below[i, ])
-# }
-# set.59.p.1 <- rep(0, np)
-# for (i in 1:np) { for (t in 1:nt) {
-#   set.59.p.1[i] <- set.59.p.1[i] + prod(set.59.p.below[i, -t]) *
-#     (1 - set.59.p.below[i, t])
-# } }
-# set.59.p.2 <- rep(0, np)
-# for(i in 1:np) { for (t in 1:(nt - 1)) {
-#   for (s in (t+1):nt) {
-#     set.59.p.2[i] <- set.59.p.2[i] + prod(set.59.p.below[i, -c(s,t)]) *
-#       prod(1 - set.59.p.below[i, c(s, t)])
-#   }
-# }}
-# set.59.p.atleast1 <- 1 - set.59.p.0
-# set.59.p.atleast2 <- 1 - (set.59.p.0 + set.59.p.1)
-# set.59.p.atleast3 <- 1 - (set.59.p.0 + set.59.p.1 + set.59.p.2)
+# 6 knots - Time series - T = 75
+load('us-all-pred-59.RData')
+yp <- y.pred
+np <- dim(yp)[2]
+set.59.95 <- apply(yp, c(2), quantile, probs=0.95)
+set.59.99 <- apply(yp, c(2), quantile, probs=0.99)
+set.59.p.below <- matrix(0, np, nt)
+for (i in 1:np) { for (t in 1:nt) {
+  set.59.p.below[i, t] <- mean(yp[, i, t] <= threshold)
+} }
+set.59.p.0 <- rep(0, np)
+for(i in 1:np) {
+  set.59.p.0[i] <- prod(set.59.p.below[i, ])
+}
+set.59.p.1 <- rep(0, np)
+for (i in 1:np) { for (t in 1:nt) {
+  set.59.p.1[i] <- set.59.p.1[i] + prod(set.59.p.below[i, -t]) *
+    (1 - set.59.p.below[i, t])
+} }
+set.59.p.2 <- rep(0, np)
+for(i in 1:np) { for (t in 1:(nt - 1)) {
+  for (s in (t+1):nt) {
+    set.59.p.2[i] <- set.59.p.2[i] + prod(set.59.p.below[i, -c(s,t)]) *
+      prod(1 - set.59.p.below[i, c(s, t)])
+  }
+}}
+set.59.p.atleast1 <- 1 - set.59.p.0
+set.59.p.atleast2 <- 1 - (set.59.p.0 + set.59.p.1)
+set.59.p.atleast3 <- 1 - (set.59.p.0 + set.59.p.1 + set.59.p.2)
 
 # 10 knots - Time series - T = 75
 load("us-all-pred-71.RData")
@@ -1136,6 +1201,10 @@ for (i in 1:np) {
 set.71.p.atleast1 <- 1 - set.71.p.0
 set.71.p.atleast2 <- 1 - (set.71.p.0 + set.71.p.1)
 set.71.p.atleast3 <- 1 - (set.71.p.0 + set.71.p.1 + set.71.p.2)
+# ======================================================================
+# [16] SAVE / MERGE PREDICTION MAP OBJECTS
+# Purpose: Persist and combine prediction summaries for mapping.
+# ======================================================================
 rm(y.pred)
 rm(yp)
 save.image(file = "predict-maps.RData")
@@ -1148,6 +1217,10 @@ load("predict-maps-71.RData")
 save.image(file = "predict-maps.RData")
 
 
+# ======================================================================
+# [17] GENERATE AND EXPORT PREDICTION MAPS
+# Purpose: Draw exceedance, quantile, and model-difference maps.
+# ======================================================================
 # make the prediction maps
 rm(list = ls())
 load("predict-maps.RData")
@@ -1305,7 +1378,7 @@ lines(borders / 1000)
 quilt.plot(
   x = S.p[, 1], y = S.p[, 2], matrix(set.1.99), nx = nx, ny = ny,
   yaxt = "n", xaxt = "n", zlim = c(60, 120),
-  # main="Gaussian",
+  main="Gaussian",
   cex = 1.5
 )
 lines(borders / 1000, lwd = 2)
@@ -1332,11 +1405,11 @@ quilt.plot(
 )
 lines(borders / 1000, lwd = 2)
 dev.print(device = pdf, file = "./plots/q99skewt5-50.pdf", width = 6, height = 6)
-#
-# quilt.plot(x=S.p[, 1], y=S.p[, 2], matrix(set.59.99), nx=nx, ny=ny,
-#            yaxt="n", xaxt="n",zlim=c(60, 120),
-#            main="Skew-t, K=6, Time Series, T=75")
-# lines(borders/1000)
+
+quilt.plot(x=S.p[, 1], y=S.p[, 2], matrix(set.59.99), nx=nx, ny=ny,
+           yaxt="n", xaxt="n",zlim=c(60, 120),
+           main="Skew-t, K=6, Time Series, T=75")
+lines(borders/1000)
 
 quilt.plot(
   x = S.p[, 1], y = S.p[, 2], matrix(set.71.99), nx = nx, ny = ny,
@@ -1348,7 +1421,7 @@ lines(borders / 1000)
 quilt.plot(
   x = S.p[, 1], y = S.p[, 2], matrix(set.71.99), nx = nx, ny = ny,
   yaxt = "n", xaxt = "n", zlim = c(60, 120),
-  # main="Sym-t, K=10, T=75, Time Series",
+  main="Sym-t, K=10, T=75, Time Series",
   cex = 1.5
 )
 lines(borders / 1000, lwd = 2)
@@ -1375,7 +1448,7 @@ diff.71.3 <- set.71.99 - set.3.99
 quilt.plot(
   x = S.p[, 1], y = S.p[, 2], matrix(diff.71.3), nx = nx, ny = ny,
   yaxt = "n", xaxt = "n",
-  # main="Difference of Gaussian and skew-t",
+  main="Difference of Gaussian and skew-t",
   cex = 1.5
 )
 lines(borders / 1000, lwd = 2)
@@ -1391,7 +1464,6 @@ lines(borders / 1000, lwd = 2)
 dev.print(device = pdf, file = "./plots/diffgausskewt5-50.pdf", width = 6, height = 6)
 
 
-
 # zlim=c(0, 122)
 # quilt.plot(x=S.p[, 1], y=S.p[, 2], matrix(CMAQ.p[, 5]), zlim=zlim, nx=nx, ny=ny)
 # lines(borders/1000)
@@ -1400,337 +1472,352 @@ dev.print(device = pdf, file = "./plots/diffgausskewt5-50.pdf", width = 6, heigh
 
 # probability of exceeding 75ppb at least once
 
+# ======================================================================
+# [18] OPTIONAL MCMC TRACE DIAGNOSTICS (COMMENTED BLOCK)
+# Purpose: Archived trace-plot code for latent states and parameters.
+# ======================================================================
+# ------------------------------------------------------------------
+# 
+# ------------------------------------------------------------------
+
+# load("us-all-setup.RData")
+# source("../../../R/auxfunctions.R")
+
+# load("results/us-all-10.RData")
+
+# par(mfrow = c(5, 5))
+# days1 <- c(1, 4, 7, 10, 13)
+# days2 <- c(16, 19, 22, 25, 28)
+
+# # plot tau
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+
+# for (i in 6:10) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 6:10) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+
+# # plot z
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 6:10) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 6:10) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
 
-load("us-all-setup.RData")
-source("../../../R/auxfunctions.R")
+# load("results/us-all-6.RData")
+# days1 <- c(1, 4, 7, 10, 13)
+# days2 <- c(16, 19, 22, 25, 28)
+# par(mfrow = c(5, 5))
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
-load("results/us-all-10.RData")
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
-par(mfrow = c(5, 5))
-days1 <- c(1, 4, 7, 10, 13)
-days2 <- c(16, 19, 22, 25, 28)
+# par(mfrow = c(2, 5))
+# plot(fit[[1]]$alpha, type = "l")
+# plot(fit[[1]]$tau.alpha, type = "l")
+# plot(fit[[1]]$tau.beta, type = "l")
+# plot(fit[[1]]$rho, type = "l")
+# plot(fit[[1]]$nu, type = "l")
+# plot(fit[[1]]$beta[, 1], type = "l")
+# plot(fit[[1]]$beta[, 2], type = "l")
 
-# plot tau
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 6:10) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
+# par(mfrow = c(5, 5))
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[2]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[2]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 6:10) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[2]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[2]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
-# plot z
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 6:10) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
+# par(mfrow = c(2, 5))
+# plot(fit[[2]]$alpha, type = "l")
+# plot(fit[[2]]$tau.alpha, type = "l")
+# plot(fit[[2]]$tau.beta, type = "l")
+# plot(fit[[2]]$rho, type = "l")
+# plot(fit[[2]]$nu, type = "l")
+# plot(fit[[2]]$beta[, 1], type = "l")
+# plot(fit[[2]]$beta[, 2], type = "l")
 
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 6:10) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
+# load("results/us-all-31.RData")
+# days1 <- c(1, 4, 7, 10, 13)
+# days2 <- c(16, 19, 22, 25, 28)
+# par(mfrow = c(5, 5))
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
-load("results/us-all-6.RData")
-days1 <- c(1, 4, 7, 10, 13)
-days2 <- c(16, 19, 22, 25, 28)
-par(mfrow = c(5, 5))
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
+# par(mfrow = c(2, 5))
+# plot(fit[[1]]$alpha, type = "l")
+# plot(fit[[1]]$tau.alpha, type = "l")
+# plot(fit[[1]]$tau.beta, type = "l")
+# plot(fit[[1]]$rho, type = "l")
+# plot(fit[[1]]$nu, type = "l")
+# plot(fit[[1]]$phi.z, type = "l")
+# plot(fit[[1]]$phi.tau, type = "l")
+# plot(fit[[1]]$phi.w, type = "l")
+# plot(fit[[1]]$beta[, 1], type = "l")
+# plot(fit[[1]]$beta[, 2], type = "l")
 
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
+# par(mfrow = c(5, 5))
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[2]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[2]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
-par(mfrow = c(2, 5))
-plot(fit[[1]]$alpha, type = "l")
-plot(fit[[1]]$tau.alpha, type = "l")
-plot(fit[[1]]$tau.beta, type = "l")
-plot(fit[[1]]$rho, type = "l")
-plot(fit[[1]]$nu, type = "l")
-plot(fit[[1]]$beta[, 1], type = "l")
-plot(fit[[1]]$beta[, 2], type = "l")
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days1[j]))
+#     plot(fit[[2]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
+# for (i in 1:5) {
+#   for (j in 1:5) {
+#     xlab <- print(paste("knot", i))
+#     main <- print(paste("day", days2[j]))
+#     plot(fit[[2]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
+#   }
+# }
 
-par(mfrow = c(5, 5))
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[2]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[2]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[2]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[2]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-
-par(mfrow = c(2, 5))
-plot(fit[[2]]$alpha, type = "l")
-plot(fit[[2]]$tau.alpha, type = "l")
-plot(fit[[2]]$tau.beta, type = "l")
-plot(fit[[2]]$rho, type = "l")
-plot(fit[[2]]$nu, type = "l")
-plot(fit[[2]]$beta[, 1], type = "l")
-plot(fit[[2]]$beta[, 2], type = "l")
-
-load("results/us-all-31.RData")
-days1 <- c(1, 4, 7, 10, 13)
-days2 <- c(16, 19, 22, 25, 28)
-par(mfrow = c(5, 5))
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[1]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[1]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-
-par(mfrow = c(2, 5))
-plot(fit[[1]]$alpha, type = "l")
-plot(fit[[1]]$tau.alpha, type = "l")
-plot(fit[[1]]$tau.beta, type = "l")
-plot(fit[[1]]$rho, type = "l")
-plot(fit[[1]]$nu, type = "l")
-plot(fit[[1]]$phi.z, type = "l")
-plot(fit[[1]]$phi.tau, type = "l")
-plot(fit[[1]]$phi.w, type = "l")
-plot(fit[[1]]$beta[, 1], type = "l")
-plot(fit[[1]]$beta[, 2], type = "l")
-
-par(mfrow = c(5, 5))
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[2]]$tau[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[2]]$tau[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days1[j]))
-    plot(fit[[2]]$z[, i, days1[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-for (i in 1:5) {
-  for (j in 1:5) {
-    xlab <- print(paste("knot", i))
-    main <- print(paste("day", days2[j]))
-    plot(fit[[2]]$z[, i, days2[j]], type = "l", xlab = xlab, main = main)
-  }
-}
-
-par(mfrow = c(2, 5))
-plot(fit[[2]]$alpha, type = "l")
-plot(fit[[2]]$tau.alpha, type = "l")
-plot(fit[[2]]$tau.beta, type = "l")
-plot(fit[[2]]$rho, type = "l")
-plot(fit[[2]]$nu, type = "l")
-plot(fit[[2]]$phi.z, type = "l")
-plot(fit[[2]]$phi.tau, type = "l")
-plot(fit[[2]]$phi.w, type = "l")
-plot(fit[[2]]$beta[, 1], type = "l")
-plot(fit[[2]]$beta[, 2], type = "l")
+# par(mfrow = c(2, 5))
+# plot(fit[[2]]$alpha, type = "l")
+# plot(fit[[2]]$tau.alpha, type = "l")
+# plot(fit[[2]]$tau.beta, type = "l")
+# plot(fit[[2]]$rho, type = "l")
+# plot(fit[[2]]$nu, type = "l")
+# plot(fit[[2]]$phi.z, type = "l")
+# plot(fit[[2]]$phi.tau, type = "l")
+# plot(fit[[2]]$phi.w, type = "l")
+# plot(fit[[2]]$beta[, 1], type = "l")
+# plot(fit[[2]]$beta[, 2], type = "l")
 
 
-load("results/us-all-2.RData")
-par(mfrow = c(3, 5))
-days1 <- seq(1, 30, by = 2)
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[1]]$tau[, j], type = "l", xlab = xlab, main = main)
-}
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[1]]$z[, j], type = "l", xlab = xlab, main = main)
-}
-plot(fit[[1]]$alpha, type = "l")
-plot(fit[[1]]$tau.alpha, type = "l")
-plot(fit[[1]]$tau.beta, type = "l")
-plot(fit[[1]]$rho, type = "l")
-plot(fit[[1]]$nu, type = "l")
-plot(fit[[1]]$beta[, 1], type = "l")
-plot(fit[[1]]$beta[, 2], type = "l")
+# load("results/us-all-2.RData")
+# par(mfrow = c(3, 5))
+# days1 <- seq(1, 30, by = 2)
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[1]]$tau[, j], type = "l", xlab = xlab, main = main)
+# }
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[1]]$z[, j], type = "l", xlab = xlab, main = main)
+# }
+# plot(fit[[1]]$alpha, type = "l")
+# plot(fit[[1]]$tau.alpha, type = "l")
+# plot(fit[[1]]$tau.beta, type = "l")
+# plot(fit[[1]]$rho, type = "l")
+# plot(fit[[1]]$nu, type = "l")
+# plot(fit[[1]]$beta[, 1], type = "l")
+# plot(fit[[1]]$beta[, 2], type = "l")
 
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[2]]$tau[, j], type = "l", xlab = xlab, main = main)
-}
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[2]]$z[, j], type = "l", xlab = xlab, main = main)
-}
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[2]]$tau[, j], type = "l", xlab = xlab, main = main)
+# }
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[2]]$z[, j], type = "l", xlab = xlab, main = main)
+# }
 
-plot(fit[[2]]$alpha, type = "l")
-plot(fit[[2]]$tau.alpha, type = "l")
-plot(fit[[2]]$tau.beta, type = "l")
-plot(fit[[2]]$rho, type = "l")
-plot(fit[[2]]$nu, type = "l")
-plot(fit[[2]]$beta[, 1], type = "l")
-plot(fit[[2]]$beta[, 2], type = "l")
+# plot(fit[[2]]$alpha, type = "l")
+# plot(fit[[2]]$tau.alpha, type = "l")
+# plot(fit[[2]]$tau.beta, type = "l")
+# plot(fit[[2]]$rho, type = "l")
+# plot(fit[[2]]$nu, type = "l")
+# plot(fit[[2]]$beta[, 1], type = "l")
+# plot(fit[[2]]$beta[, 2], type = "l")
 
-load("results/us-all-27.RData")
-par(mfrow = c(3, 5))
-days1 <- seq(1, 30, by = 2)
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[1]]$tau[, j], type = "l", xlab = xlab, main = main)
-}
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[1]]$z[, j], type = "l", xlab = xlab, main = main)
-}
-plot(fit[[1]]$alpha, type = "l")
-plot(fit[[1]]$tau.alpha, type = "l")
-plot(fit[[1]]$tau.beta, type = "l")
-plot(fit[[1]]$rho, type = "l")
-plot(fit[[1]]$nu, type = "l")
-plot(fit[[1]]$phi.z, type = "l")
-plot(fit[[1]]$phi.tau, type = "l")
-plot(fit[[1]]$beta[, 1], type = "l")
-plot(fit[[1]]$beta[, 2], type = "l")
+# load("results/us-all-27.RData")
+# par(mfrow = c(3, 5))
+# days1 <- seq(1, 30, by = 2)
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[1]]$tau[, j], type = "l", xlab = xlab, main = main)
+# }
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[1]]$z[, j], type = "l", xlab = xlab, main = main)
+# }
+# plot(fit[[1]]$alpha, type = "l")
+# plot(fit[[1]]$tau.alpha, type = "l")
+# plot(fit[[1]]$tau.beta, type = "l")
+# plot(fit[[1]]$rho, type = "l")
+# plot(fit[[1]]$nu, type = "l")
+# plot(fit[[1]]$phi.z, type = "l")
+# plot(fit[[1]]$phi.tau, type = "l")
+# plot(fit[[1]]$beta[, 1], type = "l")
+# plot(fit[[1]]$beta[, 2], type = "l")
 
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[2]]$tau[, j], type = "l", xlab = xlab, main = main)
-}
-for (j in days1) {
-  xlab <- print(paste("knot 1"))
-  main <- print(paste("day", j))
-  plot(fit[[2]]$z[, j], type = "l", xlab = xlab, main = main)
-}
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[2]]$tau[, j], type = "l", xlab = xlab, main = main)
+# }
+# for (j in days1) {
+#   xlab <- print(paste("knot 1"))
+#   main <- print(paste("day", j))
+#   plot(fit[[2]]$z[, j], type = "l", xlab = xlab, main = main)
+# }
 
-plot(fit[[2]]$alpha, type = "l")
-plot(fit[[2]]$tau.alpha, type = "l")
-plot(fit[[2]]$tau.beta, type = "l")
-plot(fit[[2]]$rho, type = "l")
-plot(fit[[2]]$nu, type = "l")
-plot(fit[[2]]$phi.z, type = "l")
-plot(fit[[2]]$phi.tau, type = "l")
-plot(fit[[2]]$beta[, 1], type = "l")
-plot(fit[[2]]$beta[, 2], type = "l")
+# plot(fit[[2]]$alpha, type = "l")
+# plot(fit[[2]]$tau.alpha, type = "l")
+# plot(fit[[2]]$tau.beta, type = "l")
+# plot(fit[[2]]$rho, type = "l")
+# plot(fit[[2]]$nu, type = "l")
+# plot(fit[[2]]$phi.z, type = "l")
+# plot(fit[[2]]$phi.tau, type = "l")
+# plot(fit[[2]]$beta[, 1], type = "l")
+# plot(fit[[2]]$beta[, 2], type = "l")
 
+# ------------------------------------------------------------------
+# 
+# ------------------------------------------------------------------
+
+# ======================================================================
+# [19] CLOSE-VS-FAR SITE DEPENDENCE DIAGNOSTICS
+# Purpose: Compare nearby vs distant stations via rank-style summaries.
+# ======================================================================
 # get an idea of two sites that are close to one another vs far apart
 rm(list = ls())
 library(fields)
@@ -1827,3 +1914,4 @@ plot(quant.far.1, quant.far.2,
 # # plot(y.full.p,me)
 # # abline(0,1)
 # # print(mean(y.full.p>lo & y.full.p<hi))
+  

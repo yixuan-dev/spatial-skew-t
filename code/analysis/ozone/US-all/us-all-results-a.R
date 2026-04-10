@@ -38,7 +38,7 @@ for (i in 1:50) {
   }
   cat("start file", file, "\n")
   if (i %in% done) {
-    load(file)
+    load(paste("results/", file, sep = ""))
     for (d in 1:nsets) {
       fit.d <- fit[[d]]
       val.idx <- cv.lst[[d]]
