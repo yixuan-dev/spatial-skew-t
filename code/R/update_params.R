@@ -1128,7 +1128,8 @@ predictY_disc_lambda <- function(d11, d12, cov.model, rho, nu, gamma, res,
                           })
 
   for (t in 1:nt) {
-    xp.beta  <- x.pred[, t, ] %*% beta
+    xpred.t  <- matrix(x.pred[, t, ], nrow = np, ncol = dim(x.pred)[3])
+    xp.beta  <- xpred.t %*% beta
     if (nknots == 1) {
       gp <- rep(1, np)
     } else {
@@ -1176,7 +1177,8 @@ predictY_cont_lambda <- function(d11, d12, cov.model, rho, nu, gamma, res,
   t.corp.sd.mtx <- t(corp.sd.mtx)
 
   for (t in 1:nt) {
-    xp.beta  <- x.pred[, t, ] %*% beta
+    xpred.t  <- matrix(x.pred[, t, ], nrow = np, ncol = dim(x.pred)[3])
+    xp.beta  <- xpred.t %*% beta
     if (nknots == 1) {
       gp <- rep(1, np)
     } else {

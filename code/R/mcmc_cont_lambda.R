@@ -342,7 +342,8 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     lambda <- this.update$lambda
 
     for (t in 1:nt) {
-      x.beta[, t] <- x[, t, ] %*% beta
+      x.t <- matrix(x[, t, ], nrow = ns, ncol = p)
+      x.beta[, t] <- x.t %*% beta
     }
     mu <- x.beta + lambda * zg
     res <- y - mu

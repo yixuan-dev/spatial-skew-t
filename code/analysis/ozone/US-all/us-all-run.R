@@ -34,6 +34,13 @@ if (!dir.exists(results_dir)) {
   cat("Created results directory:", results_dir, "\n")
 }
 
+# Optional compatibility output:
+# when enabled, setting tokens like "5a" will also be saved as "us-all-5-a.RData"
+write_legacy_a_alias <- truthy(Sys.getenv("US_ALL_WRITE_LEGACY_A_ALIAS", unset = "false"))
+if (write_legacy_a_alias) {
+  cat("Legacy -a alias output: enabled\n")
+}
+
 backend <- tolower(Sys.getenv("US_ALL_MCMC_BACKEND", unset = "legacy"))
 if (!backend %in% c("legacy", "ar2")) {
   stop("US_ALL_MCMC_BACKEND must be one of: legacy, ar2", call. = FALSE)
@@ -303,6 +310,14 @@ run_one_setting <- function(setting_token) {
   }
 
   outputfile <- file.path(results_dir, sprintf("us-all-%s.RData", setting_token))
+  legacy_a_outputfile <- NULL
+  if (write_legacy_a_alias) {
+    alias_match <- regmatches(setting_token, regexec("^([0-9]+)a$", setting_token))[[1]]
+    if (length(alias_match) == 2) {
+      legacy_a_outputfile <- file.path(results_dir, sprintf("us-all-%s-a.RData", alias_match[2]))
+    }
+  }
+
   fit <- vector(mode = "list", length = 2)
 
   start <- proc.time()
@@ -431,9 +446,15 @@ run_one_setting <- function(setting_token) {
 
     cat("CV", val, "finished. Fold sec:", round(time.set, 2), "| Avg sec/dataset:", round(avg.time.val, 2), "\n")
     save(fit, file = outputfile)
+    if (!is.null(legacy_a_outputfile)) {
+      save(fit, file = legacy_a_outputfile)
+    }
   }
 
   cat("Saved:", outputfile, "\n")
+  if (!is.null(legacy_a_outputfile)) {
+    cat("Saved legacy alias:", legacy_a_outputfile, "\n")
+  }
 }
 
 for (setting_token in requested_settings) {

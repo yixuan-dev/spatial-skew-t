@@ -10,7 +10,8 @@ find_setting_meta <- function(settings, setting_id) {
     return(data.frame())
   }
 
-  meta <- settings_local[settings_local$setting_num == setting_id, , drop = FALSE]
+  idx_num <- !is.na(settings_local$setting_num) & settings_local$setting_num == setting_id
+  meta <- settings_local[idx_num, , drop = FALSE]
   if (nrow(meta) == 0 && "setting" %in% names(settings_local)) {
     meta <- settings_local[as.character(settings_local$setting) == as.character(setting_id), , drop = FALSE]
   }

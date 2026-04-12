@@ -1,6 +1,4 @@
 rm(list = ls())
-library(compiler)
-enableJIT(3)
 
 script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
 if (length(script_arg) > 0) {
@@ -11,5 +9,5 @@ if (length(script_arg) > 0) {
   }
 }
 
-# Canonical implementation lives in refactor_results.
-source("refactor_results/12_run_proposed_results.R")
+source("./mrts_cov_helpers.R")
+run_mrts_pot_setting(setting_id = 4L)

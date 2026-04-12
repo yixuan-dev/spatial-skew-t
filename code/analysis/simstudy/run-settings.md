@@ -1,37 +1,38 @@
-# run-settings.R 使用說明（setting 旗標放最前）
+# run-settings.R 使用說明
 
-此腳本可執行任意 data setting（預設為 5：Skew-t, K=5, lambda=3）的複現實驗，支援：
+此腳本可執行任意 data setting 的複現實驗，支援：
 
-- `datasets` 向量輸入（例如 `1:5`、`20:28`）
-- `methods` 向量輸入（例如 `1:5`、`(1,2,6)`）
+- `datasets` 向量輸入，例如 `1:5`、`20:28`
+- `methods` 向量輸入，例如 `1:6`、`(2,3,6)`
 - methods 1–5 的平行執行（PSOCK）
 - method 6（max-stable）以 `ms_threads` 控制 C++ threads
-
-> 檔名已由 `run-setting5.R` / `run-setting5.md` 調整為 `run-settings.R` / `run-settings.md`。
+- 以額外參數 `mrts_k` 為 methods 1–5 加入指定數量的 MRTS basis
 
 ## 命令列格式
 
-`Rscript run-settings.R [--setting=<id>|--setting <id>] [datasets] [workers] [ms_threads] [methods]`
+`Rscript run-settings.R [--setting=<id>|--setting <id>] [datasets] [workers] [ms_threads] [methods] [mrts_k]`
 
-- 若提供 `--setting`，必須放在腳本名稱後的**第一個參數位置**。
+- 若提供 `--setting`，必須放在腳本名稱後的第一個參數位置。
 - 若未提供 `--setting`，預設使用 `setting = 5`。
+- `mrts_k` 為選填；若提供，會在原本選到的 methods 中，自動為 method 1–5 加上對應的 MRTS 版本。
 
-### 參數說明
+## 參數說明
 
 - `setting`：單一整數 setting（有效範圍依 `simdata.RData` 的 setting 維度）
 - `datasets`：dataset 向量表達式（範圍 1..50）
 - `workers`：methods 1–5 的平行 worker 數
 - `ms_threads`：method 6 的執行緒數
 - `methods`：method 向量表達式（範圍 1..6）
+- `mrts_k`：MRTS basis 個數，可為單一整數或向量；只會套用到 method 1–5
 
-### 支援的向量語法
+## 支援的向量語法
 
 - `1:5`
 - `20:28`
 - `c(1,2,6)`
-- `(1,2,6)`（會自動轉為 `c(1,2,6)`）
+- `(1,2,6)`，會自動轉為 `c(1,2,6)`
 
-> 建議在 PowerShell 以字串傳入（加雙引號），避免 shell 先行解讀。
+PowerShell 建議用字串傳入，避免 shell 先行解讀。
 
 ## 方法編號
 
@@ -42,45 +43,80 @@
 - 5: t, K=5, threshold q(0.80)
 - 6: Max-stable, threshold q(0.80)
 
-## Seed 規則（重點）
+## MRTS 擴增規則
 
-當 `datasets` 與 `methods` 改為向量時，每個 `(dataset, method)` 任務都在函數內獨立設定 seed：
+若 `mrts_k` 非空，runner 會額外為 `methods` 內選到的 method 1–5 建立：
 
-- methods 1–5：`set.seed(method_id * 1000 + setting * 100 + dataset_id)`
-- method 6：`set.seed(setting * 100 + dataset_id)`
+- `1+mrts{K}`：method 1 加上 `K` 個 MRTS basis
+- `2+mrts{K}`：method 2 加上 `K` 個 MRTS basis
+- `3+mrts{K}`：method 3 加上 `K` 個 MRTS basis
+- `4+mrts{K}`：method 4 加上 `K` 個 MRTS basis
+- `5+mrts{K}`：method 5 加上 `K` 個 MRTS basis
+
+例如：
+
+- `methods="(1,4,6)"` 且 `mrts_k="15"`
+
+實際執行的 method key 會是：
+
+- `1`
+- `4`
+- `6`
+- `1+mrts15`
+- `4+mrts15`
+
+若 `methods` 沒有包含 1–5，提供 `mrts_k` 不會新增任何 MRTS task。
+
+## Seed 規則
+
+- methods 1–5（無 MRTS）：`method_id * 1000 + setting * 100 + dataset_id`
+- method 6：`setting * 100 + dataset_id`
+- MRTS 版本：`method_id * 1000 + setting * 100 + dataset_id + mrts_k * 100000`
 
 這可確保：
 
-1. 同一個 `(dataset_id, method_id)` 在重跑時可重現
+1. 同一個 `(dataset_id, method_id, mrts_k)` 重跑時可重現
 2. 平行或序列執行順序不應改變該組合的亂數路徑
-3. 只跑 methods 子集合時，不影響已執行方法本身的 seed 定義
+3. 不同 `mrts_k` 之間不會共用 seed
 
 ## 輸出檔名
 
-每次任務輸出為：
+baseline 方法輸出：
 
-`results/<setting>-<method_id>-<dataset_id>.RData`
+- `results/<setting>-<method_id>-<dataset_id>.RData`
+
+MRTS 擴增版本輸出：
+
+- `results/<setting>-<method_id>-<dataset_id>-K{K}.RData`
 
 例如：
 
 - `results/5-2-1.RData`
-- `results/3-6-28.RData`
+- `results/5-3-1-K15.RData`
+- `results/5-2-28-K5.RData`
+
+每次執行也會另外輸出：
+
+- `results/run-plan-setting-<setting>.csv`
+
+這份檔案會列出本次所有實際排入的 method key 與其參數。
 
 ## Windows PowerShell 範例
 
 ```powershell
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=3 "1:5" 4 2 "1:6"
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=4 "20:28" 3 2 "1:5"
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 2 2 "(1,2,6)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "1:6"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "(1,4,6)" "15"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "(1,3,5)" "c(5,10,15)"
 ```
 
 ## 平行策略說明
 
-- methods 1–5：建立 `dataset × method` 任務網格後，派發至 PSOCK workers。
-- method 6：依 dataset 逐一執行（內部用 `ms_threads`）。
+- methods 1–5 與其 MRTS 擴增版本：建立 `dataset × method_key` 任務網格，派發至 PSOCK workers
+- method 6：依 dataset 逐一執行，內部用 `ms_threads`
 
-如果你只想先 smoke test，可先用：
+若只想先 smoke test，建議：
 
 - `datasets="1"`
-- `methods="(2)"` 或 `methods="(6)"`
+- `methods="(1,4)"`
+- `mrts_k="15"`
 - `workers=1`
