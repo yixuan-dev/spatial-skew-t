@@ -98,6 +98,46 @@ build_simstudy_result_file <- function(results_dir, setting_id, method_id, datas
   )
 }
 
+format_runtime_timestamp <- function(timestamp) {
+  if (length(timestamp) == 0 || anyNA(timestamp)) {
+    return(NA_character_)
+  }
+
+  format(as.POSIXct(timestamp, tz = "UTC"), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
+build_simstudy_runtime_info <- function(
+    started_at,
+    elapsed_sec,
+    outputfile,
+    setting_id,
+    dataset_id,
+    runner,
+    method_id = NA_integer_,
+    method_key = NA_character_,
+    mrts_k = NA_integer_,
+    backend = NA_character_,
+    control = NULL
+) {
+  finished_at <- started_at + as.numeric(elapsed_sec)
+
+  list(
+    schema_version = 1L,
+    runner = as.character(runner),
+    output_file = outputfile,
+    setting_id = as.integer(setting_id),
+    dataset_id = as.integer(dataset_id),
+    method_id = if (is.na(method_id)) NA_integer_ else as.integer(method_id),
+    method_key = if (is.na(method_key)) NA_character_ else as.character(method_key),
+    mrts_k = if (is.na(mrts_k)) NA_integer_ else as.integer(mrts_k),
+    backend = if (length(backend) == 0 || is.na(backend) || !nzchar(backend)) NA_character_ else as.character(backend),
+    started_at_utc = format_runtime_timestamp(started_at),
+    finished_at_utc = format_runtime_timestamp(finished_at),
+    elapsed_sec = unname(as.numeric(elapsed_sec)),
+    control = control
+  )
+}
+
 get_simstudy_seed <- function(setting_id, method_id, dataset_id, mrts_k = NA_integer_) {
   if (is.na(mrts_k) && as.integer(method_id) == 6L) {
     return(as.integer(setting_id) * 100L + as.integer(dataset_id))
@@ -445,6 +485,7 @@ run_mrts_pot_setting <- function(
         "\n"
       )
 
+      started_at <- Sys.time()
       tic <- proc.time()
       if (isTRUE(spec$use_exponential_fallback[1])) {
         fit.1 <- tryCatch(
@@ -529,9 +570,27 @@ run_mrts_pot_setting <- function(
 
       analysis_spec <- spec
       mrts_meta <- mrts_cache[[as.character(mrts_k)]]
-      save(fit.1, analysis_spec, mrts_meta, file = outputfile)
+      runtime_info <- build_simstudy_runtime_info(
+        started_at = started_at,
+        elapsed_sec = elapsed_sec,
+        outputfile = outputfile,
+        setting_id = setting_id,
+        dataset_id = dataset_id,
+        runner = "mrts_cov_helpers.R::run_mrts_pot_setting",
+        method_id = method_id,
+        method_key = spec$method_key[1],
+        mrts_k = mrts_k,
+        backend = backend,
+        control = list(
+          iters = 20000L,
+          burn = 10000L,
+          update = 1000L,
+          thin = 1L
+        )
+      )
+      save(fit.1, analysis_spec, mrts_meta, runtime_info, file = outputfile)
 
-      rm(fit.1, analysis_spec, mrts_meta)
+      rm(fit.1, analysis_spec, mrts_meta, runtime_info)
       gc()
     }
   }

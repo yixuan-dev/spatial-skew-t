@@ -6,6 +6,7 @@ source("refactor_results/02_comparison_tables.R")
 
 set_working_dir_to_script()
 ctx <- load_us_all_context()
+ensure_us_all_output_dirs()
 
 normalize_yes_no <- function(x) {
   txt <- tolower(trimws(as.character(x)))
@@ -223,9 +224,9 @@ if (nrow(comparison_paired_same_basis) > 0) {
   )
 }
 
-write.csv(comparison_full_table, "comparison_full_table.csv", row.names = FALSE)
-write.csv(comparison_top2, "comparison_top2.csv", row.names = FALSE)
-write.csv(comparison_paired_same_basis, "comparison_paired_same_basis.csv", row.names = FALSE)
+write.csv(comparison_full_table, us_all_output_path("comparison_full_table.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_top2, us_all_output_path("comparison_top2.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_paired_same_basis, us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), row.names = FALSE)
 
 available_settings <- summary_obj$available_settings
 skipped_missing_file <- summary_obj$skipped_missing_file
@@ -251,7 +252,7 @@ save(
     "comparison_full_table", "comparison_top2", "comparison_paired_same_basis",
     "score_obj", "summary_obj"
   ),
-  file = "us-all-results-proposed.RData"
+  file = us_all_output_path("us-all-results-proposed.RData", subdir = "results")
 )
 
 cat("Result directories searched (priority order):\n")
@@ -260,7 +261,7 @@ for (d in result_dirs) {
 }
 
 cat("Outputs written:\n")
-cat("- us-all-results-proposed.RData\n")
-cat("- comparison_full_table.csv\n")
-cat("- comparison_top2.csv\n")
-cat("- comparison_paired_same_basis.csv\n")
+cat("- ", us_all_output_path("us-all-results-proposed.RData", subdir = "results"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_full_table.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_top2.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), "\n", sep = "")

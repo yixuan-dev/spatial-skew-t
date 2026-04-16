@@ -52,6 +52,7 @@ for (t in 1:nt) {
   X[, t, 2] <- cmaq[, t]
 }
 
+run_started_at <- Sys.time()
 start <- proc.time()
 
 y.o <- Y
@@ -73,4 +74,25 @@ time.set <- (toc.set - tic.set)[3]
 
 elap.time.val <- (proc.time() - start)[3]
 avg.time.val <- elap.time.val
-save(fit, file=outputfile)
+runtime_finished_at <- run_started_at + as.numeric(elap.time.val)
+runtime_info <- list(
+  schema_version = 1L,
+  runner = "us-all-full-71.R",
+  output_file = outputfile,
+  setting = as.integer(setting),
+  method = method,
+  skew = isTRUE(skew),
+  nknots = as.integer(nknots),
+  keep_knots = isTRUE(keep.knots),
+  threshold = as.numeric(threshold),
+  thresh_quant = isTRUE(thresh.quant),
+  temporalw = isTRUE(temporalw),
+  temporalz = isTRUE(temporalz),
+  temporaltau = isTRUE(temporaltau),
+  started_at_utc = format(as.POSIXct(run_started_at, tz = "UTC"), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+  finished_at_utc = format(as.POSIXct(runtime_finished_at, tz = "UTC"), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+  elapsed_sec = unname(as.numeric(elap.time.val)),
+  fit_elapsed_sec = unname(as.numeric(time.set)),
+  control = list(iters = 30000L, burn = 25000L, update = 500L, thin = 1L)
+)
+save(fit, runtime_info, file=outputfile)

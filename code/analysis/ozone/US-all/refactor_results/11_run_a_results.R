@@ -5,6 +5,7 @@ source("refactor_results/01_score_engine.R")
 
 set_working_dir_to_script()
 ctx <- load_us_all_context()
+ensure_us_all_output_dirs()
 
 probs <- default_probs(include_999 = TRUE)
 thresholds <- quantile(ctx$Y, probs = probs, na.rm = TRUE)
@@ -52,7 +53,7 @@ available_settings <- summary_obj$available_settings
 # Legacy compatibility object from us-all-results-a.R
 beta.0 <- array(NA_real_, dim = c(5000, length(ctx$cv_lst), summary_obj$max_setting))
 savelist <- list(quant.score, brier.score, beta.0, probs, thresholds)
-save(savelist, file = "us-all-results-combined.RData")
+save(savelist, file = us_all_output_path("us-all-results-combined.RData", subdir = "results"))
 
 save(
   list = c(
@@ -63,7 +64,7 @@ save(
     "bs.mean.ref.gau", "qs.mean.ref.gau",
     "score_obj", "summary_obj"
   ),
-  file = "us-all-results-a.RData"
+  file = us_all_output_path("us-all-results-a.RData", subdir = "results")
 )
 
 q999_idx <- which(abs(probs - 0.999) < 1e-12)
@@ -73,9 +74,9 @@ summary_table <- data.frame(
   rel_quant_q999 = if (length(q999_idx) > 0) qs.mean.ref.gau[available_settings, q999_idx] else NA_real_,
   stringsAsFactors = FALSE
 )
-write.csv(summary_table, "us-all-results-a-summary.csv", row.names = FALSE)
+write.csv(summary_table, us_all_output_path("us-all-results-a-summary.csv", subdir = "tables"), row.names = FALSE)
 
 cat("Outputs written:\n")
-cat("- us-all-results-combined.RData\n")
-cat("- us-all-results-a.RData\n")
-cat("- us-all-results-a-summary.csv\n")
+cat("- ", us_all_output_path("us-all-results-combined.RData", subdir = "results"), "\n", sep = "")
+cat("- ", us_all_output_path("us-all-results-a.RData", subdir = "results"), "\n", sep = "")
+cat("- ", us_all_output_path("us-all-results-a-summary.csv", subdir = "tables"), "\n", sep = "")

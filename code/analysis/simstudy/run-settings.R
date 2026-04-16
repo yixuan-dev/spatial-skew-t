@@ -226,6 +226,8 @@ run_method_mcmc <- function(plan_id, dataset_id) {
     }
 
     fit.1 <- NULL
+    started_at <- Sys.time()
+    tic <- proc.time()
     if (isTRUE(spec$use_exponential_fallback[1])) {
         fit.1 <- tryCatch(
             mcmc(
@@ -304,11 +306,31 @@ run_method_mcmc <- function(plan_id, dataset_id) {
         )
     }
 
+    elapsed_sec <- unname((proc.time() - tic)[3])
+    runtime_info <- build_simstudy_runtime_info(
+        started_at = started_at,
+        elapsed_sec = elapsed_sec,
+        outputfile = outputfile,
+        setting_id = setting,
+        dataset_id = dataset_id,
+        runner = "run-settings.R::run_method_mcmc",
+        method_id = spec$method_id[1],
+        method_key = spec$method_key[1],
+        mrts_k = spec$mrts_k[1],
+        backend = "ar2",
+        control = list(
+            iters = as.integer(iters),
+            burn = as.integer(burn),
+            update = as.integer(update),
+            thin = as.integer(thin)
+        )
+    )
+
     if (is.na(spec$mrts_k[1])) {
-        save(fit.1, file = outputfile)
+        save(fit.1, runtime_info, file = outputfile)
     } else {
         analysis_spec <- spec
-        save(fit.1, analysis_spec, mrts_meta, file = outputfile)
+        save(fit.1, analysis_spec, mrts_meta, runtime_info, file = outputfile)
     }
 
     rm(fit.1)
@@ -317,6 +339,9 @@ run_method_mcmc <- function(plan_id, dataset_id) {
     }
     if (exists("mrts_meta")) {
         rm(mrts_meta)
+    }
+    if (exists("runtime_info")) {
+        rm(runtime_info)
     }
     gc()
     cat(sprintf("[Dataset %d][Method %s] done -> %s\n", dataset_id, spec$method_key[1], outputfile))
@@ -350,6 +375,8 @@ run_method_maxstable <- function(dataset_id) {
     thresh <- quantile(y.ms, probs = 0.80, na.rm = TRUE)
 
     cat(sprintf("[Dataset %d][Method 6] Max-stable, T=q(0.80) start\n", dataset_id))
+    started_at <- Sys.time()
+    tic <- proc.time()
     fit.1 <- maxstable(
         y = y.ms,
         x = x.o,
@@ -365,8 +392,29 @@ run_method_maxstable <- function(dataset_id) {
         thin = thin
     )
 
-    save(fit.1, file = outputfile)
+    elapsed_sec <- unname((proc.time() - tic)[3])
+    runtime_info <- build_simstudy_runtime_info(
+        started_at = started_at,
+        elapsed_sec = elapsed_sec,
+        outputfile = outputfile,
+        setting_id = setting,
+        dataset_id = dataset_id,
+        runner = "run-settings.R::run_method_maxstable",
+        method_id = spec$method_id[1],
+        method_key = spec$method_key[1],
+        backend = "ar2",
+        control = list(
+            iters = as.integer(iters),
+            burn = as.integer(burn),
+            update = as.integer(update),
+            thin = as.integer(thin),
+            ms_threads = as.integer(ms_threads)
+        )
+    )
+
+    save(fit.1, runtime_info, file = outputfile)
     rm(fit.1)
+    rm(runtime_info)
     gc()
     cat(sprintf("[Dataset %d][Method 6] done -> %s\n", dataset_id, outputfile))
 }

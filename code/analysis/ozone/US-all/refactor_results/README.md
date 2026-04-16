@@ -40,10 +40,17 @@ This refactor keeps the scoring/comparison path modular and reproducible.
 
 ## Output compatibility notes
 
-Runners write the same key output filenames used in your current workflow:
+All runner outputs now live together under `output/us-all/` with simple subfolders:
 
-- Morris runner: `us-all-results-0401.RData`, `us-all-results.RData`
-- A runner: `us-all-results-combined.RData`, `us-all-results-a.RData`
-- Proposed runner: `us-all-results-proposed.RData` + comparison CSVs
+- `results/` for `.RData` outputs
+- `tables/` for comparison CSVs and summaries
+- `plots/` for figures
+- `logs/` for logs
+
+The runners keep the same key filenames used in your current workflow, but write them inside that shared output tree:
+
+- Morris runner: `output/us-all/results/us-all-results-0401.RData`, `output/us-all/results/us-all-results.RData`
+- A runner: `output/us-all/results/us-all-results-combined.RData`, `output/us-all/results/us-all-results-a.RData`
+- Proposed runner: `output/us-all/results/us-all-results-proposed.RData` + CSVs in `output/us-all/tables/`
 
 Legacy exploratory map/diagnostic plotting blocks are intentionally not auto-executed in these runners; they can be moved into dedicated plotting scripts if needed.

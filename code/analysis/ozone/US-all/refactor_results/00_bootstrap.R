@@ -31,6 +31,30 @@ default_probs <- function(include_999 = FALSE) {
   probs
 }
 
+us_all_output_root <- function() {
+  file.path("output", "us-all")
+}
+
+ensure_us_all_output_dirs <- function() {
+  root <- us_all_output_root()
+  dirs <- c(
+    root,
+    file.path(root, "results"),
+    file.path(root, "tables"),
+    file.path(root, "plots"),
+    file.path(root, "logs")
+  )
+  for (d in dirs) {
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  }
+  invisible(dirs)
+}
+
+us_all_output_path <- function(..., subdir = c("results", "tables", "plots", "logs")) {
+  subdir <- match.arg(subdir)
+  file.path(us_all_output_root(), subdir, ...)
+}
+
 load_us_all_context <- function(
     setup_file = "us-all-setup.RData",
     settings_file = "settings.csv",

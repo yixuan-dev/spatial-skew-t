@@ -28,17 +28,10 @@ mcmc_ctrl <- switch(RUN_MODE,
   prod = list(iters = 30000, burn = 25000, update = 500)
 )
 
-results_dir <- trimws(Sys.getenv("US_ALL_RESULTS_DIR", unset = "results_new"))
+results_dir <- "D:\\Github\\spatial-skew-t\\code\\analysis\\ozone\\US-all\\results"
 if (!dir.exists(results_dir)) {
   dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
   cat("Created results directory:", results_dir, "\n")
-}
-
-# Optional compatibility output:
-# when enabled, setting tokens like "5a" will also be saved as "us-all-5-a.RData"
-write_legacy_a_alias <- truthy(Sys.getenv("US_ALL_WRITE_LEGACY_A_ALIAS", unset = "false"))
-if (write_legacy_a_alias) {
-  cat("Legacy -a alias output: enabled\n")
 }
 
 backend <- tolower(Sys.getenv("US_ALL_MCMC_BACKEND", unset = "legacy"))
@@ -175,6 +168,66 @@ parse_optional_int <- function(x) {
   as.integer(round(val))
 }
 
+format_runtime_timestamp <- function(timestamp) {
+  if (length(timestamp) == 0 || anyNA(timestamp)) {
+    return(NA_character_)
+  }
+
+  format(as.POSIXct(timestamp, tz = "UTC"), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
+build_us_all_runtime_info <- function(
+    started_at,
+    elapsed_sec,
+    outputfile,
+    setting_token,
+    setting_id,
+    model_spec,
+    nknots,
+    threshold,
+    backend,
+    run_mode,
+    use_cmaq,
+    temporal,
+    use_mrts,
+    mrts_k,
+    fold_elapsed_sec
+) {
+  finished_at <- started_at + as.numeric(elapsed_sec)
+  completed_folds <- sum(is.finite(fold_elapsed_sec))
+
+  list(
+    schema_version = 1L,
+    runner = "us-all-run.R",
+    output_file = outputfile,
+    setting_token = setting_token,
+    setting_id = as.integer(setting_id),
+    method = as.character(model_spec$method),
+    skew = isTRUE(model_spec$skew),
+    is_maxstable = isTRUE(model_spec$is_maxstable),
+    nknots = as.integer(nknots),
+    threshold = unname(as.numeric(threshold)),
+    backend = backend,
+    run_mode = run_mode,
+    use_cmaq = isTRUE(use_cmaq),
+    temporal = isTRUE(temporal),
+    use_mrts = isTRUE(use_mrts),
+    mrts_k = if (is.na(mrts_k)) NA_integer_ else as.integer(mrts_k),
+    started_at_utc = format_runtime_timestamp(started_at),
+    finished_at_utc = format_runtime_timestamp(finished_at),
+    elapsed_sec = unname(as.numeric(elapsed_sec)),
+    completed_folds = completed_folds,
+    fold_elapsed_sec = as.numeric(fold_elapsed_sec),
+    average_fold_elapsed_sec = if (completed_folds > 0) mean(fold_elapsed_sec[is.finite(fold_elapsed_sec)]) else NA_real_,
+    mcmc_control = list(
+      iters = as.integer(mcmc_ctrl$iters),
+      burn = as.integer(mcmc_ctrl$burn),
+      update = as.integer(mcmc_ctrl$update),
+      thin = 1L
+    )
+  )
+}
+
 build_mrts_covariates <- function(S_train, S_pred, nt, k) {
   if (is.na(k) || k <= 0) {
     stop("MRTS k must be a positive integer.", call. = FALSE)
@@ -309,18 +362,18 @@ run_one_setting <- function(setting_token) {
     stop("MRTS covariates are not currently supported for max-stable settings.", call. = FALSE)
   }
 
-  outputfile <- file.path(results_dir, sprintf("us-all-%s.RData", setting_token))
-  legacy_a_outputfile <- NULL
-  if (write_legacy_a_alias) {
-    alias_match <- regmatches(setting_token, regexec("^([0-9]+)a$", setting_token))[[1]]
-    if (length(alias_match) == 2) {
-      legacy_a_outputfile <- file.path(results_dir, sprintf("us-all-%s-a.RData", alias_match[2]))
-    }
+  alias_match <- regmatches(setting_token, regexec("^([0-9]+)a$", setting_token))[[1]]
+  if (length(alias_match) == 2) {
+    outputfile <- file.path(results_dir, sprintf("us-all-%s-a.RData", alias_match[2]))
+  } else {
+    outputfile <- file.path(results_dir, sprintf("us-all-%s.RData", setting_token))
   }
 
   fit <- vector(mode = "list", length = 2)
 
+  runtime_started_at <- Sys.time()
   start <- proc.time()
+  fold_elapsed_sec <- rep(NA_real_, length(fit))
 
   for (val in 1:2) {
     set.seed(setting_seed_base * 100 + val)
@@ -440,21 +493,33 @@ run_one_setting <- function(setting_token) {
 
     toc.set <- proc.time()
     time.set <- (toc.set - tic.set)[3]
+    fold_elapsed_sec[val] <- unname(as.numeric(time.set))
 
     elap.time.val <- (proc.time() - start)[3]
     avg.time.val <- elap.time.val / val
+    runtime_info <- build_us_all_runtime_info(
+      started_at = runtime_started_at,
+      elapsed_sec = elap.time.val,
+      outputfile = outputfile,
+      setting_token = setting_token,
+      setting_id = setting_seed_base,
+      model_spec = model_spec,
+      nknots = nknots,
+      threshold = threshold,
+      backend = backend,
+      run_mode = RUN_MODE,
+      use_cmaq = use_cmaq,
+      temporal = temporal,
+      use_mrts = use_mrts,
+      mrts_k = mrts_k,
+      fold_elapsed_sec = fold_elapsed_sec
+    )
 
     cat("CV", val, "finished. Fold sec:", round(time.set, 2), "| Avg sec/dataset:", round(avg.time.val, 2), "\n")
-    save(fit, file = outputfile)
-    if (!is.null(legacy_a_outputfile)) {
-      save(fit, file = legacy_a_outputfile)
-    }
+    save(fit, runtime_info, file = outputfile)
   }
 
   cat("Saved:", outputfile, "\n")
-  if (!is.null(legacy_a_outputfile)) {
-    cat("Saved legacy alias:", legacy_a_outputfile, "\n")
-  }
 }
 
 for (setting_token in requested_settings) {

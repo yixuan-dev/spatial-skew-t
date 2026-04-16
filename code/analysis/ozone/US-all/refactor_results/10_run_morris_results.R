@@ -5,6 +5,7 @@ source("refactor_results/01_score_engine.R")
 
 set_working_dir_to_script()
 ctx <- load_us_all_context()
+ensure_us_all_output_dirs()
 
 probs <- default_probs(include_999 = FALSE)
 thresholds <- quantile(ctx$Y, probs = probs, na.rm = TRUE)
@@ -46,7 +47,7 @@ savelist <- list(
   thresholds
 )
 
-save(savelist, file = "us-all-results-0401.RData")
+save(savelist, file = us_all_output_path("us-all-results-0401.RData", subdir = "results"))
 save(
   list = c(
     "done", "available_settings", "probs", "thresholds",
@@ -56,7 +57,7 @@ save(
     "bs.mean.ref.gau", "qs.mean.ref.gau",
     "score_obj", "summary_obj"
   ),
-  file = "us-all-results.RData"
+  file = us_all_output_path("us-all-results.RData", subdir = "results")
 )
 
 q99_idx <- which(abs(probs - 0.99) < 1e-12)
@@ -66,9 +67,9 @@ summary_table <- data.frame(
   rel_quant_q99 = if (length(q99_idx) > 0) qs.mean.ref.gau[available_settings, q99_idx] else NA_real_,
   stringsAsFactors = FALSE
 )
-write.csv(summary_table, "us-all-results-summary.csv", row.names = FALSE)
+write.csv(summary_table, us_all_output_path("us-all-results-summary.csv", subdir = "tables"), row.names = FALSE)
 
 cat("Outputs written:\n")
-cat("- us-all-results-0401.RData\n")
-cat("- us-all-results.RData\n")
-cat("- us-all-results-summary.csv\n")
+cat("- ", us_all_output_path("us-all-results-0401.RData", subdir = "results"), "\n", sep = "")
+cat("- ", us_all_output_path("us-all-results.RData", subdir = "results"), "\n", sep = "")
+cat("- ", us_all_output_path("us-all-results-summary.csv", subdir = "tables"), "\n", sep = "")
