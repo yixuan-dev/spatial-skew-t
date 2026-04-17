@@ -143,8 +143,41 @@ result_file_map <- vapply(
 )
 names(result_file_map) <- as.character(all_requested)
 
+summary_draws <- suppressWarnings(as.integer(Sys.getenv("US_ALL_SUMMARY_DRAWS", unset = "400")))
+if (!is.finite(summary_draws) || summary_draws <= 0) {
+  summary_draws <- 400L
+}
+
+decorate_setting_table <- function(df, setting_col = "setting") {
+  if (nrow(df) == 0) {
+    return(df)
+  }
+
+  idx <- match(df[[setting_col]], settings$setting_num)
+  baseline_flag <- if ("is_baseline" %in% names(df)) df$is_baseline else df[[setting_col]] %in% done_morris
+  df$mrts <- if ("mrts" %in% names(settings)) settings$mrts[idx] else NA
+  df$is_ar2 <- df[[setting_col]] %in% done_ar2
+  df$is_mrts <- df[[setting_col]] %in% done_mrts
+  df$model_lane <- ifelse(
+    df[[setting_col]] == 1,
+    "gaussian_reference",
+    ifelse(
+      df$is_ar2,
+      "ar2",
+      ifelse(
+        df$is_mrts,
+        "mrts",
+        ifelse(baseline_flag, "morris_baseline", "other_numeric")
+      )
+    )
+  )
+
+  df
+}
+
 probs <- default_probs(include_999 = FALSE)
-thresholds <- quantile(ctx$Y, probs = probs, na.rm = TRUE)
+threshold_probs <- default_threshold_probs()
+thresholds <- quantile(ctx$Y, probs = threshold_probs, na.rm = TRUE)
 
 score_obj <- compute_us_all_scores(
   setting_ids = all_requested,
@@ -153,8 +186,12 @@ score_obj <- compute_us_all_scores(
   cv_lst = ctx$cv_lst,
   probs = probs,
   thresholds = thresholds,
+  threshold_probs = threshold_probs,
+  compute_brier_split_diagnostics = TRUE,
   trans_setting_ids = 2L,
-  enforce_contract = TRUE
+  enforce_contract = TRUE,
+  compute_uncertainty_diagnostics = TRUE,
+  summary_draws = summary_draws
 )
 summary_obj <- summarize_us_all_scores(score_obj, baseline_setting = 1L)
 print_score_summary(score_obj, label = "us-all-results-proposed (all settings incl. AR2 + MRTS)")
@@ -167,47 +204,50 @@ comparison_full_table <- build_comparison_full_table(
 )
 
 if (nrow(comparison_full_table) > 0) {
-  idx <- match(comparison_full_table$setting, settings$setting_num)
-
-  comparison_full_table$mrts <- if ("mrts" %in% names(settings)) settings$mrts[idx] else NA
-  comparison_full_table$is_ar2 <- comparison_full_table$setting %in% done_ar2
-  comparison_full_table$is_mrts <- comparison_full_table$setting %in% done_mrts
-  comparison_full_table$model_lane <- ifelse(
-    comparison_full_table$setting == 1,
-    "gaussian_reference",
-    ifelse(
-      comparison_full_table$is_ar2,
-      "ar2",
-      ifelse(
-        comparison_full_table$is_mrts,
-        "mrts",
-        ifelse(comparison_full_table$is_baseline, "morris_baseline", "other_numeric")
-      )
-    )
-  )
+  comparison_full_table <- decorate_setting_table(comparison_full_table, setting_col = "setting")
 }
 
 comparison_top2 <- build_comparison_top2(
   summary_obj = summary_obj,
   settings = settings,
-  target_quantiles = c(0.95, 0.98, 0.99, 0.995),
+  target_levels = c(0.95, 0.98, 0.99, 0.995),
   candidate_settings = summary_obj$available_settings,
   metric = "brier"
 )
 
 if (nrow(comparison_top2) > 0) {
-  idx <- match(comparison_top2$setting, settings$setting_num)
-  comparison_top2$mrts <- if ("mrts" %in% names(settings)) settings$mrts[idx] else NA
-  comparison_top2$is_ar2 <- comparison_top2$setting %in% done_ar2
-  comparison_top2$is_mrts <- comparison_top2$setting %in% done_mrts
-  comparison_top2$model_lane <- ifelse(
-    comparison_top2$is_ar2,
-    "ar2",
-    ifelse(comparison_top2$is_mrts, "mrts", ifelse(comparison_top2$setting %in% done_morris, "morris_baseline", "other_numeric"))
-  )
+  comparison_top2 <- decorate_setting_table(comparison_top2, setting_col = "setting")
 }
 
 comparison_paired_same_basis <- build_paired_same_basis_table(
+  summary_obj = summary_obj,
+  settings = settings,
+  baseline_ids = done_morris,
+  proposed_ids = done_extensions
+)
+
+comparison_scalar_metrics <- build_comparison_scalar_metrics_table(
+  summary_obj = summary_obj,
+  settings = settings,
+  baseline_ids = done_morris,
+  proposed_ids = done_extensions
+)
+
+comparison_brier_split <- build_comparison_brier_split_table(
+  summary_obj = summary_obj,
+  settings = settings,
+  baseline_ids = done_morris,
+  proposed_ids = done_extensions
+)
+
+comparison_uncertainty_summary <- build_comparison_uncertainty_summary_table(
+  summary_obj = summary_obj,
+  settings = settings,
+  baseline_ids = done_morris,
+  proposed_ids = done_extensions
+)
+
+comparison_calibration_bins <- build_comparison_calibration_bins_table(
   summary_obj = summary_obj,
   settings = settings,
   baseline_ids = done_morris,
@@ -224,9 +264,29 @@ if (nrow(comparison_paired_same_basis) > 0) {
   )
 }
 
+if (nrow(comparison_scalar_metrics) > 0) {
+  comparison_scalar_metrics <- decorate_setting_table(comparison_scalar_metrics, setting_col = "setting")
+}
+
+if (nrow(comparison_brier_split) > 0) {
+  comparison_brier_split <- decorate_setting_table(comparison_brier_split, setting_col = "setting")
+}
+
+if (nrow(comparison_uncertainty_summary) > 0) {
+  comparison_uncertainty_summary <- decorate_setting_table(comparison_uncertainty_summary, setting_col = "setting")
+}
+
+if (nrow(comparison_calibration_bins) > 0) {
+  comparison_calibration_bins <- decorate_setting_table(comparison_calibration_bins, setting_col = "setting")
+}
+
 write.csv(comparison_full_table, us_all_output_path("comparison_full_table.csv", subdir = "tables"), row.names = FALSE)
 write.csv(comparison_top2, us_all_output_path("comparison_top2.csv", subdir = "tables"), row.names = FALSE)
 write.csv(comparison_paired_same_basis, us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_scalar_metrics, us_all_output_path("comparison_scalar_metrics.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_brier_split, us_all_output_path("comparison_brier_split.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_uncertainty_summary, us_all_output_path("comparison_uncertainty_summary.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_calibration_bins, us_all_output_path("comparison_calibration_bins.csv", subdir = "tables"), row.names = FALSE)
 
 available_settings <- summary_obj$available_settings
 skipped_missing_file <- summary_obj$skipped_missing_file
@@ -240,16 +300,49 @@ quant.score.se <- summary_obj$quant.score.se
 brier.score.se <- summary_obj$brier.score.se
 bs.mean.ref.gau <- summary_obj$bs.mean.ref.gau
 qs.mean.ref.gau <- summary_obj$qs.mean.ref.gau
+brier.split.target_probs <- summary_obj$brier.split.target_probs
+brier.split.target_thresholds <- summary_obj$brier.split.target_thresholds
+brier.split.band_names <- summary_obj$brier.split.band_names
+brier.split.score.mean <- summary_obj$brier.split.score.mean
+brier.split.score.se <- summary_obj$brier.split.score.se
+brier.split.n_obs.total <- summary_obj$brier.split.n_obs.total
+brier.split.n_obs.mean <- summary_obj$brier.split.n_obs.mean
+brier.split.obs.share <- summary_obj$brier.split.obs.share
+brier.split.rel.ref.gau <- summary_obj$brier.split.rel.ref.gau
+crps.mean <- summary_obj$crps.mean
+crps.se <- summary_obj$crps.se
+crps.mean.ref.gau <- summary_obj$crps.mean.ref.gau
+coverage.mean <- summary_obj$coverage.mean
+coverage.se <- summary_obj$coverage.se
+coverage.gap <- summary_obj$coverage.gap
+pit.mean <- summary_obj$pit.mean
+pit.variance <- summary_obj$pit.variance
+pit.ks <- summary_obj$pit.ks
+pit.mae <- summary_obj$pit.mae
+pit.rmse <- summary_obj$pit.rmse
+pit.bin.share.mean <- summary_obj$pit.bin.share.mean
+pit.bin.share.se <- summary_obj$pit.bin.share.se
+summary.draws.mean <- summary_obj$summary.draws.mean
+summary.n_obs.total <- summary_obj$summary.n_obs.total
 
 save(
   list = c(
     "done_morris", "done_ar2", "done_mrts", "done_extensions",
     "all_numeric_settings", "all_requested", "result_dirs", "result_file_map", "available_settings",
     "skipped_missing_file", "skipped_bad_contract", "skipped_scoring_error",
-    "probs", "thresholds", "quant.score", "brier.score",
+    "probs", "threshold_probs", "thresholds", "quant.score", "brier.score",
     "quant.score.mean", "brier.score.mean", "quant.score.se", "brier.score.se",
     "bs.mean.ref.gau", "qs.mean.ref.gau",
+    "brier.split.target_probs", "brier.split.target_thresholds", "brier.split.band_names",
+    "brier.split.score.mean", "brier.split.score.se", "brier.split.n_obs.total",
+    "brier.split.n_obs.mean", "brier.split.obs.share", "brier.split.rel.ref.gau",
+    "crps.mean", "crps.se", "crps.mean.ref.gau",
+    "coverage.mean", "coverage.se", "coverage.gap",
+    "pit.mean", "pit.variance", "pit.ks", "pit.mae", "pit.rmse",
+    "pit.bin.share.mean", "pit.bin.share.se",
+    "summary.draws.mean", "summary.n_obs.total",
     "comparison_full_table", "comparison_top2", "comparison_paired_same_basis",
+    "comparison_scalar_metrics", "comparison_brier_split", "comparison_uncertainty_summary", "comparison_calibration_bins",
     "score_obj", "summary_obj"
   ),
   file = us_all_output_path("us-all-results-proposed.RData", subdir = "results")
@@ -265,3 +358,7 @@ cat("- ", us_all_output_path("us-all-results-proposed.RData", subdir = "results"
 cat("- ", us_all_output_path("comparison_full_table.csv", subdir = "tables"), "\n", sep = "")
 cat("- ", us_all_output_path("comparison_top2.csv", subdir = "tables"), "\n", sep = "")
 cat("- ", us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_scalar_metrics.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_brier_split.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_uncertainty_summary.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_calibration_bins.csv", subdir = "tables"), "\n", sep = "")

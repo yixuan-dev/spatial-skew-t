@@ -12,11 +12,16 @@ set_working_dir_to_script <- function() {
     mustWork = FALSE
   )
   script_dir <- dirname(script_path)
-  if (dir.exists(script_dir)) {
-    setwd(script_dir)
+  target_dir <- script_dir
+  if (identical(basename(script_dir), "refactor_results")) {
+    target_dir <- dirname(script_dir)
   }
 
-  invisible(script_dir)
+  if (dir.exists(target_dir)) {
+    setwd(target_dir)
+  }
+
+  invisible(target_dir)
 }
 
 safe_as_integer <- function(x) {
@@ -24,15 +29,21 @@ safe_as_integer <- function(x) {
 }
 
 default_probs <- function(include_999 = FALSE) {
-  probs <- c(0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 0.995)
+  probs <- default_threshold_probs()
   if (isTRUE(include_999)) {
     probs <- c(probs, 0.999)
   }
   probs
 }
 
+default_threshold_probs <- function() {
+  c(seq(0, 0.9, by = 0.1), 0.95, 0.98, 0.99, 0.995)
+}
+
 us_all_output_root <- function() {
-  file.path("output", "us-all")
+  cwd_name <- basename(normalizePath(getwd(), winslash = "/", mustWork = FALSE))
+  base_dir <- if (identical(cwd_name, "refactor_results")) ".." else "."
+  file.path(base_dir, "output", "us-all")
 }
 
 ensure_us_all_output_dirs <- function() {
@@ -58,20 +69,38 @@ us_all_output_path <- function(..., subdir = c("results", "tables", "plots", "lo
 load_us_all_context <- function(
     setup_file = "us-all-setup.RData",
     settings_file = "settings.csv",
-    aux_file = "../../../R/auxfunctions.R"
-) {
-  if (!file.exists(setup_file)) {
-    stop("Setup file not found: ", setup_file)
-  }
-  if (!file.exists(settings_file)) {
-    stop("Settings file not found: ", settings_file)
-  }
-  if (!file.exists(aux_file)) {
-    stop("Auxiliary functions file not found: ", aux_file)
+    aux_file = "../../../R/auxfunctions.R") {
+  resolve_existing_path <- function(candidates, label) {
+    candidates <- unique(candidates[nzchar(candidates)])
+    hit <- candidates[file.exists(candidates)]
+    if (length(hit) == 0) {
+      stop(label, " not found. Checked: ", paste(candidates, collapse = ", "))
+    }
+    hit[1]
   }
 
+  setup_path <- resolve_existing_path(
+    c(setup_file, file.path("..", setup_file)),
+    "Setup file"
+  )
+
+  settings_path <- resolve_existing_path(
+    c(settings_file, file.path("..", settings_file)),
+    "Settings file"
+  )
+
+  aux_path <- resolve_existing_path(
+    c(
+      aux_file,
+      file.path("..", aux_file),
+      "../../../R/auxfunctions.R",
+      "../../../../R/auxfunctions.R"
+    ),
+    "Auxiliary functions file"
+  )
+
   load_env <- new.env(parent = globalenv())
-  load(setup_file, envir = load_env)
+  load(setup_path, envir = load_env)
 
   required_objects <- c("Y", "cv.lst")
   missing_objects <- required_objects[!vapply(
@@ -82,14 +111,14 @@ load_us_all_context <- function(
   if (length(missing_objects) > 0) {
     stop(
       "Missing required objects in ",
-      setup_file,
+      setup_path,
       ": ",
       paste(missing_objects, collapse = ", ")
     )
   }
 
-  source(aux_file)
-  settings <- read.csv(settings_file, stringsAsFactors = FALSE)
+  source(aux_path)
+  settings <- read.csv(settings_path, stringsAsFactors = FALSE)
   if ("setting" %in% names(settings)) {
     settings$setting_num <- safe_as_integer(settings$setting)
   }

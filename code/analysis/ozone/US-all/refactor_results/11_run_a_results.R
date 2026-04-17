@@ -7,8 +7,9 @@ set_working_dir_to_script()
 ctx <- load_us_all_context()
 ensure_us_all_output_dirs()
 
-probs <- default_probs(include_999 = TRUE)
-thresholds <- quantile(ctx$Y, probs = probs, na.rm = TRUE)
+probs <- default_probs(include_999 = FALSE)
+threshold_probs <- default_threshold_probs()
+thresholds <- quantile(ctx$Y, probs = threshold_probs, na.rm = TRUE)
 
 # Original split from us-all-results-a.R
 # - CMAQ files: us-all-<id>.RData
@@ -18,13 +19,38 @@ done.nocmaq <- c(4, 5, 8, 9, 12, 13)
 done <- sort(unique(c(done.cmaq, done.nocmaq)))
 
 resolve_result_file <- function(setting_id) {
+  pick_existing <- function(candidates) {
+    hit <- candidates[file.exists(candidates)]
+    if (length(hit) > 0) {
+      return(hit[1])
+    }
+    candidates[1]
+  }
+
   if (setting_id %in% done.cmaq) {
-    return(sprintf("us-all-%d.RData", setting_id))
+    candidates <- c(
+      sprintf("us-all-%d.RData", setting_id),
+      file.path("results", sprintf("us-all-%d.RData", setting_id)),
+      file.path("results_new", sprintf("us-all-%d.RData", setting_id))
+    )
+    return(pick_existing(candidates))
   }
+
   if (setting_id %in% done.nocmaq) {
-    return(sprintf("us-all-%d-a.RData", setting_id))
+    candidates <- c(
+      sprintf("us-all-%d-a.RData", setting_id),
+      file.path("results", sprintf("us-all-%d-a.RData", setting_id)),
+      file.path("results_new", sprintf("us-all-%d-a.RData", setting_id))
+    )
+    return(pick_existing(candidates))
   }
-  sprintf("us-all-%d.RData", setting_id)
+
+  candidates <- c(
+    sprintf("us-all-%d.RData", setting_id),
+    file.path("results", sprintf("us-all-%d.RData", setting_id)),
+    file.path("results_new", sprintf("us-all-%d.RData", setting_id))
+  )
+  pick_existing(candidates)
 }
 
 score_obj <- compute_us_all_scores(
@@ -34,6 +60,7 @@ score_obj <- compute_us_all_scores(
   cv_lst = ctx$cv_lst,
   probs = probs,
   thresholds = thresholds,
+  threshold_probs = threshold_probs,
   trans_setting_ids = integer(0),
   enforce_contract = TRUE
 )
@@ -58,7 +85,7 @@ save(savelist, file = us_all_output_path("us-all-results-combined.RData", subdir
 save(
   list = c(
     "done", "done.cmaq", "done.nocmaq", "available_settings",
-    "probs", "thresholds", "quant.score", "brier.score",
+    "probs", "threshold_probs", "thresholds", "quant.score", "brier.score",
     "quant.score.mean", "brier.score.mean",
     "quant.score.se", "brier.score.se",
     "bs.mean.ref.gau", "qs.mean.ref.gau",
@@ -67,11 +94,12 @@ save(
   file = us_all_output_path("us-all-results-a.RData", subdir = "results")
 )
 
-q999_idx <- which(abs(probs - 0.999) < 1e-12)
+q995_idx_brier <- which(abs(threshold_probs - 0.995) < 1e-12)
+q995_idx_quant <- which(abs(probs - 0.995) < 1e-12)
 summary_table <- data.frame(
   setting = available_settings,
-  rel_brier_q999 = if (length(q999_idx) > 0) bs.mean.ref.gau[available_settings, q999_idx] else NA_real_,
-  rel_quant_q999 = if (length(q999_idx) > 0) qs.mean.ref.gau[available_settings, q999_idx] else NA_real_,
+  rel_brier_q995 = if (length(q995_idx_brier) > 0) bs.mean.ref.gau[available_settings, q995_idx_brier] else NA_real_,
+  rel_quant_q995 = if (length(q995_idx_quant) > 0) qs.mean.ref.gau[available_settings, q995_idx_quant] else NA_real_,
   stringsAsFactors = FALSE
 )
 write.csv(summary_table, us_all_output_path("us-all-results-a-summary.csv", subdir = "tables"), row.names = FALSE)

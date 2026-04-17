@@ -80,7 +80,7 @@ candidate_settings <- sort(unique(c(baseline_settings, mrts_settings)))
 comparison_mrts_cov_top2 <- build_comparison_top2(
   summary_obj = summary_obj,
   settings = ctx$settings,
-  target_quantiles = c(0.95, 0.98, 0.99, 0.995),
+  target_levels = c(0.95, 0.98, 0.99, 0.995),
   candidate_settings = candidate_settings,
   metric = "brier"
 )
