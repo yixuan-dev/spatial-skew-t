@@ -6,7 +6,7 @@
 - `methods` 向量輸入，例如 `1:6`、`(2,3,6)`
 - methods 1–5 的平行執行（PSOCK）
 - method 6（max-stable）以 `ms_threads` 控制 C++ threads
-- 以額外參數 `mrts_k` 為 methods 1–5 加入指定數量的 MRTS basis
+- 以額外參數 `mrts_k` 將 methods 1–5 切換為指定 MRTS basis 個數的版本
 
 ## 命令列格式
 
@@ -14,7 +14,7 @@
 
 - 若提供 `--setting`，必須放在腳本名稱後的第一個參數位置。
 - 若未提供 `--setting`，預設使用 `setting = 5`。
-- `mrts_k` 為選填；若提供，會在原本選到的 methods 中，自動為 method 1–5 加上對應的 MRTS 版本。
+- `mrts_k` 為選填；若提供，原本選到的 method 1–5 會改為只執行對應的 MRTS 版本（不再同時跑 baseline）。
 
 ## 參數說明
 
@@ -45,7 +45,7 @@ PowerShell 建議用字串傳入，避免 shell 先行解讀。
 
 ## MRTS 擴增規則
 
-若 `mrts_k` 非空，runner 會額外為 `methods` 內選到的 method 1–5 建立：
+若 `mrts_k` 非空，runner 會把 `methods` 內選到的 method 1–5 改為：
 
 - `1+mrts{K}`：method 1 加上 `K` 個 MRTS basis
 - `2+mrts{K}`：method 2 加上 `K` 個 MRTS basis
@@ -59,25 +59,22 @@ PowerShell 建議用字串傳入，避免 shell 先行解讀。
 
 實際執行的 method key 會是：
 
-- `1`
-- `4`
 - `6`
 - `1+mrts15`
 - `4+mrts15`
 
-若 `methods` 沒有包含 1–5，提供 `mrts_k` 不會新增任何 MRTS task。
+若 `methods` 沒有包含 1–5，提供 `mrts_k` 不會新增任何 MRTS task，非 1–5 的方法（例如 6）仍照常執行。
 
 ## Seed 規則
 
-- methods 1–5（無 MRTS）：`method_id * 1000 + setting * 100 + dataset_id`
+- methods 1–5（含 MRTS 版本）：`method_id * 1000 + setting * 100 + dataset_id`
 - method 6：`setting * 100 + dataset_id`
-- MRTS 版本：`method_id * 1000 + setting * 100 + dataset_id + mrts_k * 100000`
 
 這可確保：
 
 1. 同一個 `(dataset_id, method_id, mrts_k)` 重跑時可重現
 2. 平行或序列執行順序不應改變該組合的亂數路徑
-3. 不同 `mrts_k` 之間不會共用 seed
+3. 不同 `mrts_k` 版本若 `dataset_id` 與 `method_id` 相同，會共用 seed（目前設計）
 
 ## 輸出檔名
 
@@ -111,7 +108,7 @@ MRTS 擴增版本輸出：
 
 ## 平行策略說明
 
-- methods 1–5 與其 MRTS 擴增版本：建立 `dataset × method_key` 任務網格，派發至 PSOCK workers
+- methods 1–5（無 `mrts_k`）或 methods 1–5 的 MRTS 版本（有 `mrts_k`）：建立 `dataset × method_key` 任務網格，派發至 PSOCK workers
 - method 6：依 dataset 逐一執行，內部用 `ms_threads`
 
 若只想先 smoke test，建議：

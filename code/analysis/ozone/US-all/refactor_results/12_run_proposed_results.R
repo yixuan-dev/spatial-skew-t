@@ -188,6 +188,7 @@ score_obj <- compute_us_all_scores(
   thresholds = thresholds,
   threshold_probs = threshold_probs,
   compute_brier_split_diagnostics = TRUE,
+  compute_classification_diagnostics = TRUE,
   trans_setting_ids = 2L,
   enforce_contract = TRUE,
   compute_uncertainty_diagnostics = TRUE,
@@ -207,12 +208,10 @@ if (nrow(comparison_full_table) > 0) {
   comparison_full_table <- decorate_setting_table(comparison_full_table, setting_col = "setting")
 }
 
-comparison_top2 <- build_comparison_top2(
+comparison_top2 <- build_comparison_top2_all_metrics(
   summary_obj = summary_obj,
   settings = settings,
-  target_levels = c(0.95, 0.98, 0.99, 0.995),
-  candidate_settings = summary_obj$available_settings,
-  metric = "brier"
+  candidate_settings = summary_obj$available_settings
 )
 
 if (nrow(comparison_top2) > 0) {
@@ -227,6 +226,13 @@ comparison_paired_same_basis <- build_paired_same_basis_table(
 )
 
 comparison_scalar_metrics <- build_comparison_scalar_metrics_table(
+  summary_obj = summary_obj,
+  settings = settings,
+  baseline_ids = done_morris,
+  proposed_ids = done_extensions
+)
+
+comparison_classification_metrics <- build_comparison_classification_metrics_table(
   summary_obj = summary_obj,
   settings = settings,
   baseline_ids = done_morris,
@@ -268,6 +274,10 @@ if (nrow(comparison_scalar_metrics) > 0) {
   comparison_scalar_metrics <- decorate_setting_table(comparison_scalar_metrics, setting_col = "setting")
 }
 
+if (nrow(comparison_classification_metrics) > 0) {
+  comparison_classification_metrics <- decorate_setting_table(comparison_classification_metrics, setting_col = "setting")
+}
+
 if (nrow(comparison_brier_split) > 0) {
   comparison_brier_split <- decorate_setting_table(comparison_brier_split, setting_col = "setting")
 }
@@ -282,8 +292,13 @@ if (nrow(comparison_calibration_bins) > 0) {
 
 write.csv(comparison_full_table, us_all_output_path("comparison_full_table.csv", subdir = "tables"), row.names = FALSE)
 write.csv(comparison_top2, us_all_output_path("comparison_top2.csv", subdir = "tables"), row.names = FALSE)
+write_comparison_top2_workbook(
+  comparison_top2 = comparison_top2,
+  output_path = us_all_output_path("comparison_top2.xlsx", subdir = "tables")
+)
 write.csv(comparison_paired_same_basis, us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), row.names = FALSE)
 write.csv(comparison_scalar_metrics, us_all_output_path("comparison_scalar_metrics.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_classification_metrics, us_all_output_path("comparison_classification_metrics.csv", subdir = "tables"), row.names = FALSE)
 write.csv(comparison_brier_split, us_all_output_path("comparison_brier_split.csv", subdir = "tables"), row.names = FALSE)
 write.csv(comparison_uncertainty_summary, us_all_output_path("comparison_uncertainty_summary.csv", subdir = "tables"), row.names = FALSE)
 write.csv(comparison_calibration_bins, us_all_output_path("comparison_calibration_bins.csv", subdir = "tables"), row.names = FALSE)
@@ -309,6 +324,21 @@ brier.split.n_obs.total <- summary_obj$brier.split.n_obs.total
 brier.split.n_obs.mean <- summary_obj$brier.split.n_obs.mean
 brier.split.obs.share <- summary_obj$brier.split.obs.share
 brier.split.rel.ref.gau <- summary_obj$brier.split.rel.ref.gau
+classification.target_probs <- summary_obj$classification.target_probs
+classification.target_thresholds <- summary_obj$classification.target_thresholds
+classification.metric.names <- summary_obj$classification.metric_names
+classification.count.names <- summary_obj$classification.count_names
+classification.metric.mean <- summary_obj$classification.metric.mean
+classification.metric.se <- summary_obj$classification.metric.se
+classification.count.total <- summary_obj$classification.count.total
+classification.count.mean <- summary_obj$classification.count.mean
+classification.n_obs.total <- summary_obj$classification.n_obs.total
+classification.n_obs.mean <- summary_obj$classification.n_obs.mean
+classification.actual_positive_share <- summary_obj$classification.actual_positive_share
+classification.predicted_positive_share <- summary_obj$classification.predicted_positive_share
+classification.metric.rel.ref.gau <- summary_obj$classification.metric.rel.ref.gau
+classification.metric.delta.ref.gau <- summary_obj$classification.metric.delta.ref.gau
+classification.probability_cutoff <- summary_obj$classification.probability_cutoff
 crps.mean <- summary_obj$crps.mean
 crps.se <- summary_obj$crps.se
 crps.mean.ref.gau <- summary_obj$crps.mean.ref.gau
@@ -336,13 +366,22 @@ save(
     "brier.split.target_probs", "brier.split.target_thresholds", "brier.split.band_names",
     "brier.split.score.mean", "brier.split.score.se", "brier.split.n_obs.total",
     "brier.split.n_obs.mean", "brier.split.obs.share", "brier.split.rel.ref.gau",
+    "classification.target_probs", "classification.target_thresholds",
+    "classification.metric.names", "classification.count.names",
+    "classification.metric.mean", "classification.metric.se",
+    "classification.count.total", "classification.count.mean",
+    "classification.n_obs.total", "classification.n_obs.mean",
+    "classification.actual_positive_share", "classification.predicted_positive_share",
+    "classification.metric.rel.ref.gau", "classification.metric.delta.ref.gau",
+    "classification.probability_cutoff",
     "crps.mean", "crps.se", "crps.mean.ref.gau",
     "coverage.mean", "coverage.se", "coverage.gap",
     "pit.mean", "pit.variance", "pit.ks", "pit.mae", "pit.rmse",
     "pit.bin.share.mean", "pit.bin.share.se",
     "summary.draws.mean", "summary.n_obs.total",
     "comparison_full_table", "comparison_top2", "comparison_paired_same_basis",
-    "comparison_scalar_metrics", "comparison_brier_split", "comparison_uncertainty_summary", "comparison_calibration_bins",
+    "comparison_scalar_metrics", "comparison_classification_metrics",
+    "comparison_brier_split", "comparison_uncertainty_summary", "comparison_calibration_bins",
     "score_obj", "summary_obj"
   ),
   file = us_all_output_path("us-all-results-proposed.RData", subdir = "results")
@@ -359,6 +398,7 @@ cat("- ", us_all_output_path("comparison_full_table.csv", subdir = "tables"), "\
 cat("- ", us_all_output_path("comparison_top2.csv", subdir = "tables"), "\n", sep = "")
 cat("- ", us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), "\n", sep = "")
 cat("- ", us_all_output_path("comparison_scalar_metrics.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_classification_metrics.csv", subdir = "tables"), "\n", sep = "")
 cat("- ", us_all_output_path("comparison_brier_split.csv", subdir = "tables"), "\n", sep = "")
 cat("- ", us_all_output_path("comparison_uncertainty_summary.csv", subdir = "tables"), "\n", sep = "")
 cat("- ", us_all_output_path("comparison_calibration_bins.csv", subdir = "tables"), "\n", sep = "")

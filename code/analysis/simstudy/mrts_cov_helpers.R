@@ -143,11 +143,7 @@ get_simstudy_seed <- function(setting_id, method_id, dataset_id, mrts_k = NA_int
     return(as.integer(setting_id) * 100L + as.integer(dataset_id))
   }
 
-  seed <- as.integer(method_id) * 1000L + as.integer(setting_id) * 100L + as.integer(dataset_id)
-  if (!is.na(mrts_k)) {
-    seed <- seed + as.integer(mrts_k) * 100000L
-  }
-  seed
+  as.integer(method_id) * 1000L + as.integer(setting_id) * 100L + as.integer(dataset_id)
 }
 
 get_simstudy_method_catalog <- function(include_maxstable = TRUE) {

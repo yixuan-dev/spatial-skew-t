@@ -2,7 +2,7 @@
 # Simulation replication script
 # Data setting: configurable (default: 5 => Skew-t, K = 5, lambda = 3)
 # Run selected analysis methods for one or more dataset indices.
-# Optionally append MRTS basis covariates to methods 1 through 5.
+# Optionally switch methods 1 through 5 to MRTS-augmented variants.
 #########################################################################
 
 script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
@@ -32,7 +32,7 @@ thin <- 1
 # Notes:
 #   - --setting (if provided) must be the first argument after script name.
 #   - methods remains numeric in 1..6.
-#   - mrts_k is optional and, when provided, adds MRTS-augmented variants of methods 1..5.
+#   - mrts_k is optional and, when provided, replaces selected methods 1..5 with MRTS-augmented variants.
 # Examples:
 #   methods="1:6"
 #   methods="(2,3,6)"
@@ -124,9 +124,15 @@ get_method_catalog <- function() {
 
 build_run_plan <- function(method_ids, mrts_k_values) {
     catalog <- get_method_catalog()
-    baseline <- catalog[catalog$method_id %in% method_ids, , drop = FALSE]
-    baseline$mrts_k <- NA_integer_
-    baseline$output_tag <- NA_character_
+    eligible_ids <- intersect(method_ids, 1:5)
+    baseline_ids <- method_ids
+    if (length(mrts_k_values) > 0) {
+        baseline_ids <- setdiff(method_ids, eligible_ids)
+    }
+
+    baseline <- catalog[catalog$method_id %in% baseline_ids, , drop = FALSE]
+    baseline$mrts_k <- rep(NA_integer_, nrow(baseline))
+    baseline$output_tag <- rep(NA_character_, nrow(baseline))
 
     plan_cols <- c(
         "method_id", "method_key", "label", "runner", "method", "skew",
@@ -134,7 +140,6 @@ build_run_plan <- function(method_ids, mrts_k_values) {
         "mrts_k", "output_tag"
     )
     mrts_rows <- baseline[0, plan_cols, drop = FALSE]
-    eligible_ids <- intersect(method_ids, 1:5)
     if (length(mrts_k_values) > 0 && length(eligible_ids) > 0) {
         eligible <- catalog[catalog$method_id %in% eligible_ids, , drop = FALSE]
         combos <- expand.grid(
@@ -151,7 +156,7 @@ build_run_plan <- function(method_ids, mrts_k_values) {
     }
 
     if (length(mrts_k_values) > 0 && length(eligible_ids) == 0) {
-        cat("MRTS requested, but selected methods do not include methods 1 through 5. No MRTS-augmented tasks added.\n")
+        cat("MRTS requested, but selected methods do not include methods 1 through 5. Running non-MRTS methods only.\n")
     }
 
     plan <- rbind(

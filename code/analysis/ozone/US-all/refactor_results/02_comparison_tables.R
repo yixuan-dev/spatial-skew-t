@@ -174,6 +174,404 @@ build_comparison_top2 <- function(
   do.call(rbind, rows)
 }
 
+make_top2_rows <- function(
+    settings,
+    candidate_settings,
+    ranking_values,
+    metric_family,
+    metric,
+    ranking_group,
+    ranking_basis,
+    score_direction,
+    score_values = NULL,
+    score_ses = NULL,
+    rel_to_gaussian = NULL,
+    gap_to_target = NULL,
+    target_type = "scalar",
+    target_level = NA_real_,
+    threshold_value = NA_real_,
+    band_type = NA_character_,
+    target_value = NA_real_,
+    prediction_cutoff = NA_real_,
+    decreasing = FALSE,
+    n_top = 2L
+) {
+  candidate_settings <- sort(unique(candidate_settings[!is.na(candidate_settings)]))
+  candidate_settings <- candidate_settings[candidate_settings <= length(ranking_values)]
+  candidate_settings <- candidate_settings[is.finite(ranking_values[candidate_settings])]
+
+  if (length(candidate_settings) == 0) {
+    return(data.frame())
+  }
+
+  ord <- order(ranking_values[candidate_settings], decreasing = decreasing, na.last = NA)
+  if (length(ord) == 0) {
+    return(data.frame())
+  }
+
+  winners <- candidate_settings[ord[seq_len(min(n_top, length(ord)))]]
+  rows <- vector("list", length(winners))
+
+  for (rank_idx in seq_along(winners)) {
+    w <- winners[rank_idx]
+    meta <- find_setting_meta(settings, w)
+
+    rows[[rank_idx]] <- data.frame(
+      metric_family = metric_family,
+      metric = metric,
+      ranking_group = ranking_group,
+      quantile = if (grepl("quantile", target_type, fixed = TRUE)) target_level else NA_real_,
+      target_type = target_type,
+      target_level = target_level,
+      threshold_value = threshold_value,
+      band_type = band_type,
+      target_value = target_value,
+      prediction_cutoff = prediction_cutoff,
+      ranking_basis = ranking_basis,
+      rank = rank_idx,
+      setting = w,
+      rank_value = ranking_values[w],
+      score_value = if (is.null(score_values)) ranking_values[w] else score_values[w],
+      score_se = if (is.null(score_ses)) NA_real_ else score_ses[w],
+      rel_score_to_gaussian = if (is.null(rel_to_gaussian)) NA_real_ else rel_to_gaussian[w],
+      rel_to_gaussian = if (is.null(rel_to_gaussian)) NA_real_ else rel_to_gaussian[w],
+      gap_to_target = if (is.null(gap_to_target)) NA_real_ else gap_to_target[w],
+      score_direction = score_direction,
+      method = meta_value(meta, "method"),
+      knots = meta_value(meta, "knots"),
+      thresh = meta_value(meta, "thresh"),
+      CMAQ = meta_value(meta, "CMAQ"),
+      TS = meta_value(meta, "TS"),
+      ar2 = meta_value(meta, "ar2"),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  do.call(rbind, rows)
+}
+
+build_comparison_top2_all_metrics <- function(
+    summary_obj,
+    settings,
+    candidate_settings = NULL,
+    n_top = 2L
+) {
+  if (is.null(candidate_settings)) {
+    candidate_settings <- summary_obj$available_settings
+  }
+  candidate_settings <- intersect(candidate_settings, summary_obj$available_settings)
+
+  blocks <- list()
+  block_id <- 1L
+
+  for (q_idx in seq_along(summary_obj$threshold_probs)) {
+    q <- summary_obj$threshold_probs[q_idx]
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$bs.mean.ref.gau[, q_idx],
+      score_values = summary_obj$brier.score.mean[, q_idx],
+      score_ses = summary_obj$brier.score.se[, q_idx],
+      rel_to_gaussian = summary_obj$bs.mean.ref.gau[, q_idx],
+      metric_family = "score",
+      metric = "brier",
+      ranking_group = sprintf("brier__q%s", format(q, trim = TRUE, scientific = FALSE)),
+      ranking_basis = "rel_to_gaussian",
+      score_direction = "lower_better",
+      target_type = "threshold_quantile",
+      target_level = q,
+      threshold_value = summary_obj$thresholds[q_idx],
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  for (q_idx in seq_along(summary_obj$probs)) {
+    q <- summary_obj$probs[q_idx]
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$qs.mean.ref.gau[, q_idx],
+      score_values = summary_obj$quant.score.mean[, q_idx],
+      score_ses = summary_obj$quant.score.se[, q_idx],
+      rel_to_gaussian = summary_obj$qs.mean.ref.gau[, q_idx],
+      metric_family = "score",
+      metric = "quantile",
+      ranking_group = sprintf("quantile__q%s", format(q, trim = TRUE, scientific = FALSE)),
+      ranking_basis = "rel_to_gaussian",
+      score_direction = "lower_better",
+      target_type = "score_quantile",
+      target_level = q,
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  if (!is.null(summary_obj$crps.mean)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$crps.mean.ref.gau,
+      score_values = summary_obj$crps.mean,
+      score_ses = summary_obj$crps.se,
+      rel_to_gaussian = summary_obj$crps.mean.ref.gau,
+      metric_family = "scalar",
+      metric = "crps",
+      ranking_group = "crps",
+      ranking_basis = "rel_to_gaussian",
+      score_direction = "lower_better",
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  if (!is.null(summary_obj$brier.split.score.mean)) {
+    for (target_idx in seq_along(summary_obj$brier.split.target_probs)) {
+      q <- summary_obj$brier.split.target_probs[target_idx]
+      threshold_value <- summary_obj$brier.split.target_thresholds[target_idx]
+      for (band_idx in seq_along(summary_obj$brier.split.band_names)) {
+        band <- summary_obj$brier.split.band_names[band_idx]
+        blocks[[block_id]] <- make_top2_rows(
+          settings = settings,
+          candidate_settings = candidate_settings,
+          ranking_values = summary_obj$brier.split.rel.ref.gau[, band_idx, target_idx],
+          score_values = summary_obj$brier.split.score.mean[, band_idx, target_idx],
+          score_ses = summary_obj$brier.split.score.se[, band_idx, target_idx],
+          rel_to_gaussian = summary_obj$brier.split.rel.ref.gau[, band_idx, target_idx],
+          metric_family = "split_score",
+          metric = "brier_split",
+          ranking_group = sprintf("brier_split__%s__q%s", band, format(q, trim = TRUE, scientific = FALSE)),
+          ranking_basis = "rel_to_gaussian",
+          score_direction = "lower_better",
+          target_type = "threshold_quantile",
+          target_level = q,
+          threshold_value = threshold_value,
+          band_type = band,
+          n_top = n_top
+        )
+        block_id <- block_id + 1L
+      }
+    }
+  }
+
+  if (!is.null(summary_obj$classification.metric.mean)) {
+    for (metric_idx in seq_along(summary_obj$classification.metric_names)) {
+      metric_name <- summary_obj$classification.metric_names[metric_idx]
+      for (target_idx in seq_along(summary_obj$classification.target_probs)) {
+        q <- summary_obj$classification.target_probs[target_idx]
+        threshold_value <- summary_obj$classification.target_thresholds[target_idx]
+        blocks[[block_id]] <- make_top2_rows(
+          settings = settings,
+          candidate_settings = candidate_settings,
+          ranking_values = summary_obj$classification.metric.mean[, metric_idx, target_idx],
+          score_values = summary_obj$classification.metric.mean[, metric_idx, target_idx],
+          score_ses = summary_obj$classification.metric.se[, metric_idx, target_idx],
+          rel_to_gaussian = summary_obj$classification.metric.rel.ref.gau[, metric_idx, target_idx],
+          gap_to_target = summary_obj$classification.metric.delta.ref.gau[, metric_idx, target_idx],
+          metric_family = "classification",
+          metric = metric_name,
+          ranking_group = sprintf(
+            "classification__%s__q%s__cutoff%s",
+            metric_name,
+            format(q, trim = TRUE, scientific = FALSE),
+            format(summary_obj$classification.probability_cutoff, trim = TRUE, scientific = FALSE)
+          ),
+          ranking_basis = "raw_score",
+          score_direction = "higher_better",
+          target_type = "threshold_quantile",
+          target_level = q,
+          threshold_value = threshold_value,
+          prediction_cutoff = summary_obj$classification.probability_cutoff,
+          decreasing = TRUE,
+          n_top = n_top
+        )
+        block_id <- block_id + 1L
+      }
+    }
+  }
+
+  if (!is.null(summary_obj$coverage.mean)) {
+    for (k in seq_along(summary_obj$uncertainty_levels)) {
+      level <- summary_obj$uncertainty_levels[k]
+      blocks[[block_id]] <- make_top2_rows(
+        settings = settings,
+        candidate_settings = candidate_settings,
+        ranking_values = abs(summary_obj$coverage.gap[, k]),
+        score_values = summary_obj$coverage.mean[, k],
+        score_ses = summary_obj$coverage.se[, k],
+        gap_to_target = summary_obj$coverage.gap[, k],
+        metric_family = "uncertainty",
+        metric = "coverage",
+        ranking_group = sprintf("coverage__level%s", format(level, trim = TRUE, scientific = FALSE)),
+        ranking_basis = "abs_gap_to_target",
+        score_direction = "closer_to_target_better",
+        target_type = "coverage_level",
+        target_level = level,
+        target_value = level,
+        n_top = n_top
+      )
+      block_id <- block_id + 1L
+    }
+  }
+
+  if (!is.null(summary_obj$pit.mean)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = abs(summary_obj$pit.mean - summary_obj$pit.expected_mean),
+      score_values = summary_obj$pit.mean,
+      score_ses = summary_obj$pit.mean.se,
+      gap_to_target = summary_obj$pit.mean - summary_obj$pit.expected_mean,
+      metric_family = "uncertainty",
+      metric = "pit_mean",
+      ranking_group = "pit_mean",
+      ranking_basis = "abs_gap_to_target",
+      score_direction = "closer_to_target_better",
+      target_type = "pit_summary",
+      target_value = summary_obj$pit.expected_mean,
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  if (!is.null(summary_obj$pit.variance)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = abs(summary_obj$pit.variance - summary_obj$pit.expected_variance),
+      score_values = summary_obj$pit.variance,
+      score_ses = summary_obj$pit.variance.se,
+      gap_to_target = summary_obj$pit.variance - summary_obj$pit.expected_variance,
+      metric_family = "uncertainty",
+      metric = "pit_variance",
+      ranking_group = "pit_variance",
+      ranking_basis = "abs_gap_to_target",
+      score_direction = "closer_to_target_better",
+      target_type = "pit_summary",
+      target_value = summary_obj$pit.expected_variance,
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  if (!is.null(summary_obj$pit.ks)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$pit.ks,
+      score_values = summary_obj$pit.ks,
+      score_ses = summary_obj$pit.ks.se,
+      metric_family = "uncertainty",
+      metric = "pit_ks",
+      ranking_group = "pit_ks",
+      ranking_basis = "raw_score",
+      score_direction = "lower_better",
+      target_type = "pit_summary",
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  if (!is.null(summary_obj$pit.mae)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$pit.mae,
+      score_values = summary_obj$pit.mae,
+      score_ses = summary_obj$pit.mae.se,
+      metric_family = "uncertainty",
+      metric = "pit_uniformity_mae",
+      ranking_group = "pit_uniformity_mae",
+      ranking_basis = "raw_score",
+      score_direction = "lower_better",
+      target_type = "pit_summary",
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  if (!is.null(summary_obj$pit.rmse)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$pit.rmse,
+      score_values = summary_obj$pit.rmse,
+      score_ses = summary_obj$pit.rmse.se,
+      metric_family = "uncertainty",
+      metric = "pit_uniformity_rmse",
+      ranking_group = "pit_uniformity_rmse",
+      ranking_basis = "raw_score",
+      score_direction = "lower_better",
+      target_type = "pit_summary",
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  blocks <- blocks[vapply(blocks, nrow, integer(1)) > 0]
+  if (length(blocks) == 0) {
+    return(data.frame())
+  }
+
+  do.call(rbind, blocks)
+}
+
+sanitize_excel_sheet_name <- function(x, fallback = "sheet") {
+  out <- gsub("[\\\\/:?*\\[\\]]", "_", as.character(x))
+  out <- trimws(out)
+  out[!nzchar(out)] <- fallback
+  out <- substr(out, 1, 31)
+
+  seen <- character(0)
+  for (i in seq_along(out)) {
+    candidate <- out[i]
+    if (!(candidate %in% seen)) {
+      seen <- c(seen, candidate)
+      out[i] <- candidate
+      next
+    }
+
+    suffix_id <- 2L
+    repeat {
+      suffix <- paste0("_", suffix_id)
+      stem <- substr(candidate, 1, max(1L, 31L - nchar(suffix)))
+      proposal <- paste0(stem, suffix)
+      if (!(proposal %in% seen)) {
+        seen <- c(seen, proposal)
+        out[i] <- proposal
+        break
+      }
+      suffix_id <- suffix_id + 1L
+    }
+  }
+
+  out
+}
+
+write_comparison_top2_workbook <- function(comparison_top2, output_path) {
+  if (!requireNamespace("openxlsx", quietly = TRUE)) {
+    return(invisible(FALSE))
+  }
+
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, "all_metrics")
+  openxlsx::writeData(wb, "all_metrics", comparison_top2)
+
+  metric_names <- unique(as.character(comparison_top2$metric))
+  metric_sheet_names <- sanitize_excel_sheet_name(metric_names, fallback = "metric")
+
+  for (i in seq_along(metric_names)) {
+    metric_name <- metric_names[i]
+    sheet_name <- metric_sheet_names[i]
+    metric_df <- comparison_top2[as.character(comparison_top2$metric) == metric_name, , drop = FALSE]
+    openxlsx::addWorksheet(wb, sheet_name)
+    openxlsx::writeData(wb, sheet_name, metric_df)
+  }
+
+  openxlsx::saveWorkbook(wb, output_path, overwrite = TRUE)
+  invisible(TRUE)
+}
+
 build_paired_same_basis_table <- function(summary_obj, settings, baseline_ids, proposed_ids) {
   join_cols <- c("method", "knots", "thresh", "CMAQ", "TS")
   if (!all(join_cols %in% names(settings))) {
@@ -305,8 +703,6 @@ build_comparison_brier_split_table <- function(summary_obj, settings, baseline_i
 
         rows[[row_id]] <- cbind(
           data.frame(
-            metric = "brier_split",
-            split_scheme = "same_threshold",
             band_type = band_type,
             event_quantile = event_quantile,
             event_threshold_value = event_threshold_value,
@@ -364,6 +760,85 @@ build_comparison_scalar_metrics_table <- function(summary_obj, settings, baselin
       base_row
     )
     row_id <- row_id + 1
+  }
+
+  if (length(rows) == 0) {
+    return(data.frame())
+  }
+
+  do.call(rbind, rows)
+}
+
+build_comparison_classification_metrics_table <- function(summary_obj, settings, baseline_ids, proposed_ids) {
+  if (
+    is.null(summary_obj$classification.metric.mean) ||
+    length(summary_obj$classification.target_probs) == 0 ||
+    length(summary_obj$classification.metric_names) == 0 ||
+    length(summary_obj$classification.count_names) == 0
+  ) {
+    return(data.frame())
+  }
+
+  rows <- list()
+  row_id <- 1
+
+  for (i in summary_obj$available_settings) {
+    base_row <- base_meta_row(settings, i, baseline_ids = baseline_ids, proposed_ids = proposed_ids)
+
+    for (target_idx in seq_along(summary_obj$classification.target_probs)) {
+      event_quantile <- summary_obj$classification.target_probs[target_idx]
+      event_threshold_value <- summary_obj$classification.target_thresholds[target_idx]
+
+      rows[[row_id]] <- cbind(
+        data.frame(
+          event_quantile = event_quantile,
+          event_threshold_value = event_threshold_value,
+          probability_cutoff = summary_obj$classification.probability_cutoff,
+          classification_draws_used = summary_obj$classification.draws.mean[i],
+          n_obs_total = summary_obj$classification.n_obs.total[i, target_idx],
+          n_obs_mean_per_fold = summary_obj$classification.n_obs.mean[i, target_idx],
+          actual_positive_share = summary_obj$classification.actual_positive_share[i, target_idx],
+          predicted_positive_share = summary_obj$classification.predicted_positive_share[i, target_idx],
+          tp_total = summary_obj$classification.count.total[i, "tp", target_idx],
+          tn_total = summary_obj$classification.count.total[i, "tn", target_idx],
+          fp_total = summary_obj$classification.count.total[i, "fp", target_idx],
+          fn_total = summary_obj$classification.count.total[i, "fn", target_idx],
+          tp_mean_per_fold = summary_obj$classification.count.mean[i, "tp", target_idx],
+          tn_mean_per_fold = summary_obj$classification.count.mean[i, "tn", target_idx],
+          fp_mean_per_fold = summary_obj$classification.count.mean[i, "fp", target_idx],
+          fn_mean_per_fold = summary_obj$classification.count.mean[i, "fn", target_idx],
+          accuracy_mean = summary_obj$classification.metric.mean[i, "accuracy", target_idx],
+          accuracy_se = summary_obj$classification.metric.se[i, "accuracy", target_idx],
+          accuracy_rel_to_gaussian = summary_obj$classification.metric.rel.ref.gau[i, "accuracy", target_idx],
+          accuracy_delta_to_gaussian = summary_obj$classification.metric.delta.ref.gau[i, "accuracy", target_idx],
+          precision_mean = summary_obj$classification.metric.mean[i, "precision", target_idx],
+          precision_se = summary_obj$classification.metric.se[i, "precision", target_idx],
+          precision_rel_to_gaussian = summary_obj$classification.metric.rel.ref.gau[i, "precision", target_idx],
+          precision_delta_to_gaussian = summary_obj$classification.metric.delta.ref.gau[i, "precision", target_idx],
+          recall_mean = summary_obj$classification.metric.mean[i, "recall", target_idx],
+          recall_se = summary_obj$classification.metric.se[i, "recall", target_idx],
+          recall_rel_to_gaussian = summary_obj$classification.metric.rel.ref.gau[i, "recall", target_idx],
+          recall_delta_to_gaussian = summary_obj$classification.metric.delta.ref.gau[i, "recall", target_idx],
+          specificity_mean = summary_obj$classification.metric.mean[i, "specificity", target_idx],
+          specificity_se = summary_obj$classification.metric.se[i, "specificity", target_idx],
+          specificity_rel_to_gaussian = summary_obj$classification.metric.rel.ref.gau[i, "specificity", target_idx],
+          specificity_delta_to_gaussian = summary_obj$classification.metric.delta.ref.gau[i, "specificity", target_idx],
+          f1_mean = summary_obj$classification.metric.mean[i, "f1", target_idx],
+          f1_se = summary_obj$classification.metric.se[i, "f1", target_idx],
+          f1_rel_to_gaussian = summary_obj$classification.metric.rel.ref.gau[i, "f1", target_idx],
+          f1_delta_to_gaussian = summary_obj$classification.metric.delta.ref.gau[i, "f1", target_idx],
+          accuracy_direction = "higher_better",
+          precision_direction = "higher_better",
+          recall_direction = "higher_better",
+          specificity_direction = "higher_better",
+          f1_direction = "higher_better",
+          count_direction = "tp_tn_higher_better; fp_fn_lower_better",
+          stringsAsFactors = FALSE
+        ),
+        base_row
+      )
+      row_id <- row_id + 1
+    }
   }
 
   if (length(rows) == 0) {

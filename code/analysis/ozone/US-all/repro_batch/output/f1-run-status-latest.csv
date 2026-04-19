@@ -1,3 +1,0 @@
-"setting","script_file","result_file","run_status","result_exists","elapsed_sec","checked_at","error_message","batch"
-1,"D:/Github/spatial-skew-t/code/analysis/ozone/US-all/us-all-1.R","D:/Github/spatial-skew-t/code/analysis/ozone/US-all/results/us-all-1.RData","dry_present",TRUE,NA,"2026-03-29 01:16:15","","F1"
-2,"D:/Github/spatial-skew-t/code/analysis/ozone/US-all/us-all-2.R","D:/Github/spatial-skew-t/code/analysis/ozone/US-all/results/us-all-2.RData","dry_present",TRUE,NA,"2026-03-29 01:16:15","","F1"

@@ -97,6 +97,14 @@ default_brier_split_target_probs <- function() {
   c(0.9, 0.95, 0.98, 0.99, 0.995)
 }
 
+default_classification_target_probs <- function() {
+  default_brier_split_target_probs()
+}
+
+default_classification_probability_cutoff <- function() {
+  0.5
+}
+
 match_prob_levels <- function(level_grid, target_levels, tol = 1e-12) {
   idx <- rep(NA_integer_, length(target_levels))
   for (k in seq_along(target_levels)) {
@@ -176,6 +184,101 @@ compute_split_brier_scores <- function(
     scores = scores,
     counts = counts,
     shares = shares
+  )
+}
+
+compute_classification_metrics <- function(
+    preds,
+    validate,
+    thresholds,
+    target_idx,
+    trans = FALSE,
+    probability_cutoff = default_classification_probability_cutoff(),
+    max_draws = NA_integer_
+) {
+  count_names <- c("tp", "tn", "fp", "fn")
+  metric_names <- c("accuracy", "precision", "recall", "specificity", "f1")
+  counts <- matrix(
+    NA_real_,
+    nrow = length(count_names),
+    ncol = length(target_idx),
+    dimnames = list(count_names, NULL)
+  )
+  metrics <- matrix(
+    NA_real_,
+    nrow = length(metric_names),
+    ncol = length(target_idx),
+    dimnames = list(metric_names, NULL)
+  )
+  obs_total <- rep(NA_real_, length(target_idx))
+  actual_positive_share <- rep(NA_real_, length(target_idx))
+  predicted_positive_share <- rep(NA_real_, length(target_idx))
+  draw_idx <- select_summary_draw_indices(dim(preds)[1], max_draws)
+  preds_local <- preds[draw_idx, , , drop = FALSE]
+
+  y_all <- as.vector(validate)
+
+  safe_ratio <- function(num, denom) {
+    if (!is.finite(denom) || denom <= 0) {
+      return(NA_real_)
+    }
+    num / denom
+  }
+
+  for (k in seq_along(target_idx)) {
+    threshold_id <- target_idx[k]
+    threshold_value <- thresholds[threshold_id]
+    pat <- apply((preds_local > threshold_value), c(2, 3), mean)
+    if (trans) {
+      pat <- t(pat)
+    }
+
+    p_all <- as.vector(pat)
+    keep <- is.finite(y_all) & is.finite(p_all)
+    if (!any(keep)) {
+      next
+    }
+
+    y_vec <- y_all[keep]
+    p_vec <- p_all[keep]
+    actual_positive <- y_vec > threshold_value
+    predicted_positive <- p_vec >= probability_cutoff
+
+    tp <- sum(predicted_positive & actual_positive)
+    tn <- sum(!predicted_positive & !actual_positive)
+    fp <- sum(predicted_positive & !actual_positive)
+    fn <- sum(!predicted_positive & actual_positive)
+    total_n <- tp + tn + fp + fn
+
+    counts[, k] <- c(tp, tn, fp, fn)
+    obs_total[k] <- total_n
+    actual_positive_share[k] <- safe_ratio(tp + fn, total_n)
+    predicted_positive_share[k] <- safe_ratio(tp + fp, total_n)
+
+    precision <- safe_ratio(tp, tp + fp)
+    recall <- safe_ratio(tp, tp + fn)
+
+    metrics["accuracy", k] <- safe_ratio(tp + tn, total_n)
+    metrics["precision", k] <- precision
+    metrics["recall", k] <- recall
+    metrics["specificity", k] <- safe_ratio(tn, tn + fp)
+    metrics["f1", k] <- if (is.finite(precision) && is.finite(recall) && (precision + recall) > 0) {
+      2 * precision * recall / (precision + recall)
+    } else {
+      NA_real_
+    }
+  }
+
+  list(
+    count_names = count_names,
+    metric_names = metric_names,
+    counts = counts,
+    metrics = metrics,
+    obs_total = obs_total,
+    actual_positive_share = actual_positive_share,
+    predicted_positive_share = predicted_positive_share,
+    probability_cutoff = probability_cutoff,
+    draws_used = length(draw_idx)
   )
 }
 
@@ -283,6 +386,9 @@ compute_us_all_scores <- function(
     threshold_probs = NULL,
     compute_brier_split_diagnostics = FALSE,
     brier_split_target_probs = default_brier_split_target_probs(),
+    compute_classification_diagnostics = FALSE,
+    classification_target_probs = default_classification_target_probs(),
+    classification_probability_cutoff = default_classification_probability_cutoff(),
     trans_setting_ids = 2L,
     enforce_contract = TRUE,
     compute_uncertainty_diagnostics = FALSE,
@@ -306,6 +412,8 @@ compute_us_all_scores <- function(
   }
 
   brier_split_band_names <- c("all", "below_threshold", "above_threshold")
+  classification_count_names <- c("tp", "tn", "fp", "fn")
+  classification_metric_names <- c("accuracy", "precision", "recall", "specificity", "f1")
   brier_split_target_idx <- integer(0)
   if (isTRUE(compute_brier_split_diagnostics)) {
     brier_split_target_probs <- as.numeric(brier_split_target_probs)
@@ -317,6 +425,21 @@ compute_us_all_scores <- function(
       missing_probs <- brier_split_target_probs[is.na(brier_split_target_idx)]
       stop(
         "Missing split-Brier threshold_probs: ",
+        paste(missing_probs, collapse = ", ")
+      )
+    }
+  }
+  classification_target_idx <- integer(0)
+  if (isTRUE(compute_classification_diagnostics)) {
+    classification_target_probs <- as.numeric(classification_target_probs)
+    classification_target_idx <- match_prob_levels(
+      level_grid = threshold_probs,
+      target_levels = classification_target_probs
+    )
+    if (anyNA(classification_target_idx)) {
+      missing_probs <- classification_target_probs[is.na(classification_target_idx)]
+      stop(
+        "Missing classification threshold_probs: ",
         paste(missing_probs, collapse = ", ")
       )
     }
@@ -345,6 +468,56 @@ compute_us_all_scores <- function(
       NA_real_,
       dim = c(length(brier_split_band_names), length(brier_split_target_probs), nsets, max_setting)
     )
+  } else {
+    NULL
+  }
+  classification.count <- if (isTRUE(compute_classification_diagnostics)) {
+    array(
+      NA_real_,
+      dim = c(length(classification_count_names), length(classification_target_probs), nsets, max_setting),
+      dimnames = list(classification_count_names, as.character(classification_target_probs), NULL, NULL)
+    )
+  } else {
+    NULL
+  }
+  classification.metric <- if (isTRUE(compute_classification_diagnostics)) {
+    array(
+      NA_real_,
+      dim = c(length(classification_metric_names), length(classification_target_probs), nsets, max_setting),
+      dimnames = list(classification_metric_names, as.character(classification_target_probs), NULL, NULL)
+    )
+  } else {
+    NULL
+  }
+  classification.obs.total <- if (isTRUE(compute_classification_diagnostics)) {
+    array(
+      NA_real_,
+      dim = c(length(classification_target_probs), nsets, max_setting),
+      dimnames = list(as.character(classification_target_probs), NULL, NULL)
+    )
+  } else {
+    NULL
+  }
+  classification.actual_positive_share <- if (isTRUE(compute_classification_diagnostics)) {
+    array(
+      NA_real_,
+      dim = c(length(classification_target_probs), nsets, max_setting),
+      dimnames = list(as.character(classification_target_probs), NULL, NULL)
+    )
+  } else {
+    NULL
+  }
+  classification.predicted_positive_share <- if (isTRUE(compute_classification_diagnostics)) {
+    array(
+      NA_real_,
+      dim = c(length(classification_target_probs), nsets, max_setting),
+      dimnames = list(as.character(classification_target_probs), NULL, NULL)
+    )
+  } else {
+    NULL
+  }
+  classification.draws.used <- if (isTRUE(compute_classification_diagnostics)) {
+    matrix(NA_real_, nrow = nsets, ncol = max_setting)
   } else {
     NULL
   }
@@ -427,6 +600,20 @@ compute_us_all_scores <- function(
             NULL
           }
 
+          classification <- if (isTRUE(compute_classification_diagnostics)) {
+            compute_classification_metrics(
+              preds = pred.d,
+              validate = validate,
+              thresholds = thresholds,
+              target_idx = classification_target_idx,
+              trans = trans,
+              probability_cutoff = classification_probability_cutoff,
+              max_draws = summary_draws
+            )
+          } else {
+            NULL
+          }
+
           diagnostics <- if (isTRUE(compute_uncertainty_diagnostics)) {
             compute_predictive_diagnostics(
               preds = pred.d,
@@ -444,6 +631,7 @@ compute_us_all_scores <- function(
             quant = QuantScore(pred.d, probs, validate, trans = trans),
             brier = BrierScore(pred.d, thresholds, validate, trans = trans),
             brier_split = brier_split,
+            classification = classification,
             diagnostics = diagnostics
           )
         },
@@ -464,6 +652,14 @@ compute_us_all_scores <- function(
         brier.split.score[, , d, i] <- score_try$brier_split$scores
         brier.split.count[, , d, i] <- score_try$brier_split$counts
         brier.split.share[, , d, i] <- score_try$brier_split$shares
+      }
+      if (isTRUE(compute_classification_diagnostics)) {
+        classification.count[, , d, i] <- score_try$classification$counts
+        classification.metric[, , d, i] <- score_try$classification$metrics
+        classification.obs.total[, d, i] <- score_try$classification$obs_total
+        classification.actual_positive_share[, d, i] <- score_try$classification$actual_positive_share
+        classification.predicted_positive_share[, d, i] <- score_try$classification$predicted_positive_share
+        classification.draws.used[d, i] <- score_try$classification$draws_used
       }
       if (isTRUE(compute_uncertainty_diagnostics)) {
         crps.score[d, i] <- score_try$diagnostics$crps_mean
@@ -512,6 +708,18 @@ compute_us_all_scores <- function(
     brier.split.score = brier.split.score,
     brier.split.count = brier.split.count,
     brier.split.share = brier.split.share,
+    classification.target_probs = classification_target_probs,
+    classification.target_idx = classification_target_idx,
+    classification.target_thresholds = if (length(classification_target_idx) > 0) thresholds[classification_target_idx] else numeric(0),
+    classification.metric_names = classification_metric_names,
+    classification.count_names = classification_count_names,
+    classification.metric = classification.metric,
+    classification.count = classification.count,
+    classification.obs.total = classification.obs.total,
+    classification.actual_positive_share = classification.actual_positive_share,
+    classification.predicted_positive_share = classification.predicted_positive_share,
+    classification.draws.used = classification.draws.used,
+    classification.probability_cutoff = classification_probability_cutoff,
     uncertainty_levels = uncertainty_levels,
     pit_breaks = pit_breaks,
     crps.score = crps.score,
@@ -616,6 +824,87 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
   } else {
     NULL
   }
+  classification.metric.mean <- if (!is.null(score_obj$classification.metric)) {
+    array(
+      NA_real_,
+      dim = c(max_setting, length(score_obj$classification.metric_names), length(score_obj$classification.target_probs)),
+      dimnames = list(NULL, score_obj$classification.metric_names, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.metric.se <- if (!is.null(score_obj$classification.metric)) {
+    array(
+      NA_real_,
+      dim = c(max_setting, length(score_obj$classification.metric_names), length(score_obj$classification.target_probs)),
+      dimnames = list(NULL, score_obj$classification.metric_names, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.count.total <- if (!is.null(score_obj$classification.count)) {
+    array(
+      NA_real_,
+      dim = c(max_setting, length(score_obj$classification.count_names), length(score_obj$classification.target_probs)),
+      dimnames = list(NULL, score_obj$classification.count_names, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.count.mean <- if (!is.null(score_obj$classification.count)) {
+    array(
+      NA_real_,
+      dim = c(max_setting, length(score_obj$classification.count_names), length(score_obj$classification.target_probs)),
+      dimnames = list(NULL, score_obj$classification.count_names, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.n_obs.total <- if (!is.null(score_obj$classification.count)) {
+    matrix(
+      NA_real_,
+      nrow = max_setting,
+      ncol = length(score_obj$classification.target_probs),
+      dimnames = list(NULL, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.n_obs.mean <- if (!is.null(score_obj$classification.count)) {
+    matrix(
+      NA_real_,
+      nrow = max_setting,
+      ncol = length(score_obj$classification.target_probs),
+      dimnames = list(NULL, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.actual_positive_share <- if (!is.null(score_obj$classification.count)) {
+    matrix(
+      NA_real_,
+      nrow = max_setting,
+      ncol = length(score_obj$classification.target_probs),
+      dimnames = list(NULL, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.predicted_positive_share <- if (!is.null(score_obj$classification.count)) {
+    matrix(
+      NA_real_,
+      nrow = max_setting,
+      ncol = length(score_obj$classification.target_probs),
+      dimnames = list(NULL, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.draws.mean <- if (!is.null(score_obj$classification.count)) {
+    rep(NA_real_, max_setting)
+  } else {
+    NULL
+  }
   summary.draws.mean <- rep(NA_real_, max_setting)
   summary.n_obs.total <- rep(NA_real_, max_setting)
 
@@ -644,6 +933,37 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
           brier.split.obs.share[i, , target_idx] <- brier.split.n_obs.total[i, , target_idx] / all_total
         }
       }
+    }
+
+    if (!is.null(score_obj$classification.metric)) {
+      for (metric_idx in seq_along(score_obj$classification.metric_names)) {
+        for (target_idx in seq_along(score_obj$classification.target_probs)) {
+          metric_vals <- score_obj$classification.metric[metric_idx, target_idx, , i]
+          classification.metric.mean[i, metric_idx, target_idx] <- mean_if_any(metric_vals)
+          classification.metric.se[i, metric_idx, target_idx] <- se_if_any(metric_vals)
+        }
+      }
+
+      for (count_idx in seq_along(score_obj$classification.count_names)) {
+        for (target_idx in seq_along(score_obj$classification.target_probs)) {
+          count_vals <- score_obj$classification.count[count_idx, target_idx, , i]
+          classification.count.total[i, count_idx, target_idx] <- sum_if_any(count_vals)
+          classification.count.mean[i, count_idx, target_idx] <- mean_if_any(count_vals)
+        }
+      }
+
+      for (target_idx in seq_along(score_obj$classification.target_probs)) {
+        obs_vals <- score_obj$classification.obs.total[target_idx, , i]
+        actual_share_vals <- score_obj$classification.actual_positive_share[target_idx, , i]
+        predicted_share_vals <- score_obj$classification.predicted_positive_share[target_idx, , i]
+
+        classification.n_obs.total[i, target_idx] <- sum_if_any(obs_vals)
+        classification.n_obs.mean[i, target_idx] <- mean_if_any(obs_vals)
+        classification.actual_positive_share[i, target_idx] <- mean_if_any(actual_share_vals)
+        classification.predicted_positive_share[i, target_idx] <- mean_if_any(predicted_share_vals)
+      }
+
+      classification.draws.mean[i] <- mean_if_any(score_obj$classification.draws.used[, i])
     }
 
     if (!is.null(score_obj$crps.score)) {
@@ -691,6 +1011,24 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
   } else {
     NULL
   }
+  classification.metric.rel.ref.gau <- if (!is.null(score_obj$classification.metric)) {
+    array(
+      NA_real_,
+      dim = c(max_setting, length(score_obj$classification.metric_names), length(score_obj$classification.target_probs)),
+      dimnames = list(NULL, score_obj$classification.metric_names, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
+  classification.metric.delta.ref.gau <- if (!is.null(score_obj$classification.metric)) {
+    array(
+      NA_real_,
+      dim = c(max_setting, length(score_obj$classification.metric_names), length(score_obj$classification.target_probs)),
+      dimnames = list(NULL, score_obj$classification.metric_names, as.character(score_obj$classification.target_probs))
+    )
+  } else {
+    NULL
+  }
 
   for (i in available_settings) {
     bs.mean.ref.gau[i, ] <- brier.score.mean[i, ] / brier.score.mean[baseline_setting, ]
@@ -706,6 +1044,21 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
           current_score <- brier.split.score.mean[i, band_idx, target_idx]
           if (is.finite(base_score) && base_score != 0 && is.finite(current_score)) {
             brier.split.rel.ref.gau[i, band_idx, target_idx] <- current_score / base_score
+          }
+        }
+      }
+    }
+
+    if (!is.null(classification.metric.rel.ref.gau)) {
+      for (metric_idx in seq_along(score_obj$classification.metric_names)) {
+        for (target_idx in seq_along(score_obj$classification.target_probs)) {
+          base_metric <- classification.metric.mean[baseline_setting, metric_idx, target_idx]
+          current_metric <- classification.metric.mean[i, metric_idx, target_idx]
+          if (is.finite(base_metric) && base_metric != 0 && is.finite(current_metric)) {
+            classification.metric.rel.ref.gau[i, metric_idx, target_idx] <- current_metric / base_metric
+          }
+          if (is.finite(base_metric) && is.finite(current_metric)) {
+            classification.metric.delta.ref.gau[i, metric_idx, target_idx] <- current_metric - base_metric
           }
         }
       }
@@ -731,6 +1084,22 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
     brier.split.n_obs.mean = brier.split.n_obs.mean,
     brier.split.obs.share = brier.split.obs.share,
     brier.split.rel.ref.gau = brier.split.rel.ref.gau,
+    classification.target_probs = score_obj$classification.target_probs,
+    classification.target_thresholds = score_obj$classification.target_thresholds,
+    classification.metric_names = score_obj$classification.metric_names,
+    classification.count_names = score_obj$classification.count_names,
+    classification.metric.mean = classification.metric.mean,
+    classification.metric.se = classification.metric.se,
+    classification.count.total = classification.count.total,
+    classification.count.mean = classification.count.mean,
+    classification.n_obs.total = classification.n_obs.total,
+    classification.n_obs.mean = classification.n_obs.mean,
+    classification.actual_positive_share = classification.actual_positive_share,
+    classification.predicted_positive_share = classification.predicted_positive_share,
+    classification.draws.mean = classification.draws.mean,
+    classification.metric.rel.ref.gau = classification.metric.rel.ref.gau,
+    classification.metric.delta.ref.gau = classification.metric.delta.ref.gau,
+    classification.probability_cutoff = score_obj$classification.probability_cutoff,
     quant.score.mean = quant.score.mean,
     brier.score.mean = brier.score.mean,
     quant.score.se = quant.score.se,
