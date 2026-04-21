@@ -117,3 +117,32 @@ MRTS 擴增版本輸出：
 - `methods="(1,4)"`
 - `mrts_k="15"`
 - `workers=1`
+
+## MRTS vs NON-MRTS 彙整（results-mrts-cov.R）
+
+當 `results/` 已有 baseline 與 MRTS 輸出檔時，可執行 `results-mrts-cov.R` 彙整比較。
+
+常用環境變數：
+
+- `SIMSTUDY_MRTS_RESULTS_DIR`：結果目錄（預設 `results`）
+- `SIMSTUDY_MRTS_OUTPUT_DIR`：彙整輸出目錄（預設 `comparison_mrts`）
+- `SIMSTUDY_MRTS_SETTINGS`：要彙整的 settings（例如 `4`、`c(4,5)`）
+- `SIMSTUDY_MRTS_METHODS`：要比較的 baseline method id（預設 `1:5`）
+- `SIMSTUDY_MRTS_DATASETS`：dataset 範圍（例如 `1:50`）
+- `SIMSTUDY_MRTS_K`：要納入比較的 MRTS `k` 向量（例如 `c(10,15,20,25)`）
+
+新增（分區比較與選 `k`）：
+
+- `SIMSTUDY_MRTS_BULK_RANGE`：bulk 分位數區間，兩個機率值（預設 `c(0.90,0.95)`）
+- `SIMSTUDY_MRTS_TAIL_MIN`：tail 起始分位數（預設 `0.98`）
+- `SIMSTUDY_MRTS_FOCUS_QUANTILES`：重點分位數（預設 `c(0.95,0.98,0.99)`）
+- `SIMSTUDY_MRTS_OBJECTIVE`：選 `k` 目標，`balanced` / `extreme-first` / `bulk-first`（預設 `balanced`）
+
+`results-mrts-cov.R` 會將以下檔案寫到 `SIMSTUDY_MRTS_OUTPUT_DIR`（預設 `comparison_mrts/`）：
+
+- `comparison_mrts_cov_paired.csv`：逐 setting × quantile 的 paired 比較
+- `comparison_mrts_cov_summary.csv`：`family × k × quantile` 彙整
+- `comparison_mrts_cov_summary_by_band.csv`：`family × k × (bulk/tail/other)` 彙整
+- `comparison_mrts_cov_focus_quantiles.csv`：focus quantiles 的摘要
+- `comparison_mrts_cov_best_k.csv`：依 objective 權重產生的最佳 `k` 排序
+- `comparison_mrts_cov_report_config.csv`：本次彙整使用的設定快照

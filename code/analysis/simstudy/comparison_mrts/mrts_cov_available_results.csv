@@ -1,0 +1,3 @@
+"setting","dataset","analysis_id","analysis_slot","method_id","method_key","mrts_k","result_file"
+4,1,1,1,1,"1",NA,"results/4-1-1.RData"
+4,1,7,2,1,"1+mrts10",10,"results/4-1-1-K10.RData"

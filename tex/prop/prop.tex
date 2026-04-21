@@ -1,0 +1,476 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm, bm, mathtools}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bX}{\mathbf{X}}
+\newcommand{\bD}{\mathbf{D}}
+\newcommand{\bF}{\mathbf{F}}
+\newcommand{\bH}{\mathbf{H}}
+\newcommand{\bG}{\mathbf{G}}
+\newcommand{\bM}{\mathbf{M}}
+\newcommand{\bR}{\mathbf{R}}
+\newcommand{\bA}{\mathbf{A}}
+\newcommand{\bS}{\mathbf{S}}
+\newcommand{\bP}{\mathbf{P}}
+\newcommand{\bz}{\mathbf{z}}
+\newcommand{\br}{\mathbf{r}}
+\newcommand{\bzero}{\mathbf{0}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\cov}{\operatorname{cov}}
+\newcommand{\var}{\operatorname{var}}
+\newcommand{\E}{\operatorname{E}}
+\newcommand{\I}{\mathbf{I}}
+
+\title{A Proposed MRTS-Augmented Bayesian Hierarchical Skew-$t$ Model}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Goal}
+
+The goal of this note is to formulate a computationally efficient alternative to
+the spatial dependence component in the Morris skew-$t$ hierarchical model. The
+main idea is to retain the original hierarchical structure for the mean, skew,
+and scale components, but replace the site-level Mat\'ern correlation model with
+an MRTS-based low-rank spatial random effect representation. To avoid treating
+the full $K \times K$ covariance matrix $\bM$ as a high-dimensional Bayesian
+parameter block, we propose to update $\bM$ using the closed-form maximum
+likelihood estimators derived by Tzeng and Huang (2018), and then convert the
+resulting covariance matrix to a correlation matrix so that the original Morris
+separation between marginal scale and spatial dependence is preserved.
+
+\section{Original Morris Hierarchical Structure}
+
+Let $s_1, \ldots, s_n \in D \subset \mathbb{R}^d$ denote the observed spatial
+locations and let $t = 1, \ldots, T$ index replicates in time. Let
+$Y_t(s_i)$ denote the response at location $s_i$ and replicate $t$. For each
+$t$, define the response vector
+\[
+\bY_t = \bigl(Y_t(s_1), \ldots, Y_t(s_n)\bigr)'.
+\]
+
+As in Morris et al., we retain the partition-based skew and scale structure. Let
+$P_{tk}$, $k = 1, \ldots, K_t^{(p)}$, denote the spatial partitions at time $t$.
+For $s \in P_{tk}$, define
+\[
+z_t(s) = z_{tk},
+\qquad
+\sigma_t^2(s) = \sigma_{tk}^2.
+\]
+Let
+\[
+\bz_t = \bigl(z_t(s_1), \ldots, z_t(s_n)\bigr)',
+\qquad
+\bD_t = \diag\bigl(\sigma_t(s_1), \ldots, \sigma_t(s_n)\bigr).
+\]
+Let $\bX_t$ denote the $n \times p$ design matrix for replicate $t$, and let
+$\bm{\beta} \in \mathbb{R}^p$ and $\lambda \in \mathbb{R}$ denote the regression
+and skewness parameters.
+
+The original Morris model can be written in vector form as
+\begin{equation}
+\bY_t = \bX_t \bm{\beta} + \lambda \bD_t |\bz_t| + \bD_t \mathbf{v}_t,
+\qquad
+t = 1, \ldots, T,
+\label{eq:morris}
+\end{equation}
+where $|\bz_t|$ is interpreted componentwise, and $\mathbf{v}_t$ is a
+zero-mean Gaussian spatial process with a correlation matrix determined by a
+Mat\'ern family with a nugget-type parameter. In the original implementation,
+this correlation structure is governed by a small number of hyperparameters
+such as $\rho$, $\nu$, and $\gamma$, but repeated MCMC updates still require
+repeated inversions of an $n \times n$ covariance matrix.
+
+\section{Proposed MRTS Spatial Layer}
+
+\subsection{Basis Expansion}
+
+Let $f_1(\cdot), \ldots, f_K(\cdot)$ denote prespecified MRTS basis functions,
+with $K \ll n$ in the intended applications. Define
+\[
+\mathbf{f}(s) = \bigl(f_1(s), \ldots, f_K(s)\bigr)',
+\]
+and let the $n \times K$ basis matrix be
+\[
+\bF = \begin{bmatrix}
+\mathbf{f}(s_1)' \\
+\vdots \\
+\mathbf{f}(s_n)'
+\end{bmatrix}.
+\]
+
+Introduce a latent spatial random effect vector
+\[
+\mathbf{u}_t = \bF \bm{\eta}_t + \bm{\xi}_t,
+\qquad
+\bm{\eta}_t \sim N_K(\bzero, \bM),
+\qquad
+\bm{\xi}_t \sim N_n(\bzero, \sigma_\xi^2 \I_n),
+\]
+independently over $t$, where $\bM$ is an unknown nonnegative-definite
+$K \times K$ matrix and $\sigma_\xi^2 \ge 0$ is a fine-scale variance
+parameter. Conditional on $(\bM, \sigma_\xi^2)$,
+\[
+\mathbf{u}_t \sim N_n(\bzero, \bG),
+\qquad
+\bG = \bF \bM \bF' + \sigma_\xi^2 \I_n.
+\]
+
+\subsection{Standardization to a Correlation Matrix}
+
+If $\bG$ were used directly in \eqref{eq:morris}, then the marginal variance of
+the spatial term would be controlled jointly by $\bG$ and by $\bD_t$, which
+would blur the original division of labor between the scale process and the
+spatial dependence process. To preserve the Morris interpretation, we convert
+$\bG$ to a correlation matrix.
+
+Define
+\[
+\bA = \diag(\bG),
+\qquad
+\bR = \bA^{-1/2} \bG \bA^{-1/2}.
+\]
+Then $\bR$ is positive semidefinite with unit diagonal. We define the
+standardized latent spatial effect
+\[
+\mathbf{v}_t = \bA^{-1/2} \mathbf{u}_t,
+\qquad
+\mathbf{v}_t \sim N_n(\bzero, \bR).
+\]
+The proposed hierarchical model is therefore
+\begin{equation}
+\bY_t = \bX_t \bm{\beta} + \lambda \bD_t |\bz_t| + \bD_t \mathbf{v}_t,
+\qquad
+\mathbf{v}_t \sim N_n(\bzero, \bR),
+\label{eq:proposed}
+\end{equation}
+with
+\[
+\bR = \bA^{-1/2} (\bF \bM \bF' + \sigma_\xi^2 \I_n) \bA^{-1/2},
+\qquad
+\bA = \diag(\bF \bM \bF' + \sigma_\xi^2 \I_n).
+\]
+
+\subsection{Conditional Residual Representation}
+
+Given $(\bm{\beta}, \lambda, \bz_t, \bD_t)$, define the standardized residual
+vector
+\begin{equation}
+\br_t
+=
+\bD_t^{-1} \bigl( \bY_t - \bX_t \bm{\beta} - \lambda \bD_t |\bz_t| \bigr),
+\qquad
+t = 1, \ldots, T.
+\label{eq:resid}
+\end{equation}
+Under the proposed model,
+\[
+\br_t = \mathbf{v}_t \sim N_n(\bzero, \bR).
+\]
+
+For the purpose of updating the low-rank covariance structure, we also consider
+the unstandardized low-rank covariance
+\[
+\bG = \bF \bM \bF' + \sigma_\xi^2 \I_n,
+\]
+and use the Tzeng--Huang closed-form estimators as a plug-in update for
+$(\bM, \sigma_\xi^2)$ before converting $\bG$ to $\bR$.
+
+\section{Closed-Form Update for \texorpdfstring{$\bM$ and $\sigma_\xi^2$}{M and sigma-xi-squared}}
+
+\subsection{Working Covariance Update}
+
+At a given MCMC iteration, treat the residual vectors $\br_1, \ldots, \br_T$ in
+\eqref{eq:resid} as the current approximately Gaussian replicates used to update
+the spatial dependence block. Define the empirical residual covariance matrix
+\[
+\bS = \frac{1}{T} \sum_{t=1}^T \br_t \br_t'.
+\]
+
+The spatial random effect model of Tzeng and Huang takes the form
+\[
+\mathbf{z}_t = \mathbf{y}_t + \bm{\epsilon}_t,
+\qquad
+\mathbf{y}_t = \bF \bm{\eta}_t + \bm{\xi}_t,
+\]
+with
+\[
+\bm{\eta}_t \sim N_K(\bzero, \bM),
+\qquad
+\bm{\xi}_t \sim N_n(\bzero, \sigma_\xi^2 \I_n),
+\qquad
+\bm{\epsilon}_t \sim N_n(\bzero, \sigma_\epsilon^2 \I_n).
+\]
+In the present proposal, there is no separate measurement-error term in the
+standardized residual update, so the natural choice is
+\[
+\sigma_\epsilon^2 = 0.
+\]
+If a known measurement-error variance is desired in a specific application, it
+can be inserted without changing the formulas below.
+
+\subsection{Theorem 2 Plug-In Estimator}
+
+Define
+\[
+\bH = (\bF' \bF)^{-1/2} \bF' \bS \bF (\bF' \bF)^{-1/2}.
+\]
+Let the eigendecomposition of $\bH$ be
+\[
+\bH = \bP \diag(d_1, \ldots, d_K) \bP',
+\]
+where $d_1 \ge \cdots \ge d_K \ge 0$ are the eigenvalues. Let $d_0 = 0$. Define
+$L^*$ as the largest $L \in \{1, \ldots, K\}$ such that
+\[
+d_L >
+\max \left\{
+\frac{1}{n-L}
+\left(
+\tr(\bS) - \sum_{k=1}^L d_k
+\right),
+\sigma_\epsilon^2
+\right\},
+\]
+if such an $L$ exists, and let $L^* = 0$ otherwise.
+
+Then the Tzeng--Huang estimators are
+\begin{equation}
+\widehat{\sigma}_{\xi}^2
+=
+\max \left\{
+\frac{1}{n-L^*}
+\left(
+\tr(\bS) - \sum_{k=1}^{L^*} d_k
+\right)
+- \sigma_\epsilon^2,
+\,
+0
+\right\},
+\label{eq:sigxi}
+\end{equation}
+and
+\begin{equation}
+\widehat{\bM}
+=
+(\bF' \bF)^{-1/2}
+\bP
+\diag(\hat d_1, \ldots, \hat d_K)
+\bP'
+(\bF' \bF)^{-1/2},
+\label{eq:mhat}
+\end{equation}
+where
+\[
+\hat d_k = \max(d_k - \widehat{\sigma}_{\xi}^2 - \sigma_\epsilon^2, 0),
+\qquad
+k = 1, \ldots, K.
+\]
+
+The updated low-rank covariance is then
+\begin{equation}
+\widehat{\bG} = \bF \widehat{\bM} \bF' + \widehat{\sigma}_{\xi}^2 \I_n.
+\label{eq:ghat}
+\end{equation}
+To preserve the Morris architecture, define
+\begin{equation}
+\widehat{\bA} = \diag(\widehat{\bG}),
+\qquad
+\widehat{\bR} = \widehat{\bA}^{-1/2} \widehat{\bG} \widehat{\bA}^{-1/2}.
+\label{eq:rhat}
+\end{equation}
+
+\subsection{Interpretation}
+
+The update in \eqref{eq:sigxi}--\eqref{eq:rhat} does \emph{not} treat the
+$K(K+1)/2$ free elements of $\bM$ as a Bayesian parameter block requiring its
+own MCMC updates. Instead, it profiles the covariance block out by replacing
+$(\bM, \sigma_\xi^2)$ with closed-form estimators computed from the current
+residual replicates. Thus the computational role of the MRTS layer is to reduce
+the dimension of the matrix decomposition from $n \times n$ to $K \times K$,
+rather than to introduce a large new stochastic parameter block.
+
+\section{Likelihood and Computation}
+
+\subsection{Conditional Gaussian Likelihood}
+
+Given $(\bm{\beta}, \lambda, \bz_t, \bD_t, \bR)$, the conditional distribution
+of $\bY_t$ is
+\[
+\bY_t \mid \bm{\beta}, \lambda, \bz_t, \bD_t, \bR
+\sim
+N_n\bigl(
+\bX_t \bm{\beta} + \lambda \bD_t |\bz_t|,
+\,
+\bD_t \bR \bD_t
+\bigr).
+\]
+Equivalently, the standardized residuals satisfy
+\[
+\br_t \mid \bR \sim N_n(\bzero, \bR),
+\qquad
+t = 1, \ldots, T.
+\]
+Hence, up to an additive constant, the conditional log-likelihood of the
+residual block is
+\begin{equation}
+\ell(\bR \mid \br_1, \ldots, \br_T)
+=
+-\frac{T}{2} \log |\bR|
+-\frac{1}{2} \sum_{t=1}^T \br_t' \bR^{-1} \br_t.
+\label{eq:loglik}
+\end{equation}
+
+\subsection{Woodbury Identity for Fast Matrix Operations}
+
+Let
+\[
+\bG = \bF \bM \bF' + \sigma_\xi^2 \I_n,
+\qquad
+\sigma_\xi^2 > 0.
+\]
+Then the Woodbury identity gives
+\begin{equation}
+\bG^{-1}
+=
+\sigma_\xi^{-2} \I_n
+- \sigma_\xi^{-2} \bF
+\left(
+\bM^{-1} + \sigma_\xi^{-2} \bF' \bF
+\right)^{-1}
+\bF' \sigma_\xi^{-2}.
+\label{eq:woodbury}
+\end{equation}
+Also, by the matrix determinant lemma,
+\begin{equation}
+\log |\bG|
+=
+n \log(\sigma_\xi^2)
++ \log |\bM|
++ \log \left|
+\bM^{-1} + \sigma_\xi^{-2} \bF' \bF
+\right|.
+\label{eq:detg}
+\end{equation}
+
+Because
+\[
+\bR = \bA^{-1/2} \bG \bA^{-1/2},
+\]
+we obtain
+\begin{equation}
+\bR^{-1} = \bA^{1/2} \bG^{-1} \bA^{1/2},
+\label{eq:rinv}
+\end{equation}
+and
+\begin{equation}
+\log |\bR| = \log |\bG| - \sum_{i=1}^n \log(A_{ii}).
+\label{eq:logdetr}
+\end{equation}
+Thus all large-matrix computations needed in \eqref{eq:loglik} can be reduced to
+operations involving $\bF' \bF$ and other $K \times K$ matrices, followed by
+matrix-vector products with $\bF$.
+
+\subsection{Computational Complexity}
+
+For a single covariance update, the main costs are:
+\begin{itemize}[leftmargin=2em]
+\item forming $\bF' \br_t$ for $t = 1, \ldots, T$, which costs
+$O(nKT)$;
+\item forming the $K \times K$ matrix
+$\bF' \bS \bF = T^{-1} \sum_{t=1}^T (\bF' \br_t)(\bF' \br_t)'$, which costs
+$O(K^2 T)$ after the projected residuals are available;
+\item eigendecomposition or inversion of $K \times K$ matrices, which costs
+$O(K^3)$.
+\end{itemize}
+This replaces repeated direct inversions of dense $n \times n$ Mat\'ern
+covariance matrices, whose dominant cost is typically $O(n^3)$ per update.
+When $K \ll n$, this is the main source of computational acceleration.
+
+\section{Hybrid Bayesian--Profile Inference Scheme}
+
+The proposed method is not a fully Bayesian model for $\bM$. Instead, it is a
+Bayesian hierarchical model for the skew, scale, regression, and partition
+blocks, combined with a profiled low-rank covariance update. A practical
+algorithm is:
+
+\begin{enumerate}[leftmargin=2em]
+\item Update latent censored or missing values in $\bY_t$ as in the original
+Morris computation.
+\item Update $(\bm{\beta}, \lambda)$ using their conditional Gaussian blocks.
+\item Update the partition-specific latent variables $\bz_t$, the scale terms
+$\bD_t$, and any partition-location parameters exactly as in the original Morris
+sampler.
+\item Compute residuals $\br_t$ using \eqref{eq:resid}.
+\item Form $\bS = T^{-1} \sum_{t=1}^T \br_t \br_t'$.
+\item Update $(\bM, \sigma_\xi^2)$ by the closed-form formulas
+\eqref{eq:sigxi}--\eqref{eq:mhat}.
+\item Construct $\bG$, $\bA$, and $\bR$ via \eqref{eq:ghat}--\eqref{eq:rhat}.
+\item Evaluate quadratic forms and log-determinants using
+\eqref{eq:woodbury}--\eqref{eq:logdetr}.
+\end{enumerate}
+
+This scheme is best viewed as a hybrid MCMC/ECM algorithm: the Morris blocks are
+updated by Bayesian conditional simulation, whereas the low-rank covariance
+block is updated by a closed-form optimization step conditional on the current
+residuals.
+
+\section{Optional One-Parameter Bayesian Extension}
+
+If some uncertainty in the covariance block is desired without returning to a
+full $K(K+1)/2$-dimensional MCMC update, one simple extension is to introduce a
+scalar expansion parameter $c > 0$ and set
+\[
+\bM = c \, \widehat{\bM},
+\]
+where $\widehat{\bM}$ is the Tzeng--Huang plug-in estimator. One may then place
+a prior on $c$, for example
+\[
+c \sim \operatorname{Gamma}(a_c, b_c),
+\]
+and update only $c$ within the MCMC. This preserves the dominant eigenstructure
+estimated from the closed-form step while allowing limited posterior
+uncertainty in the overall strength of the low-rank dependence.
+
+\section{Modeling Assumptions and Practical Remarks}
+
+\begin{enumerate}[leftmargin=2em]
+\item The MRTS basis matrix $\bF$ is treated as fixed and prespecified.
+\item The Tzeng--Huang update relies on replicate residual vectors
+$\br_1, \ldots, \br_T$ that are conditionally independent with a common spatial
+dependence structure.
+\item In the present proposal, $\sigma_\epsilon^2$ is set to zero because the
+standardized residual vectors are treated as directly observed for the purpose of
+the covariance update. If an external measurement-error variance is known, it can
+be inserted into the update formulas.
+\item Standardizing $\bG$ to $\bR$ is a deliberate modeling choice made to
+preserve the original Morris interpretation that $\bD_t$ controls marginal scale
+while the spatial layer controls dependence.
+\item The basis dimension $K$ should remain well below $n$, and in practice it
+is also advisable to avoid choosing $K$ much larger than the effective number of
+temporal replicates $T$.
+\end{enumerate}
+
+\section{Summary}
+
+The proposed model keeps the Morris skew-$t$ hierarchy intact at the observation
+level,
+\[
+\bY_t = \bX_t \bm{\beta} + \lambda \bD_t |\bz_t| + \bD_t \mathbf{v}_t,
+\]
+but replaces the site-level Mat\'ern dependence with an MRTS low-rank spatial
+layer. The unknown covariance matrix $\bM$ is not sampled as a large Bayesian
+parameter block. Instead, it is updated in closed form from current residuals
+using the Tzeng--Huang estimator, after which the implied covariance matrix is
+standardized to a correlation matrix and inserted back into the Morris
+hierarchy. This retains computational scalability while preserving the original
+interpretation of the skew and scale blocks.
+
+\end{document}

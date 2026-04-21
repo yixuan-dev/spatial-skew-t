@@ -1,0 +1,332 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{array, booktabs, longtable, pdflscape, tabularx}
+\usepackage{hyperref}
+
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.05}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\sourceworkbook}{\path{D:/Github/spatial-skew-t/code/analysis/ozone/US-all/output/us-all/tables/comparison_top2.updated.xlsx}}
+
+\title{Ozone US-all Metric Inventory and Top-2 Summary}
+\author{}
+\date{April 21, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Source and reading guide}
+
+This note summarizes the following workbook:
+
+\begin{quote}
+\small
+\sourceworkbook
+\end{quote}
+
+The goal is to keep the metric definitions, ranking logic, and top-2 model
+configurations in one manuscript-ready \LaTeX{} file.
+
+In the workbook, \texttt{rank\_value} is always the quantity used to order the
+top-2 rows, whereas \texttt{score\_value} is the raw metric itself. The detailed
+tables below collapse each \texttt{ranking\_group} into one row with a winner
+and a runner-up. Because every top-2 entry in this workbook has
+\texttt{CMAQ=yes}, \texttt{CMAQ} is documented in the column glossary but
+omitted from the per-row configuration strings.
+
+\section{Metric inventory}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}P{2.6cm}P{3.3cm}P{4.7cm}Y@{}}
+\toprule
+Block & Metrics & Scenario dimension & Top-2 ranking rule \\
+\midrule
+Probabilistic score & Brier, Quantile score, CRPS & Brier thresholds
+\(q \in \{0, 0.1, \ldots, 0.995\}\), quantile-score levels
+\(q \in \{0.1, \ldots, 0.995\}\), and one overall CRPS summary &
+\texttt{ranking\_basis = rel\_to\_gaussian}; smaller
+\texttt{rank\_value} is better. \\
+Tail-aware split score & Brier split & \(q \in \{0.9, 0.95, 0.98, 0.99,
+0.995\}\) crossed with \texttt{above\_threshold}, \texttt{all}, and
+\texttt{below\_threshold} & \texttt{ranking\_basis = rel\_to\_gaussian};
+smaller \texttt{rank\_value} is better. \\
+Classification & Accuracy, Precision, Recall, Specificity, F1 & Event
+quantiles \(q \in \{0.9, 0.95, 0.98, 0.99, 0.995\}\) with probability cutoff
+\(0.5\) & \texttt{ranking\_basis = raw\_score}; the workbook already sorts in
+the correct direction for each metric. \\
+Calibration to target & Coverage, PIT mean, PIT variance & Coverage levels
+\(0.8, 0.9, 0.95\) plus overall PIT summaries & \texttt{ranking\_basis =
+abs\_gap\_to\_target}; smaller absolute gap is better. \\
+Raw uncertainty diagnostics & PIT KS, PIT uniformity MAE, PIT uniformity RMSE
+& Overall summaries & \texttt{ranking\_basis = raw\_score}; lower values are
+better. \\
+\bottomrule
+\end{tabularx}
+\caption{Metric blocks represented in \texttt{comparison\_top2.updated.xlsx}.}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}P{3.5cm}Y Y@{}}
+\toprule
+Workbook column(s) & Interpretation & How it appears in this draft \\
+\midrule
+\texttt{metric\_family}, \texttt{metric} & Identify the metric block and the
+named metric. & Used as the sectioning logic and the first column of each
+detailed table. \\
+\texttt{ranking\_group} & Source-side identifier for a specific metric/scenario
+combination. & Suppressed in the detailed tables because \texttt{metric +
+scenario} is easier to read in the manuscript. \\
+\texttt{target\_level}, \texttt{threshold\_value}, \texttt{target\_value} &
+Define the nominal quantile/coverage level and the corresponding event or
+target. & Condensed into the manuscript-side \emph{Scenario} column. \\
+\texttt{prediction\_cutoff} & Probability cutoff used by classification
+metrics. & Included in the \emph{Scenario} column for classification rows. \\
+\texttt{band\_type} & Split used by the Brier decomposition:
+\texttt{above\_threshold}, \texttt{all}, or \texttt{below\_threshold}. &
+Included in the \emph{Scenario} column for Brier-split rows. \\
+\texttt{ranking\_basis} & Explains whether the workbook ranks by relative score,
+raw score, or absolute target gap. & Explained in the inventory table and used
+to interpret \texttt{rank\_value}. \\
+\texttt{rank\_value} & Quantity actually used to assign rank 1 and rank 2. &
+Reported directly for both winner and runner-up. \\
+\texttt{score\_value}, \texttt{score\_se} & Raw metric value and its standard
+error. & Reported as \emph{Score $\pm$ SE}. \\
+\texttt{setting} & Reproducible model identifier in the ozone US-all workflow.
+& Encoded inside each winner/runner-up label as \texttt{S<setting>}. \\
+\texttt{method}, \texttt{knots}, \texttt{thresh}, \texttt{TS},
+\texttt{ar2}, \texttt{mrts} & Core model-configuration fields. &
+Printed inside the winner/runner-up labels. \\
+\texttt{model\_lane} & Broad model family: Gaussian reference, Morris
+baseline, AR2, MRTS, or another numeric variant. & Printed inside the
+winner/runner-up labels as \texttt{Gaussian}, \texttt{Morris},
+\texttt{AR2}, \texttt{MRTS}, or \texttt{Other}. \\
+\texttt{CMAQ} & Indicator of whether CMAQ covariates are included. &
+Documented here only; all top-2 rows in this workbook have \texttt{CMAQ=yes}. \\
+\bottomrule
+\end{tabularx}
+\caption{Important workbook columns for manuscript use.}
+\end{table}
+
+\section{High-level patterns}
+
+The global probabilistic-score block still leans toward Morris-baseline
+skew-\(t\) settings. In particular, CRPS is led by settings 35 and 11, and many
+Brier and Quantile-score winners at low-to-moderate quantile levels remain in
+the Morris lane.
+
+Upper-tail scoring is more heterogeneous. AR2 wins Brier at \(q=0.95\) and
+\(q=0.995\), and it also takes Quantile-score wins at \(q=0.98\), \(0.99\), and
+\(0.995\). MRTS wins Brier at \(q=0.9\), Quantile score at \(q=0.8\) and
+\(0.9\), and the below-threshold Brier split at \(q=0.98\) and \(0.99\).
+
+Classification metrics show a precision-recall trade-off. High-threshold
+\texttt{Other} skew-\(t\) settings, especially settings 18 and 14 with
+\texttt{thr=85}, dominate precision and specificity. By contrast, MRTS appears
+most clearly in F1/Recall at \(q=0.98\), whereas calibration diagnostics remain
+mostly Morris or AR2: AR2 wins coverage at \(0.8\) and \(0.9\), and Morris
+still dominates most PIT-based summaries.
+
+\clearpage
+\section{Detailed top-2 tables}
+
+Each winner/runner-up cell is a compact label containing the setting id, the
+model lane, the sampling family, and the key tuning fields
+\texttt{K}, \texttt{thr}, \texttt{TS}, \texttt{AR2}, and \texttt{MRTS}. The
+detailed tables retain the workbook's top-2 ordering but replace the
+source-side \texttt{ranking\_group} string with a more compact scenario label.
+
+\subsection{Probabilistic scores}
+
+For this block, \texttt{rank\_value} is the relative score with respect to the
+Gaussian reference, so smaller values indicate stronger performance.
+
+\begin{landscape}
+\scriptsize
+\begin{longtable}{@{}P{1.6cm}P{1.8cm}P{5.2cm}P{1.3cm}P{2.1cm}P{5.2cm}P{1.3cm}P{2.1cm}@{}}
+\caption{Top-2 probabilistic-score summaries from \texttt{comparison\_top2.updated.xlsx}.}\\
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endfirsthead
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endhead
+\midrule
+\multicolumn{8}{r}{Continued on next page} \\
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Brier & q=0 & S2 / Morris / max-stable (K=1, thr=75, TS=no, AR2=no, MRTS=-) & 0.5834 & 0.00008342 $\pm$ 0.00008342 & S104 / AR2 / skew-t (K=5, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.8289 & 0.0001185 $\pm$ 0.00007445 \\
+Brier & q=0.1 & S33 / Morris / skew-t (K=6, thr=0, TS=no, AR2=no, MRTS=-) & 0.9539 & 0.03689 $\pm$ 0.0009925 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.956 & 0.03697 $\pm$ 0.0009705 \\
+Brier & q=0.2 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.9566 & 0.06051 $\pm$ 0.001701 & S35 / Morris / skew-t (K=8, thr=0, TS=no, AR2=no, MRTS=-) & 0.9572 & 0.06055 $\pm$ 0.00148 \\
+Brier & q=0.3 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.9629 & 0.07603 $\pm$ 0.001555 & S15 / Morris / skew-t (K=15, thr=0, TS=no, AR2=no, MRTS=-) & 0.9631 & 0.07604 $\pm$ 0.001287 \\
+Brier & q=0.4 & S36 / Morris / skew-t (K=9, thr=0, TS=no, AR2=no, MRTS=-) & 0.969 & 0.08652 $\pm$ 0.0006096 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.9692 & 0.08653 $\pm$ 0.0007625 \\
+Brier & q=0.5 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.9802 & 0.09271 $\pm$ 0.001121 & S15 / Morris / skew-t (K=15, thr=0, TS=no, AR2=no, MRTS=-) & 0.9807 & 0.09276 $\pm$ 0.001229 \\
+Brier & q=0.6 & S34 / Morris / skew-t (K=7, thr=0, TS=no, AR2=no, MRTS=-) & 0.988 & 0.09345 $\pm$ 0.0003049 & S104 / AR2 / skew-t (K=5, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9884 & 0.09348 $\pm$ 0.0004491 \\
+Brier & q=0.7 & S122 / AR2 / skew-t (K=15, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9849 & 0.08519 $\pm$ 0.0006925 & S107 / AR2 / skew-t (K=6, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9859 & 0.08528 $\pm$ 0.0004477 \\
+Brier & q=0.8 & S16 / Morris / skew-t (K=15, thr=50, TS=no, AR2=no, MRTS=-) & 0.9868 & 0.0706 $\pm$ 0.001406 & S60 / Morris / skew-t (K=7, thr=0, TS=yes, AR2=no, MRTS=-) & 0.9897 & 0.0708 $\pm$ 0.001739 \\
+Brier & q=0.9 & S204 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=10) & 0.9916 & 0.04467 $\pm$ 0.00126 & S51 / Morris / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=-) & 0.9922 & 0.0447 $\pm$ 0.001301 \\
+Brier & q=0.95 & S111 / AR2 / skew-t (K=7, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.9856 & 0.02664 $\pm$ 0.001991 & S120 / AR2 / skew-t (K=10, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.9886 & 0.02672 $\pm$ 0.002042 \\
+Brier & q=0.98 & S58 / Morris / skew-t (K=6, thr=50, TS=yes, AR2=no, MRTS=-) & 0.9734 & 0.01257 $\pm$ 0.0007027 & S55 / Morris / skew-t (K=5, thr=50, TS=yes, AR2=no, MRTS=-) & 0.9737 & 0.01257 $\pm$ 0.0006884 \\
+Brier & q=0.99 & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.9466 & 0.006876 $\pm$ 0.0006893 & S8 / Morris / skew-t (K=5, thr=50, TS=no, AR2=no, MRTS=-) & 0.95 & 0.0069 $\pm$ 0.0005906 \\
+Brier & q=0.995 & S124 / AR2 / t (K=15, thr=75, TS=yes, AR2=yes, MRTS=-) & 0.9534 & 0.003842 $\pm$ 0.0001045 & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.9556 & 0.003851 $\pm$ 0.0001188 \\
+CRPS & overall & S35 / Morris / skew-t (K=8, thr=0, TS=no, AR2=no, MRTS=-) & 0.977 & 4.053 $\pm$ 0.01506 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.9771 & 4.053 $\pm$ 0.01085 \\
+Quantile score & q=0.1 & S72 / Morris / skew-t (K=15, thr=0, TS=yes, AR2=no, MRTS=-) & 0.9927 & 4.366 $\pm$ 0.01051 & S122 / AR2 / skew-t (K=15, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9927 & 4.366 $\pm$ 0.01304 \\
+Quantile score & q=0.2 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.9959 & 7.223 $\pm$ 0.01741 & S122 / AR2 / skew-t (K=15, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9959 & 7.223 $\pm$ 0.02098 \\
+Quantile score & q=0.3 & S33 / Morris / skew-t (K=6, thr=0, TS=no, AR2=no, MRTS=-) & 0.9975 & 9.185 $\pm$ 0.009203 & S11 / Morris / skew-t (K=10, thr=0, TS=no, AR2=no, MRTS=-) & 0.9976 & 9.185 $\pm$ 0.01037 \\
+Quantile score & q=0.4 & S33 / Morris / skew-t (K=6, thr=0, TS=no, AR2=no, MRTS=-) & 0.9982 & 10.4 $\pm$ 0.01359 & S37 / Other / skew-t (K=11, thr=0, TS=no, AR2=no, MRTS=-) & 0.9982 & 10.4 $\pm$ 0.01603 \\
+Quantile score & q=0.5 & S37 / Other / skew-t (K=11, thr=0, TS=no, AR2=no, MRTS=-) & 0.9983 & 10.9 $\pm$ 0.03013 & S60 / Morris / skew-t (K=7, thr=0, TS=yes, AR2=no, MRTS=-) & 0.9984 & 10.9 $\pm$ 0.03219 \\
+Quantile score & q=0.6 & S60 / Morris / skew-t (K=7, thr=0, TS=yes, AR2=no, MRTS=-) & 0.9988 & 10.69 $\pm$ 0.03775 & S107 / AR2 / skew-t (K=6, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.999 & 10.7 $\pm$ 0.03958 \\
+Quantile score & q=0.7 & S107 / AR2 / skew-t (K=6, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9988 & 9.74 $\pm$ 0.02604 & S7 / Morris / skew-t (K=5, thr=0, TS=no, AR2=no, MRTS=-) & 0.9992 & 9.743 $\pm$ 0.026 \\
+Quantile score & q=0.8 & S204 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=10) & 0.9992 & 7.936 $\pm$ 0.02265 & S107 / AR2 / skew-t (K=6, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9993 & 7.936 $\pm$ 0.0005303 \\
+Quantile score & q=0.9 & S201 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=5) & 0.9983 & 5.033 $\pm$ 0.0188 & S7 / Morris / skew-t (K=5, thr=0, TS=no, AR2=no, MRTS=-) & 0.9984 & 5.033 $\pm$ 0.0007798 \\
+Quantile score & q=0.95 & S61 / Morris / skew-t (K=7, thr=50, TS=yes, AR2=no, MRTS=-) & 0.9957 & 2.988 $\pm$ 0.009827 & S119 / AR2 / skew-t (K=10, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9957 & 2.988 $\pm$ 0.004428 \\
+Quantile score & q=0.98 & S119 / AR2 / skew-t (K=10, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9861 & 1.423 $\pm$ 0.01749 & S36 / Morris / skew-t (K=9, thr=0, TS=no, AR2=no, MRTS=-) & 0.9863 & 1.424 $\pm$ 0.02184 \\
+Quantile score & q=0.99 & S108 / AR2 / skew-t (K=6, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.9718 & 0.797 $\pm$ 0.01481 & S67 / Morris / skew-t (K=9, thr=50, TS=yes, AR2=no, MRTS=-) & 0.9732 & 0.7981 $\pm$ 0.01733 \\
+Quantile score & q=0.995 & S108 / AR2 / skew-t (K=6, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.9412 & 0.4413 $\pm$ 0.01264 & S114 / AR2 / skew-t (K=8, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.9428 & 0.442 $\pm$ 0.01541 \\
+\end{longtable}
+\end{landscape}
+
+\clearpage
+\subsection{Tail-aware Brier split}
+
+This table separates Brier performance into \texttt{above\_threshold},
+\texttt{all}, and \texttt{below\_threshold} bands. As above, smaller
+\texttt{rank\_value} indicates better relative performance to the Gaussian
+reference.
+
+\begin{landscape}
+\scriptsize
+\begin{longtable}{@{}P{1.6cm}P{1.8cm}P{5.2cm}P{1.3cm}P{2.1cm}P{5.2cm}P{1.3cm}P{2.1cm}@{}}
+\caption{Top-2 Brier-split summaries from \texttt{comparison\_top2.updated.xlsx}.}\\
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endfirsthead
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endhead
+\midrule
+\multicolumn{8}{r}{Continued on next page} \\
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Brier split & q=0.9, band=above & S2 / Morris / max-stable (K=1, thr=75, TS=no, AR2=no, MRTS=-) & 0 & 0 $\pm$ 0 & S4 / Morris / skew-t (K=1, thr=50, TS=no, AR2=no, MRTS=-) & 0.9543 & 0.2766 $\pm$ 0.001711 \\
+Brier split & q=0.9, band=all & S204 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=10) & 0.9916 & 0.04467 $\pm$ 0.00126 & S51 / Morris / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=-) & 0.9922 & 0.0447 $\pm$ 0.001301 \\
+Brier split & q=0.9, band=below & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.245 & 0.004428 $\pm$ 0.002788 & S14 / Other / skew-t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.44 & 0.007952 $\pm$ 0.004024 \\
+Brier split & q=0.95, band=above & S16 / Morris / skew-t (K=15, thr=50, TS=no, AR2=no, MRTS=-) & 0.9317 & 0.3543 $\pm$ 0.01198 & S38 / Morris / skew-t (K=6, thr=50, TS=no, AR2=no, MRTS=-) & 0.9339 & 0.3551 $\pm$ 0.01365 \\
+Brier split & q=0.95, band=all & S111 / AR2 / skew-t (K=7, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.9856 & 0.02664 $\pm$ 0.001991 & S120 / AR2 / skew-t (K=10, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.9886 & 0.02672 $\pm$ 0.002042 \\
+Brier split & q=0.95, band=below & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.4761 & 0.004014 $\pm$ 0.001834 & S14 / Other / skew-t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.6233 & 0.005256 $\pm$ 0.001358 \\
+Brier split & q=0.98, band=above & S71 / Morris / t (K=10, thr=75, TS=yes, AR2=no, MRTS=-) & 0.8541 & 0.4612 $\pm$ 0.007674 & S74 / Morris / t (K=15, thr=75, TS=yes, AR2=no, MRTS=-) & 0.8559 & 0.4621 $\pm$ 0.003531 \\
+Brier split & q=0.98, band=all & S58 / Morris / skew-t (K=6, thr=50, TS=yes, AR2=no, MRTS=-) & 0.9734 & 0.01257 $\pm$ 0.0007027 & S55 / Morris / skew-t (K=5, thr=50, TS=yes, AR2=no, MRTS=-) & 0.9737 & 0.01257 $\pm$ 0.0006884 \\
+Brier split & q=0.98, band=below & S207 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=15) & 0.9877 & 0.002187 $\pm$ 0.0002172 & S204 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=10) & 0.9971 & 0.002208 $\pm$ 0.0002081 \\
+Brier split & q=0.99, band=above & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.8009 & 0.5233 $\pm$ 0.04107 & S71 / Morris / t (K=10, thr=75, TS=yes, AR2=no, MRTS=-) & 0.8157 & 0.533 $\pm$ 0.03861 \\
+Brier split & q=0.99, band=all & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.9466 & 0.006876 $\pm$ 0.0006893 & S8 / Morris / skew-t (K=5, thr=50, TS=no, AR2=no, MRTS=-) & 0.95 & 0.0069 $\pm$ 0.0005906 \\
+Brier split & q=0.99, band=below & S207 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=15) & 0.9911 & 0.0007457 $\pm$ 0.00008788 & S1 / Gaussian / gaussian (K=1, thr=0, TS=no, AR2=no, MRTS=-) & 1 & 0.0007523 $\pm$ 0.00009287 \\
+Brier split & q=0.995, band=above & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.736 & 0.5599 $\pm$ 0.06917 & S14 / Other / skew-t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.764 & 0.5812 $\pm$ 0.06674 \\
+Brier split & q=0.995, band=all & S124 / AR2 / t (K=15, thr=75, TS=yes, AR2=yes, MRTS=-) & 0.9534 & 0.003842 $\pm$ 0.0001045 & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.9556 & 0.003851 $\pm$ 0.0001188 \\
+Brier split & q=0.995, band=below & S1 / Gaussian / gaussian (K=1, thr=0, TS=no, AR2=no, MRTS=-) & 1 & 0.0002316 $\pm$ 0.000001534 & S207 / MRTS / skew-t (K=1, thr=0, TS=yes, AR2=no, MRTS=15) & 1.01 & 0.0002338 $\pm$ 0.000002013 \\
+\end{longtable}
+\end{landscape}
+
+\clearpage
+\subsection{Classification metrics}
+
+For this block, \texttt{rank\_value} equals the raw classification metric after
+the workbook has applied the correct ranking direction.
+
+\begin{landscape}
+\scriptsize
+\begin{longtable}{@{}P{1.6cm}P{1.8cm}P{5.2cm}P{1.3cm}P{2.1cm}P{5.2cm}P{1.3cm}P{2.1cm}@{}}
+\caption{Top-2 classification summaries from \texttt{comparison\_top2.updated.xlsx}.}\\
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endfirsthead
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endhead
+\midrule
+\multicolumn{8}{r}{Continued on next page} \\
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Accuracy & q=0.9, cutoff=0.5 & S116 / AR2 / skew-t (K=9, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9383 & 0.9383 $\pm$ 0.001983 & S33 / Morris / skew-t (K=6, thr=0, TS=no, AR2=no, MRTS=-) & 0.9383 & 0.9383 $\pm$ 0.002275 \\
+Accuracy & q=0.95, cutoff=0.5 & S55 / Morris / skew-t (K=5, thr=50, TS=yes, AR2=no, MRTS=-) & 0.9646 & 0.9646 $\pm$ 0.00339 & S35 / Morris / skew-t (K=8, thr=0, TS=no, AR2=no, MRTS=-) & 0.9645 & 0.9645 $\pm$ 0.003224 \\
+Accuracy & q=0.98, cutoff=0.5 & S3 / Morris / skew-t (K=1, thr=0, TS=no, AR2=no, MRTS=-) & 0.984 & 0.984 $\pm$ 0.00134 & S120 / AR2 / skew-t (K=10, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.984 & 0.984 $\pm$ 0.001424 \\
+Accuracy & q=0.99, cutoff=0.5 & S115 / AR2 / t (K=8, thr=75, TS=yes, AR2=yes, MRTS=-) & 0.9918 & 0.9918 $\pm$ 0.0004617 & S74 / Morris / t (K=15, thr=75, TS=yes, AR2=no, MRTS=-) & 0.9917 & 0.9917 $\pm$ 0.0008787 \\
+Accuracy & q=0.995, cutoff=0.5 & S1 / Gaussian / gaussian (K=1, thr=0, TS=no, AR2=no, MRTS=-) & 0.9956 & 0.9956 $\pm$ 0.000001658 & S15 / Morris / skew-t (K=15, thr=0, TS=no, AR2=no, MRTS=-) & 0.9956 & 0.9956 $\pm$ 0.00008504 \\
+F1 & q=0.9, cutoff=0.5 & S33 / Morris / skew-t (K=6, thr=0, TS=no, AR2=no, MRTS=-) & 0.645 & 0.645 $\pm$ 0.005291 & S61 / Morris / skew-t (K=7, thr=50, TS=yes, AR2=no, MRTS=-) & 0.6442 & 0.6442 $\pm$ 0.002312 \\
+F1 & q=0.95, cutoff=0.5 & S4 / Morris / skew-t (K=1, thr=50, TS=no, AR2=no, MRTS=-) & 0.5744 & 0.5744 $\pm$ 0.01409 & S55 / Morris / skew-t (K=5, thr=50, TS=yes, AR2=no, MRTS=-) & 0.5728 & 0.5728 $\pm$ 0.02383 \\
+F1 & q=0.98, cutoff=0.5 & S203 / MRTS / t (K=1, thr=75, TS=yes, AR2=no, MRTS=5) & 0.4652 & 0.4652 $\pm$ 0.004034 & S65 / Morris / t (K=8, thr=75, TS=yes, AR2=no, MRTS=-) & 0.4638 & 0.4638 $\pm$ 0.01459 \\
+F1 & q=0.99, cutoff=0.5 & S74 / Morris / t (K=15, thr=75, TS=yes, AR2=no, MRTS=-) & 0.4068 & 0.4068 $\pm$ 0.05383 & S203 / MRTS / t (K=1, thr=75, TS=yes, AR2=no, MRTS=5) & 0.3948 & 0.3948 $\pm$ 0.02491 \\
+F1 & q=0.995, cutoff=0.5 & S9 / Morris / t (K=5, thr=75, TS=no, AR2=no, MRTS=-) & 0.3405 & 0.3405 $\pm$ 0.04048 & S24 / Other / t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.3311 & 0.3311 $\pm$ 0.04538 \\
+Precision & q=0.9, cutoff=0.5 & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.8409 & 0.8409 $\pm$ 0.03817 & S14 / Other / skew-t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.806 & 0.806 $\pm$ 0.06422 \\
+Precision & q=0.95, cutoff=0.5 & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.8028 & 0.8028 $\pm$ 0.04336 & S14 / Other / skew-t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.7658 & 0.7658 $\pm$ 0.02477 \\
+Precision & q=0.98, cutoff=0.5 & S3 / Morris / skew-t (K=1, thr=0, TS=no, AR2=no, MRTS=-) & 0.7555 & 0.7555 $\pm$ 0.05849 & S113 / AR2 / skew-t (K=8, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.7446 & 0.7446 $\pm$ 0.05306 \\
+Precision & q=0.99, cutoff=0.5 & S47 / Other / skew-t (K=6, thr=85, TS=no, AR2=no, MRTS=-) & 0.7607 & 0.7607 $\pm$ 0.01071 & S115 / AR2 / t (K=8, thr=75, TS=yes, AR2=yes, MRTS=-) & 0.75 & 0.75 $\pm$ 0.03571 \\
+Precision & q=0.995, cutoff=0.5 & S15 / Morris / skew-t (K=15, thr=0, TS=no, AR2=no, MRTS=-) & 0.9583 & 0.9583 $\pm$ 0.04167 & S107 / AR2 / skew-t (K=6, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9545 & 0.9545 $\pm$ 0.04545 \\
+Recall & q=0.9, cutoff=0.5 & S2 / Morris / max-stable (K=1, thr=75, TS=no, AR2=no, MRTS=-) & 1 & 1 $\pm$ 0 & S61 / Morris / skew-t (K=7, thr=50, TS=yes, AR2=no, MRTS=-) & 0.5677 & 0.5677 $\pm$ 0.004929 \\
+Recall & q=0.95, cutoff=0.5 & S4 / Morris / skew-t (K=1, thr=50, TS=no, AR2=no, MRTS=-) & 0.4814 & 0.4814 $\pm$ 0.01243 & S25 / Other / t (K=15, thr=75, TS=no, AR2=no, MRTS=-) & 0.4765 & 0.4765 $\pm$ 0.01385 \\
+Recall & q=0.98, cutoff=0.5 & S203 / MRTS / t (K=1, thr=75, TS=yes, AR2=no, MRTS=5) & 0.3541 & 0.3541 $\pm$ 0.006249 & S65 / Morris / t (K=8, thr=75, TS=yes, AR2=no, MRTS=-) & 0.3505 & 0.3505 $\pm$ 0.01039 \\
+Recall & q=0.99, cutoff=0.5 & S74 / Morris / t (K=15, thr=75, TS=yes, AR2=no, MRTS=-) & 0.2853 & 0.2853 $\pm$ 0.03944 & S203 / MRTS / t (K=1, thr=75, TS=yes, AR2=no, MRTS=5) & 0.2764 & 0.2764 $\pm$ 0.01415 \\
+Recall & q=0.995, cutoff=0.5 & S9 / Morris / t (K=5, thr=75, TS=no, AR2=no, MRTS=-) & 0.2325 & 0.2325 $\pm$ 0.02558 & S26 / Other / t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.2325 & 0.2325 $\pm$ 0.02558 \\
+Specificity & q=0.9, cutoff=0.5 & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.9962 & 0.9962 $\pm$ 0.002791 & S14 / Other / skew-t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.9922 & 0.9922 $\pm$ 0.005306 \\
+Specificity & q=0.95, cutoff=0.5 & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.9973 & 0.9973 $\pm$ 0.001807 & S14 / Other / skew-t (K=10, thr=85, TS=no, AR2=no, MRTS=-) & 0.9955 & 0.9955 $\pm$ 0.001813 \\
+Specificity & q=0.98, cutoff=0.5 & S18 / Other / skew-t (K=15, thr=85, TS=no, AR2=no, MRTS=-) & 0.9981 & 0.9981 $\pm$ 0.0008954 & S113 / AR2 / skew-t (K=8, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.998 & 0.998 $\pm$ 0.0005126 \\
+Specificity & q=0.99, cutoff=0.5 & S57 / Morris / skew-t (K=6, thr=0, TS=yes, AR2=no, MRTS=-) & 0.9995 & 0.9995 $\pm$ 0.00004179 & S110 / AR2 / skew-t (K=7, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.9994 & 0.9994 $\pm$ 0.0001681 \\
+Specificity & q=0.995, cutoff=0.5 & S15 / Morris / skew-t (K=15, thr=0, TS=no, AR2=no, MRTS=-) & 1 & 1 $\pm$ 0.00004189 & S107 / AR2 / skew-t (K=6, thr=0, TS=yes, AR2=yes, MRTS=-) & 1 & 1 $\pm$ 0.00004189 \\
+\end{longtable}
+\end{landscape}
+
+\clearpage
+\subsection{Uncertainty and calibration}
+
+Coverage, PIT mean, and PIT variance are ranked by absolute gap to target;
+PIT KS, PIT MAE, and PIT RMSE are ranked directly on the raw score scale.
+
+\begin{landscape}
+\scriptsize
+\begin{longtable}{@{}P{1.6cm}P{1.8cm}P{5.2cm}P{1.3cm}P{2.1cm}P{5.2cm}P{1.3cm}P{2.1cm}@{}}
+\caption{Top-2 uncertainty and calibration summaries from \texttt{comparison\_top2.updated.xlsx}.}\\
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endfirsthead
+\toprule
+Metric & Scenario & Winner (setting/lane/model) & Rank value & Score $\pm$ SE & Runner-up (setting/lane/model) & Rank value & Score $\pm$ SE \\
+\midrule
+\endhead
+\midrule
+\multicolumn{8}{r}{Continued on next page} \\
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Coverage & level=0.8 & S117 / AR2 / skew-t (K=9, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.00008193 & 0.8001 $\pm$ 0.003869 & S209 / MRTS / t (K=1, thr=75, TS=yes, AR2=no, MRTS=15) & 0.001552 & 0.8016 $\pm$ 0.02369 \\
+Coverage & level=0.9 & S113 / AR2 / skew-t (K=8, thr=0, TS=yes, AR2=yes, MRTS=-) & 0.0002728 & 0.9003 $\pm$ 0.004716 & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.0003933 & 0.8996 $\pm$ 0.007384 \\
+Coverage & level=0.95 & S27 / Other / skew-t (K=2, thr=0, TS=no, AR2=no, MRTS=-) & 0.00007324 & 0.9499 $\pm$ 0.0007276 & S31 / Other / skew-t (K=4, thr=0, TS=no, AR2=no, MRTS=-) & 0.0001149 & 0.9499 $\pm$ 0.0006859 \\
+PIT KS & overall & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.0229 & 0.0229 $\pm$ 0.001549 & S59 / Morris / t (K=6, thr=75, TS=yes, AR2=no, MRTS=-) & 0.03383 & 0.03383 $\pm$ 0.004204 \\
+PIT MAE & overall & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.005766 & 0.005766 $\pm$ 0.0009276 & S117 / AR2 / skew-t (K=9, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.007056 & 0.007056 $\pm$ 0.0009916 \\
+PIT RMSE & overall & S68 / Morris / t (K=9, thr=75, TS=yes, AR2=no, MRTS=-) & 0.006464 & 0.006464 $\pm$ 0.001116 & S70 / Morris / skew-t (K=10, thr=50, TS=yes, AR2=no, MRTS=-) & 0.00894 & 0.00894 $\pm$ 0.001535 \\
+PIT mean & overall & S7 / Morris / skew-t (K=5, thr=0, TS=no, AR2=no, MRTS=-) & 0.0002274 & 0.5002 $\pm$ 0.02051 & S54 / Morris / skew-t (K=5, thr=0, TS=yes, AR2=no, MRTS=-) & 0.0003903 & 0.5004 $\pm$ 0.02017 \\
+PIT variance & overall & S73 / Morris / skew-t (K=15, thr=50, TS=yes, AR2=no, MRTS=-) & 0.0002141 & 0.08355 $\pm$ 0.001212 & S123 / AR2 / skew-t (K=15, thr=50, TS=yes, AR2=yes, MRTS=-) & 0.000497 & 0.08383 $\pm$ 0.001293 \\
+\end{longtable}
+\end{landscape}
+
+\end{document}

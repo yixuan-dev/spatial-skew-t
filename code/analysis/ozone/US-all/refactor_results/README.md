@@ -20,6 +20,40 @@ Rscript refactor_results/12_run_proposed_results.R
 
 yp 是 5000 x 400 x 31，所以 5000 就是全量。
 
+## 產生 MRTS 重點圖
+
+先跑完 `12_run_proposed_results.R` 之後，再執行：
+
+```ps
+cd D:\Github\spatial-skew-t\code\analysis\ozone\US-all
+$env:US_ALL_PLOT_SUMMARY_DRAWS='400'  # optional；mean diagnostics 預設沿用 400 draws
+Rscript refactor_results/13_plot_proposed_results.R
+```
+
+這個 runner 會額外寫出：
+
+- `output/us-all/tables/mrts_mean_diagnostics.csv`
+- `output/us-all/plots/mrts_extreme_delta_profiles.png`
+- `output/us-all/plots/mrts_extreme_split_brier.png`
+- `output/us-all/plots/mrts_mean_error_gap.png`
+- `output/us-all/plots/mrts_mean_bias.png`
+- `output/us-all/plots/mrts_tail_mean_tradeoff.png`
+
+圖的重點：
+
+- `mrts_extreme_delta_profiles`
+  - 看 AR2 / MRTS 在高 quantile (`0.90` 到 `0.995`) 相對同 basis baseline 的 tail score 改變
+- `mrts_extreme_split_brier`
+  - 把極端事件拆成 `above_threshold` 與 `below_threshold`
+  - 分開看 miss 與 false alarm 的代價
+- `mrts_mean_error_gap`
+  - 看 MRTS 在平均層級 prediction 上對 `RMSE`、`MAE`、`|Bias|` 的優勢或劣勢
+- `mrts_mean_bias`
+  - 看 MRTS 是否傾向整體高估或低估平均值
+- `mrts_tail_mean_tradeoff`
+  - 直接把平均層級 `RMSE` 變化和 tail Brier 變化放在同一張圖
+  - 左下角代表平均值與極端值都改善
+
 ## Why this split
 
 The original scripts mixed several responsibilities in one file:
@@ -53,6 +87,10 @@ This refactor keeps the scoring/comparison path modular and reproducible.
   - scalar metrics table
   - uncertainty summary table
   - calibration-bin table
+- `03_plot_results.R`
+  - MRTS-focused plotting helpers
+  - mean-level diagnostics for predictive means
+  - tail-vs-mean trade-off plots
 
 ## Runner files
 
@@ -62,6 +100,8 @@ This refactor keeps the scoring/comparison path modular and reproducible.
   - CMAQ vs no-CMAQ lane from `us-all-results-a.R`
 - `12_run_proposed_results.R`
   - baseline + AR2 proposed lane from `us-all-results-proposed.R`
+- `13_plot_proposed_results.R`
+  - MRTS-focused plot runner using `output/us-all/results/us-all-results-proposed.RData`
 
 ## Output compatibility notes
 

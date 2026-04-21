@@ -1,0 +1,2 @@
+"family","mrts_k","objective","bulk_win_rate_brier","tail_win_rate_brier","bulk_mean_improve_brier_pct","tail_mean_improve_brier_pct","bulk_mean_improve_quant_pct","tail_mean_improve_quant_pct","objective_score","tie_break_brier","tie_break_quant","rank_within_family","is_selected_best"
+"gaussian",10,"balanced",0.5,0.333333333333333,0.104669417107333,0.171806671024958,0.00369368008352679,0.0325686171130537,0.416666666666667,0.138238044066146,0.0181311485982903,1,TRUE
