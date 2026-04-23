@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"d:/Github/spatial-skew-t/code/analysis/ozone/US-all-auto/refactor_results\")",
+      "Bash(mkdir -p \"d:/Github/spatial-skew-t/code/analysis/ozone/US-all-auto/output\")"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+# simstudy_prop
+
+這個目錄是 proposed `prop model` 在 simstudy 的獨立工作區。
+
+這裡的核心目標是：
+
+- 使用和 `../simstudy/` 完全相同的模擬資料
+- 跑 methods `1~5` 的 `prop` 版本
+- 再和 `../simstudy/results/` 中的 Morris baseline 做直接比較
+
+因此，`simstudy_prop` 不是另一套新的模擬資料來源，而是針對同一份 `simdata.RData` 的平行分析工作區。
+
+- `run-prop.R`：執行 proposed model 模擬
+- `run-settings.R`：與 `../simstudy/run-settings.R` 命名平行的 wrapper
+- `run-settings-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
+- `results-prop.R`：將 proposed outputs 和 baseline `../simstudy/results/` 做對照
+- `prop_load.R`：載入 `../../R/prop` backend 與 simstudy 資料
+- `prop_simstudy_helpers.R`：CLI / 檔名 / seed / method catalog helper
+- `settings_prop.csv`：prop 專用的批次 manifest
+- `run-settings.md`：`simstudy_prop` 的 canonical 使用說明
+
+真正的 backend 原始碼維持在：
+
+- `../../R/prop/`
+
+資料檔預設不複製到這裡。腳本會優先找：
+
+1. `./simdata.RData`
+2. `../simstudy/simdata.RData`
+
+因此如果沿用原本 simstudy 資料，直接在這個目錄執行即可。
+
+目前 `prop` 版 method catalog 固定為：
+
+- 1: Gaussian
+- 2: skew-t, `K = 1`
+- 3: t, `K = 1`, threshold `q(0.80)`
+- 4: skew-t, `K = 5`
+- 5: t, `K = 5`, threshold `q(0.80)`
+
+預設輸出都放在 `output/`：
+
+- `fits/`：model fit `.RData` 與 run plan
+- `output/results/`：載入 fits 後的 analysis `.RData`
+- `output/tables/`：比較表
+- `output/plots/`：後續比較圖

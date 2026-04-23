@@ -1,0 +1,3 @@
+"setting","dataset","method_id","method_key","family","label","prop_k","baseline_file","prop_file","baseline_available","prop_available"
+1,1,1,"1","gaussian","Gaussian",4,"../simstudy/results/1-1-1.RData","fits/1-1-1-P4.RData",FALSE,TRUE
+1,2,1,"1","gaussian","Gaussian",4,"../simstudy/results/1-1-2.RData","fits/1-1-2-P4.RData",FALSE,TRUE

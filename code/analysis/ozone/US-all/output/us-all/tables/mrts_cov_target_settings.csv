@@ -1,0 +1,11 @@
+"pair_id","method","knots","thresh","CMAQ","TS","mrts_k","baseline_setting","mrts_setting"
+1,"skew-t",1,0,"yes","yes",5,51,201
+2,"skew-t",1,50,"yes","yes",5,52,202
+3,"t",1,75,"yes","yes",5,53,203
+4,"skew-t",1,0,"yes","yes",10,51,204
+5,"skew-t",1,50,"yes","yes",10,52,205
+6,"t",1,75,"yes","yes",10,53,206
+7,"skew-t",1,0,"yes","yes",15,51,207
+8,"skew-t",1,50,"yes","yes",15,52,208
+9,"t",1,75,"yes","yes",15,53,209
+10,"skew-t",1,0,"yes","yes",800,51,210

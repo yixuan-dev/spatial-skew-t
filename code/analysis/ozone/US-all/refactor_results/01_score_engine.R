@@ -394,7 +394,8 @@ compute_us_all_scores <- function(
     compute_uncertainty_diagnostics = FALSE,
     summary_draws = 400L,
     uncertainty_levels = default_uncertainty_levels(),
-    pit_breaks = default_pit_breaks()
+    pit_breaks = default_pit_breaks(),
+    partial_ok_setting_ids = integer(0)
 ) {
   setting_ids <- sort(unique(setting_ids[!is.na(setting_ids)]))
   if (length(setting_ids) == 0) {
@@ -567,10 +568,15 @@ compute_us_all_scores <- function(
     has_bad_fold <- FALSE
     has_scoring_error <- FALSE
     score_error_message <- ""
+    is_partial_ok <- i %in% partial_ok_setting_ids
 
     for (d in seq_len(nsets)) {
       fit.d <- fit[[d]]
       if (is.null(fit.d) || is.null(fit.d$yp)) {
+        if (is_partial_ok) {
+          cat("setting", i, "fold", d, ": NULL fold skipped (partial_ok)\n")
+          next
+        }
         has_bad_fold <- TRUE
         break
       }

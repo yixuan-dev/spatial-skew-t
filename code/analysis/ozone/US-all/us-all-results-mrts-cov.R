@@ -42,7 +42,8 @@ score_obj <- compute_us_all_scores(
   probs = probs,
   thresholds = thresholds,
   trans_setting_ids = 2L,
-  enforce_contract = TRUE
+  enforce_contract = TRUE,
+  partial_ok_setting_ids = 210L
 )
 summary_obj <- summarize_us_all_scores(score_obj, baseline_setting = 1L)
 print_score_summary(score_obj, label = "us-all-results-mrts-cov")
@@ -205,11 +206,16 @@ if (nrow(comparison_mrts_cov_paired) > 0) {
   comparison_mrts_cov_summary_by_k <- data.frame()
 }
 
-write.csv(target_pairs, "mrts_cov_target_settings.csv", row.names = FALSE)
-write.csv(comparison_mrts_cov_full_table, "comparison_mrts_cov_full_table.csv", row.names = FALSE)
-write.csv(comparison_mrts_cov_top2, "comparison_mrts_cov_top2.csv", row.names = FALSE)
-write.csv(comparison_mrts_cov_paired, "comparison_mrts_cov_paired.csv", row.names = FALSE)
-write.csv(comparison_mrts_cov_summary_by_k, "comparison_mrts_cov_summary_by_k.csv", row.names = FALSE)
+tables_dir <- "D:/Github/spatial-skew-t/code/analysis/ozone/US-all/output/us-all/tables"
+if (!dir.exists(tables_dir)) {
+  dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
+}
+
+write.csv(target_pairs, file.path(tables_dir, "mrts_cov_target_settings.csv"), row.names = FALSE)
+write.csv(comparison_mrts_cov_full_table, file.path(tables_dir, "comparison_mrts_cov_full_table.csv"), row.names = FALSE)
+write.csv(comparison_mrts_cov_top2, file.path(tables_dir, "comparison_mrts_cov_top2.csv"), row.names = FALSE)
+write.csv(comparison_mrts_cov_paired, file.path(tables_dir, "comparison_mrts_cov_paired.csv"), row.names = FALSE)
+write.csv(comparison_mrts_cov_summary_by_k, file.path(tables_dir, "comparison_mrts_cov_summary_by_k.csv"), row.names = FALSE)
 
 available_settings <- summary_obj$available_settings
 skipped_missing_file <- summary_obj$skipped_missing_file
@@ -241,13 +247,14 @@ save(
 
 cat("\n=== us-all-results-mrts-cov summary ===\n")
 cat("Results dir:", results_dir, "\n")
+cat("Tables dir:", tables_dir, "\n")
 cat("Baseline settings:", paste(baseline_settings, collapse = ", "), "\n")
 cat("MRTS settings:", paste(mrts_settings, collapse = ", "), "\n")
 cat("Requested settings:", paste(requested_settings, collapse = ", "), "\n")
 cat("Outputs written:\n")
-cat("- mrts_cov_target_settings.csv\n")
-cat("- comparison_mrts_cov_full_table.csv\n")
-cat("- comparison_mrts_cov_top2.csv\n")
-cat("- comparison_mrts_cov_paired.csv\n")
-cat("- comparison_mrts_cov_summary_by_k.csv\n")
+cat("- [tables]/mrts_cov_target_settings.csv\n")
+cat("- [tables]/comparison_mrts_cov_full_table.csv\n")
+cat("- [tables]/comparison_mrts_cov_top2.csv\n")
+cat("- [tables]/comparison_mrts_cov_paired.csv\n")
+cat("- [tables]/comparison_mrts_cov_summary_by_k.csv\n")
 cat("- us-all-results-mrts-cov.RData\n")

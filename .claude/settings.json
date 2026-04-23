@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk -F, ' *)",
+      "Bash(awk '{ *)",
+      "Bash(sort -k2,2n)",
+      "Bash(Rscript settings-auto.R)",
+      "Bash(Rscript --vanilla -e ' *)",
+      "Bash(cat)",
+      "Bash(Rscript --vanilla /tmp/check_fit.R)",
+      "Bash(Rscript -e ' *)",
+      "PowerShell(Rscript -e \"s <- read.csv\\('D:/Github/spatial-skew-t/code/analysis/ozone/US-all-auto/settings-auto.csv'\\); for \\(t in 0:3\\) { ids <- sort\\(s[s[['tier']]==t,'setting']\\); cat\\(sprintf\\('Tier %d \\(%d\\): %s\\\\n', t, length\\(ids\\), paste\\(ids,collapse=','\\)\\)\\) }\")"
+    ]
+  }
+}
