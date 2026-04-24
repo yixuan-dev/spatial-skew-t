@@ -32,6 +32,7 @@ source_required("../../R/prop/prop_utils.R")
 source_required("../../R/prop/prop_basis.R")
 source_required("../../R/prop/prop_covariance.R")
 source_required("../../R/prop/prop_imputation.R")
+source_required("../../R/prop/prop_modules.R")
 source_required("../../R/prop/mcmc_prop.R")
 
 options(warn = 2)

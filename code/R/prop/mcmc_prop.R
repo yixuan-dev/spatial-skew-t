@@ -76,14 +76,14 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     y[missing.obs] <- mean(y, na.rm = TRUE)
   }
 
-  basis_obj <- build_prop_basis(
+  basis_obj <- build_basis_matrix(
     s_obs = s,
     s_pred = if (predictions) s.pred else NULL,
     k = as.integer(prop_k),
     tol = prop_basis_tol
   )
-  q_obs <- basis_obj$q_obs
-  q_pred <- basis_obj$q_pred
+  q_obs <- basis_obj$F_obs
+  q_pred <- basis_obj$F_pred
 
   if (!fixknots) {
     if (is.null(knots.init)) {
@@ -185,57 +185,62 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     }
   }
 
-  prop_current_residuals <- function() {
-    y - x.beta - lambda * zg
+  prop_residual_block <- function() {
+    update_residuals(
+      y = y,
+      x_beta = x.beta,
+      lambda = lambda,
+      zg = zg,
+      taug = taug
+    )
   }
 
-  prop_standardized_residuals <- function(residuals) {
-    sqrt(taug) * residuals
-  }
-
-  prop_update_covariance <- function(std_residuals) {
-    update_obj <- prop_closed_form_update(
-      residuals = std_residuals,
-      q_obs = q_obs,
+  prop_update_covariance <- function(residual_block) {
+    m_update <- update_M_closed_form(
+      F_obs = q_obs,
+      residuals_std = residual_block$std,
+      F_pred = q_pred,
       sigma_eps_sq = prop_sigma_eps_sq,
       sigma_floor = prop_sigma_floor
     )
-    state <- prop_make_cov_state(q_obs = q_obs, q_pred = q_pred, update_obj = update_obj)
-    prop_prepare_prediction_state(state)
+    build_R_from_G(
+      F_obs = q_obs,
+      M_update = m_update,
+      F_pred = q_pred
+    )
   }
 
-  prop_compute_loglik <- function(cov_state, std_residuals) {
-    quad_sum <- 0
-    for (tt in seq_len(ncol(std_residuals))) {
-      quad_sum <- quad_sum + quad.form(cov_state$prec_obs, std_residuals[, tt])
-    }
-    nt * cov_state$logdet_prec_obs - 0.5 * quad_sum
-  }
-
-  prop_predict_draws <- function(cov_state, residuals, beta_vec) {
+  prop_predict_draws <- function(cov_state, residuals_raw, beta_vec) {
     if (!predictions) {
       return(NULL)
     }
 
-    pred_draws <- matrix(NA_real_, nrow = np, ncol = nt)
+    z_pred <- matrix(0, np, nt)
+    sigma_pred <- matrix(1, np, nt)
     for (tt in seq_len(nt)) {
       gp <- if (nknots == 1L) rep(1L, np) else mem(s.pred, knots[, , tt])
-      zgp <- if (skew) z[gp, tt] else rep(0, np)
-      siggp <- 1 / sqrt(tau[gp, tt])
-      std_res_t <- sqrt(taug[, tt]) * residuals[, tt]
-      xp.beta <- prop_extract_xt(x.pred, tt) %*% beta_vec
-      cond_mean_v <- as.vector(cov_state$r_cross_pred_obs %*% (cov_state$prec_obs %*% std_res_t))
-      cond_noise_v <- as.vector(t(cov_state$pred_cond_chol) %*% rnorm(np))
-      pred_draws[, tt] <- as.vector(xp.beta) + lambda * zgp + siggp * (cond_mean_v + cond_noise_v)
+      if (skew) {
+        z_pred[, tt] <- z[gp, tt]
+      }
+      sigma_pred[, tt] <- 1 / sqrt(tau[gp, tt])
     }
 
-    pred_draws
+    predict_at_new_sites(
+      cov_state = cov_state,
+      residuals_raw = residuals_raw,
+      taug = taug,
+      x_pred = x.pred,
+      beta = beta_vec,
+      lambda = lambda,
+      z_pred = z_pred,
+      sigma_pred = sigma_pred,
+      draw = TRUE
+    )
   }
 
   prop_refresh_xbeta(beta)
-  residuals <- prop_current_residuals()
-  std_residuals <- prop_standardized_residuals(residuals)
-  cov_state <- prop_update_covariance(std_residuals)
+  residual_block <- prop_residual_block()
+  cov_state <- prop_update_covariance(residual_block)
   save_idx <- 1L
 
   for (iter in seq_len(iters)) {
@@ -315,10 +320,10 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
       }
     }
 
-    residuals <- prop_current_residuals()
+    residual_block <- prop_residual_block()
     if (method == "gaussian") {
       tau_scalar <- updateTauGaus(
-        res = residuals,
+        res = residual_block$raw,
         prec = prec, tau.alpha = tau.alpha,
         tau.beta = tau.beta
       )
@@ -327,7 +332,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     } else {
       this.update <- updateTau(
         tau = tau, taug = taug, g = g,
-        res = residuals, nparts.tau = nparts.tau,
+        res = residual_block$raw, nparts.tau = nparts.tau,
         prec = prec, z = z,
         tau.alpha = tau.alpha,
         tau.beta = tau.beta, skew = skew,
@@ -353,7 +358,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     }
 
     if (skew) {
-      residuals <- prop_current_residuals()
+      residual_block <- prop_residual_block()
       this.update <- updateZ(
         y = y, x.beta = x.beta, zg = zg,
         prec = prec, tau = tau, mu = x.beta + lambda * zg,
@@ -363,10 +368,9 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
       zg <- this.update$zg
     }
 
-    residuals <- prop_current_residuals()
-    std_residuals <- prop_standardized_residuals(residuals)
+    residual_block <- prop_residual_block()
     if (iter %% prop_cov_update_every == 0L) {
-      cov_state <- prop_update_covariance(std_residuals)
+      cov_state <- prop_update_covariance(residual_block)
     }
 
     if (iter %in% save_iters) {
@@ -379,7 +383,10 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
       gamma_keep[save_idx] <- cov_state$logdet_prec_obs
       prop_sigma_keep[save_idx] <- cov_state$sigma_xi_sq
       prop_rank_keep[save_idx] <- cov_state$effective_rank
-      prop_loglik_keep[save_idx] <- prop_compute_loglik(cov_state, std_residuals)
+      prop_loglik_keep[save_idx] <- quadform_logdet(
+        cov_state = cov_state,
+        residuals_std = residual_block$std
+      )$loglik
 
       if (skew) {
         lambda_keep[save_idx] <- lambda
@@ -389,7 +396,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
         knots_keep[save_idx, , , ] <- knots
       }
       if (predictions) {
-        yp_keep[save_idx, , ] <- prop_predict_draws(cov_state, residuals, beta)
+        yp_keep[save_idx, , ] <- prop_predict_draws(cov_state, residual_block$raw, beta)
       }
       save_idx <- save_idx + 1L
     }

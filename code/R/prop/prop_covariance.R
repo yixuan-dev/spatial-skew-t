@@ -37,6 +37,7 @@ prop_closed_form_update <- function(residuals, q_obs, sigma_eps_sq = 0, sigma_fl
   lowrank_eigs <- pmax(d_vals - sigma_xi_sq - sigma_eps_sq, 0)
 
   list(
+    rotation = eig_h$vectors,
     sigma_xi_sq = sigma_xi_sq,
     lowrank_eigs = lowrank_eigs,
     projected_eigs = d_vals,
@@ -48,6 +49,12 @@ prop_closed_form_update <- function(residuals, q_obs, sigma_eps_sq = 0, sigma_fl
 
 prop_make_cov_state <- function(q_obs, q_pred, update_obj) {
   q_obs <- as.matrix(q_obs)
+  rotation <- update_obj$rotation
+  if (is.null(rotation)) {
+    rotation <- diag(ncol(q_obs))
+  }
+  q_obs <- q_obs %*% rotation
+  q_pred <- if (is.null(q_pred)) NULL else as.matrix(q_pred) %*% rotation
   d_vals <- as.numeric(update_obj$lowrank_eigs)
   sigma_xi_sq <- as.numeric(update_obj$sigma_xi_sq)
 
@@ -65,7 +72,8 @@ prop_make_cov_state <- function(q_obs, q_pred, update_obj) {
 
   state <- list(
     q_obs = q_obs,
-    q_pred = if (is.null(q_pred)) NULL else as.matrix(q_pred),
+    q_pred = q_pred,
+    basis_rotation = rotation,
     lowrank_eigs = d_vals,
     sigma_xi_sq = sigma_xi_sq,
     g_obs = g_obs,

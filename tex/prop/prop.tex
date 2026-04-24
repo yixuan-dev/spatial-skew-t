@@ -394,6 +394,56 @@ This replaces repeated direct inversions of dense $n \times n$ Mat\'ern
 covariance matrices, whose dominant cost is typically $O(n^3)$ per update.
 When $K \ll n$, this is the main source of computational acceleration.
 
+\subsection{Identifiability Constraint Imposed by \texorpdfstring{$T$}{T}}
+
+The computational gain from choosing $K \ll n$ does not remove the statistical
+constraint imposed by the number of replicates $T$. To see this, define the
+projected residual vectors
+\[
+\widetilde{\br}_t = (\bF' \bF)^{-1/2} \bF' \br_t \in \mathbb{R}^K,
+\qquad
+t = 1, \ldots, T.
+\]
+Then the matrix whose eigenvalues drive the Tzeng--Huang update is
+\begin{equation}
+\bH
+=
+(\bF' \bF)^{-1/2} \bF' \bS \bF (\bF' \bF)^{-1/2}
+=
+\frac{1}{T}
+\sum_{t=1}^T
+\widetilde{\br}_t \widetilde{\br}_t'.
+\label{eq:Hdecomp}
+\end{equation}
+Therefore,
+\begin{equation}
+\operatorname{rank}(\bH) \le \min(K, T).
+\label{eq:rankbound}
+\end{equation}
+If centered residuals are used in place of raw residual replicates, the bound is
+typically reduced to $\operatorname{rank}(\bH) \le \min(K, T-1)$.
+
+Equation \eqref{eq:rankbound} implies that even when the replicates are
+conditionally independent and identically distributed under a common covariance
+matrix, the effective rank that can be learned for $\bM$ is still limited by the
+sample size in time. In particular:
+\begin{itemize}[leftmargin=2em]
+\item if $K > T$, then at most $T$ directions in the $K$-dimensional basis space
+can be identified from the replicate covariance;
+\item if $K$ is close to $T$, then the leading eigendirections may still be
+estimable, but the smaller eigenvalues and associated eigenspaces are expected
+to be unstable;
+\item the theorem still provides a valid closed-form update, but the resulting
+$\widehat{\bM}$ will be effectively low-rank and may be noisy in finite samples.
+\end{itemize}
+
+Consequently, basis selection should be guided not only by the spatial sample
+size $n$, but also by the number of temporal replicates $T$. A practical
+recommendation for the first implementation is to choose $K$ so that $K \ll T$
+in addition to $K \ll n$, and to regard the Tzeng--Huang truncation step as an
+adaptive effective-rank selector rather than as a license to let $K$ grow
+without regard to $T$.
+
 \section{Hybrid Bayesian--Profile Inference Scheme}
 
 The proposed method is not a fully Bayesian model for $\bM$. Instead, it is a
@@ -421,6 +471,66 @@ This scheme is best viewed as a hybrid MCMC/ECM algorithm: the Morris blocks are
 updated by Bayesian conditional simulation, whereas the low-rank covariance
 block is updated by a closed-form optimization step conditional on the current
 residuals.
+
+\subsection{Implementation Checklist}
+
+Before coding the first working version, the following implementation choices
+should be fixed:
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Fixed basis design.} The MRTS basis matrix $\bF$ is treated as
+fixed throughout the analysis and is constructed outside the MCMC.
+\item \textbf{Time-invariant covariance.} The residual replicates
+$\br_1, \ldots, \br_T$ are assumed conditionally independent and identically
+distributed under a common spatial dependence matrix.
+\item \textbf{Profiled covariance block.} The pair $(\bM, \sigma_\xi^2)$ is
+updated by the closed-form Tzeng--Huang step rather than by a high-dimensional
+Bayesian parameter update.
+\item \textbf{Correlation normalization.} The covariance $\bG$ is converted to a
+correlation matrix $\bR$ before entering the Morris likelihood, so that
+$\bD_t$ remains responsible for marginal scale.
+\item \textbf{Numerical stabilization.} The implementation should include a
+small ridge or floor when computing $(\bF' \bF)^{-1/2}$ and when enforcing
+$\widehat{\sigma}_\xi^2 \ge 0$.
+\item \textbf{Basis size relative to $T$.} The chosen basis dimension $K$ should
+respect the identifiability constraint described in
+\eqref{eq:Hdecomp}--\eqref{eq:rankbound}.
+\item \textbf{Validation targets.} The first implementation should be evaluated
+against the original Morris model using both runtime and predictive criteria,
+including uncertainty calibration and tail behavior.
+\end{enumerate}
+
+\subsection{Suggested Module Decomposition}
+
+A clean first implementation can be organized around the following modules:
+\begin{enumerate}[leftmargin=2em]
+\item \texttt{build\_basis\_matrix(...)}:
+construct the fixed MRTS basis matrix $\bF$ at the observed locations, along
+with any stored quantities such as $\bF' \bF$.
+\item \texttt{update\_residuals(...)}:
+compute the conditional standardized residuals
+$\br_t = \bD_t^{-1}(\bY_t - \bX_t \bm{\beta} - \lambda \bD_t |\bz_t|)$.
+\item \texttt{update\_M\_closed\_form(...)}:
+compute $\bS$, form $\bH$, carry out the eigendecomposition, determine $L^*$,
+and return $(\widehat{\bM}, \widehat{\sigma}_\xi^2)$.
+\item \texttt{build\_R\_from\_G(...)}:
+form $\widehat{\bG} = \bF \widehat{\bM} \bF' + \widehat{\sigma}_\xi^2 \I_n$,
+compute $\widehat{\bA} = \diag(\widehat{\bG})$, and return
+$\widehat{\bR} = \widehat{\bA}^{-1/2} \widehat{\bG} \widehat{\bA}^{-1/2}$.
+\item \texttt{quadform\_logdet(...)}:
+evaluate the quadratic forms and log-determinants needed in the residual
+likelihood using the Woodbury identity and matrix determinant lemma.
+\item \texttt{update\_morris\_blocks(...)}:
+retain the existing Morris updates for censored data imputation, regression,
+skewness, partition-specific scale terms, and any knot-location parameters.
+\item \texttt{predict\_at\_new\_sites(...)}:
+construct basis values at prediction sites and produce posterior predictive
+draws using the fitted low-rank spatial layer and the current Morris mean/scale
+components.
+\end{enumerate}
+
+This modular decomposition is intended to make the first implementation easy to
+debug: the low-rank covariance block can be tested first in a simplified
+Gaussian setting before it is reattached to the full censored skew-$t$ sampler.
 
 \section{Optional One-Parameter Bayesian Extension}
 
@@ -453,9 +563,9 @@ be inserted into the update formulas.
 \item Standardizing $\bG$ to $\bR$ is a deliberate modeling choice made to
 preserve the original Morris interpretation that $\bD_t$ controls marginal scale
 while the spatial layer controls dependence.
-\item The basis dimension $K$ should remain well below $n$, and in practice it
-is also advisable to avoid choosing $K$ much larger than the effective number of
-temporal replicates $T$.
+\item The basis dimension $K$ should remain well below $n$, but it must also be
+chosen with care relative to $T$ because the effective rank learnable from the
+replicate covariance is constrained by \eqref{eq:rankbound}.
 \end{enumerate}
 
 \section{Summary}

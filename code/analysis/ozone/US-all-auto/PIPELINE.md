@@ -25,23 +25,23 @@ Loads `us-all-setup.RData` (copied from `../US-all/`), partitions the 800
 CV-covered sites into train / validation / test, and saves
 `us-all-setup-auto.RData` containing:
 
-| Object | Description |
-|--------|-------------|
-| `Y`, `X`, `S` | Full dataset (all 800+ sites) |
-| `beta.init`, `tau.init` | MCMC initialisation values |
-| `split.lst$train` | 300 site row-indices (into Y / X / S) |
-| `split.lst$val` | 100 site row-indices |
-| `split.lst$test` | 400 site row-indices |
+| Object                  | Description                           |
+| ----------------------- | ------------------------------------- |
+| `Y`, `X`, `S`           | Full dataset (all 800+ sites)         |
+| `beta.init`, `tau.init` | MCMC initialisation values            |
+| `split.lst$train`       | 300 site row-indices (into Y / X / S) |
+| `split.lst$val`         | 100 site row-indices                  |
+| `split.lst$test`        | 400 site row-indices                  |
 
 Split is controlled by environment variables (see table below). Default seed
 is 2024, so the split is reproducible.
 
-| Env var | Default | Effect |
-|---------|---------|--------|
-| `US_ALL_AUTOSELECT_N_TRAIN` | `300` | Number of training sites |
-| `US_ALL_AUTOSELECT_N_VAL` | `100` | Number of validation sites |
-| `US_ALL_AUTOSELECT_N_TEST` | `400` | Number of test sites |
-| `US_ALL_AUTOSELECT_SEED` | `2024` | Random seed for the partition |
+| Env var                     | Default | Effect                        |
+| --------------------------- | ------- | ----------------------------- |
+| `US_ALL_AUTOSELECT_N_TRAIN` | `300`   | Number of training sites      |
+| `US_ALL_AUTOSELECT_N_VAL`   | `100`   | Number of validation sites    |
+| `US_ALL_AUTOSELECT_N_TEST`  | `400`   | Number of test sites          |
+| `US_ALL_AUTOSELECT_SEED`    | `2024`  | Random seed for the partition |
 
 ### Step 2 — Generate the settings grid
 
@@ -53,12 +53,12 @@ Reads `../US-all/settings.csv` and `../US-all/output/us-all/tables/comparison_fu
 scores each setting by composite tail Brier, and writes `settings-auto.csv`
 with tier / lane annotations.
 
-| Tier | N | Description |
-|------|---|-------------|
-| 0 | 1 | Gaussian reference (setting 1) |
-| 1 | 29 | Core candidates — top evidence, recommended default |
-| 2 | 37 | Extended coverage — TS / AR2 / MRTS variants |
-| 3 | 41 | Non-TS baseline settings, not recommended |
+| Tier | N   | Description                                         |
+| ---- | --- | --------------------------------------------------- |
+| 0    | 1   | Gaussian reference (setting 1)                      |
+| 1    | 29  | Core candidates — top evidence, recommended default |
+| 2    | 37  | Extended coverage — TS / AR2 / MRTS variants        |
+| 3    | 41  | Non-TS baseline settings, not recommended           |
 
 ### Step 3 — Fit candidate models on training split
 
@@ -91,8 +91,8 @@ probability, picks the setting with the lowest validation Brier. Writes:
 
 ### Required
 
-| Env var | Format | Example |
-|---------|--------|---------|
+| Env var                      | Format                              | Example                |
+| ---------------------------- | ----------------------------------- | ---------------------- |
 | `US_ALL_AUTOSELECT_SETTINGS` | Comma-separated IDs or `a:b` ranges | `'8,12,15:16,204:206'` |
 
 Integers and range tokens can be mixed freely. The script processes them in
@@ -100,11 +100,11 @@ ascending order and skips any setting not found in `settings-auto.csv`.
 
 ### Optional
 
-| Env var | Default | Options | Effect |
-|---------|---------|---------|--------|
-| `US_ALL_MCMC_BACKEND` | `legacy` | `legacy`, `ar2` | MCMC function to use. Use `ar2` for all settings including TS and AR2 lanes. |
-| `US_ALL_VAL_RUN_MODE` | `prod` | `prod`, `dev` | MCMC length. `prod` = 30 000 iters / 25 000 burn. `dev` = 2 000 / 1 000 (quick check). |
-| `US_ALL_VAL_RESULTS_DIR` | `fits/` | any path | Override the output directory for `val-<N>.RData` files. |
+| Env var                  | Default  | Options         | Effect                                                                                 |
+| ------------------------ | -------- | --------------- | -------------------------------------------------------------------------------------- |
+| `US_ALL_MCMC_BACKEND`    | `legacy` | `legacy`, `ar2` | Controls which source files are loaded. Both define `mcmc()`; ar2 adds AR2 priors. Use `ar2` for TS/AR2 lanes. |
+| `US_ALL_VAL_RUN_MODE`    | `prod`   | `prod`, `dev`   | MCMC length. `prod` = 30 000 iters / 25 000 burn. `dev` = 2 000 / 1 000 (quick check). |
+| `US_ALL_VAL_RESULTS_DIR` | `fits/`  | any path        | Override the output directory for `val-<N>.RData` files.                               |
 
 ---
 
@@ -175,13 +175,13 @@ Range-token form: `8,12,15:16,38:39,41:43,55:56,58,61:62,65,67:68,70,74,105,111:
 
 ## autoselect.R — Environment Variables
 
-| Env var | Default | Effect |
-|---------|---------|--------|
-| `US_ALL_AUTOSELECT_SETTINGS` | — (required) | Same format as run_settings_val.R; must match the settings that have been fitted |
-| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.97` | Comma-separated exceedance probabilities, e.g. `'0.95,0.97,0.99'` |
-| `US_ALL_AUTOSELECT_OBJECTIVE` | `single` | `single` = minimise Brier at first prob only; `mean` = minimise mean across all probs |
-| `US_ALL_SUMMARY_DRAWS` | `400` | Number of posterior draws to use for Brier computation (subsampled if fit has more) |
-| `US_ALL_VAL_RESULTS_DIR` | `fits/` | Must match the directory used in run_settings_val.R |
+| Env var                          | Default      | Effect                                                                                |
+| -------------------------------- | ------------ | ------------------------------------------------------------------------------------- |
+| `US_ALL_AUTOSELECT_SETTINGS`     | — (required) | Same format as run_settings_val.R; must match the settings that have been fitted      |
+| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.97`       | Comma-separated exceedance probabilities, e.g. `'0.95,0.97,0.99'`                     |
+| `US_ALL_AUTOSELECT_OBJECTIVE`    | `single`     | `single` = minimise Brier at first prob only; `mean` = minimise mean across all probs |
+| `US_ALL_SUMMARY_DRAWS`           | `400`        | Number of posterior draws to use for Brier computation (subsampled if fit has more)   |
+| `US_ALL_VAL_RESULTS_DIR`         | `fits/`      | Must match the directory used in run_settings_val.R                                   |
 
 ### Example autoselect run
 
