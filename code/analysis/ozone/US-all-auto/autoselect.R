@@ -7,8 +7,8 @@
 # How to run (PowerShell):
 #   cd D:\Github\spatial-skew-t\code\analysis\ozone\US-all-auto
 #   $env:US_ALL_AUTOSELECT_SETTINGS    = '111,112,204:206'
-#   $env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.97'
-#   $env:US_ALL_AUTOSELECT_OBJECTIVE   = 'single'
+#   $env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.95'
+#   $env:US_ALL_AUTOSELECT_OBJECTIVE   = 'each'
 #   Rscript autoselect.R
 #
 # Prerequisites:
@@ -17,7 +17,7 @@
 #
 # Environment variables:
 #   US_ALL_AUTOSELECT_SETTINGS     Range tokens, e.g. "111,112,204:206"  [required]
-#   US_ALL_AUTOSELECT_TARGET_PROBS Comma-separated probabilities          [default "0.97"]
+#   US_ALL_AUTOSELECT_TARGET_PROBS Comma-separated probabilities          [default "0.95"]
 #   US_ALL_AUTOSELECT_OBJECTIVE    "single" or "mean"                     [default "single"]
 #   US_ALL_SUMMARY_DRAWS           Posterior draw cap                     [default 400]
 #   US_ALL_VAL_RESULTS_DIR         Override fits/ directory               [default: auto]
@@ -30,11 +30,15 @@ rm(list = ls())
   script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
   if (length(script_arg) > 0) {
     dirname(normalizePath(sub("^--file=", "", script_arg[1]),
-                          winslash = "/", mustWork = FALSE))
+      winslash = "/", mustWork = FALSE
+    ))
   } else {
-    tryCatch(dirname(normalizePath(sys.frame(1)$ofile,
-                                   winslash = "/", mustWork = FALSE)),
-             error = function(e) ".")
+    tryCatch(
+      dirname(normalizePath(sys.frame(1)$ofile,
+        winslash = "/", mustWork = FALSE
+      )),
+      error = function(e) "."
+    )
   }
 })
 setwd(.this_script_dir)
@@ -58,7 +62,7 @@ expand_range_tokens <- function(raw_str) {
       parts <- as.integer(strsplit(tok, ":", fixed = TRUE)[[1]])
       if (length(parts) == 2L && !anyNA(parts)) {
         step <- if (parts[1L] <= parts[2L]) 1L else -1L
-        out  <- c(out, seq.int(parts[1L], parts[2L], by = step))
+        out <- c(out, seq.int(parts[1L], parts[2L], by = step))
       }
     } else {
       val <- suppressWarnings(as.integer(tok))
@@ -78,28 +82,31 @@ if (!nzchar(settings_raw)) {
   )
 }
 candidate_settings <- expand_range_tokens(settings_raw)
-if (length(candidate_settings) == 0L)
+if (length(candidate_settings) == 0L) {
   stop("No valid settings parsed from US_ALL_AUTOSELECT_SETTINGS='", settings_raw, "'")
+}
 
 target_probs <- suppressWarnings(
   as.numeric(unlist(strsplit(
-    trimws(Sys.getenv("US_ALL_AUTOSELECT_TARGET_PROBS", unset = "0.97")),
-    ",", fixed = TRUE
+    trimws(Sys.getenv("US_ALL_AUTOSELECT_TARGET_PROBS", unset = "0.95")),
+    ",",
+    fixed = TRUE
   )))
 )
 target_probs <- sort(unique(
   target_probs[is.finite(target_probs) & target_probs > 0 & target_probs < 1]
 ))
-if (length(target_probs) == 0L)
+if (length(target_probs) == 0L) {
   stop("No valid probabilities in US_ALL_AUTOSELECT_TARGET_PROBS.")
-
-objective <- trimws(Sys.getenv("US_ALL_AUTOSELECT_OBJECTIVE", unset = "single"))
-if (!objective %in% c("single", "mean")) {
-  message("Unknown objective '", objective, "'; falling back to 'single'.")
-  objective <- "single"
 }
 
-summary_draws    <- parse_env_int("US_ALL_SUMMARY_DRAWS", 400L)
+objective <- trimws(Sys.getenv("US_ALL_AUTOSELECT_OBJECTIVE", unset = "each"))
+if (!objective %in% c("each", "mean")) {
+  message("Unknown objective '", objective, "'; falling back to 'each'.")
+  objective <- "each"
+}
+
+summary_draws <- parse_env_int("US_ALL_SUMMARY_DRAWS", 400L)
 fits_dir_override <- trimws(Sys.getenv("US_ALL_VAL_RESULTS_DIR", unset = ""))
 fits_dir <- if (nzchar(fits_dir_override)) {
   normalizePath(fits_dir_override, winslash = "/", mustWork = FALSE)
@@ -111,32 +118,39 @@ fits_dir <- if (nzchar(fits_dir_override)) {
 
 setup_path <- file.path(.us_all_auto_root, "us-all-setup-auto.RData")
 if (!file.exists(setup_path)) {
-  stop("Setup file not found: ", setup_path,
-       "\nRun:  Rscript us-all-setup-auto.R")
+  stop(
+    "Setup file not found: ", setup_path,
+    "\nRun:  Rscript us-all-setup-auto.R"
+  )
 }
 setup_env <- new.env(parent = emptyenv())
 load(setup_path, envir = setup_env)
 
 required <- c("Y", "split.lst")
-missing  <- required[!vapply(required, exists, logical(1),
-                              envir = setup_env, inherits = FALSE)]
-if (length(missing) > 0L)
-  stop("us-all-setup-auto.RData is missing: ", paste(missing, collapse = ", "),
-       "\nRe-run us-all-setup-auto.R.")
+missing <- required[!vapply(required, exists, logical(1),
+  envir = setup_env, inherits = FALSE
+)]
+if (length(missing) > 0L) {
+  stop(
+    "us-all-setup-auto.RData is missing: ", paste(missing, collapse = ", "),
+    "\nRe-run us-all-setup-auto.R."
+  )
+}
 
-Y         <- get("Y",         envir = setup_env)
+Y <- get("Y", envir = setup_env)
 split.lst <- get("split.lst", envir = setup_env)
 
 val_sites <- split.lst$val
-n_train   <- length(split.lst$train)
-n_val     <- length(split.lst$val)
-n_test    <- length(split.lst$test)
+n_train <- length(split.lst$train)
+n_val <- length(split.lst$val)
+n_test <- length(split.lst$test)
 
 # ---- Output directories ----
 
 .out_root <- file.path("output", "us-all-auto")
-for (.d in file.path(.out_root, c(".", "results", "tables")))
+for (.d in file.path(.out_root, c(".", "results", "tables"))) {
   dir.create(.d, recursive = TRUE, showWarnings = FALSE)
+}
 
 out_path <- function(..., subdir) file.path(.out_root, subdir, ...)
 
@@ -148,20 +162,27 @@ settings <- local({
     file.path(.us_all_auto_root, "../US-all/settings.csv")
   )
   hit <- candidates[file.exists(candidates)]
-  if (length(hit) == 0L) return(NULL)
+  if (length(hit) == 0L) {
+    return(NULL)
+  }
   df <- read.csv(hit[1L], stringsAsFactors = FALSE)
-  if ("setting" %in% names(df) && !("setting_num" %in% names(df)))
+  if ("setting" %in% names(df) && !("setting_num" %in% names(df))) {
     df$setting_num <- suppressWarnings(as.integer(df$setting))
+  }
   df
 })
 
 cat("=== US-all-auto: autoselect ===\n")
 cat(sprintf("Setup              : %s\n", setup_path))
 cat(sprintf("Fits directory     : %s\n", fits_dir))
-cat(sprintf("Site partition     : %d train | %d val | %d test\n",
-    n_train, n_val, n_test))
-cat(sprintf("Candidate settings : %d  [%s]\n",
-    length(candidate_settings), paste(candidate_settings, collapse = ", ")))
+cat(sprintf(
+  "Site partition     : %d train | %d val | %d test\n",
+  n_train, n_val, n_test
+))
+cat(sprintf(
+  "Candidate settings : %d  [%s]\n",
+  length(candidate_settings), paste(candidate_settings, collapse = ", ")
+))
 cat(sprintf("Target probs       : %s\n", paste(target_probs, collapse = ", ")))
 cat(sprintf("Objective          : %s\n", objective))
 cat(sprintf("Summary draws      : %d\n\n", summary_draws))
@@ -171,11 +192,12 @@ cat(sprintf("Summary draws      : %d\n\n", summary_draws))
 
 thresholds <- quantile(Y, probs = target_probs, na.rm = TRUE)
 cat("Exceedance thresholds (full dataset):\n")
-for (k in seq_along(target_probs))
+for (k in seq_along(target_probs)) {
   cat(sprintf("  p = %.4f  ->  %.4f\n", target_probs[k], thresholds[k]))
+}
 cat("\n")
 
-Y_val <- Y[val_sites, ]   # n_val x ntime — observed values at val sites
+Y_val <- Y[val_sites, ] # n_val x ntime — observed values at val sites
 
 # ---- Brier scoring function ----
 # fit$yp layout from run_settings_val.R: draws x n_val x ntime
@@ -189,18 +211,19 @@ compute_val_brier <- function(yp, Y_val, thresholds, summary_draws) {
   }
 
   n_thr <- length(thresholds)
-  brier  <- numeric(n_thr)
+  brier <- numeric(n_thr)
 
   for (k in seq_len(n_thr)) {
     sq_err <- numeric(0L)
     for (j in seq_len(dim(yp)[2L])) {
-      pred_j <- yp[draw_idx, j, ]          # draws_sub x ntime
-      if (is.null(dim(pred_j)))
+      pred_j <- yp[draw_idx, j, ] # draws_sub x ntime
+      if (is.null(dim(pred_j))) {
         pred_j <- matrix(pred_j, nrow = length(draw_idx))
-      y_j    <- Y_val[j, ]
+      }
+      y_j <- Y_val[j, ]
       keep_t <- is.finite(y_j)
       if (!any(keep_t)) next
-      p_exc  <- colMeans(pred_j[, keep_t, drop = FALSE] > thresholds[k], na.rm = TRUE)
+      p_exc <- colMeans(pred_j[, keep_t, drop = FALSE] > thresholds[k], na.rm = TRUE)
       sq_err <- c(sq_err, (p_exc - as.numeric(y_j[keep_t] > thresholds[k]))^2)
     }
     brier[k] <- if (length(sq_err) > 0L) mean(sq_err, na.rm = TRUE) else NA_real_
@@ -212,36 +235,52 @@ compute_val_brier <- function(yp, Y_val, thresholds, summary_draws) {
 
 cat("Scoring", length(candidate_settings), "settings on", n_val, "val sites...\n")
 
-val_brier  <- matrix(NA_real_,
-               nrow = length(candidate_settings), ncol = length(target_probs),
-               dimnames = list(as.character(candidate_settings),
-                               as.character(target_probs)))
+val_brier <- matrix(NA_real_,
+  nrow = length(candidate_settings), ncol = length(target_probs),
+  dimnames = list(
+    as.character(candidate_settings),
+    as.character(target_probs)
+  )
+)
 val_status <- character(length(candidate_settings))
 names(val_status) <- as.character(candidate_settings)
 
 for (ii in seq_along(candidate_settings)) {
-  sid   <- candidate_settings[ii]
+  sid <- candidate_settings[ii]
   fpath <- file.path(fits_dir, sprintf("val-%d.RData", sid))
 
-  cat(sprintf("  [%d/%d] setting %d: %s\n",
-              ii, length(candidate_settings), sid, basename(fpath)))
+  cat(sprintf(
+    "  [%d/%d] setting %d: %s\n",
+    ii, length(candidate_settings), sid, basename(fpath)
+  ))
 
   if (!file.exists(fpath)) {
-    val_status[ii] <- "missing_file"; next
+    val_status[ii] <- "missing_file"
+    next
   }
 
   load_env <- new.env(parent = emptyenv())
-  ok <- isTRUE(tryCatch({ load(fpath, envir = load_env); TRUE },
-                         error = function(e) FALSE))
-  if (!ok) { val_status[ii] <- "load_error"; next }
+  ok <- isTRUE(tryCatch(
+    {
+      load(fpath, envir = load_env)
+      TRUE
+    },
+    error = function(e) FALSE
+  ))
+  if (!ok) {
+    val_status[ii] <- "load_error"
+    next
+  }
 
   if (!exists("fit", envir = load_env, inherits = FALSE)) {
-    val_status[ii] <- "no_fit_object"; next
+    val_status[ii] <- "no_fit_object"
+    next
   }
 
   fit <- get("fit", envir = load_env, inherits = FALSE)
   if (is.null(fit$yp) || length(dim(fit$yp)) != 3L) {
-    val_status[ii] <- "bad_yp"; next
+    val_status[ii] <- "bad_yp"
+    next
   }
 
   result <- tryCatch(
@@ -256,50 +295,85 @@ for (ii in seq_along(candidate_settings)) {
     val_status[ii] <- "scoring_error"
   } else {
     val_brier[ii, ] <- result
-    val_status[ii]  <- "ok"
+    val_status[ii] <- "ok"
   }
 }
 
-# ---- Select best setting ----
+# ---- Select best setting(s) ----
 
-selection_score <- if (objective == "single") {
-  val_brier[, 1L, drop = TRUE]
+if (objective == "each") {
+  best_by_prob    <- setNames(rep(NA_integer_, length(target_probs)),
+                              as.character(target_probs))
+  n_valid_by_prob <- integer(length(target_probs))
+  for (k in seq_along(target_probs)) {
+    scores_k <- val_brier[, k]
+    valid_k  <- is.finite(scores_k)
+    n_valid_by_prob[k] <- sum(valid_k)
+    if (any(valid_k))
+      best_by_prob[k] <- candidate_settings[valid_k][which.min(scores_k[valid_k])]
+  }
+  if (all(is.na(best_by_prob)))
+    stop(
+      "No candidate settings produced valid Brier scores.\n",
+      "Check that fits/val-<setting>.RData files exist and contain fit$yp."
+    )
+  cat("\n=== Validation selection result (each) ===\n")
+  for (k in seq_along(target_probs)) {
+    sid <- best_by_prob[k]
+    bs  <- if (!is.na(sid)) val_brier[as.character(sid), k] else NA_real_
+    cat(sprintf("  p = %.4f  ->  best setting: %s  (Brier = %.6f)\n",
+                target_probs[k],
+                if (is.na(sid)) "none" else as.character(sid),
+                bs))
+  }
+  cat("\n")
 } else {
-  rowMeans(val_brier, na.rm = TRUE)
+  selection_score <- rowMeans(val_brier, na.rm = TRUE)
+  valid_mask      <- is.finite(selection_score)
+  if (!any(valid_mask))
+    stop(
+      "No candidate settings produced valid Brier scores.\n",
+      "Check that fits/val-<setting>.RData files exist and contain fit$yp."
+    )
+  best_idx       <- which.min(selection_score[valid_mask])
+  best_setting   <- candidate_settings[valid_mask][best_idx]
+  best_val_brier <- val_brier[valid_mask, , drop = FALSE][best_idx, ]
+  cat("\n=== Validation selection result (mean) ===\n")
+  cat(sprintf("Best setting     : %d\n", best_setting))
+  cat(sprintf("Candidates scored: %d / %d\n", sum(valid_mask), length(candidate_settings)))
+  for (k in seq_along(target_probs))
+    cat(sprintf("  Val Brier @ p = %.4f : %.6f\n", target_probs[k], best_val_brier[k]))
+  cat("\n")
 }
-
-valid_mask <- is.finite(selection_score)
-if (!any(valid_mask)) {
-  stop(
-    "No candidate settings produced valid Brier scores.\n",
-    "Check that fits/val-<setting>.RData files exist and contain fit$yp."
-  )
-}
-
-best_idx       <- which.min(selection_score[valid_mask])
-best_setting   <- candidate_settings[valid_mask][best_idx]
-best_val_brier <- val_brier[valid_mask, , drop = FALSE][best_idx, ]
-
-cat("\n=== Validation selection result ===\n")
-cat(sprintf("Objective        : %s\n", objective))
-cat(sprintf("Best setting     : %d\n", best_setting))
-cat(sprintf("Candidates scored: %d / %d\n", sum(valid_mask), length(candidate_settings)))
-for (k in seq_along(target_probs))
-  cat(sprintf("  Val Brier @ p = %.4f : %.6f\n", target_probs[k], best_val_brier[k]))
-cat("\n")
 
 # ---- Build output table ----
 
-val_df <- data.frame(
-  setting         = candidate_settings,
-  status          = val_status,
-  rank            = rank(ifelse(valid_mask, selection_score, Inf), ties.method = "min"),
-  selection_score = selection_score,
-  is_best         = candidate_settings == best_setting,
-  stringsAsFactors = FALSE
-)
-for (k in seq_along(target_probs))
-  val_df[[sprintf("val_brier_p%.4f", target_probs[k])]] <- val_brier[, k]
+if (objective == "each") {
+  rank_ref <- val_brier[, 1L]
+  val_df <- data.frame(
+    setting = candidate_settings,
+    status  = val_status,
+    rank    = rank(ifelse(is.finite(rank_ref), rank_ref, Inf), ties.method = "min"),
+    stringsAsFactors = FALSE
+  )
+  for (k in seq_along(target_probs)) {
+    p_tag <- sprintf("p%.4f", target_probs[k])
+    val_df[[paste0("val_brier_", p_tag)]] <- val_brier[, k]
+    val_df[[paste0("is_best_",   p_tag)]] <-
+      !is.na(best_by_prob[k]) & candidate_settings == best_by_prob[k]
+  }
+} else {
+  val_df <- data.frame(
+    setting         = candidate_settings,
+    status          = val_status,
+    rank            = rank(ifelse(valid_mask, selection_score, Inf), ties.method = "min"),
+    selection_score = selection_score,
+    is_best         = candidate_settings == best_setting,
+    stringsAsFactors = FALSE
+  )
+  for (k in seq_along(target_probs))
+    val_df[[sprintf("val_brier_p%.4f", target_probs[k])]] <- val_brier[, k]
+}
 
 if (!is.null(settings) && "setting_num" %in% names(settings)) {
   meta_idx <- match(val_df$setting, settings$setting_num)
@@ -312,16 +386,22 @@ val_df <- val_df[order(val_df$rank), ]
 
 write.csv(val_df,
   file = out_path("autoselect_validation_scores.csv", subdir = "tables"),
-  row.names = FALSE)
-
-save(
-  list = c("candidate_settings", "target_probs", "thresholds", "objective",
-           "n_train", "n_val", "val_sites", "split.lst",
-           "val_brier", "val_status", "selection_score", "valid_mask",
-           "best_setting", "best_val_brier", "val_df",
-           "fits_dir", "summary_draws"),
-  file = out_path("us-all-auto-results.RData", subdir = "results")
+  row.names = FALSE
 )
+
+save_vars <- c(
+  "candidate_settings", "target_probs", "thresholds", "objective",
+  "n_train", "n_val", "val_sites", "split.lst",
+  "val_brier", "val_status", "val_df", "fits_dir", "summary_draws"
+)
+save_vars <- c(save_vars,
+  if (objective == "each")
+    c("best_by_prob", "n_valid_by_prob")
+  else
+    c("selection_score", "valid_mask", "best_setting", "best_val_brier")
+)
+save(list = save_vars,
+     file = out_path("us-all-auto-results.RData", subdir = "results"))
 
 cat("Outputs written:\n")
 cat(" -", out_path("autoselect_validation_scores.csv", subdir = "tables"), "\n")

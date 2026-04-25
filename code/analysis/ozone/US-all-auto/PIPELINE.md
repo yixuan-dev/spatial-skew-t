@@ -100,11 +100,11 @@ ascending order and skips any setting not found in `settings-auto.csv`.
 
 ### Optional
 
-| Env var                  | Default  | Options         | Effect                                                                                 |
-| ------------------------ | -------- | --------------- | -------------------------------------------------------------------------------------- |
+| Env var                  | Default  | Options         | Effect                                                                                                         |
+| ------------------------ | -------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
 | `US_ALL_MCMC_BACKEND`    | `legacy` | `legacy`, `ar2` | Controls which source files are loaded. Both define `mcmc()`; ar2 adds AR2 priors. Use `ar2` for TS/AR2 lanes. |
-| `US_ALL_VAL_RUN_MODE`    | `prod`   | `prod`, `dev`   | MCMC length. `prod` = 30 000 iters / 25 000 burn. `dev` = 2 000 / 1 000 (quick check). |
-| `US_ALL_VAL_RESULTS_DIR` | `fits/`  | any path        | Override the output directory for `val-<N>.RData` files.                               |
+| `US_ALL_VAL_RUN_MODE`    | `prod`   | `prod`, `dev`   | MCMC length. `prod` = 30 000 iters / 25 000 burn. `dev` = 2 000 / 1 000 (quick check).                         |
+| `US_ALL_VAL_RESULTS_DIR` | `fits/`  | any path        | Override the output directory for `val-<N>.RData` files.                                                       |
 
 ---
 
@@ -178,8 +178,8 @@ Range-token form: `8,12,15:16,38:39,41:43,55:56,58,61:62,65,67:68,70,74,105,111:
 | Env var                          | Default      | Effect                                                                                |
 | -------------------------------- | ------------ | ------------------------------------------------------------------------------------- |
 | `US_ALL_AUTOSELECT_SETTINGS`     | — (required) | Same format as run_settings_val.R; must match the settings that have been fitted      |
-| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.97`       | Comma-separated exceedance probabilities, e.g. `'0.95,0.97,0.99'`                     |
-| `US_ALL_AUTOSELECT_OBJECTIVE`    | `single`     | `single` = minimise Brier at first prob only; `mean` = minimise mean across all probs |
+| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.95`       | Comma-separated exceedance probabilities, e.g. `'0.95,0.97,0.99'`                     |
+| `US_ALL_AUTOSELECT_OBJECTIVE`    | `each`       | `each` = best setting per target prob independently; `mean` = best by mean Brier across all probs |
 | `US_ALL_SUMMARY_DRAWS`           | `400`        | Number of posterior draws to use for Brier computation (subsampled if fit has more)   |
 | `US_ALL_VAL_RESULTS_DIR`         | `fits/`      | Must match the directory used in run_settings_val.R                                   |
 
@@ -187,8 +187,8 @@ Range-token form: `8,12,15:16,38:39,41:43,55:56,58,61:62,65,67:68,70,74,105,111:
 
 ```powershell
 $env:US_ALL_AUTOSELECT_SETTINGS     = '8,12,15:16,38:39,41:43,55:56,58,61:62,65,67:68,70,74,105,111:112,117:118,120,124,204:206'
-$env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.97'
-$env:US_ALL_AUTOSELECT_OBJECTIVE    = 'single'
+$env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.95'
+$env:US_ALL_AUTOSELECT_OBJECTIVE    = 'each'
 Rscript autoselect.R
 ```
 

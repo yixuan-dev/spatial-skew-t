@@ -122,10 +122,14 @@ parse_prop_k_spec <- function(prop_str, default_k = 10L) {
 }
 
 format_prop_tag <- function(prop_k) {
-  sprintf("prop%d", as.integer(prop_k))
+  sprintf("p%d", as.integer(prop_k))
 }
 
 format_prop_file_tag <- function(prop_k) {
+  format_prop_tag(prop_k)
+}
+
+format_prop_legacy_file_tag <- function(prop_k) {
   sprintf("P%d", as.integer(prop_k))
 }
 
@@ -140,6 +144,26 @@ build_prop_result_file <- function(results_dir, setting_id, method_id, dataset_i
       format_prop_file_tag(prop_k)
     )
   )
+}
+
+build_prop_legacy_result_file <- function(results_dir, setting_id, method_id, dataset_id, prop_k) {
+  file.path(
+    results_dir,
+    sprintf(
+      "%d-%d-%d-%s.RData",
+      as.integer(setting_id),
+      as.integer(method_id),
+      as.integer(dataset_id),
+      format_prop_legacy_file_tag(prop_k)
+    )
+  )
+}
+
+build_prop_result_candidates <- function(results_dir, setting_id, method_id, dataset_id, prop_k) {
+  unique(c(
+    build_prop_result_file(results_dir, setting_id, method_id, dataset_id, prop_k),
+    build_prop_legacy_result_file(results_dir, setting_id, method_id, dataset_id, prop_k)
+  ))
 }
 
 format_runtime_timestamp <- function(timestamp) {
@@ -159,7 +183,7 @@ build_simstudy_runtime_info <- function(
     method_id,
     method_key,
     prop_k,
-    backend = "prop-phase1",
+    backend = "prop-simstudy",
     control = NULL) {
   finished_at <- started_at + as.numeric(elapsed_sec)
   list(
@@ -224,7 +248,8 @@ build_prop_run_plan <- function(method_ids, prop_k_values) {
     stringsAsFactors = FALSE
   )
   plan <- merge(combos, base, by = "method_id", sort = FALSE)
-  plan$method_key <- paste0(plan$method_id, "+", vapply(plan$prop_k, format_prop_tag, FUN.VALUE = character(1)))
+  plan$output_tag <- vapply(plan$prop_k, format_prop_tag, FUN.VALUE = character(1))
+  plan$method_key <- paste0(plan$method_id, "+", plan$output_tag)
   plan$label <- sprintf("%s + prop(k=%d)", plan$label, plan$prop_k)
   plan$plan_id <- seq_len(nrow(plan))
   plan

@@ -73,6 +73,21 @@ load_fit_object <- function(result_file) {
   NULL
 }
 
+resolve_prop_result_file <- function(results_dir, setting_id, method_id, dataset_id, prop_k) {
+  candidates <- build_prop_result_candidates(
+    results_dir = results_dir,
+    setting_id = setting_id,
+    method_id = method_id,
+    dataset_id = dataset_id,
+    prop_k = prop_k
+  )
+  existing <- candidates[file.exists(candidates)]
+  if (length(existing) > 0L) {
+    return(existing[1])
+  }
+  candidates[1]
+}
+
 score_fit <- function(fit_obj, validate, thresholds, probs) {
   if (is.null(fit_obj) || is.null(fit_obj$yp)) {
     return(NULL)
@@ -261,7 +276,7 @@ for (setting_id in setting_ids) {
       baseline_scores <- score_fit(baseline_fit, validate, thresholds, probs)
 
       for (prop_k in prop_k_values) {
-        prop_file <- build_prop_result_file(
+        prop_file <- resolve_prop_result_file(
           results_dir = prop_results_dir,
           setting_id = setting_id,
           method_id = spec$method_id[1],

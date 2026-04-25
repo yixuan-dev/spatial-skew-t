@@ -40,7 +40,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     stop("prop backend does not yet support temporal dependence blocks.", call. = FALSE)
   }
   if (method == "gaussian" && (skew || nknots != 1L)) {
-    stop("Gaussian prop phase supports only skew = FALSE and nknots = 1.", call. = FALSE)
+    stop("Gaussian prop backend supports only skew = FALSE and nknots = 1.", call. = FALSE)
   }
 
   y <- as.matrix(y)
@@ -403,7 +403,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
 
     if (iter %% update == 0L) {
       cat(sprintf(
-        "[prop phase3] iter=%d/%d sigma_xi=%.4f rank=%d lambda=%.4f\n",
+        "[prop] iter=%d/%d sigma_xi=%.4f rank=%d lambda=%.4f\n",
         iter, iters, cov_state$sigma_xi_sq, cov_state$effective_rank, lambda
       ))
     }
@@ -427,7 +427,8 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     phi.w = NULL,
     phi.tau = NULL,
     prop = list(
-      phase = 3L,
+      schema_version = 1L,
+      workflow = "prop-simstudy",
       requested_k = basis_obj$requested_k,
       basis_original_cols = basis_obj$original_cols,
       basis_kept_cols = basis_obj$kept_cols,

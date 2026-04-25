@@ -59,7 +59,7 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 ## 目前 workflow 的資料與輸出分工
 
 - `fits/`
-  - model fit `.RData`
+  - model fit `.RData`，命名為 `fits/<setting>-<method>-<dataset>-p<k>.RData`
   - `run-plan-setting-<setting>.csv`
 - `output/results/`
   - 載入 fits 後產生的 analysis `.RData`
@@ -71,12 +71,18 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 ## Windows PowerShell 範例
 
 ```powershell
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 1 "1:5" "4"
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:3" 2 1 "(3,5)" "c(4,8)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 1 "1:5" "20"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=3 "2" 2 1 "1" "20"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:3" 2 1 "(3,5)" "c(20,30)"
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings-batch.R" 1
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings-batch.R" --run_id=phase3-02
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\results-prop.R"
 ```
+
+例如：
+
+- `--setting=3 "2" 2 1 "1" "20"` 會寫出 `fits/3-1-2-p20.RData`
+- `--setting=5 "1:3" 2 1 "(3,5)" "c(20,30)"` 會寫出 `fits/5-3-1-p20.RData`, `fits/5-5-1-p20.RData`, `fits/5-3-1-p30.RData`, ...
 
 ## `settings_prop.csv` 批次執行
 
@@ -100,4 +106,4 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 - 哪些 setting、哪種 method family、哪個 `prop_k` 比較值得往下追？
 
 baseline 結果預設從 `../simstudy/results/` 讀取，
-而 `prop` fits 預設從 `fits/` 讀取。
+而 `prop` fits 預設從 `fits/` 讀取。`results-prop.R` 會優先找新的 `-p<k>.RData` 命名，必要時也能回讀舊的 `-P<k>.RData` 檔案。

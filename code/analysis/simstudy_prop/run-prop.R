@@ -1,6 +1,6 @@
 #########################################################################
-# Phase 3 prop simulation launcher
-# Keeps the run-settings.R CLI shape:
+# Prop simulation launcher
+# Keeps the simstudy run-settings.R CLI shape:
 #   Rscript run-prop.R [--setting=<id>|--setting <id>] [datasets] [workers]
 #                      [ms_threads] [methods] [mrts_k]
 # In this launcher, the final [mrts_k] slot is reused as the prop basis rank.
@@ -70,7 +70,7 @@ unsupported <- method_plan[!method_plan$prop_supported, , drop = FALSE]
 if (nrow(unsupported) > 0L) {
   stop(
     sprintf(
-      "Current prop phase does not support the requested method keys: %s",
+      "The prop backend does not support the requested method keys: %s",
       paste(unsupported$method_key, collapse = ", ")
     ),
     call. = FALSE
@@ -92,7 +92,7 @@ write.csv(
 )
 
 cat(sprintf(
-  "Phase 3 prop run: setting=%d datasets=%s iters=%d burn=%d workers=%d ms_threads=%d cov_update_every=%d\n",
+  "Prop run: setting=%d datasets=%s iters=%d burn=%d workers=%d ms_threads=%d cov_update_every=%d\n",
   setting,
   paste(dataset_ids, collapse = ","),
   iters,
@@ -164,12 +164,12 @@ run_method_prop_mcmc <- function(plan_id, dataset_id) {
     dataset_id = dataset_id,
     runner = "simstudy_prop/run-prop.R::run_method_prop_mcmc",
     method_id = spec$method_id[1],
-      method_key = spec$method_key[1],
-      prop_k = spec$prop_k[1],
-      backend = "prop-phase3",
-      control = list(
-        iters = as.integer(iters),
-        burn = as.integer(burn),
+    method_key = spec$method_key[1],
+    prop_k = spec$prop_k[1],
+    backend = "prop-simstudy",
+    control = list(
+      iters = as.integer(iters),
+      burn = as.integer(burn),
       update = as.integer(update),
       thin = as.integer(thin),
       cov_update_every = as.integer(prop_cov_update_every)
@@ -192,7 +192,7 @@ mcmc_tasks <- expand.grid(
 workers_use <- min(workers, nrow(mcmc_tasks))
 if (workers_use > 1L) {
   cat(sprintf(
-    "Running prop phase 3 tasks in parallel with %d workers across %d tasks...\n",
+    "Running prop tasks in parallel with %d workers across %d tasks...\n",
     workers_use,
     nrow(mcmc_tasks)
   ))
@@ -243,4 +243,4 @@ if (workers_use > 1L) {
   }
 }
 
-cat("Phase 3 prop tasks finished.\n")
+cat("Prop tasks finished.\n")

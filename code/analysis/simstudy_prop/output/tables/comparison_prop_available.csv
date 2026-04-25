@@ -1,3 +1,91 @@
 "setting","dataset","method_id","method_key","family","label","prop_k","baseline_file","prop_file","baseline_available","prop_available"
-1,1,1,"1","gaussian","Gaussian",4,"../simstudy/results/1-1-1.RData","fits/1-1-1-P4.RData",FALSE,TRUE
-1,2,1,"1","gaussian","Gaussian",4,"../simstudy/results/1-1-2.RData","fits/1-1-2-P4.RData",FALSE,TRUE
+3,1,1,"1","gaussian","Gaussian",4,"../simstudy/results/3-1-1.RData","fits/3-1-1-P4.RData",TRUE,TRUE
+3,1,1,"1","gaussian","Gaussian",8,"../simstudy/results/3-1-1.RData","fits/3-1-1-P8.RData",TRUE,FALSE
+3,1,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/3-2-1.RData","fits/3-2-1-P4.RData",TRUE,FALSE
+3,1,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/3-2-1.RData","fits/3-2-1-P8.RData",TRUE,FALSE
+3,1,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/3-3-1.RData","fits/3-3-1-P4.RData",TRUE,FALSE
+3,1,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/3-3-1.RData","fits/3-3-1-P8.RData",TRUE,FALSE
+3,1,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/3-4-1.RData","fits/3-4-1-P4.RData",TRUE,TRUE
+3,1,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/3-4-1.RData","fits/3-4-1-P8.RData",TRUE,FALSE
+3,1,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/3-5-1.RData","fits/3-5-1-P4.RData",TRUE,TRUE
+3,1,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/3-5-1.RData","fits/3-5-1-P8.RData",TRUE,FALSE
+3,2,1,"1","gaussian","Gaussian",4,"../simstudy/results/3-1-2.RData","fits/3-1-2-P4.RData",TRUE,TRUE
+3,2,1,"1","gaussian","Gaussian",8,"../simstudy/results/3-1-2.RData","fits/3-1-2-P8.RData",TRUE,FALSE
+3,2,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/3-2-2.RData","fits/3-2-2-P4.RData",TRUE,FALSE
+3,2,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/3-2-2.RData","fits/3-2-2-P8.RData",TRUE,FALSE
+3,2,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/3-3-2.RData","fits/3-3-2-P4.RData",TRUE,FALSE
+3,2,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/3-3-2.RData","fits/3-3-2-P8.RData",TRUE,FALSE
+3,2,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/3-4-2.RData","fits/3-4-2-P4.RData",TRUE,TRUE
+3,2,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/3-4-2.RData","fits/3-4-2-P8.RData",TRUE,FALSE
+3,2,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/3-5-2.RData","fits/3-5-2-P4.RData",TRUE,TRUE
+3,2,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/3-5-2.RData","fits/3-5-2-P8.RData",TRUE,FALSE
+3,3,1,"1","gaussian","Gaussian",4,"../simstudy/results/3-1-3.RData","fits/3-1-3-P4.RData",TRUE,TRUE
+3,3,1,"1","gaussian","Gaussian",8,"../simstudy/results/3-1-3.RData","fits/3-1-3-P8.RData",TRUE,FALSE
+3,3,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/3-2-3.RData","fits/3-2-3-P4.RData",TRUE,FALSE
+3,3,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/3-2-3.RData","fits/3-2-3-P8.RData",TRUE,FALSE
+3,3,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/3-3-3.RData","fits/3-3-3-P4.RData",TRUE,FALSE
+3,3,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/3-3-3.RData","fits/3-3-3-P8.RData",TRUE,FALSE
+3,3,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/3-4-3.RData","fits/3-4-3-P4.RData",TRUE,TRUE
+3,3,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/3-4-3.RData","fits/3-4-3-P8.RData",TRUE,FALSE
+3,3,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/3-5-3.RData","fits/3-5-3-P4.RData",TRUE,TRUE
+3,3,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/3-5-3.RData","fits/3-5-3-P8.RData",TRUE,FALSE
+4,1,1,"1","gaussian","Gaussian",4,"../simstudy/results/4-1-1.RData","fits/4-1-1-P4.RData",TRUE,TRUE
+4,1,1,"1","gaussian","Gaussian",8,"../simstudy/results/4-1-1.RData","fits/4-1-1-P8.RData",TRUE,FALSE
+4,1,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/4-2-1.RData","fits/4-2-1-P4.RData",TRUE,TRUE
+4,1,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/4-2-1.RData","fits/4-2-1-P8.RData",TRUE,FALSE
+4,1,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/4-3-1.RData","fits/4-3-1-P4.RData",TRUE,TRUE
+4,1,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/4-3-1.RData","fits/4-3-1-P8.RData",TRUE,FALSE
+4,1,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/4-4-1.RData","fits/4-4-1-P4.RData",TRUE,TRUE
+4,1,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/4-4-1.RData","fits/4-4-1-P8.RData",TRUE,FALSE
+4,1,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/4-5-1.RData","fits/4-5-1-P4.RData",TRUE,TRUE
+4,1,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/4-5-1.RData","fits/4-5-1-P8.RData",TRUE,FALSE
+4,2,1,"1","gaussian","Gaussian",4,"../simstudy/results/4-1-2.RData","fits/4-1-2-P4.RData",TRUE,TRUE
+4,2,1,"1","gaussian","Gaussian",8,"../simstudy/results/4-1-2.RData","fits/4-1-2-P8.RData",TRUE,FALSE
+4,2,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/4-2-2.RData","fits/4-2-2-P4.RData",TRUE,TRUE
+4,2,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/4-2-2.RData","fits/4-2-2-P8.RData",TRUE,FALSE
+4,2,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/4-3-2.RData","fits/4-3-2-P4.RData",TRUE,TRUE
+4,2,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/4-3-2.RData","fits/4-3-2-P8.RData",TRUE,FALSE
+4,2,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/4-4-2.RData","fits/4-4-2-P4.RData",TRUE,TRUE
+4,2,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/4-4-2.RData","fits/4-4-2-P8.RData",TRUE,FALSE
+4,2,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/4-5-2.RData","fits/4-5-2-P4.RData",TRUE,TRUE
+4,2,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/4-5-2.RData","fits/4-5-2-P8.RData",TRUE,FALSE
+4,3,1,"1","gaussian","Gaussian",4,"../simstudy/results/4-1-3.RData","fits/4-1-3-P4.RData",TRUE,TRUE
+4,3,1,"1","gaussian","Gaussian",8,"../simstudy/results/4-1-3.RData","fits/4-1-3-P8.RData",TRUE,FALSE
+4,3,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/4-2-3.RData","fits/4-2-3-P4.RData",TRUE,TRUE
+4,3,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/4-2-3.RData","fits/4-2-3-P8.RData",TRUE,FALSE
+4,3,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/4-3-3.RData","fits/4-3-3-P4.RData",TRUE,TRUE
+4,3,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/4-3-3.RData","fits/4-3-3-P8.RData",TRUE,FALSE
+4,3,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/4-4-3.RData","fits/4-4-3-P4.RData",TRUE,TRUE
+4,3,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/4-4-3.RData","fits/4-4-3-P8.RData",TRUE,FALSE
+4,3,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/4-5-3.RData","fits/4-5-3-P4.RData",TRUE,TRUE
+4,3,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/4-5-3.RData","fits/4-5-3-P8.RData",TRUE,FALSE
+5,1,1,"1","gaussian","Gaussian",4,"../simstudy/results/5-1-1.RData","fits/5-1-1-P4.RData",TRUE,TRUE
+5,1,1,"1","gaussian","Gaussian",8,"../simstudy/results/5-1-1.RData","fits/5-1-1-P8.RData",TRUE,TRUE
+5,1,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/5-2-1.RData","fits/5-2-1-P4.RData",TRUE,TRUE
+5,1,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/5-2-1.RData","fits/5-2-1-P8.RData",TRUE,TRUE
+5,1,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/5-3-1.RData","fits/5-3-1-P4.RData",TRUE,TRUE
+5,1,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/5-3-1.RData","fits/5-3-1-P8.RData",TRUE,TRUE
+5,1,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/5-4-1.RData","fits/5-4-1-P4.RData",TRUE,TRUE
+5,1,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/5-4-1.RData","fits/5-4-1-P8.RData",TRUE,TRUE
+5,1,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/5-5-1.RData","fits/5-5-1-P4.RData",TRUE,TRUE
+5,1,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/5-5-1.RData","fits/5-5-1-P8.RData",TRUE,TRUE
+5,2,1,"1","gaussian","Gaussian",4,"../simstudy/results/5-1-2.RData","fits/5-1-2-P4.RData",TRUE,TRUE
+5,2,1,"1","gaussian","Gaussian",8,"../simstudy/results/5-1-2.RData","fits/5-1-2-P8.RData",TRUE,TRUE
+5,2,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/5-2-2.RData","fits/5-2-2-P4.RData",TRUE,TRUE
+5,2,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/5-2-2.RData","fits/5-2-2-P8.RData",TRUE,TRUE
+5,2,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/5-3-2.RData","fits/5-3-2-P4.RData",TRUE,TRUE
+5,2,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/5-3-2.RData","fits/5-3-2-P8.RData",TRUE,TRUE
+5,2,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/5-4-2.RData","fits/5-4-2-P4.RData",TRUE,TRUE
+5,2,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/5-4-2.RData","fits/5-4-2-P8.RData",TRUE,TRUE
+5,2,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/5-5-2.RData","fits/5-5-2-P4.RData",TRUE,TRUE
+5,2,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/5-5-2.RData","fits/5-5-2-P8.RData",TRUE,TRUE
+5,3,1,"1","gaussian","Gaussian",4,"../simstudy/results/5-1-3.RData","fits/5-1-3-P4.RData",TRUE,TRUE
+5,3,1,"1","gaussian","Gaussian",8,"../simstudy/results/5-1-3.RData","fits/5-1-3-P8.RData",TRUE,FALSE
+5,3,2,"2","skew_t_k1_thresh0","Skew-t, K=1",4,"../simstudy/results/5-2-3.RData","fits/5-2-3-P4.RData",TRUE,TRUE
+5,3,2,"2","skew_t_k1_thresh0","Skew-t, K=1",8,"../simstudy/results/5-2-3.RData","fits/5-2-3-P8.RData",TRUE,FALSE
+5,3,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",4,"../simstudy/results/5-3-3.RData","fits/5-3-3-P4.RData",TRUE,TRUE
+5,3,3,"3","t_k1_thresh_q80","t, K=1, q(0.80)",8,"../simstudy/results/5-3-3.RData","fits/5-3-3-P8.RData",TRUE,FALSE
+5,3,4,"4","skew_t_k5_thresh0","Skew-t, K=5",4,"../simstudy/results/5-4-3.RData","fits/5-4-3-P4.RData",TRUE,TRUE
+5,3,4,"4","skew_t_k5_thresh0","Skew-t, K=5",8,"../simstudy/results/5-4-3.RData","fits/5-4-3-P8.RData",TRUE,FALSE
+5,3,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",4,"../simstudy/results/5-5-3.RData","fits/5-5-3-P4.RData",TRUE,TRUE
+5,3,5,"5","t_k5_thresh_q80","t, K=5, q(0.80)",8,"../simstudy/results/5-5-3.RData","fits/5-5-3-P8.RData",TRUE,FALSE

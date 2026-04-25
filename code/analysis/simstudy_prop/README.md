@@ -10,7 +10,7 @@
 
 因此，`simstudy_prop` 不是另一套新的模擬資料來源，而是針對同一份 `simdata.RData` 的平行分析工作區。
 
-- `run-prop.R`：執行 proposed model 模擬
+- `run-prop.R`：執行 prop backend 的 simstudy-style 模擬
 - `run-settings.R`：與 `../simstudy/run-settings.R` 命名平行的 wrapper
 - `run-settings-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
 - `results-prop.R`：將 proposed outputs 和 baseline `../simstudy/results/` 做對照
@@ -38,9 +38,9 @@
 - 4: skew-t, `K = 5`
 - 5: t, `K = 5`, threshold `q(0.80)`
 
-預設輸出都放在 `output/`：
+預設輸出路徑如下：
 
-- `fits/`：model fit `.RData` 與 run plan
+- `fits/`：model fit `.RData` 與 run plan，例如 `fits/3-1-2-p20.RData`
 - `output/results/`：載入 fits 後的 analysis `.RData`
 - `output/tables/`：比較表
 - `output/plots/`：後續比較圖
