@@ -7,7 +7,7 @@
 # How to run (PowerShell):
 #   cd D:\Github\spatial-skew-t\code\analysis\ozone\US-all-auto
 #   $env:US_ALL_AUTOSELECT_SETTINGS    = '111,112,204:206'
-#   $env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.95'
+#   $env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.90,0.95,0.98,0.99,0.995'
 #   $env:US_ALL_AUTOSELECT_OBJECTIVE   = 'each'
 #   Rscript autoselect.R
 #
@@ -17,9 +17,9 @@
 #
 # Environment variables:
 #   US_ALL_AUTOSELECT_SETTINGS     Range tokens, e.g. "111,112,204:206"  [required]
-#   US_ALL_AUTOSELECT_TARGET_PROBS Comma-separated probabilities          [default "0.95"]
+#   US_ALL_AUTOSELECT_TARGET_PROBS Comma-separated probabilities          [default "0.90,0.95,0.98,0.99,0.995"]
 #   US_ALL_AUTOSELECT_OBJECTIVE    "single" or "mean"                     [default "single"]
-#   US_ALL_SUMMARY_DRAWS           Posterior draw cap                     [default 400]
+#   US_ALL_SUMMARY_DRAWS           Posterior draw cap                     [default 5000]
 #   US_ALL_VAL_RESULTS_DIR         Override fits/ directory               [default: auto]
 
 rm(list = ls())
@@ -44,6 +44,14 @@ rm(list = ls())
 setwd(.this_script_dir)
 
 .us_all_auto_root <- normalizePath(.this_script_dir, winslash = "/", mustWork = FALSE)
+.r_root <- normalizePath(file.path(.us_all_auto_root, "../../../R"),
+                         winslash = "/", mustWork = FALSE)
+
+# Source BrierScore — identical in ar2/ and R/; prefer ar2/ when present.
+source(local({
+  ar2 <- file.path(.r_root, "ar2", "auxfunctions.R")
+  if (file.exists(ar2)) ar2 else file.path(.r_root, "auxfunctions.R")
+}))
 
 # ---- Helpers ----
 
@@ -88,7 +96,7 @@ if (length(candidate_settings) == 0L) {
 
 target_probs <- suppressWarnings(
   as.numeric(unlist(strsplit(
-    trimws(Sys.getenv("US_ALL_AUTOSELECT_TARGET_PROBS", unset = "0.95")),
+    trimws(Sys.getenv("US_ALL_AUTOSELECT_TARGET_PROBS", unset = "0.90,0.95,0.98,0.99,0.995")),
     ",",
     fixed = TRUE
   )))
@@ -106,7 +114,7 @@ if (!objective %in% c("each", "mean")) {
   objective <- "each"
 }
 
-summary_draws <- parse_env_int("US_ALL_SUMMARY_DRAWS", 400L)
+summary_draws <- parse_env_int("US_ALL_SUMMARY_DRAWS", 5000L)
 fits_dir_override <- trimws(Sys.getenv("US_ALL_VAL_RESULTS_DIR", unset = ""))
 fits_dir <- if (nzchar(fits_dir_override)) {
   normalizePath(fits_dir_override, winslash = "/", mustWork = FALSE)
@@ -199,38 +207,6 @@ cat("\n")
 
 Y_val <- Y[val_sites, ] # n_val x ntime — observed values at val sites
 
-# ---- Brier scoring function ----
-# fit$yp layout from run_settings_val.R: draws x n_val x ntime
-
-compute_val_brier <- function(yp, Y_val, thresholds, summary_draws) {
-  n_draws <- dim(yp)[1L]
-  draw_idx <- if (n_draws <= summary_draws) {
-    seq_len(n_draws)
-  } else {
-    sort(sample.int(n_draws, summary_draws))
-  }
-
-  n_thr <- length(thresholds)
-  brier <- numeric(n_thr)
-
-  for (k in seq_len(n_thr)) {
-    sq_err <- numeric(0L)
-    for (j in seq_len(dim(yp)[2L])) {
-      pred_j <- yp[draw_idx, j, ] # draws_sub x ntime
-      if (is.null(dim(pred_j))) {
-        pred_j <- matrix(pred_j, nrow = length(draw_idx))
-      }
-      y_j <- Y_val[j, ]
-      keep_t <- is.finite(y_j)
-      if (!any(keep_t)) next
-      p_exc <- colMeans(pred_j[, keep_t, drop = FALSE] > thresholds[k], na.rm = TRUE)
-      sq_err <- c(sq_err, (p_exc - as.numeric(y_j[keep_t] > thresholds[k]))^2)
-    }
-    brier[k] <- if (length(sq_err) > 0L) mean(sq_err, na.rm = TRUE) else NA_real_
-  }
-  brier
-}
-
 # ---- Score all candidate settings ----
 
 cat("Scoring", length(candidate_settings), "settings on", n_val, "val sites...\n")
@@ -242,8 +218,10 @@ val_brier <- matrix(NA_real_,
     as.character(target_probs)
   )
 )
-val_status <- character(length(candidate_settings))
+val_status  <- character(length(candidate_settings))
 names(val_status) <- as.character(candidate_settings)
+val_elapsed <- rep(NA_real_, length(candidate_settings))
+names(val_elapsed) <- as.character(candidate_settings)
 
 for (ii in seq_along(candidate_settings)) {
   sid <- candidate_settings[ii]
@@ -278,18 +256,26 @@ for (ii in seq_along(candidate_settings)) {
   }
 
   fit <- get("fit", envir = load_env, inherits = FALSE)
+  if (exists("runtime_info", envir = load_env, inherits = FALSE)) {
+    ri <- get("runtime_info", envir = load_env, inherits = FALSE)
+    if (is.numeric(ri$elapsed_sec) && length(ri$elapsed_sec) == 1L)
+      val_elapsed[ii] <- ri$elapsed_sec
+  }
   if (is.null(fit$yp) || length(dim(fit$yp)) != 3L) {
     val_status[ii] <- "bad_yp"
     next
   }
 
-  result <- tryCatch(
-    compute_val_brier(fit$yp, Y_val, thresholds, summary_draws),
-    error = function(e) {
-      message("  Scoring error for setting ", sid, ": ", conditionMessage(e))
-      NULL
-    }
-  )
+  result <- tryCatch({
+    n_draws  <- dim(fit$yp)[1L]
+    draw_idx <- if (n_draws <= summary_draws) seq_len(n_draws) else
+      sort(sample.int(n_draws, summary_draws))
+    BrierScore(preds = fit$yp[draw_idx, , , drop = FALSE],
+               thresholds = thresholds, validate = Y_val)
+  }, error = function(e) {
+    message("  Scoring error for setting ", sid, ": ", conditionMessage(e))
+    NULL
+  })
 
   if (is.null(result)) {
     val_status[ii] <- "scoring_error"
@@ -351,9 +337,10 @@ if (objective == "each") {
 if (objective == "each") {
   rank_ref <- val_brier[, 1L]
   val_df <- data.frame(
-    setting = candidate_settings,
-    status  = val_status,
-    rank    = rank(ifelse(is.finite(rank_ref), rank_ref, Inf), ties.method = "min"),
+    setting     = candidate_settings,
+    status      = val_status,
+    rank        = rank(ifelse(is.finite(rank_ref), rank_ref, Inf), ties.method = "min"),
+    elapsed_sec = val_elapsed,
     stringsAsFactors = FALSE
   )
   for (k in seq_along(target_probs)) {
@@ -367,6 +354,7 @@ if (objective == "each") {
     setting         = candidate_settings,
     status          = val_status,
     rank            = rank(ifelse(valid_mask, selection_score, Inf), ties.method = "min"),
+    elapsed_sec     = val_elapsed,
     selection_score = selection_score,
     is_best         = candidate_settings == best_setting,
     stringsAsFactors = FALSE

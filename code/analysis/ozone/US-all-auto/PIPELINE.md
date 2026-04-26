@@ -178,16 +178,16 @@ Range-token form: `8,12,15:16,38:39,41:43,55:56,58,61:62,65,67:68,70,74,105,111:
 | Env var                          | Default      | Effect                                                                                |
 | -------------------------------- | ------------ | ------------------------------------------------------------------------------------- |
 | `US_ALL_AUTOSELECT_SETTINGS`     | — (required) | Same format as run_settings_val.R; must match the settings that have been fitted      |
-| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.95`       | Comma-separated exceedance probabilities, e.g. `'0.95,0.97,0.99'`                     |
+| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.90,0.95,0.98,0.99,0.995` | Comma-separated exceedance probabilities                  |
 | `US_ALL_AUTOSELECT_OBJECTIVE`    | `each`       | `each` = best setting per target prob independently; `mean` = best by mean Brier across all probs |
-| `US_ALL_SUMMARY_DRAWS`           | `400`        | Number of posterior draws to use for Brier computation (subsampled if fit has more)   |
+| `US_ALL_SUMMARY_DRAWS`           | `5000`       | Number of posterior draws to use for Brier computation (subsampled if fit has more)   |
 | `US_ALL_VAL_RESULTS_DIR`         | `fits/`      | Must match the directory used in run_settings_val.R                                   |
 
 ### Example autoselect run
 
 ```powershell
 $env:US_ALL_AUTOSELECT_SETTINGS     = '8,12,15:16,38:39,41:43,55:56,58,61:62,65,67:68,70,74,105,111:112,117:118,120,124,204:206'
-$env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.95'
+$env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.90,0.95,0.98,0.99,0.995'
 $env:US_ALL_AUTOSELECT_OBJECTIVE    = 'each'
 Rscript autoselect.R
 ```

@@ -91,10 +91,34 @@ settings$has_result <- file.exists(
 cat(sprintf("Result files found: %d / %d settings\n\n",
     sum(settings$has_result), nrow(settings)))
 
-# ---- Compute composite tail Brier score from the full table ----
-# composite_tail_brier = mean rel_to_gaussian at Brier q ∈ {0.95, 0.98, 0.99, 0.995}
+# ---- Append synthetic MRTS+AR2 settings (not in US-all settings.csv) ----
+# Combination of MRTS spatial basis + AR2 temporal structure not previously
+# explored.  has_result=FALSE; tiers assigned explicitly later.
 
-tail_qs     <- c(0.95, 0.98, 0.99, 0.995)
+.mrts_ar2 <- data.frame(
+  setting     = as.character(211L:219L),
+  method      = rep(c("skew-t", "skew-t", "t"), 3L),
+  knots       = 1L,
+  thresh      = rep(c(0, 50, 75), 3L),
+  CMAQ        = "yes",
+  TS          = "yes",
+  rerun       = "",
+  running     = "",
+  ar2         = "yes",
+  mrts        = rep(c("5", "10", "15"), each = 3L),
+  setting_num = 211L:219L,
+  mrts_k      = rep(c(5L, 10L, 15L), each = 3L),
+  has_result  = FALSE,
+  stringsAsFactors = FALSE
+)
+settings <- rbind(settings, .mrts_ar2)
+cat(sprintf("Synthetic MRTS+AR2 settings appended: %d rows (IDs %d–%d)\n\n",
+    nrow(.mrts_ar2), min(.mrts_ar2$setting_num), max(.mrts_ar2$setting_num)))
+
+# ---- Compute composite tail Brier score from the full table ----
+# composite_tail_brier = mean rel_to_gaussian at Brier q ∈ {0.90, 0.95, 0.98, 0.99, 0.995}
+
+tail_qs     <- c(0.90, 0.95, 0.98, 0.99, 0.995)
 brier_tail  <- full_table[
   full_table$metric == "brier" &
   full_table$quantile %in% tail_qs &
@@ -171,11 +195,27 @@ candidates <- settings[
   is.finite(settings$composite_tail_brier), ]
 
 candidates <- candidates[order(candidates$composite_tail_brier), ]
-tier1_top_n <- 20L
 
-tier1_ids <- candidates$setting_num[seq_len(min(tier1_top_n, nrow(candidates)))]
+# Per-quantile top-K: guarantees each tail quantile has Tier-1 representation
+# even if the composite score averages away single-quantile specialists.
+tier1_per_q <- 5L
+per_q_ids   <- integer(0L)
+for (.q in tail_qs) {
+  .sub <- brier_tail[brier_tail$quantile == .q &
+                     as.integer(brier_tail$setting) %in% candidates$setting_num, ]
+  .sub <- .sub[order(.sub$rel_to_gaussian), ]
+  per_q_ids <- sort(unique(c(per_q_ids,
+    as.integer(head(.sub$setting, tier1_per_q)))))
+}
 
-# Always include MRTS k=10 in Tier 1 (best MRTS variant)
+# Composite top-N: overall best across all tail quantiles
+tier1_composite_n <- 20L
+composite_ids <- candidates$setting_num[
+  seq_len(min(tier1_composite_n, nrow(candidates)))]
+
+tier1_ids <- sort(unique(c(per_q_ids, composite_ids)))
+
+# Always include MRTS k=10 in Tier 1 (best MRTS variant, has_result only)
 mrts10_ids <- settings$setting_num[
   !is.na(settings$mrts_k) & settings$mrts_k == 10 & settings$has_result]
 tier1_ids  <- sort(unique(c(tier1_ids, mrts10_ids)))
@@ -216,7 +256,18 @@ settings$tier[
   settings$has_result] <- 3L
 
 # Remaining with result files but no score (e.g. no result in full_table)
-settings$tier[is.na(settings$tier) & settings$has_result] <- 3L
+# Exclude k=800 from the catch-all so it remains tier=NA and is dropped.
+settings$tier[
+  is.na(settings$tier) & settings$has_result &
+  (is.na(settings$mrts_k) | settings$mrts_k != 800L)] <- 3L
+
+# MRTS+AR2 synthetic settings: assign tiers consistent with same-k non-AR2 lanes
+settings$tier[
+  !is.na(settings$mrts_k) & settings$ar2 == "yes" &
+  settings$mrts_k == 10L & is.na(settings$tier)] <- 1L
+settings$tier[
+  !is.na(settings$mrts_k) & settings$ar2 == "yes" &
+  settings$mrts_k %in% c(5L, 15L) & is.na(settings$tier)] <- 2L
 
 # ---- Build settings-auto output ----
 

@@ -1,0 +1,967 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm, bm, mathtools}
+\usepackage{booktabs, array, longtable}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bX}{\mathbf{X}}
+\newcommand{\bD}{\mathbf{D}}
+\newcommand{\bF}{\mathbf{F}}
+\newcommand{\bQ}{\mathbf{Q}}
+\newcommand{\bB}{\mathbf{B}}
+\newcommand{\bR}{\mathbf{R}}
+\newcommand{\bG}{\mathbf{G}}
+\newcommand{\bM}{\mathbf{M}}
+\newcommand{\bL}{\mathbf{L}}
+\newcommand{\bS}{\mathbf{S}}
+\newcommand{\bH}{\mathbf{H}}
+\newcommand{\bP}{\mathbf{P}}
+\newcommand{\bA}{\mathbf{A}}
+\newcommand{\bz}{\mathbf{z}}
+\newcommand{\br}{\mathbf{r}}
+\newcommand{\bzero}{\mathbf{0}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\cov}{\operatorname{cov}}
+\newcommand{\var}{\operatorname{var}}
+\newcommand{\I}{\mathbf{I}}
+\newcommand{\E}{\operatorname{E}}
+
+\title{Technical Report: How the Closed-Form Update for \texorpdfstring{$\bM$}{M} Is Embedded in the Current Prop Skew-\texorpdfstring{$t$}{t} Backend}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Purpose of This Report}
+
+This report is written as a \emph{verification memo}, not as a proposal note.
+Its goal is to answer two narrow technical questions for the current prop
+implementation in \texttt{D:/Github/spatial-skew-t}:
+
+\begin{enumerate}[label=\arabic*.]
+\item Is the current implementation of the closed-form maximum likelihood
+estimator of the low-rank covariance matrix $\bM$ algebraically consistent with
+the Tzeng--Huang theorem after the basis construction used by this backend?
+\item How is that closed-form covariance update embedded inside the current
+skew-$t$ sampler without replacing the rest of the Morris-style hierarchical
+structure?
+\end{enumerate}
+
+The report is therefore designed to clarify what is exact, what is only a
+working/profile step, and what evidence would be needed to claim that the
+current code writes the intended estimator correctly.
+
+\section{Files That Matter}
+
+The relevant code paths are:
+
+\begin{itemize}
+\item \texttt{code/R/prop/prop\_basis.R}: basis construction, trimming, and
+orthonormalization.
+\item \texttt{code/R/prop/prop\_covariance.R}: closed-form update for the
+low-rank block and the construction of $\bG$ and $\bR$.
+\item \texttt{code/R/prop/prop\_modules.R}: high-level wrappers such as
+\texttt{update\_M\_closed\_form(...)} and
+\texttt{build\_R\_from\_G(...)}.
+\item \texttt{code/R/prop/mcmc\_prop.R}: the hybrid skew-$t$ sampler that calls
+the covariance update.
+\item \texttt{code/analysis/simstudy\_prop/run-prop.R}: runner that passes
+\texttt{prop\_k} and \texttt{prop\_cov\_update\_every} into the backend and
+saves the resulting fit objects.
+\end{itemize}
+
+The \emph{runner} governs how jobs are launched and saved. The actual
+closed-form update for $\bM$ lives in the \emph{backend}. The scientific
+correctness question therefore belongs primarily to the backend, with the
+runner only responsible for exposing the correct control parameters and
+recording metadata.
+
+\section{Implemented Prop Skew-\texorpdfstring{$t$}{t} Model}
+
+\subsection{Observation-Level Form}
+
+For replicate $t = 1,\ldots,T$, let $\bY_t \in \mathbb{R}^n$ denote the
+observed response vector at the $n$ observed spatial sites. The current prop
+backend can be written as
+\begin{equation}
+\bY_t = \bX_t \bm{\beta} + \lambda \bz_{g,t} + \bD_t \mathbf{v}_t,
+\label{eq:obs-model}
+\end{equation}
+where:
+
+\begin{itemize}
+\item $\bX_t$ is the covariate matrix at replicate $t$;
+\item $\bm{\beta}$ is the regression coefficient vector;
+\item $\lambda$ is the skewness coefficient;
+\item $\bz_{g,t}$ is the site-level skew latent vector induced by the current
+partition/knots structure;
+\item $\bD_t = \diag\{\tau_{g,t}(s_1)^{-1/2}, \ldots,
+\tau_{g,t}(s_n)^{-1/2}\}$ is the scale matrix built from the current local
+precisions;
+\item $\mathbf{v}_t$ is the latent Gaussian spatial effect with correlation
+matrix $\bR$.
+\end{itemize}
+
+Equation \eqref{eq:obs-model} matches the current code structure in
+\texttt{mcmc\_prop.R}: the mean part is formed as
+\texttt{x.beta + lambda * zg}, while the scale is carried by \texttt{taug}
+through the standardization step.
+
+\subsection{What Is Preserved From the Morris Hierarchy}
+
+The current prop implementation does \emph{not} replace the whole Morris-style
+hierarchy. It keeps the main non-Gaussian latent blocks:
+
+\begin{itemize}
+\item $\bm{\beta}$ update;
+\item $\lambda$ update when skewness is enabled;
+\item local scale update through $\tau$ and the site-level map \texttt{taug};
+\item latent skew process update through \texttt{z} and \texttt{zg};
+\item knot/partition updates when \texttt{nknots > 1}.
+\end{itemize}
+
+What changes is only the latent spatial dependence block $\mathbf{v}_t$. The
+Mat\'ern-driven covariance update is replaced by a low-rank spatial random
+effects block that is refreshed from a closed-form estimator of $\bM$ and
+$\sigma_\xi^2$.
+
+\section{Conditional Gaussian Working Residuals}
+
+\subsection{Standardized Residuals Used by the Covariance Update}
+
+Given the current state
+\[
+(\bm{\beta}, \lambda, \bz_{g,t}, \tau_{g,t}), \qquad t=1,\ldots,T,
+\]
+define the standardized residual vector
+\begin{equation}
+\br_t
+=
+\bD_t^{-1}
+\bigl(
+\bY_t - \bX_t \bm{\beta} - \lambda \bz_{g,t}
+\bigr),
+\qquad
+t=1,\ldots,T,
+\label{eq:std-resid}
+\end{equation}
+where $\bD_t^{-1} = \diag\{\tau_{g,t}(s_1)^{1/2}, \ldots,
+\tau_{g,t}(s_n)^{1/2}\}$.
+
+This matches the code exactly:
+\[
+\texttt{residuals\_std}
+=
+\sqrt{\texttt{taug}} \odot
+\bigl(
+\texttt{y} - \texttt{x\_beta} - \lambda \texttt{zg}
+\bigr),
+\]
+implemented in \texttt{update\_residuals(...)}.
+
+\subsection{Why Theorem 2 Is Applied to \texorpdfstring{$\br_t$}{r\_t}, Not Directly to \texorpdfstring{$\bY_t$}{Y\_t}}
+
+Tzeng--Huang's theorem is derived for Gaussian spatial random effects
+replicates with a common covariance model. In the current backend, the original
+observations are not Gaussian because of the skew-$t$ hierarchy. The theorem is
+therefore applied to the \emph{conditionally Gaussian working residuals}
+\(\br_t\), not to \(\bY_t\) directly.
+
+This is the first crucial interpretive point:
+
+\begin{quote}
+the current backend does not claim that the full skew-$t$ model admits a closed
+form MLE for $\bM$; it claims that, conditional on the current latent blocks,
+the Gaussian spatial dependence layer can be refreshed by a theorem-based
+closed-form update.
+\end{quote}
+
+That is why the method should be described as a \emph{hybrid
+Bayesian--profile} algorithm rather than a full Bayesian sampler for
+$\bM$.
+
+\section{Basis Construction and Why the Theorem Simplifies}
+
+\subsection{Fixed Basis and Rank Reduction}
+
+The current backend fixes the basis matrix through
+\texttt{build\_prop\_basis(...)}. Let the requested basis size be
+\(K_{\mathrm{req}}\), but let the numerically retained rank after trimming and
+orthonormalization be \(r\). The code returns
+\[
+\bQ \in \mathbb{R}^{n \times r},
+\qquad
+\bQ' \bQ = \I_r.
+\]
+
+This orthonormalization step matters because it changes how Theorem~2 should be
+read in the implementation. The theorem is written for a general basis matrix
+\(\bF\), but in the current backend the working basis has already been
+orthonormalized. Therefore the factor
+\[
+(\bF' \bF)^{-1/2}
+\]
+collapses to \(\I_r\) after basis preprocessing.
+
+\subsection{The Working Empirical Covariance}
+
+Collect the residual replicates as
+\[
+\mathbf{R}
+=
+\begin{bmatrix}
+\br_1 & \cdots & \br_T
+\end{bmatrix},
+\qquad
+\bS = \frac{1}{T} \mathbf{R} \mathbf{R}'.
+\]
+Then with the orthonormalized basis \(\bQ\), the theorem's matrix
+\[
+\bH
+=
+(\bF'\bF)^{-1/2}\bF' \bS \bF (\bF'\bF)^{-1/2}
+\]
+reduces to
+\begin{equation}
+\bH = \bQ' \bS \bQ.
+\label{eq:h-simplified}
+\end{equation}
+
+The code computes exactly this quantity by
+\[
+\texttt{projected} = \bQ' \mathbf{R},
+\qquad
+\texttt{h\_mat} = \frac{1}{T}\texttt{projected}\,\texttt{projected}'.
+\]
+Hence
+\[
+\texttt{h\_mat} = \bQ' \bS \bQ.
+\]
+
+This is the second crucial point of the report:
+
+\begin{quote}
+the implementation is not omitting the \((\bF'\bF)^{-1/2}\) factor by mistake;
+it has already absorbed that factor by orthonormalizing the basis before the
+closed-form update is called.
+\end{quote}
+
+\section{Theorem 2 Update and Its Code Mapping}
+
+\subsection{The Working Theorem}
+
+Given the orthonormalized basis \(\bQ\), let
+\[
+\bH = \bQ' \bS \bQ = \bP \diag(d_1,\ldots,d_r)\bP'
+\]
+be its eigendecomposition, where \(d_1 \ge \cdots \ge d_r \ge 0\). Let
+\(d_0 = 0\), and let
+\[
+L^* = \max \left\{
+L \in \{1,\ldots,r\} :
+d_L >
+\max\left(
+\frac{1}{n-L}\Bigl(\tr(\bS) - \sum_{k=1}^L d_k\Bigr),
+\sigma_\epsilon^2
+\right)
+\right\},
+\]
+with \(L^* = 0\) if the set is empty.
+
+Then the theorem-based update is
+\begin{equation}
+\widehat{\sigma}_\xi^2
+=
+\max\left\{
+\frac{1}{n-L^*}
+\left(
+\tr(\bS) - \sum_{k=1}^{L^*} d_k
+\right)
+- \sigma_\epsilon^2,
+\, 0
+\right\},
+\label{eq:sig-update}
+\end{equation}
+and
+\begin{equation}
+\widehat{\bM}
+=
+\bP \diag(\widehat d_1,\ldots,\widehat d_r)\bP',
+\qquad
+\widehat d_k = \max(d_k - \widehat{\sigma}_\xi^2 - \sigma_\epsilon^2, 0).
+\label{eq:m-update}
+\end{equation}
+
+In the current backend, \(\sigma_\epsilon^2\) is passed as
+\texttt{prop\_sigma\_eps\_sq} and defaults to \(0\).
+
+\subsection{Implementation-Level Regularization}
+
+The code introduces one additional regularization step beyond the theorem:
+\[
+\widehat{\sigma}_\xi^2 \leftarrow
+\max\{\widehat{\sigma}_\xi^2, \texttt{sigma\_floor}\}.
+\]
+This does \emph{not} change the structure of the theorem-based update, but it
+does mean the implementation is a \emph{numerically regularized} version of the
+closed-form estimator rather than the exact raw formula with no lower bound.
+
+\subsection{Theorem-to-Code Audit Table}
+
+\begin{center}
+\small
+\begin{longtable}{p{0.18\textwidth} p{0.22\textwidth} p{0.23\textwidth} p{0.25\textwidth}}
+\toprule
+Mathematical object & Backend object & Function & Comment \\
+\midrule
+\endhead
+\(\bQ\) & \texttt{F\_obs} & \texttt{build\_basis\_matrix(...)} & Orthonormalized observation basis \\
+\(\bQ_*\) & \texttt{F\_pred} & \texttt{build\_basis\_matrix(...)} & Prediction basis rows \\
+\(\br_t\) & \texttt{residuals\_std[, t]} & \texttt{update\_residuals(...)} & Standardized working residual replicate \\
+\(\bS\) & implicit & \texttt{prop\_closed\_form\_update(...)} & Never formed explicitly as \(n\times n\) \\
+\(\bH\) & \texttt{h\_mat} & \texttt{prop\_closed\_form\_update(...)} & Computed as \(Q'SQ\) \\
+\(\bP\) & \texttt{rotation} & \texttt{prop\_closed\_form\_update(...)} & Eigenvectors of \(\bH\) \\
+\((d_1,\ldots,d_r)\) & \texttt{projected\_eigs} & \texttt{prop\_closed\_form\_update(...)} & Eigenvalues of \(\bH\) \\
+\(L^*\) & \texttt{lstar} & \texttt{prop\_select\_lstar(...)} & The theorem's retained index \\
+\(\widehat{\sigma}_\xi^2\) & \texttt{sigma\_xi\_sq} & \texttt{prop\_closed\_form\_update(...)} & Nugget/fine-scale variance update \\
+\((\widehat d_1,\ldots,\widehat d_r)\) & \texttt{lowrank\_eigs} & \texttt{prop\_closed\_form\_update(...)} & Shrunk eigenvalues \\
+\(\widehat{\bM}\) & \texttt{M\_hat} & \texttt{update\_M\_closed\_form(...)} & Reconstructed as \(P \diag(\widehat d) P'\) \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{From \texorpdfstring{$\widehat{\bM}$}{M-hat} to the Working Correlation Matrix}
+
+\subsection{Rotated-Basis Representation}
+
+Although \texttt{update\_M\_closed\_form(...)} reconstructs
+\(\widehat{\bM}\) explicitly, the subsequent covariance construction uses the
+equivalent rotated-basis form. Let
+\[
+\bB = \bQ \bP,
+\qquad
+\bm{\Lambda} = \diag(\widehat d_1,\ldots,\widehat d_r).
+\]
+Then
+\begin{equation}
+\bQ \widehat{\bM} \bQ'
+=
+\bQ \bP \bm{\Lambda} \bP' \bQ'
+=
+\bB \bm{\Lambda} \bB'.
+\label{eq:rot-basis}
+\end{equation}
+
+The current code uses \(\bB\) and \(\bm{\Lambda}\) rather than multiplying by
+\(\widehat{\bM}\) directly. This is mathematically equivalent, and it is the
+reason why \texttt{build\_R\_from\_G(...)} only requires
+\texttt{rotation}, \texttt{lowrank\_eigs}, and \texttt{sigma\_xi\_sq}.
+
+\subsection{From \texorpdfstring{$\bG$}{G} to \texorpdfstring{$\bR$}{R}}
+
+The working covariance matrix is
+\begin{equation}
+\bG = \bB \bm{\Lambda} \bB' + \widehat{\sigma}_\xi^2 \I_n.
+\label{eq:g-matrix}
+\end{equation}
+The current backend then defines
+\[
+\bA = \diag(\bG),
+\qquad
+\bR = \bA^{-1/2} \bG \bA^{-1/2}.
+\]
+This is implemented in \texttt{prop\_make\_cov\_state(...)}.
+
+This standardization step is scientifically important:
+
+\begin{itemize}
+\item the theorem gives an update for \(\bG\), a covariance matrix;
+\item the skew-$t$ sampler is run using \(\bR\), a correlation matrix;
+\item the scale of the observations remains controlled by \(\tau\), not by
+\(\bG\).
+\end{itemize}
+
+Therefore the current backend does \emph{not} optimize the full skew-$t$
+likelihood over a covariance parameterization. Instead it performs a theorem-based
+refresh of \(\bG\) and then converts that covariance block to a correlation
+matrix before re-entering the skew-$t$ hierarchy.
+
+\section{How the Update Is Embedded Inside the Sampler}
+
+\subsection{Backend-Level Flow}
+
+The runner \texttt{run-prop.R} passes two key controls into
+\texttt{mcmc(...)}:
+
+\begin{itemize}
+\item \texttt{prop\_k}: requested basis size;
+\item \texttt{prop\_cov\_update\_every}: how often the closed-form covariance
+refresh is performed.
+\end{itemize}
+
+Inside \texttt{mcmc\_prop.R}, the relevant steps are:
+
+\begin{enumerate}[label=\arabic*.]
+\item Build the fixed basis \(\bQ\) and \(\bQ_*\).
+\item Initialize the latent skew and scale blocks.
+\item Compute the current working residual block
+\(\{\br_t\}_{t=1}^T\).
+\item Update \((\widehat{\bM}, \widehat{\sigma}_\xi^2)\) from those residuals.
+\item Build \(\bR\), its inverse, log-determinant pieces, and the prediction
+state.
+\item Continue the skew-$t$ updates for \(\bm{\beta}\), \(\lambda\), \(\tau\),
+\(\bz\), and knots.
+\item Every \texttt{prop\_cov\_update\_every} iterations, refresh the
+covariance block again from the new residuals.
+\end{enumerate}
+
+\subsection{Iteration-Level Pseudo-Code}
+
+\noindent\textbf{Pseudo-code for one MCMC iteration}
+
+\begin{enumerate}[label=\arabic*.]
+\item Given current \((\bm{\beta}, \lambda, \tau, \bz, \text{knots})\), form
+\(\br_t\) by \eqref{eq:std-resid}.
+\item If thresholding or missingness is present, impute latent \(y\) conditional
+on the current covariance state.
+\item Update \(\bm{\beta}\) and \(\lambda\).
+\item Update knots/partition state if knots are free.
+\item Update \(\tau\).
+\item Update \(\bz\) if skewness is enabled.
+\item Recompute \(\br_t\).
+\item If the iteration index is a covariance-refresh step, compute
+\((\widehat{\bM}, \widehat{\sigma}_\xi^2)\), then rebuild \(\bR\).
+\item Save the current draw, including prediction draws generated from the
+updated covariance state.
+\end{enumerate}
+
+This pseudo-code is the correct interpretation of the current backend:
+the closed-form estimator is embedded as a \emph{refresh step within a larger
+skew-$t$ sampler}, not as a stand-alone Gaussian fitting procedure.
+
+\section{What Is Exact, and What Is Approximate}
+
+\subsection{Exact Statements}
+
+The following claims are exact for the current code:
+
+\begin{enumerate}[label=\arabic*.]
+\item The basis is orthonormalized before the theorem-based update is called.
+\item The matrix fed into the eigendecomposition is exactly \(Q'SQ\) for the
+working residual matrix.
+\item The reconstructed matrix
+\(\widehat{\bM} = \bP \diag(\widehat d)\bP'\) is the theorem's closed-form
+estimator in the orthonormalized basis.
+\item The covariance state is built from the rotated-basis representation
+\(\bB \bm{\Lambda} \bB' + \widehat{\sigma}_\xi^2 \I\), which is algebraically
+equivalent to \(Q \widehat M Q' + \widehat{\sigma}_\xi^2 \I\).
+\end{enumerate}
+
+\subsection{Approximate or Profile Statements}
+
+The following claims should \emph{not} be overstated:
+
+\begin{enumerate}[label=\arabic*.]
+\item The theorem is not being applied to the full skew-$t$ data model; it is
+being applied to conditionally standardized residuals.
+\item The standardization \(\bG \mapsto \bR\) is an additional modeling choice
+made to preserve the scale/dependence separation.
+\item The sampler does not draw \(\bM\) from a posterior distribution. It plugs
+in a theorem-based update inside the MCMC loop.
+\item The lower bound \texttt{sigma\_floor} is an implementation regularizer and
+is not part of the raw closed-form theorem.
+\end{enumerate}
+
+Hence the right label is:
+
+\begin{quote}
+\emph{hybrid Bayesian--profile skew-$t$ inference with a theorem-based
+closed-form covariance refresh}.
+\end{quote}
+
+\section{Why This Still Preserves the Skew-\texorpdfstring{$t$}{t} Process Structure}
+
+The key scientific concern is whether introducing the closed-form covariance
+refresh destroys the integrity of the skew-$t$ process. The answer is no, for
+the following reason:
+
+\begin{itemize}
+\item the non-Gaussian features of the model still come from the latent skew
+process, the local scale process, and the threshold/missing-data machinery;
+\item the covariance refresh only replaces the Gaussian spatial dependence layer
+that sits underneath those blocks;
+\item prediction still uses the same skew and scale ingredients through
+\texttt{lambda}, \texttt{z\_pred}, and \texttt{sigma\_pred}.
+\end{itemize}
+
+So the present backend is not ``Gaussianized'' overall. It remains a skew-$t$
+process model with a low-rank Gaussian dependence component that is refreshed by
+a closed-form estimator.
+
+\section{What Must Be Verified to Claim the Estimator Is Correct}
+
+To move from ``the code matches the intended algebra'' to ``the estimator is
+implemented correctly,'' the following checks should be documented.
+
+\subsection{Algebraic Invariants}
+
+For each covariance refresh:
+
+\begin{enumerate}[label=\arabic*.]
+\item Verify \(Q'Q = I_r\) numerically.
+\item Verify \texttt{rotation} is orthonormal.
+\item Verify all \texttt{lowrank\_eigs} are nonnegative.
+\item Verify \(\widehat{\bM}\) is positive semidefinite.
+\item Verify \(\texttt{effective\_rank} \le \min(r, T)\).
+\item Verify \(\widehat{\sigma}_\xi^2 \ge \texttt{sigma\_floor} > 0\).
+\end{enumerate}
+
+\subsection{Small-\texorpdfstring{$n$}{n}, Small-\texorpdfstring{$T$}{T} Numerical Check}
+
+Construct a small Gaussian test case where:
+
+\begin{itemize}
+\item \(Q\) is fixed and orthonormal;
+\item \(\sigma_\epsilon^2\) is known;
+\item the residual replicates are truly Gaussian.
+\end{itemize}
+
+Then compare:
+
+\begin{enumerate}[label=\arabic*.]
+\item the code's \((\widehat{\bM}, \widehat{\sigma}_\xi^2)\);
+\item a direct implementation of the theorem using matrix algebra outside the
+backend;
+\item a brute-force likelihood optimization over \(\bM\) and
+\(\sigma_\xi^2\) in the same reduced-rank Gaussian model.
+\end{enumerate}
+
+If those three agree up to numerical tolerance, then the core MLE update is
+very likely coded correctly.
+
+\subsection{Sampler-Integration Check}
+
+Independently of the theorem itself, one should also verify:
+
+\begin{enumerate}[label=\arabic*.]
+\item when \texttt{prop\_cov\_update\_every = 1}, the covariance block refreshes
+at every iteration;
+\item when \texttt{prop\_cov\_update\_every > 1}, the covariance state stays
+fixed between refreshes;
+\item the saved \texttt{fit.1\$prop} metadata is consistent with the basis rank,
+\(\widehat{\sigma}_\xi^2\), and the requested \(k\).
+\end{enumerate}
+
+\section{Bottom-Line Conclusion}
+
+From a mathematical and code-audit perspective, the current prop backend is
+best described as follows:
+
+\begin{enumerate}[label=\arabic*.]
+\item The theorem-based update for \(\bM\) is implemented on the
+orthonormalized basis, so the code correctly uses \(Q'SQ\) rather than the
+full \((F'F)^{-1/2}F'SF(F'F)^{-1/2}\) expression.
+\item The code reconstructs \(\widehat{\bM}\) in the theorem's eigenbasis and
+then uses the equivalent rotated-basis form to build the covariance matrix.
+\item The backend does not claim an exact skew-$t$ MLE for \(\bM\); it performs
+a closed-form Gaussian covariance refresh inside a larger skew-$t$ sampler.
+\item Therefore the current implementation is scientifically coherent as a
+hybrid Bayesian--profile algorithm, provided the remaining numerical checks are
+passed.
+\end{enumerate}
+
+The most important practical implication is this:
+
+\begin{quote}
+if the estimator is questioned, the first place to look is not the sampler
+logic but the theorem-to-code mapping for the orthonormalized basis and the
+\(\bG \mapsto \bR\) standardization step.
+\end{quote}
+
+\appendix
+
+\section{Numerical Verification Appendix}
+
+This appendix turns the previous discussion into a concrete verification
+protocol. Its purpose is not to demonstrate predictive performance, but to
+determine whether the current implementation of the closed-form update for
+\(\bM\) is numerically consistent with the intended theorem and whether that
+update is embedded correctly in the current skew-$t$ backend.
+
+The verification logic should proceed in three layers:
+
+\begin{enumerate}[label=\arabic*.]
+\item verify the theorem-based update in a pure Gaussian reduced-rank setting;
+\item verify the covariance-to-correlation conversion and prediction-state
+construction;
+\item verify that the closed-form step is refreshed at the intended points of
+the skew-$t$ sampler.
+\end{enumerate}
+
+The order matters. If the first layer fails, then discrepancies observed in the
+full skew-$t$ sampler cannot be interpreted, because the covariance update
+itself has not yet been certified.
+
+\subsection{Appendix A: Deterministic Theorem Replication Test}
+
+\subsubsection{Goal}
+
+The first check should isolate the theorem from the rest of the model. The
+question is:
+
+\begin{quote}
+if we feed the backend an orthonormal basis and truly Gaussian replicates, does
+the code return the same \((\widehat{\bM}, \widehat{\sigma}_\xi^2)\) as a direct
+matrix-algebra implementation of the theorem?
+\end{quote}
+
+\subsubsection{Recommended Setup}
+
+Use a deliberately small configuration, for example
+\[
+n = 12, \qquad r = 4, \qquad T = 40.
+\]
+Construct:
+
+\begin{enumerate}[label=\arabic*.]
+\item an orthonormal matrix \(\bQ \in \mathbb{R}^{n \times r}\), obtained for
+example from a QR decomposition of a random Gaussian matrix;
+\item a positive semidefinite target covariance
+\[
+\bM_{\mathrm{true}} = \bP_0 \diag(m_1,\ldots,m_r)\bP_0',
+\]
+with \(m_k \ge 0\);
+\item a positive nugget/fine-scale variance \(\sigma_{\xi,\mathrm{true}}^2 > 0\);
+\item the Gaussian covariance
+\[
+\bG_{\mathrm{true}} = \bQ \bM_{\mathrm{true}} \bQ' +
+\sigma_{\xi,\mathrm{true}}^2 \I_n.
+\]
+\end{enumerate}
+
+Then simulate
+\[
+\br_t \overset{\mathrm{iid}}{\sim} N_n(\bzero, \bG_{\mathrm{true}}),
+\qquad
+t=1,\ldots,T.
+\]
+
+\subsubsection{Three Parallel Calculations}
+
+For the same simulated residual matrix \(\mathbf{R}\), compute
+\((\widehat{\bM}, \widehat{\sigma}_\xi^2)\) in three ways.
+
+\paragraph{Path 1: Backend path}
+Use the current code:
+\begin{enumerate}[label=\arabic*.]
+\item call \texttt{update\_M\_closed\_form(F\_obs = Q, residuals\_std = R)};
+\item extract \texttt{rotation}, \texttt{lowrank\_eigs},
+\texttt{sigma\_xi\_sq}, and \texttt{M\_hat}.
+\end{enumerate}
+
+\paragraph{Path 2: Direct theorem path}
+Implement the theorem outside the backend:
+\begin{enumerate}[label=\arabic*.]
+\item compute
+\[
+\bS = \frac{1}{T}\mathbf{R}\mathbf{R}', \qquad
+\bH = \bQ'\bS\bQ;
+\]
+\item eigendecompose \(\bH = \bP \diag(d_1,\ldots,d_r)\bP'\);
+\item compute \(L^*\), \(\widehat{\sigma}_\xi^2\), and
+\(\widehat d_k = \max(d_k - \widehat{\sigma}_\xi^2, 0)\);
+\item reconstruct
+\[
+\widehat{\bM}_{\mathrm{dir}} =
+\bP \diag(\widehat d_1,\ldots,\widehat d_r)\bP'.
+\]
+\end{enumerate}
+
+\paragraph{Path 3: Rebuilt rotated-basis path}
+Using the backend output only, reconstruct
+\[
+\widehat{\bG}_{\mathrm{rot}}
+=
+(\bQ \,\texttt{rotation})\,
+\diag(\texttt{lowrank\_eigs})\,
+(\bQ \,\texttt{rotation})'
++
+\texttt{sigma\_xi\_sq}\,\I_n.
+\]
+This path checks whether the code's rotated-basis representation is numerically
+equivalent to \(Q \widehat M Q' + \widehat{\sigma}_\xi^2 I\).
+
+\subsubsection{Acceptance Criteria}
+
+For a successful replication check, require:
+
+\begin{enumerate}[label=\arabic*.]
+\item
+\[
+\max_{i,j}
+\left|
+\widehat M_{\mathrm{backend},ij}
+-
+\widehat M_{\mathrm{dir},ij}
+\right|
+< 10^{-8};
+\]
+\item
+\[
+\left|
+\widehat{\sigma}_{\xi,\mathrm{backend}}^2
+-
+\widehat{\sigma}_{\xi,\mathrm{dir}}^2
+\right|
+< 10^{-10};
+\]
+\item
+\[
+\max_{i,j}
+\left|
+\widehat G_{\mathrm{rot},ij}
+-
+\left(
+\bQ \widehat{\bM}_{\mathrm{backend}} \bQ' +
+\widehat{\sigma}_{\xi,\mathrm{backend}}^2 \I_n
+\right)_{ij}
+\right|
+< 10^{-8}.
+\]
+\end{enumerate}
+
+If these fail, then the implementation of the theorem itself should be treated
+as unresolved, and no higher-level skew-$t$ conclusions should be drawn.
+
+\subsection{Appendix B: Direct Likelihood Benchmark}
+
+\subsubsection{Goal}
+
+The deterministic theorem replication test only shows that the code matches the
+matrix algebra. A second question is whether that matrix algebra actually agrees
+with the Gaussian likelihood in the reduced-rank model. This check is:
+
+\begin{quote}
+does the theorem-based update match the optimizer of the Gaussian likelihood in
+the same low-rank covariance family?
+\end{quote}
+
+\subsubsection{Likelihood to Optimize}
+
+For fixed residual replicates \(\br_1,\ldots,\br_T\), define
+\[
+\ell(\bM, \sigma_\xi^2)
+=
+-\frac{T}{2}\log |\bG|
+-\frac{1}{2}\sum_{t=1}^T \br_t' \bG^{-1}\br_t,
+\qquad
+\bG = \bQ \bM \bQ' + \sigma_\xi^2 \I_n.
+\]
+
+To keep this benchmark feasible, use only a very small rank such as \(r=2\) or
+\(r=3\), and optimize over a Cholesky parameterization
+\[
+\bM = \bL \bL',
+\qquad
+\sigma_\xi^2 = \exp(\eta),
+\]
+with unconstrained parameters in \(\bL\) and \(\eta\).
+
+\subsubsection{Verification Procedure}
+
+\begin{enumerate}[label=\arabic*.]
+\item Use the same Gaussian dataset as Appendix~A.
+\item Compute the theorem-based estimator
+\((\widehat{\bM}_{\mathrm{thm}}, \widehat{\sigma}_{\xi,\mathrm{thm}}^2)\).
+\item Independently optimize \(\ell(\bM, \sigma_\xi^2)\) numerically using
+\texttt{optim(...)} or an equivalent optimizer.
+\item Compare the final log-likelihood values and the resulting covariance
+matrices.
+\end{enumerate}
+
+\subsubsection{Acceptance Criteria}
+
+For the Gaussian reduced-rank benchmark:
+
+\begin{enumerate}[label=\arabic*.]
+\item the theorem-based and optimized log-likelihoods should agree to within
+roughly \(10^{-6}\) to \(10^{-4}\), depending on the optimizer tolerance;
+\item the resulting covariance matrices should satisfy
+\[
+\max_{i,j} |\widehat G_{\mathrm{thm},ij} - \widehat G_{\mathrm{opt},ij}|
+\]
+at a correspondingly small tolerance;
+\item if likelihood values disagree materially, inspect whether the difference
+comes from the \(\sigma_{\xi}^2\) floor or from optimizer failure.
+\end{enumerate}
+
+This benchmark is the strongest practical confirmation that the coded
+closed-form update is not only algebraically consistent, but also likelihood
+consistent in the intended Gaussian subproblem.
+
+\subsection{Appendix C: \texorpdfstring{$\bG \mapsto \bR$}{G to R} Standardization Check}
+
+\subsubsection{Goal}
+
+Even if \(\widehat{\bM}\) is correct, the current backend uses \(\bR\), not
+\(\bG\), in the skew-$t$ updates. Therefore the standardization step must be
+verified separately.
+
+\subsubsection{Checks to Run}
+
+Given a covariance state built by \texttt{build\_R\_from\_G(...)}:
+
+\begin{enumerate}[label=\arabic*.]
+\item verify symmetry:
+\[
+\max_{i,j} |R_{ij} - R_{ji}| < 10^{-10};
+\]
+\item verify unit diagonal:
+\[
+\max_i |R_{ii} - 1| < 10^{-10};
+\]
+\item verify positive definiteness numerically, for example by checking that the
+Cholesky factorization of \(\bR\) succeeds;
+\item verify that the stored \texttt{prec\_obs} is numerically the inverse of
+\(\bR\):
+\[
+\max_{i,j} |(\texttt{prec\_obs}\,\bR - \I)_{ij}| < 10^{-8};
+\]
+\item verify that the cross-covariance and conditional prediction covariance
+objects are internally consistent with the Schur complement formula.
+\end{enumerate}
+
+\subsubsection{Why This Appendix Matters}
+
+This step is where the theorem leaves its original Gaussian covariance setting
+and enters the current skew-$t$ backend. Therefore, if any numerical mismatch
+appears here, the theorem may still be correct while the \(\bG \mapsto \bR\)
+integration is not.
+
+\subsection{Appendix D: Sampler-Integration Verification}
+
+\subsubsection{Goal}
+
+The final verification layer is not about the theorem itself, but about whether
+the theorem-based refresh is inserted into the MCMC loop at the intended
+positions.
+
+\subsubsection{Recommended Minimal Experiments}
+
+Use the smallest practical runs that still exercise the covariance refresh:
+
+\begin{enumerate}[label=\arabic*.]
+\item \textbf{Gaussian no-threshold test:}
+set \texttt{method = "gaussian"}, \texttt{skew = FALSE}, no censoring,
+\texttt{prop\_cov\_update\_every = 1}.
+\item \textbf{Skew-$t$ integration test:}
+set \texttt{method = "t"}, \texttt{skew = TRUE}, with the current latent blocks
+enabled, and again use \texttt{prop\_cov\_update\_every = 1}.
+\item \textbf{Refresh-frequency test:}
+repeat the same run with \texttt{prop\_cov\_update\_every = 3}.
+\end{enumerate}
+
+\subsubsection{What to Verify}
+
+\paragraph{Refresh timing}
+Check that:
+\begin{itemize}
+\item with \texttt{prop\_cov\_update\_every = 1}, the saved
+\texttt{sigma\_xi} and \texttt{effective\_rank} traces can change at every
+iteration after burn-in;
+\item with \texttt{prop\_cov\_update\_every = 3}, the covariance state remains
+unchanged between refresh points.
+\end{itemize}
+
+\paragraph{Saved metadata}
+Check that the saved \texttt{fit.1\$prop} object contains:
+\begin{itemize}
+\item \texttt{requested\_k};
+\item \texttt{basis\_kept\_cols};
+\item \texttt{basis\_rank\_kept};
+\item \texttt{sigma\_xi};
+\item \texttt{effective\_rank};
+\item \texttt{cov\_update\_every};
+\item \texttt{workflow = "prop-simstudy"}.
+\end{itemize}
+
+\paragraph{Prediction path}
+Check that prediction draws are produced from the refreshed covariance state and
+that disabling random prediction noise (\texttt{draw = FALSE} in a local test)
+returns the conditional mean implied by the stored state.
+
+\subsection{Appendix E: Suggested Decision Rules}
+
+For practical workflow use, the numerical checks above can be summarized into
+three decision levels.
+
+\paragraph{Green light}
+Proceed with scientific experiments if:
+\begin{enumerate}[label=\arabic*.]
+\item Appendix~A passes exactly to numerical tolerance;
+\item Appendix~B shows no meaningful likelihood gap;
+\item Appendix~C confirms that \(\bR\), \(\bR^{-1}\), and the prediction state
+are internally consistent;
+\item Appendix~D confirms that the refresh schedule and metadata are correct.
+\end{enumerate}
+
+\paragraph{Amber light}
+Proceed only with caution if:
+\begin{enumerate}[label=\arabic*.]
+\item the theorem replication passes, but the likelihood benchmark shows small
+discrepancies traceable to \(\sigma_\xi^2\) flooring or optimizer tolerance;
+\item the sampler integration works, but some metadata fields are incomplete.
+\end{enumerate}
+
+\paragraph{Red light}
+Do not interpret prop-vs-Morris experiments if:
+\begin{enumerate}[label=\arabic*.]
+\item the theorem replication fails;
+\item the rebuilt rotated-basis covariance does not match
+\(Q\widehat M Q' + \widehat{\sigma}_\xi^2 I\);
+\item the covariance refresh occurs at the wrong iterations;
+\item the \(\bG \mapsto \bR\) state is numerically inconsistent.
+\end{enumerate}
+
+\subsection{Appendix F: Recommended Implementation Order}
+
+To avoid conflating errors, the numerical verification should be implemented in
+the following order:
+
+\begin{enumerate}[label=\arabic*.]
+\item write a stand-alone Gaussian theorem-check script that touches only
+\texttt{prop\_basis.R}, \texttt{prop\_covariance.R}, and
+\texttt{prop\_modules.R};
+\item add a direct optimization benchmark for the same tiny Gaussian examples;
+\item add a covariance-state validation script for \(\bG\), \(\bR\), and the
+prediction Schur complement;
+\item only then run miniature \texttt{mcmc\_prop.R} smoke tests;
+\item only after all of the above pass, interpret large-scale simstudy results.
+\end{enumerate}
+
+This staged order matches the statistical logic of the method: verify the
+closed-form covariance block first, then verify the correlation conversion, then
+verify the skew-$t$ integration.
+
+\begin{thebibliography}{9}
+
+\bibitem{tzenghuang2018}
+ShengLi Tzeng and Hsin-Cheng Huang.
+\newblock Resolution Adaptive Fixed Rank Kriging.
+\newblock \emph{Technometrics}, 60(2):198--208, 2018.
+
+\bibitem{cressiejohannesson2008}
+Noel Cressie and Gardar Johannesson.
+\newblock Fixed rank kriging for very large spatial data sets.
+\newblock \emph{Journal of the Royal Statistical Society: Series B},
+70(1):209--226, 2008.
+
+\end{thebibliography}
+
+\end{document}

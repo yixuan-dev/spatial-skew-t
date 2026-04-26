@@ -549,16 +549,28 @@ QuantScore <- function(preds, probs, validate, trans = FALSE) {
 ################################################################
 BrierScore <- function(preds, thresholds, validate, trans = FALSE) {
   nthreshs <- length(thresholds)
-  np <- nrow(validate)
-  scores <- rep(NA, nthreshs)
+  dims <- dim(preds)
+  scores <- rep(NA_real_, nthreshs)
+  # Legacy reference:
+  # for (b in 1:nthreshs) {
+  #   pat <- apply((preds > thresholds[b]), c(2, 3), mean)
+  #   if (trans) {
+  #     pat <- t(pat)
+  #   }
+  #   i <- validate > thresholds[b]
+  #   scores[b] <- mean((i - pat)^2, na.rm = TRUE)
+  # }
+  # Flatten the non-iteration dimensions once so each threshold uses fast colMeans.
+  pred_mat <- matrix(preds, nrow = dims[1], ncol = prod(dims[-1]))
+  validate_vec <- as.vector(validate)
 
-  for (b in 1:nthreshs) {
-    pat <- apply((preds > thresholds[b]), c(2, 3), mean)  # np x nt
+  for (b in seq_len(nthreshs)) {
+    pat_vec <- colMeans(pred_mat > thresholds[b])
     if (trans) {
-      pat <- t(pat)
+      pat_vec <- as.vector(t(matrix(pat_vec, nrow = dims[2], ncol = dims[3])))
     }
-    i <- validate > thresholds[b]                         # np x nt
-    scores[b] <- mean((i - pat)^2, na.rm=T)
+    i <- validate_vec > thresholds[b]
+    scores[b] <- mean((i - pat_vec)^2, na.rm = TRUE)
   }
 
   return(scores)
@@ -579,17 +591,31 @@ BrierScore <- function(preds, thresholds, validate, trans = FALSE) {
 BrierScoreSite <- function(preds, thresholds, validate, trans = FALSE) {
   nthreshs <- length(thresholds)
   np <- nrow(validate)
-  scores <- matrix(NA, np, nthreshs)
+  nt <- ncol(validate)
+  dims <- dim(preds)
+  scores <- matrix(NA_real_, np, nthreshs)
+  # Legacy reference:
+  # for (b in 1:nthreshs) {
+  #   pat <- apply((preds > thresholds[b]), c(2, 3), mean)
+  #   if (trans) {
+  #     pat <- t(pat)
+  #   }
+  #   i <- validate > thresholds[b]
+  #   for (p in 1:np) {
+  #     scores[p, b] <- mean((i[p, ] - pat[p, ])^2, na.rm = TRUE)
+  #   }
+  # }
+  pred_mat <- matrix(preds, nrow = dims[1], ncol = prod(dims[-1]))
 
-  for (b in 1:nthreshs) {
-    pat <- apply((preds > thresholds[b]), c(2, 3), mean)  # np x nt
+  for (b in seq_len(nthreshs)) {
+    pat_vec <- colMeans(pred_mat > thresholds[b])
     if (trans) {
-      pat <- t(pat)
+      pat <- t(matrix(pat_vec, nrow = dims[2], ncol = dims[3]))
+    } else {
+      pat <- matrix(pat_vec, nrow = np, ncol = nt)
     }
-    i <- validate > thresholds[b]                         # np x nt
-    for (p in 1:np) {
-      scores[p, b] <- mean((i[p, ] - pat[p, ])^2, na.rm=T)
-    }
+    i <- validate > thresholds[b]
+    scores[, b] <- rowMeans((i - pat)^2, na.rm = TRUE)
   }
 
   return(scores)

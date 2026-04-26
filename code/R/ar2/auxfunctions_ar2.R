@@ -598,15 +598,22 @@ quant_score_general <- function(preds, probs, validate) {
 #   score(nthreshs): a single Brier score per threshold
 ################################################################
 brier_score_general <- function(preds, thresholds, validate) {
-    temp <- seq_len(length(dim(preds)))[-1] # all dimensions except the first one
-    nthreshs <- length(thresholds)
-    scores <- rep(NA, nthreshs)
+    dims <- dim(preds)
+    # Legacy reference:
+    # temp <- seq_len(length(dim(preds)))[-1]
+    # scores <- sapply(1:nthreshs, function(b) {
+    #     pat <- apply((preds > thresholds[b]), temp, mean)
+    #     i <- validate > thresholds[b]
+    #     mean((i - pat)^2, na.rm = TRUE)
+    # })
+    pred_mat <- matrix(preds, nrow = dims[1], ncol = prod(dims[-1]))
+    validate_vec <- as.vector(validate)
 
-    scores <- sapply(1:nthreshs, function(b) {
-        pat <- apply((preds > thresholds[b]), temp, mean) # np x nt or length(preds)
-        i <- validate > thresholds[b] # np x nt or length(validate)
-        mean((i - pat)^2, na.rm = T)
-    })
+    scores <- vapply(seq_along(thresholds), function(b) {
+        pat_vec <- colMeans(pred_mat > thresholds[b])
+        i <- validate_vec > thresholds[b]
+        mean((i - pat_vec)^2, na.rm = TRUE)
+    }, numeric(1))
 
     return(scores)
 }
