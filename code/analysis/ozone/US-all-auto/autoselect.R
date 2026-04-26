@@ -287,17 +287,25 @@ for (ii in seq_along(candidate_settings)) {
 
 # ---- Select best setting(s) ----
 
+top_n_report <- 4L
+
 if (objective == "each") {
-  best_by_prob    <- setNames(rep(NA_integer_, length(target_probs)),
-                              as.character(target_probs))
+  top_by_prob     <- matrix(NA_integer_,
+                      nrow = length(target_probs), ncol = top_n_report,
+                      dimnames = list(as.character(target_probs),
+                                      paste0("rank", seq_len(top_n_report))))
   n_valid_by_prob <- integer(length(target_probs))
   for (k in seq_along(target_probs)) {
     scores_k <- val_brier[, k]
     valid_k  <- is.finite(scores_k)
     n_valid_by_prob[k] <- sum(valid_k)
-    if (any(valid_k))
-      best_by_prob[k] <- candidate_settings[valid_k][which.min(scores_k[valid_k])]
+    if (any(valid_k)) {
+      ord_k <- order(scores_k[valid_k])
+      take  <- seq_len(min(top_n_report, sum(valid_k)))
+      top_by_prob[k, take] <- candidate_settings[valid_k][ord_k[take]]
+    }
   }
+  best_by_prob <- top_by_prob[, 1L]
   if (all(is.na(best_by_prob)))
     stop(
       "No candidate settings produced valid Brier scores.\n",
@@ -305,12 +313,14 @@ if (objective == "each") {
     )
   cat("\n=== Validation selection result (each) ===\n")
   for (k in seq_along(target_probs)) {
-    sid <- best_by_prob[k]
-    bs  <- if (!is.na(sid)) val_brier[as.character(sid), k] else NA_real_
-    cat(sprintf("  p = %.4f  ->  best setting: %s  (Brier = %.6f)\n",
-                target_probs[k],
-                if (is.na(sid)) "none" else as.character(sid),
-                bs))
+    cat(sprintf("  p = %.4f  (valid: %d settings)\n",
+                target_probs[k], n_valid_by_prob[k]))
+    for (r in seq_len(top_n_report)) {
+      sid <- top_by_prob[k, r]
+      if (is.na(sid)) next
+      cat(sprintf("    rank %d: setting %d  (Brier = %.6f)\n",
+                  r, sid, val_brier[as.character(sid), k]))
+    }
   }
   cat("\n")
 } else {
@@ -321,14 +331,19 @@ if (objective == "each") {
       "No candidate settings produced valid Brier scores.\n",
       "Check that fits/val-<setting>.RData files exist and contain fit$yp."
     )
-  best_idx       <- which.min(selection_score[valid_mask])
-  best_setting   <- candidate_settings[valid_mask][best_idx]
-  best_val_brier <- val_brier[valid_mask, , drop = FALSE][best_idx, ]
+  valid_ord      <- order(selection_score[valid_mask])
+  valid_settings <- candidate_settings[valid_mask]
+  take           <- seq_len(min(top_n_report, sum(valid_mask)))
+  top_settings   <- valid_settings[valid_ord[take]]
+  best_setting   <- top_settings[1L]
+  best_val_brier <- val_brier[as.character(best_setting), , drop = TRUE]
   cat("\n=== Validation selection result (mean) ===\n")
-  cat(sprintf("Best setting     : %d\n", best_setting))
   cat(sprintf("Candidates scored: %d / %d\n", sum(valid_mask), length(candidate_settings)))
-  for (k in seq_along(target_probs))
-    cat(sprintf("  Val Brier @ p = %.4f : %.6f\n", target_probs[k], best_val_brier[k]))
+  for (r in seq_along(top_settings)) {
+    sid   <- top_settings[r]
+    score <- selection_score[which(candidate_settings == sid)]
+    cat(sprintf("  rank %d: setting %d  (mean Brier = %.6f)\n", r, sid, score))
+  }
   cat("\n")
 }
 
@@ -344,10 +359,14 @@ if (objective == "each") {
     stringsAsFactors = FALSE
   )
   for (k in seq_along(target_probs)) {
-    p_tag <- sprintf("p%.4f", target_probs[k])
-    val_df[[paste0("val_brier_", p_tag)]] <- val_brier[, k]
-    val_df[[paste0("is_best_",   p_tag)]] <-
-      !is.na(best_by_prob[k]) & candidate_settings == best_by_prob[k]
+    p_tag    <- sprintf("p%.4f", target_probs[k])
+    scores_k <- val_brier[, k]
+    val_df[[paste0("val_brier_", p_tag)]] <- scores_k
+    val_df[[paste0("rank_",      p_tag)]] <- ifelse(
+      is.finite(scores_k),
+      rank(ifelse(is.finite(scores_k), scores_k, Inf), ties.method = "min"),
+      NA_integer_
+    )
   }
 } else {
   val_df <- data.frame(
@@ -384,9 +403,9 @@ save_vars <- c(
 )
 save_vars <- c(save_vars,
   if (objective == "each")
-    c("best_by_prob", "n_valid_by_prob")
+    c("top_by_prob", "best_by_prob", "n_valid_by_prob")
   else
-    c("selection_score", "valid_mask", "best_setting", "best_val_brier")
+    c("selection_score", "valid_mask", "top_settings", "best_setting", "best_val_brier")
 )
 save(list = save_vars,
      file = out_path("us-all-auto-results.RData", subdir = "results"))

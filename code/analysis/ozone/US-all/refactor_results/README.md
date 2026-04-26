@@ -4,12 +4,6 @@ This folder splits the old monolithic result scripts into reusable modules and p
 
 Metric formulas and field definitions are documented in `METRIC_CALCULATION.md`.
 
-## math notation gaussian 95% confidence interval
-
-$$\hat{X} \pm  z_{0.95} \cdot \frac{\sigma(\hat{X})}{\sqrt{n}}$$
-
-, where $z_{0.95} \approx 1.96$.
-
 ## 執行所有 settings 的比較
 
 ```ps
