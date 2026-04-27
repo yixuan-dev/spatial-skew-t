@@ -20,6 +20,7 @@
 #   US_ALL_VAL_RUN_MODE          "dev" or "prod"                       [default "prod"]
 #   US_ALL_MCMC_BACKEND          "legacy" or "ar2"                     [default "ar2"]
 #   US_ALL_VAL_RESULTS_DIR       Override fits/ output directory       [default: auto]
+#   US_ALL_VAL_SETUP_FILE        Path to setup .RData                  [default: auto]
 
 rm(list = ls())
 
@@ -80,8 +81,9 @@ dir.create(fits_dir, recursive = TRUE, showWarnings = FALSE)
 
 source(file.path(.us_all_auto_root, "package_load.R"))
 
-if (!exists("mcmc", envir = .GlobalEnv, inherits = TRUE))
+if (!exists("mcmc", envir = .GlobalEnv, inherits = TRUE)) {
   stop(sprintf("MCMC function not available for backend '%s'.", backend), call. = FALSE)
+}
 run_mcmc <- get("mcmc", envir = .GlobalEnv, inherits = TRUE)
 run_maxstable <- if (exists("maxstable", envir = .GlobalEnv, inherits = TRUE)) {
   get("maxstable", envir = .GlobalEnv, inherits = TRUE)
@@ -91,9 +93,17 @@ run_maxstable <- if (exists("maxstable", envir = .GlobalEnv, inherits = TRUE)) {
 
 # ---- Load setup (train/val partition + dataset) ----
 
-setup_path <- file.path(.us_all_auto_root, "us-all-setup-auto.RData")
+setup_file_override <- trimws(Sys.getenv("US_ALL_VAL_SETUP_FILE", unset = ""))
+setup_path <- if (nzchar(setup_file_override)) {
+  normalizePath(setup_file_override, winslash = "/", mustWork = FALSE)
+} else {
+  file.path(.us_all_auto_root, "us-all-setup-auto-200-200-400.RData")
+}
 if (!file.exists(setup_path)) {
-  stop("Setup file not found: ", setup_path, "\nRun:  Rscript us-all-setup-auto.R", call. = FALSE)
+  stop("Setup file not found: ", setup_path,
+    "\nRun:  Rscript us-all-setup-auto.R",
+    call. = FALSE
+  )
 }
 
 setup_env <- new.env(parent = emptyenv())
