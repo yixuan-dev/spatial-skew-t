@@ -103,3 +103,38 @@ build_mrts_covariates <- function(S_train, S_pred, nt, k) {
        kept_cols     = ncol(basis_train),
        dropped_cols  = ncol(basis_obj$train) - ncol(basis_train))
 }
+
+# ---- Exceedance summary ----
+
+print_exceedance_summary <- function(Y, idx_list,
+                                     probs = c(0.90, 0.95, 0.98, 0.99, 0.995)) {
+  thresholds <- quantile(Y, probs = probs, na.rm = TRUE)
+
+  lbl <- names(idx_list)
+  if (is.null(lbl)) lbl <- paste0("split", seq_along(idx_list))
+
+  n_obs <- vapply(idx_list,
+    function(idx) sum(is.finite(Y[idx, ])), integer(1L))
+  names(n_obs) <- lbl
+
+  cat("Exceedance counts and proportions (thresholds from full Y):\n")
+  cat(sprintf("  %-8s  %-10s", "Quantile", "Threshold"))
+  for (nm in lbl) cat(sprintf("  %14s", nm))
+  cat("\n")
+  cat(strrep("-", 22L + 16L * length(lbl)), "\n")
+
+  for (i in seq_along(probs)) {
+    thr  <- thresholds[i]
+    cnts <- vapply(idx_list,
+      function(idx) sum(Y[idx, ] > thr, na.rm = TRUE), integer(1L))
+    prop <- cnts / n_obs
+    cat(sprintf("  %-8.4f  %-10.4f", probs[i], thr))
+    for (j in seq_along(lbl))
+      cat(sprintf("  %7d(%5.2f%%)", cnts[j], 100 * prop[j]))
+    cat("\n")
+  }
+
+  cat(sprintf("  %-8s  %-10s", "(total)", ""))
+  for (j in seq_along(lbl)) cat(sprintf("  %14d", n_obs[j]))
+  cat("\n\n")
+}

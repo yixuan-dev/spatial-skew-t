@@ -18,6 +18,7 @@
 #   US_ALL_AUTOSELECT_N_VAL     default 100
 #   US_ALL_AUTOSELECT_N_TEST    default 400
 #   US_ALL_AUTOSELECT_SEED      default 2024
+#   US_ALL_AUTOSELECT_OUT       output filename (default: us-all-setup-auto.RData)
 
 rm(list = ls())
 
@@ -34,6 +35,8 @@ setwd(.this_dir)
 
 .us_all_root <- normalizePath(file.path(.this_dir, "../US-all"),
                                winslash = "/", mustWork = FALSE)
+
+source(file.path(.this_dir, "utils.R"))
 
 # ---- Helper ----
 
@@ -116,9 +119,22 @@ cat(sprintf("split.lst : %d train | %d val | %d test\n",
     length(split.lst$train), length(split.lst$val), length(split.lst$test)))
 cat("Sanity checks passed (no overlap, correct total).\n\n")
 
+# ---- Exceedance counts by split ----
+
+print_exceedance_summary(Y, split.lst)
+
 # ---- Save ----
 
-out_path <- file.path(.this_dir, "us-all-setup-auto.RData")
+.out_file <- trimws(Sys.getenv("US_ALL_AUTOSELECT_OUT", unset = ""))
+if (!nzchar(.out_file))
+  .out_file <- sprintf("us-all-setup-auto-%d-%d-%d.RData",
+                       length(split.lst$train),
+                       length(split.lst$val),
+                       length(split.lst$test))
+out_path <- file.path(.this_dir, .out_file)
+if (file.exists(out_path))
+  stop("Output file already exists: ", out_path,
+       "\nSet US_ALL_AUTOSELECT_OUT to a different filename.", call. = FALSE)
 save(Y, X, S, beta.init, tau.init, split.lst, file = out_path)
 
 cat("Saved:", out_path, "\n")
