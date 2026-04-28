@@ -9,10 +9,10 @@ score on a held-out validation split. No cross-validation.
 ## Pipeline Overview
 
 ```
-us-all-setup-auto.R   →  us-all-setup-auto.RData   (data + 300/100/400 split)
-settings-auto.R       →  settings-auto.csv          (candidate settings grid)
-run_settings_val.R    →  fits/val-<N>.RData         (one MCMC fit per setting)
-autoselect.R          →  output/…/tables + .RData   (best setting by val Brier)
+us-all-setup-auto.R   →  us-all-setup-auto-<tr>-<va>-<te>.RData  (data + split)
+settings-auto.R       →  settings-auto.csv                        (candidate grid)
+run_settings_val.R    →  fits/val-<N>.RData                       (one fit/setting)
+autoselect.R          →  output/…/tables + .RData                 (best by val Brier)
 ```
 
 ### Step 1 — Build the data split
@@ -23,7 +23,7 @@ Rscript us-all-setup-auto.R
 
 Loads `us-all-setup.RData` (copied from `../US-all/`), partitions the 800
 CV-covered sites into train / validation / test, and saves
-`us-all-setup-auto.RData` containing:
+`us-all-setup-auto-<N_TRAIN>-<N_VAL>-<N_TEST>.RData` containing:
 
 | Object                  | Description                           |
 | ----------------------- | ------------------------------------- |
@@ -66,9 +66,9 @@ with tier / lane annotations.
 Rscript run_settings_val.R
 ```
 
-For each requested setting: fits MCMC on `split.lst$train` (300 sites),
-generates posterior predictive draws at `split.lst$val` (100 sites), saves
-`fits/val-<N>.RData` with:
+For each requested setting: fits MCMC on `split.lst$train`, generates
+posterior predictive draws at `split.lst$val`, saves `fits/val-<N>.RData`
+with:
 
 - `fit$yp` — draws × n_val × ntime posterior predictive matrix
 - `runtime_info` — metadata (timing, model spec, run mode)
@@ -161,6 +161,22 @@ $env:US_ALL_AUTOSELECT_SETTINGS = '58'
 Rscript run_settings_val.R
 ```
 
+### Use a custom split and fits directory
+
+Set both scripts to the same setup file and fits directory.
+
+```powershell
+$env:US_ALL_VAL_SETUP_FILE          = 'us-all-setup-auto-300-100-400.RData'
+$env:US_ALL_VAL_RESULTS_DIR         = 'fits-300-100-400'
+$env:US_ALL_AUTOSELECT_SETTINGS     = '111,204:206'
+Rscript run_settings_val.R
+
+$env:US_ALL_AUTOSELECT_SETUP_FILE   = 'us-all-setup-auto-300-100-400.RData'
+$env:US_ALL_VAL_RESULTS_DIR         = 'fits-300-100-400'
+$env:US_ALL_AUTOSELECT_SETTINGS     = '111,204:206'
+Rscript autoselect.R
+```
+
 ---
 
 ## Tier 1 Setting IDs (quick reference)
@@ -180,20 +196,26 @@ Range-token form: `3,8,12:13,15:16,29,34:35,38:39,41:42,51,54:55,58,60:62,67:68,
 
 ## autoselect.R — Environment Variables
 
-| Env var                          | Default                     | Effect                                                                                            |
-| -------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------- |
-| `US_ALL_AUTOSELECT_SETTINGS`     | — (required)                | Same format as run_settings_val.R; must match the settings that have been fitted                  |
-| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.90,0.95,0.98,0.99,0.995` | Comma-separated exceedance probabilities                                                          |
-| `US_ALL_AUTOSELECT_OBJECTIVE`    | `each`                      | `each` = best setting per target prob independently; `mean` = best by mean Brier across all probs |
-| `US_ALL_SUMMARY_DRAWS`           | `5000`                      | Number of posterior draws to use for Brier computation (subsampled if fit has more)               |
-| `US_ALL_VAL_RESULTS_DIR`         | `fits/`                     | Must match the directory used in run_settings_val.R                                               |
+| Env var                          | Default                     | Effect                                                                                              |
+| -------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------- |
+| `US_ALL_AUTOSELECT_SETTINGS`     | — (required)                | Same format as run_settings_val.R; must match the settings that have been fitted.                   |
+| `US_ALL_AUTOSELECT_TARGET_PROBS` | `0.90,0.95,0.98,0.99,0.995` | Comma-separated exceedance probabilities.                                                           |
+| `US_ALL_AUTOSELECT_OBJECTIVE`    | `each`                      | `each` = best setting per target prob; `mean` = best by mean Brier across all probs.               |
+| `US_ALL_SUMMARY_DRAWS`           | `5000`                      | Posterior draw cap for Brier computation (randomly subsampled if fit has more).                    |
+| `US_ALL_VAL_RESULTS_DIR`         | `fits/`                     | Fits directory. **Must match** `US_ALL_VAL_RESULTS_DIR` used in run_settings_val.R.               |
+| `US_ALL_AUTOSELECT_SETUP_FILE`   | `us-all-setup-auto.RData`   | Setup file path. **Must match** the setup used in run_settings_val.R (`US_ALL_VAL_SETUP_FILE`). Accepts absolute or script-relative paths. |
 
 ### Example autoselect run
+
+> **Setup file warning:** `autoselect.R` defaults to `us-all-setup-auto.RData`
+> but `run_settings_val.R` defaults to `us-all-setup-auto-200-200-400.RData`.
+> Always set `US_ALL_AUTOSELECT_SETUP_FILE` to match `US_ALL_VAL_SETUP_FILE`.
 
 ```powershell
 $env:US_ALL_AUTOSELECT_SETTINGS     = '3,8,12:13,15:16,29,34:35,38:39,41:42,51,54:55,58,60:62,67:68,70,74,101,105,108,111:112,114,116:118,120,124,204:206,214:216'
 $env:US_ALL_AUTOSELECT_TARGET_PROBS = '0.90,0.95,0.98,0.99,0.995'
 $env:US_ALL_AUTOSELECT_OBJECTIVE    = 'each'
+$env:US_ALL_AUTOSELECT_SETUP_FILE   = 'us-all-setup-auto-200-200-400.RData'
 Rscript autoselect.R
 ```
 
@@ -203,17 +225,17 @@ Rscript autoselect.R
 
 ```
 US-all-auto/
-├── us-all-setup.RData          # copied from ../US-all/ (source data)
-├── us-all-setup-auto.RData     # generated by us-all-setup-auto.R
-├── settings-auto.csv           # generated by settings-auto.R
-├── fits/
+├── us-all-setup.RData                       # copied from ../US-all/ (source data)
+├── us-all-setup-auto-<tr>-<va>-<te>.RData  # generated by us-all-setup-auto.R
+├── settings-auto.csv                        # generated by settings-auto.R
+├── fits/                                    # default fits dir (US_ALL_VAL_RESULTS_DIR)
 │   ├── val-8.RData
 │   ├── val-12.RData
-│   └── ...                     # one file per fitted setting
+│   └── ...                                  # one file per fitted setting
 └── output/
     └── us-all-auto/
         ├── tables/
-        │   └── autoselect_validation_scores.csv
+        │   └── autoselect_validation_scores_<suffix>.csv
         └── results/
             └── us-all-auto-results.RData
 ```

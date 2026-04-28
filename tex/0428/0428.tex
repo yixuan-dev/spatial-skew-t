@@ -1,0 +1,277 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{array, booktabs, longtable, pdflscape, tabularx}
+\usepackage{hyperref}
+
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.05}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\sourceworkbook}{\path{D:/Github/spatial-skew-t/code/analysis/ozone/US-all/output/us-all/tables/comparison_top2.updated.xlsx}}
+
+\title{Ozone US-all Metric Inventory and Top-2 Summary}
+\author{}
+\date{April 21, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Source and reading guide}
+
+This note summarizes the following workbook:
+
+\begin{quote}
+\small
+\sourceworkbook
+\end{quote}
+
+The goal is to keep the metric definitions, ranking logic, and top-2 model
+configurations in one manuscript-ready \LaTeX{} file.
+
+In the workbook, \texttt{rank\_value} is always the quantity used to order the
+top-2 rows, whereas \texttt{score\_value} is the raw metric itself. The detailed
+tables below collapse each \texttt{ranking\_group} into one row with a winner
+and a runner-up. Because every top-2 entry in this workbook has
+\texttt{CMAQ=yes}, \texttt{CMAQ} is documented in the column glossary but
+omitted from the per-row configuration strings.
+
+\section{Metric inventory}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}P{2.6cm}P{3.3cm}P{4.7cm}Y@{}}
+\toprule
+Block & Metrics & Scenario dimension & Top-2 ranking rule \\
+\midrule
+Probabilistic score & Brier, Quantile score, CRPS & Brier thresholds
+\(q \in \{0, 0.1, \ldots, 0.995\}\), quantile-score levels
+\(q \in \{0.1, \ldots, 0.995\}\), and one overall CRPS summary &
+\texttt{ranking\_basis = rel\_to\_gaussian}; smaller
+\texttt{rank\_value} is better. \\
+Tail-aware split score & Brier split & \(q \in \{0.9, 0.95, 0.98, 0.99,
+0.995\}\) crossed with \texttt{above\_threshold}, \texttt{all}, and
+\texttt{below\_threshold} & \texttt{ranking\_basis = rel\_to\_gaussian};
+smaller \texttt{rank\_value} is better. \\
+Classification & Accuracy, Precision, Recall, Specificity, F1 & Event
+quantiles \(q \in \{0.9, 0.95, 0.98, 0.99, 0.995\}\) with probability cutoff
+\(0.5\) & \texttt{ranking\_basis = raw\_score}; the workbook already sorts in
+the correct direction for each metric. \\
+Calibration to target & Coverage, PIT mean, PIT variance & Coverage levels
+\(0.8, 0.9, 0.95\) plus overall PIT summaries & \texttt{ranking\_basis =
+abs\_gap\_to\_target}; smaller absolute gap is better. \\
+Raw uncertainty diagnostics & PIT KS, PIT uniformity MAE, PIT uniformity RMSE
+& Overall summaries & \texttt{ranking\_basis = raw\_score}; lower values are
+better. \\
+\bottomrule
+\end{tabularx}
+\caption{Metric blocks represented in \texttt{comparison\_top2.updated.xlsx}.}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}P{3.5cm}Y Y@{}}
+\toprule
+Workbook column(s) & Interpretation & How it appears in this draft \\
+\midrule
+\texttt{metric\_family}, \texttt{metric} & Identify the metric block and the
+named metric. & Used as the sectioning logic and the first column of each
+detailed table. \\
+\texttt{ranking\_group} & Source-side identifier for a specific metric/scenario
+combination. & Suppressed in the detailed tables because \texttt{metric +
+scenario} is easier to read in the manuscript. \\
+\texttt{target\_level}, \texttt{threshold\_value}, \texttt{target\_value} &
+Define the nominal quantile/coverage level and the corresponding event or
+target. & Condensed into the manuscript-side \emph{Scenario} column. \\
+\texttt{prediction\_cutoff} & Probability cutoff used by classification
+metrics. & Included in the \emph{Scenario} column for classification rows. \\
+\texttt{band\_type} & Split used by the Brier decomposition:
+\texttt{above\_threshold}, \texttt{all}, or \texttt{below\_threshold}. &
+Included in the \emph{Scenario} column for Brier-split rows. \\
+\texttt{ranking\_basis} & Explains whether the workbook ranks by relative score,
+raw score, or absolute target gap. & Explained in the inventory table and used
+to interpret \texttt{rank\_value}. \\
+\texttt{rank\_value} & Quantity actually used to assign rank 1 and rank 2. &
+Reported directly for both winner and runner-up. \\
+\texttt{score\_value}, \texttt{score\_se} & Raw metric value and its standard
+error. & Reported as \emph{Score $\pm$ SE}. \\
+\texttt{setting} & Reproducible model identifier in the ozone US-all workflow.
+& Encoded inside each winner/runner-up label as \texttt{S<setting>}. \\
+\texttt{method}, \texttt{knots}, \texttt{thresh}, \texttt{TS},
+\texttt{ar2}, \texttt{mrts} & Core model-configuration fields. &
+Printed inside the winner/runner-up labels. \\
+\texttt{model\_lane} & Broad model family: Gaussian reference, Morris
+baseline, AR2, MRTS, or another numeric variant. & Printed inside the
+winner/runner-up labels as \texttt{Gaussian}, \texttt{Morris},
+\texttt{AR2}, \texttt{MRTS}, or \texttt{Other}. \\
+\texttt{CMAQ} & Indicator of whether CMAQ covariates are included. &
+Documented here only; all top-2 rows in this workbook have \texttt{CMAQ=yes}. \\
+\bottomrule
+\end{tabularx}
+\caption{Important workbook columns for manuscript use.}
+\end{table}
+
+\section{High-level patterns}
+
+The global probabilistic-score block still leans toward Morris-baseline
+skew-\(t\) settings. In particular, CRPS is led by settings 35 and 11, and many
+Brier and Quantile-score winners at low-to-moderate quantile levels remain in
+the Morris lane.
+
+Upper-tail scoring is more heterogeneous. AR2 wins Brier at \(q=0.95\) and
+\(q=0.995\), and it also takes Quantile-score wins at \(q=0.98\), \(0.99\), and
+\(0.995\). MRTS wins Brier at \(q=0.9\), Quantile score at \(q=0.8\) and
+\(0.9\), and the below-threshold Brier split at \(q=0.98\) and \(0.99\).
+
+Classification metrics show a precision-recall trade-off. High-threshold
+\texttt{Other} skew-\(t\) settings, especially settings 18 and 14 with
+\texttt{thr=85}, dominate precision and specificity. By contrast, MRTS appears
+most clearly in F1/Recall at \(q=0.98\), whereas calibration diagnostics remain
+mostly Morris or AR2: AR2 wins coverage at \(0.8\) and \(0.9\), and Morris
+still dominates most PIT-based summaries.
+
+\clearpage
+\section{Detailed top-2 tables}
+
+Each winner/runner-up cell is a compact label containing the setting id, the
+model lane, the sampling family, and the key tuning fields
+\texttt{K}, \texttt{thr}, \texttt{TS}, \texttt{AR2}, and \texttt{MRTS}. The
+detailed tables retain the workbook's top-2 ordering but replace the
+source-side \texttt{ranking\_group} string with a more compact scenario label.
+
+\subsection{Probabilistic scores}
+
+\begin{landscape}
+\scriptsize
+\begin{longtable}{@{}P{2cm}P{1.2cm}P{6.4cm}P{2.1cm}P{5.2cm}P{2.1cm}@{}}
+\caption{Top-2 probabilistic-score summaries}\\
+\toprule
+Metric & Level & 1st & Score & 2nd & Score \\
+\midrule
+\endfirsthead
+\bottomrule
+\endlastfoot
+Brier score & 0.9 & MRTS / skew-t (K=1, thr=0, AR1, MRTS=10) & 0.04467 & Morris / skew-t (K=1, thr=0, AR1) & 0.04470 \\
+Brier score & 0.95 & AR2 / skew-t (K=7, thr=50) & 0.02664 & AR2 / skew-t (K=10, thr=50) & 0.02672 \\
+Brier score & 0.98 & Morris / skew-t (K=6, thr=50, AR1) & 0.01257 & Morris / skew-t (K=5, thr=50, AR1) & 0.01257 \\
+Brier score & 0.99 & Morris / t (K=9, thr=75, AR1) & 0.00688 & Morris / skew-t (K=5, thr=50) & 0.00690 \\
+Brier score & 0.995 & AR2 / t (K=15, thr=75, AR2=yes) & 0.00384 & Morris / t (K=9, thr=75, AR1) & 0.00385 \\
+\midrule
+Quantile score & 0.9 & MRTS / skew-t (K=1, thr=0, AR1, MRTS=5) & 5.033 & Morris / skew-t (K=5, thr=0) & 5.033 \\
+Quantile score & 0.95 & Morris / skew-t (K=7, thr=50, AR1) & 2.988 & AR2 / skew-t (K=10, thr=0) & 2.988 \\
+Quantile score & 0.98 & AR2 / skew-t (K=10, thr=0) & 1.423 & Morris / skew-t (K=9, thr=0) & 1.424 \\
+Quantile score & 0.99 & AR2 / skew-t (K=6, thr=50) & 0.797 & Morris / skew-t (K=9, thr=50, AR1) & 0.798 \\
+Quantile score & 0.995 & AR2 / skew-t (K=6, thr=50) & 0.441 & AR2 / skew-t (K=8, thr=50) & 0.442 \\
+\end{longtable}
+\end{landscape}
+
+
+\clearpage
+\subsection{Uncertainty and calibration}
+
+\begin{landscape}
+\scriptsize
+\begin{longtable}{@{}P{1.6cm}P{1.2cm}P{4cm}P{2.2cm}P{6cm}P{2.2cm}@{}}
+\caption{Top-2 uncertainty and calibration summaries}\\
+\toprule
+Metric & Level & 1st & Score & 2nd & Score \\
+\midrule
+\endfirsthead
+\bottomrule
+\endlastfoot
+Coverage & 0.8 & AR2 / skew-t (K=9, thr=50) & 0.8001 & MRTS / t (K=1, thr=75, AR1, MRTS=15) & 0.8016 \\
+Coverage & 0.9 & AR2 / skew-t (K=8, thr=0) & 0.9003 & Morris / t (K=9, thr=75, AR1) & 0.8996 \\
+Coverage & 0.95 & Morris / skew-t (K=2, thr=0) & 0.9499 & Morris / skew-t (K=4, thr=0) & 0.9499 \\
+\end{longtable}
+\end{landscape}
+
+
+\clearpage
+\section{Test robustness of number of samples}
+
+This section records how the top-ranked setting changes when the number of
+training and validation sites changes.
+
+\paragraph{Exceedance thresholds (full dataset).}
+\begin{center}
+\small
+\begin{tabular}{@{}cc@{}}
+\toprule
+Quantile & Threshold \\
+\midrule
+0.9000 & 73.2500 \\
+0.9500 & 79.7500 \\
+0.9800 & 88.5000 \\
+0.9900 & 94.7500 \\
+0.9950 & 100.5200 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Use 300 sites to predict 100 sites (4216.09 sec)}
+
+\paragraph{Validation selection result (summary draw = 5000, top-4).}
+\begin{center}
+\scriptsize
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+Quantile & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
+\midrule
+0.9000 & 204 (0.041160) & 55 (0.041325) & 205 (0.041356) & 70 (0.041393) \\
+0.9500 & 70 (0.019694) & 41 (0.019701) & 12 (0.019776) & 39 (0.019819) \\
+0.9800 & 204 (0.007674) & 117 (0.007763) & 67 (0.007807) & 111 (0.007820) \\
+0.9900 & 117 (0.003095) & 15 (0.003146) & 70 (0.003161) & 61 (0.003180) \\
+0.9950 & 15 (0.001272) & 70 (0.001297) & 61 (0.001301) & 117 (0.001306) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Use 200 sites to predict 200 sites (2267.64 sec)}
+
+\paragraph{Validation selection result (summary draw = 5000, top-4).}
+\begin{center}
+\scriptsize
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+Quantile & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
+\midrule
+0.9000 & 54 (0.050060) & 105 (0.050220) & 35 (0.050348) & 215 (0.050382) \\
+0.9500 & 117 (0.030306) & 116 (0.030322) & 114 (0.030328) & 70 (0.030345) \\
+0.9800 & 215 (0.015037) & 205 (0.015049) & 111 (0.015052) & 58 (0.015067) \\
+0.9900 & 58 (0.007714) & 112 (0.007727) & 216 (0.007740) & 67 (0.007743) \\
+0.9950 & 29 (0.004225) & 35 (0.004227) & 60 (0.004227) & 116 (0.004251) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Use 400 sites to predict 400 sites (7829.68 sec)}
+
+\paragraph{Top-2 by quantile.}
+\begin{center}
+\small
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+Quantile & Threshold & Rank 1 setting & Brier (Rank 1) & Rank 2 setting & Brier (Rank 2) \\
+\midrule
+0.900 & 73.25 & 204 & 0.04466516 & 51 & 0.04469537 \\
+0.950 & 79.75 & 111 & 0.02664004 & 120 & 0.02672309 \\
+0.980 & 88.50 & 58 & 0.01256908 & 55 & 0.01257193 \\
+0.990 & 94.75 & 68 & 0.00687592 & 8 & 0.00690039 \\
+0.995 & 100.52 & 124 & 0.00384228 & 68 & 0.00385141 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Remark}
+
+With the same MCMC iteration budget, changing the train/validation split to
+300/100 does not yield fully consistent winners across all target quantiles.
+The practical conclusion is therefore to report this instability directly,
+rather than forcing a single setting to represent all tails.
+
+\end{document}
