@@ -14,6 +14,7 @@
 - `run-settings.R`：與 `../simstudy/run-settings.R` 命名平行的 wrapper
 - `run-settings-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
 - `results-prop.R`：將 proposed outputs 和 baseline `../simstudy/results/` 做對照
+- `analyze_mrts.R`：掃描 `fits/<setting>-<method>-<dataset>-p<K>.RData`，計算 Brier / Quantile score，分析 score 隨 MRTS rank `K` 的變化
 - `prop_load.R`：載入 `../../R/prop` backend 與 simstudy 資料
 - `prop_simstudy_helpers.R`：CLI / 檔名 / seed / method catalog helper
 - `settings_prop.csv`：prop 專用的批次 manifest
@@ -41,6 +42,23 @@
 預設輸出路徑如下：
 
 - `fits/`：model fit `.RData` 與 run plan，例如 `fits/3-1-2-p20.RData`
-- `output/results/`：載入 fits 後的 analysis `.RData`
-- `output/tables/`：比較表
+- `output/results/`：載入 fits 後的 analysis `.RData`（含 `mrts_brier_analysis.RData`）
+- `output/tables/`：比較表（含 `mrts_brier_long.csv`、`mrts_brier_summary.csv`）
 - `output/plots/`：後續比較圖
+
+## MRTS rank 分析（`analyze_mrts.R`）
+
+針對同一個 `(setting, method, dataset)`、不同 MRTS rank `K` 的 fits 做 Brier / Quantile score 比較：
+
+```
+Rscript analyze_mrts.R                                # fits/ 中所有檔案
+Rscript analyze_mrts.R --setting=4 --method=2 --dataset=1   # 只挑某個 block
+```
+
+輸入：`fits/<setting>-<method>-<dataset>-p<K>.RData`（讀取 `fit.1$yp`，並使用 `../../R/prop/auxfunctions.R` 中的 `BrierScore` / `QuantScore`）。
+
+輸出：
+
+- `output/tables/mrts_brier_long.csv`：每個 `(K, quantile)` 一列，含 threshold、Brier、quantile score、elapsed time
+- `output/tables/mrts_brier_summary.csv`：每個 `K` 的 score 平均，並依 band 拆分（`bulk` = q ∈ [0.90, 0.95]、`tail` = q ≥ 0.98、`all` = 全部 quantile）
+- `output/results/mrts_brier_analysis.RData`：`brier_long`、`brier_summary`、`brier_wide`（K × quantile 矩陣）

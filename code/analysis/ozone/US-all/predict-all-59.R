@@ -61,6 +61,7 @@ g <- matrix(0, ns, nt)
 y.pred <- array(0, c(5000, np, nt))
 
 set.seed(1)
+start.time <- Sys.time()
 for (i in 1:nreps) {
   # get values for current iteration from mcmc
   rho <- fit$rho[i]
@@ -103,4 +104,6 @@ for (i in 1:nreps) {
     print(paste("Iter", i))
   }
 }
+end.time <- Sys.time()
+print(end.time - start.time)
 save(y.pred, file = outputfile)
