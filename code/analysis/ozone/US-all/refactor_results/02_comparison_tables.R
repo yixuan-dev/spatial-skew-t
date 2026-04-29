@@ -325,6 +325,42 @@ build_comparison_top2_all_metrics <- function(
     block_id <- block_id + 1L
   }
 
+  if (!is.null(summary_obj$mspe.mean)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$mspe.mean.ref.gau,
+      score_values = summary_obj$mspe.mean,
+      score_ses = summary_obj$mspe.se,
+      rel_to_gaussian = summary_obj$mspe.mean.ref.gau,
+      metric_family = "scalar",
+      metric = "mspe",
+      ranking_group = "mspe",
+      ranking_basis = "rel_to_gaussian",
+      score_direction = "lower_better",
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
+  if (!is.null(summary_obj$mape.mean)) {
+    blocks[[block_id]] <- make_top2_rows(
+      settings = settings,
+      candidate_settings = candidate_settings,
+      ranking_values = summary_obj$mape.mean.ref.gau,
+      score_values = summary_obj$mape.mean,
+      score_ses = summary_obj$mape.se,
+      rel_to_gaussian = summary_obj$mape.mean.ref.gau,
+      metric_family = "scalar",
+      metric = "mape",
+      ranking_group = "mape",
+      ranking_basis = "rel_to_gaussian",
+      score_direction = "lower_better",
+      n_top = n_top
+    )
+    block_id <- block_id + 1L
+  }
+
   if (!is.null(summary_obj$brier.split.score.mean)) {
     for (target_idx in seq_along(summary_obj$brier.split.target_probs)) {
       q <- summary_obj$brier.split.target_probs[target_idx]
@@ -743,6 +779,14 @@ build_comparison_scalar_metrics_table <- function(summary_obj, settings, baselin
         crps_se = summary_obj$crps.se[i],
         crps_rel_to_gaussian = summary_obj$crps.mean.ref.gau[i],
         crps_direction = "lower_better",
+        mspe_mean = summary_obj$mspe.mean[i],
+        mspe_se = summary_obj$mspe.se[i],
+        mspe_rel_to_gaussian = summary_obj$mspe.mean.ref.gau[i],
+        mspe_direction = "lower_better",
+        mape_mean = summary_obj$mape.mean[i],
+        mape_se = summary_obj$mape.se[i],
+        mape_rel_to_gaussian = summary_obj$mape.mean.ref.gau[i],
+        mape_direction = "lower_better",
         crps_draws_used = summary_obj$summary.draws.mean[i],
         n_obs_total = summary_obj$summary.n_obs.total[i],
         loo_elpd = NA_real_,

@@ -1,0 +1,453 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, mathtools, bm}
+\usepackage{booktabs, array, longtable}
+\usepackage{hyperref}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\diag}{\mathrm{diag}}
+\newcommand{\trans}{\mathsf{T}}
+
+\title{How \texttt{predict-all-59.R} Extrapolates to Unknown Locations}
+\author{}
+\date{April 29, 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Purpose}
+
+This note translates the current implementation in the prediction script
+\texttt{predict-all-59.R} and the helper \texttt{predictY\_cont\_lambda()}
+from \texttt{update\_params.R} into matrix notation.
+The goal is to explain, in mathematical terms, how a model that has already
+been fitted on observed AQS sites is pushed forward to unobserved CMAQ grid
+cells.
+
+For setting 59, the fitted model is loaded from
+\texttt{results/us-all-full-59.RData}. In the current checkout, the prediction
+script uses:
+\[
+n_s = 1089 \quad \text{observed sites}, \qquad
+n_p = 2632 \quad \text{prediction cells}, \qquad
+n_t = 31 \quad \text{days},
+\]
+\[
+n_{\text{reps}} = 5000 \quad \text{posterior draws}, \qquad
+K = 6 \quad \text{spatial partitions (knots)}.
+\]
+
+Setting 59 is a symmetric \(t\) model with \texttt{skew = FALSE}, so the skew
+term is inactive:
+\[
+\lambda = 0, \qquad z_{k,t} = 0 \quad \text{for all } k,t.
+\]
+Therefore the prediction step is driven by the regression mean, the spatial
+correlation matrix, and the partition-specific precision parameters.
+
+\section{Observed and Unknown Locations}
+
+Let
+\[
+S_o =
+\begin{bmatrix}
+(s^o_1)^\trans \\
+\vdots \\
+(s^o_{n_s})^\trans
+\end{bmatrix}
+\in \R^{n_s \times 2}
+\]
+be the observed AQS locations after removing sites with more than \(50\%\)
+missing responses, and let
+\[
+S_p =
+\begin{bmatrix}
+(s^p_1)^\trans \\
+\vdots \\
+(s^p_{n_p})^\trans
+\end{bmatrix}
+\in \R^{n_p \times 2}
+\]
+be the unobserved grid cells in the southeast subdomain selected by the code.
+
+The script computes three distance matrices:
+\[
+D_{22} \in \R^{n_s \times n_s}, \qquad
+(D_{22})_{ab} = \lVert s^o_a - s^o_b \rVert_2,
+\]
+\[
+D_{11} \in \R^{n_p \times n_p}, \qquad
+(D_{11})_{ab} = \lVert s^p_a - s^p_b \rVert_2,
+\]
+\[
+D_{12} \in \R^{n_p \times n_s}, \qquad
+(D_{12})_{ab} = \lVert s^p_a - s^o_b \rVert_2.
+\]
+
+These matrices are the only spatial inputs used by the prediction step.
+
+\section{CMAQ Covariates and Design Matrices}
+
+The raw CMAQ field is centered and scaled once:
+\[
+\widetilde{C}(s,t)
+=
+\frac{C(s,t) - \bar{C}}{s_C},
+\]
+where \(\bar{C}\) and \(s_C\) are the global mean and standard deviation used
+by the script.
+
+For each day \(t \in \{1,\dots,n_t\}\), define the observed-site and
+prediction-site design matrices
+\[
+X_{o,t}
+=
+\begin{bmatrix}
+1 & \widetilde{C}(s^o_1,t) \\
+\vdots & \vdots \\
+1 & \widetilde{C}(s^o_{n_s},t)
+\end{bmatrix}
+\in \R^{n_s \times 2},
+\]
+\[
+X_{p,t}
+=
+\begin{bmatrix}
+1 & \widetilde{C}(s^p_1,t) \\
+\vdots & \vdots \\
+1 & \widetilde{C}(s^p_{n_p},t)
+\end{bmatrix}
+\in \R^{n_p \times 2}.
+\]
+
+The regression coefficient vector from posterior draw \(i\) is
+\[
+\beta_i =
+\begin{bmatrix}
+\beta_{0,i} \\
+\beta_{1,i}
+\end{bmatrix}
+\in \R^2.
+\]
+Hence the code-level regression means are
+\[
+\mu^{o}_{i,t} = X_{o,t} \beta_i \in \R^{n_s},
+\qquad
+\mu^{p}_{i,t} = X_{p,t} \beta_i \in \R^{n_p}.
+\]
+
+\section{\texttt{simple.cov.sp()} in Mathematical Form}
+
+The function \texttt{simple.cov.sp()} receives a distance matrix
+\(D = (d_{ab})\) and returns a covariance matrix \(V = (V_{ab})\). Write
+\[
+\texttt{sp.par} = (\sigma^2, \rho),
+\]
+where \(\sigma^2\) is a variance scale and \(\rho\) is a range parameter.
+
+The returned covariance is
+\[
+V_{ab} = C_0(d_{ab}) + \mathbf{1}(d_{ab} = 0)\bigl(\tau^2_{\text{fine}} +
+\tau^2_{\text{err}}\bigr),
+\]
+where \(\tau^2_{\text{fine}} = \texttt{finescale.var}\),
+\(\tau^2_{\text{err}} = \texttt{error.var}\), and \(C_0\) depends on
+\texttt{sp.type}:
+\[
+C_0(d) =
+\begin{cases}
+\sigma^2 \exp(-d/\rho), & \text{exponential}, \\[4pt]
+\sigma^2 \exp\!\bigl(-(d/\rho)^2\bigr), & \text{gaussian}, \\[4pt]
+\sigma^2 \dfrac{2^{1-\nu}}{\Gamma(\nu)}
+\left(\dfrac{d}{\rho}\right)^\nu
+K_\nu\!\left(\dfrac{d}{\rho}\right), & \text{matern}, \\[12pt]
+\sigma^2 \dfrac{2^{1-\nu}}{\Gamma(\nu)}
+\left(\dfrac{2\sqrt{\nu}\, d}{\rho}\right)^\nu
+K_\nu\!\left(\dfrac{2\sqrt{\nu}\, d}{\rho}\right), & \text{matern2}, \\[12pt]
+\sigma^2 \left(1 - \dfrac{3}{2}\dfrac{d}{\rho}
++ \dfrac{1}{2}\left(\dfrac{d}{\rho}\right)^3\right)
+\mathbf{1}(d < \rho), & \text{spherical}.
+\end{cases}
+\]
+
+Here \(\nu > 0\) is the Mat\'ern smoothness parameter and \(K_\nu(\cdot)\) is
+the modified Bessel function of the second kind.
+
+For setting 59, the call is
+\[
+\texttt{simple.cov.sp}(D, \texttt{"matern"}, (\sigma^2,\rho_i), 0, \nu_i, 0)
+\quad \text{with } \sigma^2 = 1.
+\]
+Therefore the script uses the unit-variance Mat\'ern correlation kernel
+\[
+R_i(d)
+=
+\frac{2^{1-\nu_i}}{\Gamma(\nu_i)}
+\left(\frac{d}{\rho_i}\right)^{\nu_i}
+K_{\nu_i}\!\left(\frac{d}{\rho_i}\right),
+\qquad d > 0,
+\]
+with the diagonal convention \(R_i(0)=1\). The implementation sets the
+diagonal through the limiting value at \(d=0\), which is why the code replaces
+\texttt{NaN} values by \(\sigma^2 = 1\).
+
+\section{From the Mat\'ern Kernel to the Draw-Specific Correlation Matrix}
+
+For each posterior draw \(i \in \{1,\dots,5000\}\), the script extracts three
+draw-specific spatial parameters:
+\[
+\rho_i, \qquad \nu_i, \qquad \gamma_i.
+\]
+
+Define the Mat\'ern correlation matrices
+\[
+R^{oo}_i = R_i(D_{22}) \in \R^{n_s \times n_s},
+\qquad
+R^{pp}_i = R_i(D_{11}) \in \R^{n_p \times n_p},
+\qquad
+R^{po}_i = R_i(D_{12}) \in \R^{n_p \times n_s}.
+\]
+
+The code then constructs the observed-site correlation matrix as
+\[
+C_i = (1-\gamma_i) I_{n_s} + \gamma_i R^{oo}_i.
+\]
+This is exactly what the code implements by first computing
+\(\gamma_i R^{oo}_i\) and then forcing the diagonal to be \(1\).
+
+Likewise, the prediction-side covariance pieces are
+\[
+S_{11,i} = (1-\gamma_i) I_{n_p} + \gamma_i R^{pp}_i,
+\qquad
+S_{12,i} = \gamma_i R^{po}_i.
+\]
+The matrix named \texttt{prec} in the code is
+\[
+\texttt{prec}_i = C_i^{-1}.
+\]
+
+\subsection*{Why \(\texttt{prec}_i\) changes with \(i\)}
+
+The prediction loop runs over \(i = 1,\dots,n_{\text{reps}}\). In each draw,
+\(\rho_i\), \(\nu_i\), and \(\gamma_i\) change, so the matrices
+\[
+R^{oo}_i, \quad R^{pp}_i, \quad R^{po}_i, \quad C_i, \quad C_i^{-1}
+\]
+all change as well.
+
+In the current fitted object for setting 59, the posterior draws vary roughly
+over the following ranges:
+\[
+\rho_i \text{ quantiles } (5\%, 50\%, 95\%) \approx
+(0.310,\ 0.388,\ 0.490),
+\]
+\[
+\nu_i \text{ quantiles } (5\%, 50\%, 95\%) \approx
+(0.258,\ 0.288,\ 0.331),
+\]
+\[
+\gamma_i \text{ quantiles } (5\%, 50\%, 95\%) \approx
+(0.899,\ 0.924,\ 0.943).
+\]
+
+This matters because:
+\begin{itemize}
+\item Larger \(\rho_i\) makes spatial dependence decay more slowly with
+distance, so distant observed sites can influence a prediction more strongly.
+\item Larger \(\nu_i\) changes the local smoothness of the Mat\'ern field and
+therefore changes the shape of the correlation matrix.
+\item Larger \(\gamma_i\) pushes \(C_i\) farther away from the identity matrix,
+which means the observed residuals are treated as more spatially coherent and
+the kriging correction becomes stronger.
+\end{itemize}
+
+An important code-level detail is that \(\texttt{prec}_i = C_i^{-1}\) depends
+only on \((\rho_i,\nu_i,\gamma_i)\), not on \(t\). Therefore, within a fixed
+posterior draw \(i\), the same inverse correlation matrix is reused for all 31
+days. Day-to-day differences then come from the CMAQ covariate values, the
+partition assignments, the partition precisions, and the imputed observed
+responses.
+
+\section{Partition Membership and Precision Scaling}
+
+Setting 59 uses \(K=6\) partitions. For each posterior draw \(i\) and day \(t\),
+the fitted object contains a \(6 \times 2\) knot matrix
+\[
+\mathcal{K}_{i,t} \in \R^{6 \times 2}.
+\]
+
+The helper \texttt{mem(s, knots)} assigns each location to the nearest knot.
+Hence the observed-site and prediction-site memberships are
+\[
+g^o_{i,t}(a) \in \{1,\dots,6\}, \qquad a=1,\dots,n_s,
+\]
+\[
+g^p_{i,t}(b) \in \{1,\dots,6\}, \qquad b=1,\dots,n_p.
+\]
+
+The fitted object also contains partition-specific precisions
+\[
+\tau_{i,k,t} > 0,
+\qquad k=1,\dots,6.
+\]
+These are expanded to site-level quantities by lookup:
+\[
+\tau^o_{i,t}(a) = \tau_{i,\, g^o_{i,t}(a),\, t},
+\qquad
+\tau^p_{i,t}(b) = \tau_{i,\, g^p_{i,t}(b),\, t}.
+\]
+
+Now define the diagonal scaling matrices
+\[
+D^o_{i,t} = \diag\!\bigl(\sqrt{\tau^o_{i,t}(1)}, \dots,
+\sqrt{\tau^o_{i,t}(n_s)}\bigr),
+\]
+\[
+\Sigma^p_{i,t} = \diag\!\left(
+\frac{1}{\sqrt{\tau^p_{i,t}(1)}}, \dots,
+\frac{1}{\sqrt{\tau^p_{i,t}(n_p)}}
+\right).
+\]
+These are exactly the code objects
+\texttt{taug.t = sqrt(taug[, t])} and
+\texttt{siggp = 1 / sqrt(tau[gp, t])}.
+
+\section{The Conditional Prediction Formula}
+
+For posterior draw \(i\) and day \(t\), the script loads
+\[
+y^o_{i,t} \in \R^{n_s},
+\]
+where \(y^o_{i,t}\) is the imputed observed response vector stored in
+\texttt{fit\$y}. This is not the raw observation vector; it is the completed
+response vector carried forward from the fitting stage.
+
+Because setting 59 is non-skew, the mean term is just
+\[
+\mu^o_{i,t} = X_{o,t}\beta_i,
+\qquad
+\mu^p_{i,t} = X_{p,t}\beta_i.
+\]
+The observed residual vector is
+\[
+r^o_{i,t} = y^o_{i,t} - \mu^o_{i,t}.
+\]
+The code then standardizes this residual by the partition precisions:
+\[
+u^o_{i,t} = D^o_{i,t} r^o_{i,t}.
+\]
+
+The central conditional covariance object is
+\[
+Q_i = S_{11,i} - S_{12,i} C_i^{-1} S_{12,i}^\trans,
+\]
+which is the Schur complement appearing in Gaussian conditional
+distributions. In the code this is the object named \texttt{corp}.
+
+The predictive mean at unknown locations is
+\[
+m^p_{i,t}
+=
+\mu^p_{i,t}
++
+\Sigma^p_{i,t} S_{12,i} C_i^{-1} u^o_{i,t}.
+\]
+This is the line
+\[
+\texttt{mup <- xp.beta + siggp * s.12.22.inv \%*\% (taug.t * res[, t])}.
+\]
+
+The predictive covariance is
+\[
+V^p_{i,t}
+=
+\Sigma^p_{i,t} Q_i \Sigma^p_{i,t}.
+\]
+
+Therefore the actual prediction law used by the script is
+\[
+Y^p_{i,t} \mid y^o_{i,t}, \theta_i
+\sim
+\mathcal{N}\!\left(m^p_{i,t},\, V^p_{i,t}\right),
+\]
+where \(\theta_i\) denotes all parameters loaded from posterior draw \(i\).
+
+\section{How the Script Draws One Realization}
+
+Let \(L_i\) be a Cholesky factor such that
+\[
+Q_i = L_i L_i^\trans.
+\]
+The code computes such a factor from \texttt{corp}; if Cholesky fails, it falls
+back to an eigen-based square root.
+
+If \(\varepsilon_{i,t} \sim \mathcal{N}(0, I_{n_p})\), then the script draws
+\[
+Y^p_{i,t}
+=
+m^p_{i,t}
++
+\Sigma^p_{i,t} L_i \varepsilon_{i,t}.
+\]
+This is the exact meaning of
+\[
+\texttt{yp[, t] <- mup + siggp * t.corp.sd.mtx \%*\% rnorm(np)}.
+\]
+
+So the script is not merely computing a kriging mean. It is drawing a full
+posterior predictive sample for every day and every prediction location.
+
+\section{What Changes Across the Posterior Draw Index}
+
+Each posterior draw \(i\) changes the extrapolation in three coupled ways:
+\begin{enumerate}
+\item The regression term changes through \(\beta_i\), which alters the CMAQ
+baseline \(\mu^p_{i,t}\).
+\item The spatial borrowing pattern changes through
+\((\rho_i,\nu_i,\gamma_i)\), which changes \(C_i\), \(S_{11,i}\), \(S_{12,i}\),
+and therefore \(\texttt{prec}_i = C_i^{-1}\).
+\item The scale of the response changes through the day-specific partition
+precisions \(\tau_{i,k,t}\) and the day-specific knot assignments
+\(\mathcal{K}_{i,t}\).
+\end{enumerate}
+
+Consequently, the predictive distribution at a fixed unobserved location is not
+based on a single deterministic set of kriging weights. It is averaged over
+5000 distinct spatial systems:
+\[
+\left\{
+\beta_i,\rho_i,\nu_i,\gamma_i,\tau_{i,\cdot,\cdot},
+\mathcal{K}_{i,\cdot},y^o_{i,\cdot}
+\right\}_{i=1}^{5000}.
+\]
+
+\section{Final Stored Object}
+
+For each posterior draw \(i\), each prediction cell \(b\), and each day \(t\),
+the script stores one predictive sample:
+\[
+\texttt{y.pred}[i,b,t] = Y^p_{i,t}(b).
+\]
+Hence the saved object is
+\[
+\texttt{y.pred} \in \R^{5000 \times 2632 \times 31}.
+\]
+
+This means the output is a Monte Carlo representation of the full posterior
+predictive distribution on the southeast grid, not a single map or a single
+plug-in predictor.
+
+\section{One-Sentence Summary}
+
+The prediction code takes each posterior draw from the fitted model, rebuilds
+the draw-specific spatial correlation matrix \(C_i\), inverts it to obtain
+\(\texttt{prec}_i\), uses observed-site residuals to form a conditional
+Gaussian update, rescales that update by partition-specific precisions, and
+then samples ozone values on previously unobserved CMAQ grid cells.
+
+\end{document}

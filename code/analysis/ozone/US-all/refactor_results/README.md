@@ -120,7 +120,7 @@ Additional Excel-ready tables from the proposed runner:
   - `all_metrics` sheet plus one sheet per metric
 - `comparison_scalar_metrics.csv`
   - one row per setting
-  - includes CRPS summaries and placeholder columns for `LOO-ELPD` / `WAIC`
+  - includes MSPE, MAPE, CRPS summaries and placeholder columns for `LOO-ELPD` / `WAIC`
 - `comparison_classification_metrics.csv`
   - one row per setting x event quantile
   - includes confusion-matrix counts plus `accuracy`, `precision`, `recall`, `specificity`, and `F1`
@@ -138,7 +138,7 @@ Additional Excel-ready tables from the proposed runner:
 
 | 情況                 | `ranking_basis`     | `rank_value`           | `score_value` | 代表指標                                                                                                      |
 | -------------------- | ------------------- | ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------- |
-| 相對 Gaussian 排名   | `rel_to_gaussian`   | 真正拿來排名的相對分數 | 原始分數本身  | `brier`, `quantile`, `crps`, `brier_split`                                                                    |
+| 相對 Gaussian 排名   | `rel_to_gaussian`   | 真正拿來排名的相對分數 | 原始分數本身  | `brier`, `quantile`, `crps`, `mspe`, `mape`, `brier_split`                                                     |
 | 原始分數直接排名     | `raw_score`         | 真正拿來排名的原始分數 | 原始分數本身  | `accuracy`, `precision`, `recall`, `specificity`, `f1`, `pit_ks`, `pit_uniformity_mae`, `pit_uniformity_rmse` |
 | 與 target 的距離排名 | `abs_gap_to_target` | 與理想值的絕對差       | 原始分數本身  | `coverage`, `pit_mean`, `pit_variance`                                                                        |
 

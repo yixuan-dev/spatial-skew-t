@@ -309,12 +309,20 @@ skipped_bad_contract <- summary_obj$skipped_bad_contract
 skipped_scoring_error <- summary_obj$skipped_scoring_error
 quant.score <- summary_obj$quant.score
 brier.score <- summary_obj$brier.score
+mspe.score <- summary_obj$mspe.score
+mape.score <- summary_obj$mape.score
 quant.score.mean <- summary_obj$quant.score.mean
 brier.score.mean <- summary_obj$brier.score.mean
+mspe.mean <- summary_obj$mspe.mean
+mape.mean <- summary_obj$mape.mean
 quant.score.se <- summary_obj$quant.score.se
 brier.score.se <- summary_obj$brier.score.se
+mspe.se <- summary_obj$mspe.se
+mape.se <- summary_obj$mape.se
 bs.mean.ref.gau <- summary_obj$bs.mean.ref.gau
 qs.mean.ref.gau <- summary_obj$qs.mean.ref.gau
+mspe.mean.ref.gau <- summary_obj$mspe.mean.ref.gau
+mape.mean.ref.gau <- summary_obj$mape.mean.ref.gau
 brier.split.target_probs <- summary_obj$brier.split.target_probs
 brier.split.target_thresholds <- summary_obj$brier.split.target_thresholds
 brier.split.band_names <- summary_obj$brier.split.band_names
@@ -361,8 +369,10 @@ save(
     "all_numeric_settings", "all_requested", "result_dirs", "result_file_map", "available_settings",
     "skipped_missing_file", "skipped_bad_contract", "skipped_scoring_error",
     "probs", "threshold_probs", "thresholds", "quant.score", "brier.score",
-    "quant.score.mean", "brier.score.mean", "quant.score.se", "brier.score.se",
-    "bs.mean.ref.gau", "qs.mean.ref.gau",
+    "mspe.score", "mape.score",
+    "quant.score.mean", "brier.score.mean", "mspe.mean", "mape.mean",
+    "quant.score.se", "brier.score.se", "mspe.se", "mape.se",
+    "bs.mean.ref.gau", "qs.mean.ref.gau", "mspe.mean.ref.gau", "mape.mean.ref.gau",
     "brier.split.target_probs", "brier.split.target_thresholds", "brier.split.band_names",
     "brier.split.score.mean", "brier.split.score.se", "brier.split.n_obs.total",
     "brier.split.n_obs.mean", "brier.split.obs.share", "brier.split.rel.ref.gau",

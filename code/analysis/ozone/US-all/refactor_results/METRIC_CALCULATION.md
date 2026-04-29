@@ -115,7 +115,47 @@ BS_{\tau}^{(d)}
 - `code/R/auxfunctions.R` 的 `BrierScore()`
 - `refactor_results/01_score_engine.R` 的 `compute_us_all_scores()` 與 `summarize_us_all_scores()`
 
-## 3. Split Brier score
+## 3. MSPE 與 MAPE
+
+MSPE 與 MAPE 使用 posterior predictive mean 作為 point prediction。對每個 validation observation：
+
+\[
+\hat \mu_j^{(d)}
+=
+\frac{1}{m}\sum_{k=1}^m X_{k,j}^{(d)}
+\]
+
+fold-level MSPE 定義為：
+
+\[
+MSPE^{(d)}
+=
+\frac{1}{n_d}
+\sum_j
+\left(\hat \mu_j^{(d)} - Y_j^{(d)}\right)^2
+\]
+
+fold-level MAPE 定義為：
+
+\[
+MAPE^{(d)}
+=
+100 \times
+\frac{1}{n_d}
+\sum_j
+\left|
+\frac{\hat \mu_j^{(d)} - Y_j^{(d)}}{Y_j^{(d)}}
+\right|
+\]
+
+其中 \(Y_j^{(d)} = 0\) 的 observation 不計入 MAPE，避免除以零。最後匯出的 `mspe_mean` 與 `mape_mean` 都是先在每個 fold 算完，再跨 folds 取平均；`mape_mean` 單位是百分比。
+
+對應程式：
+
+- `refactor_results/01_score_engine.R` 的 `compute_point_prediction_metrics()`
+- `refactor_results/01_score_engine.R` 的 `compute_us_all_scores()` 與 `summarize_us_all_scores()`
+
+## 4. Split Brier score
 
 `comparison_brier_split.csv` 使用的是 same-threshold split。
 
@@ -211,7 +251,7 @@ obs\_share_{\tau,b}
 - `refactor_results/01_score_engine.R` 的 `summarize_us_all_scores()`
 - `refactor_results/02_comparison_tables.R` 的 `build_comparison_brier_split_table()`
 
-## 4. Relative score to Gaussian baseline
+## 5. Relative score to Gaussian baseline
 
 多數 comparison CSV 都會輸出 `rel_to_gaussian` 或同義欄位。
 
@@ -237,7 +277,7 @@ baseline 固定是 `setting = 1` 的 Gaussian reference model。
 - `proposed_rel_score`：proposed model 的 relative score
 - `delta_rel_score = proposed_rel_score - baseline_rel_score`
 
-## 5. Classification metrics
+## 6. Classification metrics
 
 `comparison_classification_metrics.csv` 是事件型分類指標表。
 
@@ -365,7 +405,7 @@ F1_\tau^{(d)}
 - `refactor_results/01_score_engine.R` 的 `compute_us_all_scores()` 與 `summarize_us_all_scores()`
 - `refactor_results/02_comparison_tables.R` 的 `build_comparison_classification_metrics_table()`
 
-## 6. CRPS
+## 7. CRPS
 
 `comparison_scalar_metrics.csv` 的 `crps_mean` 是 sample-based CRPS。
 
@@ -405,7 +445,7 @@ fold-level CRPS 是該 fold 內 observation 平均：
 
 - `summary_draws` 可能小於完整 posterior draws 數；這是為了控制計算量
 
-## 7. Coverage
+## 8. Coverage
 
 對每個 coverage level \(1-\alpha\)：
 
@@ -430,7 +470,7 @@ Y_j^{(d)} \in [L_{j,\alpha}^{(d)}, U_{j,\alpha}^{(d)}]
 - 對應的 `*_se`
 - `*_gap = observed - target`
 
-## 8. PIT 與 calibration summary
+## 9. PIT 與 calibration summary
 
 對單一 observation，PIT 近似為：
 
@@ -481,7 +521,7 @@ Y_j^{(d)} \in [L_{j,\alpha}^{(d)}, U_{j,\alpha}^{(d)}]
 
 這些都收在 `comparison_uncertainty_summary.csv`。
 
-## 9. Calibration bins
+## 10. Calibration bins
 
 `comparison_calibration_bins.csv` 是 PIT histogram 的 bin-level 匯出。
 
@@ -497,7 +537,7 @@ Y_j^{(d)} \in [L_{j,\alpha}^{(d)}, U_{j,\alpha}^{(d)}]
 
 用途是直接在 Excel 或其他工具畫 PIT histogram。
 
-## 10. Top-2 table
+## 11. Top-2 table
 
 `comparison_top2.csv` 不是新的分數，而是從 relative score 排名得出的摘要表。
 
@@ -508,7 +548,7 @@ Y_j^{(d)} \in [L_{j,\alpha}^{(d)}, U_{j,\alpha}^{(d)}]
 
 然後對候選 settings 依 relative score 由小到大排序，取前兩名。
 
-## 11. LOO-ELPD / WAIC
+## 12. LOO-ELPD / WAIC
 
 這兩欄目前只是 placeholder，會輸出 `NA`。
 
@@ -521,7 +561,7 @@ Y_j^{(d)} \in [L_{j,\alpha}^{(d)}, U_{j,\alpha}^{(d)}]
 
 若未來 result files 額外存每個 observation 的 log-likelihood，才可以補上真正的 LOO-ELPD / WAIC。
 
-## 12. 好壞方向
+## 13. 好壞方向
 
 目前所有已實作的分數欄位，方向如下：
 
@@ -536,7 +576,7 @@ Y_j^{(d)} \in [L_{j,\alpha}^{(d)}, U_{j,\alpha}^{(d)}]
 - `pit_mean_gap`: closer to zero is better
 - `pit_variance_gap`: closer to zero is better
 
-## 13. 目前最重要的實作細節
+## 14. 目前最重要的實作細節
 
 - `score_mean` 類欄位：先各 fold 算分數，再跨 folds 取平均
 - `score_se` 類欄位：fold-level 分數的標準誤

@@ -282,6 +282,38 @@ compute_classification_metrics <- function(
   )
 }
 
+compute_point_prediction_metrics <- function(
+    preds,
+    validate,
+    trans = FALSE
+) {
+  pred_mean <- apply(preds, c(2, 3), mean, na.rm = TRUE)
+  if (trans) {
+    pred_mean <- t(pred_mean)
+  }
+
+  y_vec <- as.vector(validate)
+  pred_vec <- as.vector(pred_mean)
+  keep <- is.finite(y_vec) & is.finite(pred_vec)
+  if (!any(keep)) {
+    return(list(mspe = NA_real_, mape = NA_real_))
+  }
+
+  y_keep <- y_vec[keep]
+  pred_keep <- pred_vec[keep]
+  err <- pred_keep - y_keep
+  denom_keep <- is.finite(y_keep) & y_keep != 0
+
+  list(
+    mspe = mean(err^2, na.rm = TRUE),
+    mape = if (any(denom_keep)) {
+      mean(abs(err[denom_keep] / y_keep[denom_keep]), na.rm = TRUE) * 100
+    } else {
+      NA_real_
+    }
+  )
+}
+
 compute_predictive_diagnostics <- function(
     preds,
     validate,
@@ -523,6 +555,8 @@ compute_us_all_scores <- function(
     NULL
   }
   crps.score <- if (isTRUE(compute_uncertainty_diagnostics)) matrix(NA_real_, nrow = nsets, ncol = max_setting) else NULL
+  mspe.score <- matrix(NA_real_, nrow = nsets, ncol = max_setting)
+  mape.score <- matrix(NA_real_, nrow = nsets, ncol = max_setting)
   coverage.score <- if (isTRUE(compute_uncertainty_diagnostics)) array(NA_real_, dim = c(length(uncertainty_levels), nsets, max_setting)) else NULL
   pit.mean.score <- if (isTRUE(compute_uncertainty_diagnostics)) matrix(NA_real_, nrow = nsets, ncol = max_setting) else NULL
   pit.variance.score <- if (isTRUE(compute_uncertainty_diagnostics)) matrix(NA_real_, nrow = nsets, ncol = max_setting) else NULL
@@ -636,6 +670,7 @@ compute_us_all_scores <- function(
           list(
             quant = QuantScore(pred.d, probs, validate, trans = trans),
             brier = BrierScore(pred.d, thresholds, validate, trans = trans),
+            point = compute_point_prediction_metrics(pred.d, validate, trans = trans),
             brier_split = brier_split,
             classification = classification,
             diagnostics = diagnostics
@@ -654,6 +689,8 @@ compute_us_all_scores <- function(
 
       quant.score[, d, i] <- score_try$quant
       brier.score[, d, i] <- score_try$brier
+      mspe.score[d, i] <- score_try$point$mspe
+      mape.score[d, i] <- score_try$point$mape
       if (isTRUE(compute_brier_split_diagnostics)) {
         brier.split.score[, , d, i] <- score_try$brier_split$scores
         brier.split.count[, , d, i] <- score_try$brier_split$counts
@@ -729,6 +766,8 @@ compute_us_all_scores <- function(
     uncertainty_levels = uncertainty_levels,
     pit_breaks = pit_breaks,
     crps.score = crps.score,
+    mspe.score = mspe.score,
+    mape.score = mape.score,
     coverage.score = coverage.score,
     pit.mean.score = pit.mean.score,
     pit.variance.score = pit.variance.score,
@@ -768,6 +807,10 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
   brier.score.se <- matrix(NA_real_, nrow = max_setting, ncol = length(thresholds))
   crps.mean <- rep(NA_real_, max_setting)
   crps.se <- rep(NA_real_, max_setting)
+  mspe.mean <- rep(NA_real_, max_setting)
+  mspe.se <- rep(NA_real_, max_setting)
+  mape.mean <- rep(NA_real_, max_setting)
+  mape.se <- rep(NA_real_, max_setting)
   coverage.mean <- matrix(NA_real_, nrow = max_setting, ncol = length(score_obj$uncertainty_levels))
   coverage.se <- matrix(NA_real_, nrow = max_setting, ncol = length(score_obj$uncertainty_levels))
   coverage.gap <- matrix(NA_real_, nrow = max_setting, ncol = length(score_obj$uncertainty_levels))
@@ -919,6 +962,10 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
     quant.score.se[i, ] <- apply(score_obj$quant.score[, , i, drop = FALSE], 1, sd, na.rm = TRUE) / sqrt(nsets)
     brier.score.mean[i, ] <- apply(score_obj$brier.score[, , i, drop = FALSE], 1, mean, na.rm = TRUE)
     brier.score.se[i, ] <- apply(score_obj$brier.score[, , i, drop = FALSE], 1, sd, na.rm = TRUE) / sqrt(nsets)
+    mspe.mean[i] <- mean_if_any(score_obj$mspe.score[, i])
+    mspe.se[i] <- se_if_any(score_obj$mspe.score[, i])
+    mape.mean[i] <- mean_if_any(score_obj$mape.score[, i])
+    mape.se[i] <- se_if_any(score_obj$mape.score[, i])
 
     if (!is.null(score_obj$brier.split.score)) {
       for (band_idx in seq_along(score_obj$brier.split.band_names)) {
@@ -1008,6 +1055,8 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
   bs.mean.ref.gau <- matrix(NA_real_, nrow = max_setting, ncol = length(thresholds))
   qs.mean.ref.gau <- matrix(NA_real_, nrow = max_setting, ncol = length(probs))
   crps.mean.ref.gau <- rep(NA_real_, max_setting)
+  mspe.mean.ref.gau <- rep(NA_real_, max_setting)
+  mape.mean.ref.gau <- rep(NA_real_, max_setting)
   brier.split.rel.ref.gau <- if (!is.null(score_obj$brier.split.score)) {
     array(
       NA_real_,
@@ -1041,6 +1090,12 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
     qs.mean.ref.gau[i, ] <- quant.score.mean[i, ] / quant.score.mean[baseline_setting, ]
     if (is.finite(crps.mean[i]) && is.finite(crps.mean[baseline_setting]) && crps.mean[baseline_setting] != 0) {
       crps.mean.ref.gau[i] <- crps.mean[i] / crps.mean[baseline_setting]
+    }
+    if (is.finite(mspe.mean[i]) && is.finite(mspe.mean[baseline_setting]) && mspe.mean[baseline_setting] != 0) {
+      mspe.mean.ref.gau[i] <- mspe.mean[i] / mspe.mean[baseline_setting]
+    }
+    if (is.finite(mape.mean[i]) && is.finite(mape.mean[baseline_setting]) && mape.mean[baseline_setting] != 0) {
+      mape.mean.ref.gau[i] <- mape.mean[i] / mape.mean[baseline_setting]
     }
 
     if (!is.null(brier.split.rel.ref.gau)) {
@@ -1081,6 +1136,8 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
     available_settings = available_settings,
     quant.score = score_obj$quant.score,
     brier.score = score_obj$brier.score,
+    mspe.score = score_obj$mspe.score,
+    mape.score = score_obj$mape.score,
     brier.split.target_probs = score_obj$brier.split.target_probs,
     brier.split.target_thresholds = score_obj$brier.split.target_thresholds,
     brier.split.band_names = score_obj$brier.split.band_names,
@@ -1113,6 +1170,12 @@ summarize_us_all_scores <- function(score_obj, baseline_setting = 1L) {
     crps.mean = crps.mean,
     crps.se = crps.se,
     crps.mean.ref.gau = crps.mean.ref.gau,
+    mspe.mean = mspe.mean,
+    mspe.se = mspe.se,
+    mspe.mean.ref.gau = mspe.mean.ref.gau,
+    mape.mean = mape.mean,
+    mape.se = mape.se,
+    mape.mean.ref.gau = mape.mean.ref.gau,
     uncertainty_levels = score_obj$uncertainty_levels,
     coverage.mean = coverage.mean,
     coverage.se = coverage.se,

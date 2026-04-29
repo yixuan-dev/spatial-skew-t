@@ -26,7 +26,6 @@ S.p <- expand.grid(x, y)
 keep.these <- (S.p[, 1] > 1.03 & S.p[, 1] < 1.7) &
   (S.p[, 2] > -0.96 & S.p[, 2] < -0.40)
 S.p <- S.p[keep.these, ]
-CMAQ.cs <- (CMAQ - mean(CMAQ)) / sd(CMAQ)
 cmaq.p <- CMAQ.cs[keep.these, ]
 
 # nx      <- length(unique(S.p[, 1]))
