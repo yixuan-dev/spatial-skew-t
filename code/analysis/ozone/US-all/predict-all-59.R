@@ -106,4 +106,7 @@ for (i in 1:nreps) {
 }
 end.time <- Sys.time()
 print(end.time - start.time)
+# Time difference of 11.98301 hours
+# > str(y.pred)
+#  num [1:5000, 1:2632, 1:31] 31.4 33.3 26.6 26.4 25.2 ...
 save(y.pred, file = outputfile)
