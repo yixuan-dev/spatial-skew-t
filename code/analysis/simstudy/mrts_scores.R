@@ -9,8 +9,9 @@
 ## where K = 0 means the no-MRTS baseline.  Stage 2 (mrts_helpfulness.R)
 ## consumes these bundles.
 ##
-## Each bundle contains arrays of dim = c(prob, dataset, method):
-##   quant.score, brier.score
+## Each bundle contains arrays:
+##   quant.score, brier.score   dim = c(prob, dataset, method)
+##   elapsed.sec                dim = c(dataset, method)
 ## plus metadata: probs, methods, datasets, setting, mrts_k.
 ##
 ## NA marks a fit that was not run or could not be loaded.
@@ -68,6 +69,9 @@ for (job in jobs) {
 
   quant.score <- array(NA_real_, dim = dim_vec, dimnames = dimnames_list)
   brier.score <- array(NA_real_, dim = dim_vec, dimnames = dimnames_list)
+  elapsed.sec <- array(NA_real_,
+                       dim = dim_vec[2:3],
+                       dimnames = dimnames_list[c("dataset", "method")])
 
   for (d_idx in seq_along(datasets)) {
     dataset_id <- datasets[d_idx]
@@ -93,12 +97,19 @@ for (job in jobs) {
       pred <- fit_obj$yp
       quant.score[, d_idx, m_idx] <- QuantScore(pred, probs, validate)
       brier.score[, d_idx, m_idx] <- BrierScore(pred, thresholds, validate)
+
+      if (exists("runtime_info", envir = e)) {
+        rt <- get("runtime_info", envir = e)
+        if (!is.null(rt$elapsed_sec)) {
+          elapsed.sec[d_idx, m_idx] <- as.numeric(rt$elapsed_sec)
+        }
+      }
     }
 
     cat(sprintf("  dataset %2d / %d\n", dataset_id, length(datasets)))
   }
 
-  save(quant.score, brier.score,
+  save(quant.score, brier.score, elapsed.sec,
        probs, methods, datasets, setting, mrts_k,
        file = out)
   cat(" written:", out, "\n")

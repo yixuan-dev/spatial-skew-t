@@ -15,8 +15,11 @@
 ##   Rscript mrts_helpfulness.R
 ##
 ## Outputs (comparison_mrts/helpfulness/):
-##   mrts_helpfulness_paired.csv   per-dataset paired deltas
+##   mrts_helpfulness_paired.csv   per-dataset paired deltas (scores + time)
 ##   mrts_helpfulness_summary.csv  per (setting, family, K, prob) summary
+##   mrts_elapsed_summary.csv      per (setting, family, K) elapsed-time
+##                                 summary: mean / median baseline vs MRTS,
+##                                 absolute and ratio overhead
 ## ---------------------------------------------------------------------------
 
 rm(list = ls())
@@ -52,10 +55,11 @@ load_scores <- function(setting, mrts_k) {
   e <- new.env()
   load(f, envir = e)
   list(
-    quant   = e$quant.score,
-    brier   = e$brier.score,
-    probs   = e$probs,
-    methods = e$methods,
+    quant    = e$quant.score,
+    brier    = e$brier.score,
+    elapsed  = e$elapsed.sec,
+    probs    = e$probs,
+    methods  = e$methods,
     datasets = e$datasets
   )
 }
@@ -86,6 +90,8 @@ for (exp in experiments) {
 
       for (d_idx in seq_along(datasets)) {
         dataset_id <- datasets[d_idx]
+        base_t <- base$elapsed[d_idx, m_idx]
+        mrts_t <- mrts$elapsed[d_idx, m_idx]
         for (q_idx in seq_along(probs)) {
           base_b <- base$brier[q_idx, d_idx, m_idx]
           mrts_b <- mrts$brier[q_idx, d_idx, m_idx]
@@ -93,19 +99,22 @@ for (exp in experiments) {
           mrts_q <- mrts$quant[q_idx, d_idx, m_idx]
 
           paired_rows[[row_id]] <- data.frame(
-            setting        = setting_id,
-            dataset        = dataset_id,
-            method_id      = method_id,
-            family         = family,
-            method_label   = label,
-            mrts_k         = k,
-            quantile       = probs[q_idx],
-            baseline_brier = base_b,
-            mrts_brier     = mrts_b,
-            delta_brier    = mrts_b - base_b,
-            baseline_quant = base_q,
-            mrts_quant     = mrts_q,
-            delta_quant    = mrts_q - base_q,
+            setting          = setting_id,
+            dataset          = dataset_id,
+            method_id        = method_id,
+            family           = family,
+            method_label     = label,
+            mrts_k           = k,
+            quantile         = probs[q_idx],
+            baseline_brier   = base_b,
+            mrts_brier       = mrts_b,
+            delta_brier      = mrts_b - base_b,
+            baseline_quant   = base_q,
+            mrts_quant       = mrts_q,
+            delta_quant      = mrts_q - base_q,
+            baseline_elapsed = base_t,
+            mrts_elapsed     = mrts_t,
+            delta_elapsed    = mrts_t - base_t,
             stringsAsFactors = FALSE
           )
           row_id <- row_id + 1L
@@ -165,6 +174,59 @@ summary_df <- do.call(rbind, summary_rows)
 write.csv(summary_df, file.path(output_dir, "mrts_helpfulness_summary.csv"),
           row.names = FALSE)
 
+## ---------------------------------------------------------------------------
+## per (setting, family, K) elapsed-time summary
+## one row per (setting, method, K) -- timing does not depend on quantile, so
+## we deduplicate over (dataset, method, K) before summarising.
+## ---------------------------------------------------------------------------
+elapsed_unique <- unique(paired[, c("setting", "family", "method_id",
+                                    "method_label", "mrts_k", "dataset",
+                                    "baseline_elapsed", "mrts_elapsed",
+                                    "delta_elapsed")])
+
+elapsed_grid <- unique(elapsed_unique[, c("setting", "family", "method_id",
+                                          "method_label", "mrts_k")])
+elapsed_grid <- elapsed_grid[order(elapsed_grid$setting,
+                                   elapsed_grid$method_id,
+                                   elapsed_grid$mrts_k), ]
+
+elapsed_rows <- vector("list", nrow(elapsed_grid))
+for (i in seq_len(nrow(elapsed_grid))) {
+  g <- elapsed_grid[i, ]
+  rows <- elapsed_unique[elapsed_unique$setting   == g$setting   &
+                         elapsed_unique$method_id == g$method_id &
+                         elapsed_unique$mrts_k    == g$mrts_k, ]
+
+  bt <- rows$baseline_elapsed
+  mt <- rows$mrts_elapsed
+  dt <- rows$delta_elapsed
+  ratio <- mt / bt
+  ratio[!is.finite(ratio)] <- NA_real_
+
+  elapsed_rows[[i]] <- data.frame(
+    setting               = g$setting,
+    family                = g$family,
+    method_id             = g$method_id,
+    method_label          = g$method_label,
+    mrts_k                = g$mrts_k,
+    n_pairs               = nrow(rows),
+    n_valid               = sum(is.finite(dt)),
+    mean_baseline_sec     = mean(bt,    na.rm = TRUE),
+    mean_mrts_sec         = mean(mt,    na.rm = TRUE),
+    median_baseline_sec   = median(bt,  na.rm = TRUE),
+    median_mrts_sec       = median(mt,  na.rm = TRUE),
+    mean_delta_sec        = mean(dt,    na.rm = TRUE),
+    median_delta_sec      = median(dt,  na.rm = TRUE),
+    mean_ratio_mrts_over_baseline   = mean(ratio,   na.rm = TRUE),
+    median_ratio_mrts_over_baseline = median(ratio, na.rm = TRUE),
+    stringsAsFactors = FALSE
+  )
+}
+elapsed_df <- do.call(rbind, elapsed_rows)
+write.csv(elapsed_df, file.path(output_dir, "mrts_elapsed_summary.csv"),
+          row.names = FALSE)
+
 cat("\nWritten:\n",
     " -", file.path(output_dir, "mrts_helpfulness_paired.csv"), "\n",
-    " -", file.path(output_dir, "mrts_helpfulness_summary.csv"), "\n")
+    " -", file.path(output_dir, "mrts_helpfulness_summary.csv"), "\n",
+    " -", file.path(output_dir, "mrts_elapsed_summary.csv"), "\n")

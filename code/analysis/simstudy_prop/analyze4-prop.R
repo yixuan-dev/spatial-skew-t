@@ -14,7 +14,6 @@
 #   output/tables/score_median4-prop.csv
 #   output/tables/score_rel_gauss4-prop.csv
 #   output/tables/best_method_per_K4-prop.csv
-#   output/tables/friedman_methods_by_K4-prop.csv
 #   output/tables/lambda_coverage4-prop.csv
 #   output/plots/bs_rel_gauss_by_quantile-K<k>.pdf  (one per prop_k)
 #   output/plots/qs_rel_gauss_by_quantile-K<k>.pdf
@@ -136,55 +135,6 @@ best_table <- rbind(best_combo(bs_mean, "brier"),
 write.csv(best_table, file.path(tables_dir, "best_method_per_K4-prop.csv"),
           row.names = FALSE)
 
-# ---- Friedman test: across methods, at each (quantile, prop_k) ------
-include_q <- c(1, 6, 9, 10, 11)              # q(0.90, 0.95, 0.98, 0.99, 0.995)
-fried_rows <- list()
-for (qi in include_q) {
-  for (ki in seq_along(prop_ks)) {
-    block <- brier.score[qi, , , ki]         # dataset x method
-    df <- data.frame(
-      score   = as.vector(block),
-      method  = factor(rep(methods, each = n_sets)),
-      dataset = factor(rep(datasets, times = n_methods))
-    )
-    if (any(is.na(df$score))) next
-    pv <- tryCatch(
-      friedman.test(score ~ method | dataset, data = df)$p.value,
-      error = function(e) NA_real_
-    )
-    fried_rows[[length(fried_rows) + 1L]] <- data.frame(
-      score = "brier",
-      quantile = probs[qi],
-      prop_k   = prop_ks[ki],
-      friedman_p = pv
-    )
-  }
-}
-for (qi in include_q) {
-  for (ki in seq_along(prop_ks)) {
-    block <- quant.score[qi, , , ki]
-    df <- data.frame(
-      score   = as.vector(block),
-      method  = factor(rep(methods, each = n_sets)),
-      dataset = factor(rep(datasets, times = n_methods))
-    )
-    if (any(is.na(df$score))) next
-    pv <- tryCatch(
-      friedman.test(score ~ method | dataset, data = df)$p.value,
-      error = function(e) NA_real_
-    )
-    fried_rows[[length(fried_rows) + 1L]] <- data.frame(
-      score = "quant",
-      quantile = probs[qi],
-      prop_k   = prop_ks[ki],
-      friedman_p = pv
-    )
-  }
-}
-fried_table <- do.call(rbind, fried_rows)
-write.csv(fried_table, file.path(tables_dir, "friedman_methods_by_K4-prop.csv"),
-          row.names = FALSE)
-
 # ---- lambda coverage for skew-t methods (true lambda = 3) -----------
 # intervals: c(0.01, 0.025, 0.05, 0.1, 0.9, 0.95, 0.975, 0.99) -> idx 2 & 7 = 95% CI
 ci_lo_idx <- which(abs(intervals - 0.025) < 1e-12)
@@ -213,7 +163,7 @@ write.csv(cov_table, file.path(tables_dir, "lambda_coverage4-prop.csv"),
 # ---- save analysis objects ------------------------------------------
 save(bs_mean, qs_mean, bs_med, qs_med,
      bs_rel_mean, qs_rel_mean, bs_rel_med, qs_rel_med,
-     score_table, rel_table, best_table, fried_table, cov_table,
+     score_table, rel_table, best_table, cov_table,
      probs, prop_ks, methods, datasets, intervals, setting,
      file = file.path(results_dir, "simresults4-prop.RData"))
 
