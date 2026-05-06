@@ -24,6 +24,10 @@
 
 圖片皆置於 [img](/img) 資料夾中，使用時需使用 `../../img/圖片檔名` 。
 
+You can use `fig` because it is in your VS Code user snippet file
+
+`C:\Users\Yi-Xuan\AppData\Roaming\Code\User\snippets\latex.json`
+
 ## 嵌入的 pdf 檔案
 
 欲嵌入的 pdf 檔案皆置於 [pdf](/pdf) 資料夾中。
