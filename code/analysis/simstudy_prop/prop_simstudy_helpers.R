@@ -82,6 +82,68 @@ extract_setting_arg <- function(args) {
   list(args = remaining_args, setting = setting_value)
 }
 
+# Generalized leading-flag parser: pulls one or more --key=value (or
+# --key value) flags from the front of args, in any order. Stops at the
+# first positional argument. Used by run-prop.R for --data and --setting.
+extract_leading_flags <- function(args, flag_names) {
+  values <- setNames(vector("list", length(flag_names)), flag_names)
+  while (length(args) > 0L && startsWith(args[1], "--")) {
+    first <- args[1]
+    matched <- FALSE
+    for (name in flag_names) {
+      flag_eq <- paste0("--", name, "=")
+      flag_word <- paste0("--", name)
+      if (startsWith(first, flag_eq)) {
+        if (!is.null(values[[name]])) {
+          stop(sprintf("Specify --%s only once", name), call. = FALSE)
+        }
+        values[[name]] <- sub(paste0("^", flag_eq), "", first)
+        args <- if (length(args) > 1L) args[-1] else character(0)
+        matched <- TRUE
+        break
+      } else if (first == flag_word) {
+        if (!is.null(values[[name]])) {
+          stop(sprintf("Specify --%s only once", name), call. = FALSE)
+        }
+        if (length(args) < 2L) {
+          stop(sprintf("Missing value after --%s", name), call. = FALSE)
+        }
+        values[[name]] <- args[2]
+        args <- if (length(args) > 2L) args[-c(1, 2)] else character(0)
+        matched <- TRUE
+        break
+      }
+    }
+    if (!matched) {
+      stop(
+        sprintf(
+          "Unknown leading flag: %s. Place known flags (%s) before positional args.",
+          first,
+          paste0("--", flag_names, collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+  }
+  list(args = args, values = values)
+}
+
+# Derive a results directory from the dataset filename:
+#   simdata.RData      -> default_dir (e.g. "fits")
+#   simdata_def.RData  -> "<default_dir>_def"
+#   other.RData        -> "<default_dir>_<other>"
+derive_prop_results_dir <- function(data_path, default_dir = "fits") {
+  base <- tools::file_path_sans_ext(basename(data_path))
+  if (identical(base, "simdata")) {
+    return(default_dir)
+  }
+  suffix <- sub("^simdata", "", base)
+  if (!nzchar(suffix)) {
+    return(paste0(default_dir, "_", base))
+  }
+  paste0(default_dir, suffix)
+}
+
 parse_setting_spec <- function(setting_str, y_array) {
   setting_ids <- parse_index_expr(setting_str, "setting")
   if (length(setting_ids) != 1L) {

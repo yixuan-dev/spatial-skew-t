@@ -285,6 +285,31 @@ parse_phi_spec <- function(phi, param_name) {
     list(order = length(coeffs), coeffs = coeffs)
 }
 
+# Geometric-anisotropy ("deformed") exponential covariance.
+#   C(s,s') = gamma * exp(-||A (s-s')|| / rho),  diag = 1
+# where A = R(theta) %*% diag(c(1, ratio)) deforms 2D coordinates so that
+# the kernel becomes isotropic exponential in the deformed space.
+#
+# Args:
+#   s     : ns x 2 matrix of coordinates
+#   gamma : marginal correlation scale (off-diagonal multiplier)
+#   rho   : range parameter (deformed-space scale)
+#   theta : rotation angle in radians for the principal axis
+#   ratio : aspect ratio for the second axis (1 = isotropic)
+CorFxDef <- function(s, gamma, rho, theta = 0, ratio = 1) {
+    ns <- nrow(s)
+    if (rho < 1e-6) {
+        return(diag(1, nrow = ns))
+    }
+    R <- matrix(c(cos(theta), sin(theta), -sin(theta), cos(theta)), 2, 2)
+    A <- R %*% diag(c(1, ratio))
+    s.def <- s %*% t(A)
+    d.def <- as.matrix(stats::dist(s.def))
+    cor <- gamma * exp(-d.def / rho)
+    diag(cor) <- 1
+    return(cor)
+}
+
 ensure_rpotspatTS_arp_dependencies <- function() {
     required_symbols <- c(
         "CorFx", "mem", "makeKnotsTS", "gamma.invcop", "hn.invcop", "transform", "g.Rcpp"
@@ -334,8 +359,11 @@ rpotspatTS_arp <- function(nt, x, s, beta,
                            gamma, nu, rho,
                            lambda, tau.alpha, tau.beta,
                            nknots, dist,
-                           phi.z = 0, phi.w = 0, phi.tau = 0) {
+                           phi.z = 0, phi.w = 0, phi.tau = 0,
+                           cov.type = c("matern", "deformed"),
+                           theta = 0, ratio = 1) {
     ensure_rpotspatTS_arp_dependencies()
+    cov.type <- match.arg(cov.type)
 
     p <- dim(x)[3]
     ns <- nrow(s)
@@ -355,7 +383,11 @@ rpotspatTS_arp <- function(nt, x, s, beta,
         skew <- TRUE
     }
 
-    C <- CorFx(d = d, gamma = gamma, rho = rho, nu = nu)
+    C <- if (cov.type == "deformed") {
+        CorFxDef(s = s, gamma = gamma, rho = rho, theta = theta, ratio = ratio)
+    } else {
+        CorFx(d = d, gamma = gamma, rho = rho, nu = nu)
+    }
     chol.C <- chol(C)
     t.chol.C <- t(chol.C)
 

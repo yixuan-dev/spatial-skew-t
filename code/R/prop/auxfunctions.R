@@ -192,6 +192,24 @@ CorFx <- function(d, gamma, rho, nu) {
   return(cor)
 }
 
+# Geometric-anisotropy ("deformed") exponential covariance.
+#   C(s,s') = gamma * exp(-||A (s-s')|| / rho),  diag = 1
+# where A = R(theta) %*% diag(c(1, ratio)) deforms 2D coordinates so that
+# the kernel becomes isotropic exponential in the deformed space.
+CorFxDef <- function(s, gamma, rho, theta = 0, ratio = 1) {
+  ns <- nrow(s)
+  if (rho < 1e-6) {
+    return(diag(1, nrow = ns))
+  }
+  R <- matrix(c(cos(theta), sin(theta), -sin(theta), cos(theta)), 2, 2)
+  A <- R %*% diag(c(1, ratio))
+  s.def <- s %*% t(A)
+  d.def <- as.matrix(stats::dist(s.def))
+  cor <- gamma * exp(-d.def / rho)
+  diag(cor) <- 1
+  return(cor)
+}
+
 eig.inv <- function(Q, inv = TRUE, logdet = TRUE, mtx.sqrt = TRUE, thresh = 1e-7) {
   cor.inv <- NULL
   logdet.prec <- NULL
@@ -261,14 +279,21 @@ logdet.exp <- function(alpha, lambda) {
 
 
 rpotspat <- function(nt, x, s, beta, gamma, nu, rho, dist, lambda,
-                     tau.alpha, tau.beta, nknots) {
+                     tau.alpha, tau.beta, nknots,
+                     cov.type = c("matern", "deformed"),
+                     theta = 0, ratio = 1) {
+  cov.type <- match.arg(cov.type)
   p <- dim(x)[3]
   ns <- nrow(s)
   y <- matrix(NA, ns, nt)
   z <- matrix(NA, nknots, nt)
   g <- matrix(NA, ns, nt)
   d <- as.matrix(dist(s))
-  C <- CorFx(d = d, gamma = gamma, rho = rho, nu = nu)
+  C <- if (cov.type == "deformed") {
+    CorFxDef(s = s, gamma = gamma, rho = rho, theta = theta, ratio = ratio)
+  } else {
+    CorFx(d = d, gamma = gamma, rho = rho, nu = nu)
+  }
 
   if (dist == "t") {
     tau <- matrix(rgamma(nknots * nt, tau.alpha / 2, tau.beta / 2), nknots, nt)
@@ -368,7 +393,10 @@ makeZTS <- function(nt, nknots, tau, phi) {
 
 rpotspatTS <- function(nt, x, s, beta, gamma, nu, rho, phi.z, phi.w,
                        phi.tau, lambda, tau.alpha, tau.beta, nknots,
-                       dist) {
+                       dist,
+                       cov.type = c("matern", "deformed"),
+                       theta = 0, ratio = 1) {
+  cov.type <- match.arg(cov.type)
   p <- dim(x)[3]
   ns <- nrow(s)
 
@@ -387,7 +415,11 @@ rpotspatTS <- function(nt, x, s, beta, gamma, nu, rho, phi.z, phi.w,
     skew <- TRUE
   }
 
-  C <- CorFx(d = d, gamma = gamma, rho = rho, nu = nu)
+  C <- if (cov.type == "deformed") {
+    CorFxDef(s = s, gamma = gamma, rho = rho, theta = theta, ratio = ratio)
+  } else {
+    CorFx(d = d, gamma = gamma, rho = rho, nu = nu)
+  }
   chol.C <- chol(C)
   t.chol.C <- t(chol.C)
   if (dist == "t") {

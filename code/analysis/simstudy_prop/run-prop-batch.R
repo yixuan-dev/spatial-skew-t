@@ -3,9 +3,9 @@
 # Row numbering is 1-based over data rows (header excluded).
 #
 # Usage:
-#   Rscript run-settings-batch.R [rows]
-#   Rscript run-settings-batch.R --rows=1:3
-#   Rscript run-settings-batch.R --run_id=phase3-02
+#   Rscript run-prop-batch.R [rows]
+#   Rscript run-prop-batch.R --rows=1:3
+#   Rscript run-prop-batch.R --run_id=phase3-02
 #
 # If no selector is provided, runs all enabled rows ordered by priority.
 #########################################################################
@@ -99,7 +99,7 @@ for (ii in seq_len(nrow(selected))) {
   spec <- selected[ii, , drop = FALSE]
   runner_script <- trimws(spec$runner_script[1])
   if (!nzchar(runner_script)) {
-    runner_script <- "run-settings.R"
+    runner_script <- "run-prop.R"
   }
   if (!file.exists(runner_script)) {
     stop(sprintf("Runner script not found for row %d: %s", spec$row_id[1], runner_script), call. = FALSE)

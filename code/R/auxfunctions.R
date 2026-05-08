@@ -185,6 +185,24 @@ CorFx <- function(d, gamma, rho, nu) {
   return(cor)
 }
 
+# Geometric-anisotropy ("deformed") exponential covariance.
+#   C(s,s') = gamma * exp(-||A (s-s')|| / rho),  diag = 1
+# where A = R(theta) %*% diag(c(1, ratio)) deforms 2D coordinates so that
+# the kernel becomes isotropic exponential in the deformed space.
+CorFxDef <- function(s, gamma, rho, theta = 0, ratio = 1) {
+  ns <- nrow(s)
+  if (rho < 1e-6) {
+    return(diag(1, nrow = ns))
+  }
+  R <- matrix(c(cos(theta), sin(theta), -sin(theta), cos(theta)), 2, 2)
+  A <- R %*% diag(c(1, ratio))
+  s.def <- s %*% t(A)
+  d.def <- as.matrix(stats::dist(s.def))
+  cor <- gamma * exp(-d.def / rho)
+  diag(cor) <- 1
+  return(cor)
+}
+
 eig.inv <- function(Q, inv = TRUE, logdet = TRUE, mtx.sqrt = TRUE, thresh=1e-7){
   cor.inv <- NULL
   logdet.prec <- NULL

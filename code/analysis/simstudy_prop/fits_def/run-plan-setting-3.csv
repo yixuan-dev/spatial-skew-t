@@ -1,0 +1,6 @@
+"method_id","prop_k","method_key","family","label","method","skew","thresh_all","thresh_quant","nknots","prop_supported","output_tag","plan_id"
+1,40,"1+p40","gaussian","Gaussian + prop(k=40)","gaussian",FALSE,0,TRUE,1,TRUE,"p40",1
+2,40,"2+p40","skew_t_k1_thresh0","Skew-t, K=1 + prop(k=40)","t",TRUE,0,TRUE,1,TRUE,"p40",2
+3,40,"3+p40","t_k1_thresh_q80","t, K=1, q(0.80) + prop(k=40)","t",FALSE,0.8,TRUE,1,TRUE,"p40",3
+4,40,"4+p40","skew_t_k5_thresh0","Skew-t, K=5 + prop(k=40)","t",TRUE,0,TRUE,5,TRUE,"p40",4
+5,40,"5+p40","t_k5_thresh_q80","t, K=5, q(0.80) + prop(k=40)","t",FALSE,0.8,TRUE,5,TRUE,"p40",5

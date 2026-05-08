@@ -1,9 +1,15 @@
 #########################################################################
 # Prop simulation launcher
 # Keeps the simstudy run-settings.R CLI shape:
-#   Rscript run-prop.R [--setting=<id>|--setting <id>] [datasets] [workers]
-#                      [ms_threads] [methods] [mrts_k]
+#   Rscript run-prop.R [--data=<path>|--data <path>] \
+#                      [--setting=<id>|--setting <id>] \
+#                      [datasets] [workers] [ms_threads] [methods] [mrts_k]
 # In this launcher, the final [mrts_k] slot is reused as the prop basis rank.
+#
+# --data defaults to ./simdata.RData (with fallback to ../simstudy/simdata.RData).
+# When --data is supplied with a non-default file (e.g. simdata_def.RData),
+# fits_dir is derived from the basename: simdata_def.RData -> fits_def/
+# (unless SIMSTUDY_PROP_FITS_DIR is set, which always wins).
 #########################################################################
 
 script_dir_override <- trimws(Sys.getenv("SIMSTUDY_PROP_SCRIPT_DIR", unset = ""))
@@ -31,9 +37,21 @@ thin <- as.integer(Sys.getenv("SIMSTUDY_PROP_THIN", unset = "1"))
 prop_cov_update_every <- as.integer(Sys.getenv("SIMSTUDY_PROP_COV_UPDATE_EVERY", unset = "1"))
 
 args_raw <- commandArgs(trailingOnly = TRUE)
-parsed_args <- extract_setting_arg(args_raw)
+parsed_args <- extract_leading_flags(args_raw, c("data", "setting"))
 args <- parsed_args$args
-setting_flag_value <- parsed_args$setting
+data_flag_value <- parsed_args$values$data
+setting_flag_value <- parsed_args$values$setting
+
+# Default = whatever prop_load.R already loaded. If --data was passed,
+# resolve it (with fallback to ../simstudy/<basename>) and reload over
+# the default-loaded objects so y/x/s/etc. reflect the requested dataset.
+default_data_path <- resolve_simstudy_prop_data()
+data_path <- resolve_simstudy_prop_data_path(data_flag_value)
+
+if (!identical(data_path, default_data_path)) {
+  load(data_path, envir = .GlobalEnv)
+  cat(sprintf("Loaded dataset from %s\n", data_path))
+}
 
 datasets_spec <- if (length(args) >= 1L) args[1] else "1"
 workers <- if (length(args) >= 2L) as.integer(args[2]) else 1L
@@ -77,9 +95,11 @@ if (nrow(unsupported) > 0L) {
   )
 }
 
-fits_dir <- trimws(Sys.getenv("SIMSTUDY_PROP_FITS_DIR", unset = "fits"))
-if (!nzchar(fits_dir)) {
-  fits_dir <- "fits"
+fits_dir_env <- trimws(Sys.getenv("SIMSTUDY_PROP_FITS_DIR", unset = ""))
+if (nzchar(fits_dir_env)) {
+  fits_dir <- fits_dir_env
+} else {
+  fits_dir <- derive_prop_results_dir(data_path, default_dir = "fits")
 }
 if (!dir.exists(fits_dir)) {
   dir.create(fits_dir, recursive = TRUE, showWarnings = FALSE)
@@ -92,7 +112,9 @@ write.csv(
 )
 
 cat(sprintf(
-  "Prop run: setting=%d datasets=%s iters=%d burn=%d workers=%d ms_threads=%d cov_update_every=%d\n",
+  "Prop run: data=%s fits_dir=%s setting=%d datasets=%s iters=%d burn=%d workers=%d ms_threads=%d cov_update_every=%d\n",
+  data_path,
+  fits_dir,
   setting,
   paste(dataset_ids, collapse = ","),
   iters,
@@ -203,6 +225,20 @@ if (workers_use > 1L) {
     setwd(wd)
     source("./prop_load.R", chdir = TRUE)
     source("./prop_simstudy_helpers.R", chdir = TRUE)
+    NULL
+  })
+  # prop_load.R doesn't rm() globals, but it does load default simdata
+  # into the worker. Re-export the resolved data_path / default_data_path
+  # and reload the alternate dataset on each worker if needed.
+  parallel::clusterExport(
+    cl,
+    varlist = c("data_path", "default_data_path"),
+    envir = environment()
+  )
+  parallel::clusterEvalQ(cl, {
+    if (!identical(data_path, default_data_path)) {
+      load(data_path, envir = .GlobalEnv)
+    }
     NULL
   })
   parallel::clusterExport(

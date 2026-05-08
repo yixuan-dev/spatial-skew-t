@@ -3,6 +3,11 @@
 # Data setting: configurable (default: 5 => Skew-t, K = 5, lambda = 3)
 # Run selected analysis methods for one or more dataset indices.
 # Optionally switch methods 1 through 5 to MRTS-augmented variants.
+#
+# Optionally load an alternate dataset via --data=<path>. By default the
+# script reads ./simdata.RData and writes to ./results/. When --data is
+# pointed at e.g. ./simdata_def.RData, results are routed to ./results_def/
+# (results dir = "results" + the part of the basename after "simdata").
 #########################################################################
 
 script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
@@ -28,9 +33,12 @@ thin <- 1
 
 # Parse command-line arguments
 # Usage:
-#   Rscript run-settings.R [--setting=<id>|--setting <id>] [datasets] [workers] [ms_threads] [methods] [mrts_k]
+#   Rscript run-settings.R [--data=<path>|--data <path>] [--setting=<id>|--setting <id>] \
+#                          [datasets] [workers] [ms_threads] [methods] [mrts_k]
 # Notes:
-#   - --setting (if provided) must be the first argument after script name.
+#   - --data and --setting (if provided) must be leading flags (any order, before positionals).
+#   - --data defaults to ./simdata.RData; results dir is derived from the file basename
+#     ("simdata" -> results, "simdata_def" -> results_def, etc.).
 #   - methods remains numeric in 1..6.
 #   - mrts_k is optional and, when provided, replaces selected methods 1..5 with MRTS-augmented variants.
 # Examples:
@@ -38,6 +46,7 @@ thin <- 1
 #   methods="(2,3,6)"
 #   mrts_k="15"
 #   mrts_k="c(5,10,15)"
+#   Rscript run-settings.R --data=simdata_def.RData --setting=1 1 1 2 1:5
 
 parse_dataset_spec <- function(dataset_str) {
     dataset_ids <- parse_index_expr(dataset_str, "datasets")
@@ -89,33 +98,55 @@ parse_setting_spec <- function(setting_str) {
     setting_id
 }
 
-extract_setting_arg <- function(args) {
-    if (length(args) == 0) {
-        return(list(args = character(0), setting = NULL))
-    }
-
-    has_setting_anywhere <- any(grepl("^--setting=", args)) || any(args == "--setting")
-    setting_value <- NULL
-    remaining_args <- args
-
-    if (grepl("^--setting=", args[1])) {
-        setting_value <- sub("^--setting=", "", args[1])
-        remaining_args <- if (length(args) > 1) args[-1] else character(0)
-    } else if (args[1] == "--setting") {
-        if (length(args) < 2) {
-            stop("Missing value after --setting", call. = FALSE)
+extract_leading_flags <- function(args, flag_names) {
+    values <- setNames(vector("list", length(flag_names)), flag_names)
+    while (length(args) > 0 && startsWith(args[1], "--")) {
+        first <- args[1]
+        matched <- FALSE
+        for (name in flag_names) {
+            flag_eq <- paste0("--", name, "=")
+            flag_word <- paste0("--", name)
+            if (startsWith(first, flag_eq)) {
+                if (!is.null(values[[name]])) {
+                    stop(sprintf("Specify --%s only once", name), call. = FALSE)
+                }
+                values[[name]] <- sub(paste0("^", flag_eq), "", first)
+                args <- if (length(args) > 1) args[-1] else character(0)
+                matched <- TRUE
+                break
+            } else if (first == flag_word) {
+                if (!is.null(values[[name]])) {
+                    stop(sprintf("Specify --%s only once", name), call. = FALSE)
+                }
+                if (length(args) < 2) {
+                    stop(sprintf("Missing value after --%s", name), call. = FALSE)
+                }
+                values[[name]] <- args[2]
+                args <- if (length(args) > 2) args[-c(1, 2)] else character(0)
+                matched <- TRUE
+                break
+            }
         }
-        setting_value <- args[2]
-        remaining_args <- if (length(args) > 2) args[-c(1, 2)] else character(0)
-    } else if (has_setting_anywhere) {
-        stop("--setting must be the first argument after script name", call. = FALSE)
+        if (!matched) {
+            stop(sprintf(
+                "Unknown leading flag: %s. Place known flags (%s) before positional args.",
+                first, paste0("--", flag_names, collapse = ", ")
+            ), call. = FALSE)
+        }
     }
+    list(args = args, values = values)
+}
 
-    if (any(grepl("^--setting=", remaining_args)) || any(remaining_args == "--setting")) {
-        stop("Specify --setting only once and place it first", call. = FALSE)
+derive_results_dir <- function(data_path) {
+    base <- tools::file_path_sans_ext(basename(data_path))
+    if (identical(base, "simdata")) {
+        return("results")
     }
-
-    list(args = remaining_args, setting = setting_value)
+    suffix <- sub("^simdata", "", base)
+    if (!nzchar(suffix)) {
+        return(paste0("results_", base))
+    }
+    paste0("results", suffix)
 }
 
 get_method_catalog <- function() {
@@ -425,9 +456,31 @@ run_method_maxstable <- function(dataset_id) {
 }
 
 args_raw <- commandArgs(trailingOnly = TRUE)
-parsed_args <- extract_setting_arg(args_raw)
+parsed_args <- extract_leading_flags(args_raw, c("data", "setting"))
 args <- parsed_args$args
-setting_flag_value <- parsed_args$setting
+data_flag_value <- parsed_args$values$data
+setting_flag_value <- parsed_args$values$setting
+
+default_data_path <- "./simdata.RData"
+data_path <- if (!is.null(data_flag_value) && nzchar(data_flag_value)) {
+    data_flag_value
+} else {
+    default_data_path
+}
+
+# ar2_load.R has already loaded ./simdata.RData. If a different dataset
+# was requested, reload over it so all downstream code (parse_setting_spec,
+# run_method_*) sees the alternate y/x/s/etc.
+if (!identical(
+    normalizePath(data_path, winslash = "/", mustWork = FALSE),
+    normalizePath(default_data_path, winslash = "/", mustWork = FALSE)
+)) {
+    if (!file.exists(data_path)) {
+        stop(sprintf("Data file not found: %s", data_path), call. = FALSE)
+    }
+    load(data_path, envir = .GlobalEnv)
+    cat(sprintf("Loaded dataset from %s\n", data_path))
+}
 
 datasets_spec <- if (length(args) >= 1) args[1] else "1"
 workers <- if (length(args) >= 2) as.integer(args[2]) else 1
@@ -452,7 +505,7 @@ dataset_ids <- parse_dataset_spec(datasets_spec)
 method_ids <- parse_methods_spec(methods_spec)
 mrts_k_values <- parse_mrts_k_spec(mrts_k_spec)
 
-results_dir <- "results"
+results_dir <- derive_results_dir(data_path)
 if (!dir.exists(results_dir)) {
     dir.create(results_dir, recursive = TRUE)
 }
@@ -461,8 +514,9 @@ method_plan <- build_run_plan(method_ids = method_ids, mrts_k_values = mrts_k_va
 write.csv(method_plan, file.path(results_dir, sprintf("run-plan-setting-%d.csv", setting)), row.names = FALSE)
 
 cat(sprintf(
-    "Run setting=%d, datasets=%s, iters=%d, burn=%d, workers=%d, ms_threads=%d\n",
-    setting, paste(dataset_ids, collapse = ","), iters, burn, workers, ms_threads
+    "Data=%s, results_dir=%s, setting=%d, datasets=%s, iters=%d, burn=%d, workers=%d, ms_threads=%d\n",
+    data_path, results_dir, setting, paste(dataset_ids, collapse = ","),
+    iters, burn, workers, ms_threads
 ))
 cat(sprintf("Methods to run: %s\n", paste(method_plan$method_key, collapse = ", ")))
 if (length(mrts_k_values) > 0) {
@@ -498,6 +552,23 @@ if (workers_use > 1) {
         setwd(wd)
         source("./ar2_load.R", chdir = TRUE)
         source("./mrts_cov_helpers.R", chdir = TRUE)
+        NULL
+    })
+    # ar2_load.R begins with rm(list = ls()), which wipes anything we exported
+    # earlier. Re-export data_path/default_data_path AFTER the source calls so
+    # the conditional reload below can see them.
+    parallel::clusterExport(
+        cl,
+        varlist = c("data_path", "default_data_path"),
+        envir = environment()
+    )
+    parallel::clusterEvalQ(cl, {
+        if (!identical(
+            normalizePath(data_path, winslash = "/", mustWork = FALSE),
+            normalizePath(default_data_path, winslash = "/", mustWork = FALSE)
+        )) {
+            load(data_path, envir = .GlobalEnv)
+        }
         NULL
     })
     parallel::clusterExport(

@@ -10,15 +10,14 @@
 
 因此，`simstudy_prop` 不是另一套新的模擬資料來源，而是針對同一份 `simdata.RData` 的平行分析工作區。
 
-- `run-prop.R`：執行 prop backend 的 simstudy-style 模擬
-- `run-settings.R`：與 `../simstudy/run-settings.R` 命名平行的 wrapper
-- `run-settings-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
+- `run-prop.R`：執行 prop backend 的 simstudy-style 模擬（直接以這支腳本作為 CLI 入口）
+- `run-prop-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
 - `results-prop.R`：將 proposed outputs 和 baseline `../simstudy/results/` 做對照
 - `analyze_mrts.R`：掃描 `fits/<setting>-<method>-<dataset>-p<K>.RData`，計算 Brier / Quantile score，分析 score 隨 MRTS rank `K` 的變化
 - `prop_load.R`：載入 `../../R/prop` backend 與 simstudy 資料
 - `prop_simstudy_helpers.R`：CLI / 檔名 / seed / method catalog helper
 - `settings_prop.csv`：prop 專用的批次 manifest
-- `run-settings.md`：`simstudy_prop` 的 canonical 使用說明
+- `run-prop.md`：`simstudy_prop` 的 canonical 使用說明
 
 真正的 backend 原始碼維持在：
 
@@ -30,6 +29,13 @@
 2. `../simstudy/simdata.RData`
 
 因此如果沿用原本 simstudy 資料，直接在這個目錄執行即可。
+
+要切換到其他資料集（例如 deformed-covariance 的 `simdata_def.RData`），可以加 `--data=<path>`，
+腳本會先試 `./<path>`，若不存在則自動回退到 `../simstudy/<basename>`：
+
+```
+Rscript run-prop.R --data=simdata_def.RData --setting=1 1 1 1 1 5
+```
 
 目前 `prop` 版 method catalog 固定為：
 

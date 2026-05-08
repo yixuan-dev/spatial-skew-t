@@ -1,0 +1,6 @@
+"method_id","method_key","label","runner","method","skew","thresh_all","thresh_quant","nknots","use_exponential_fallback","mrts_k","output_tag","plan_id"
+1,"1","Gaussian","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,NA,NA,1
+2,"2","Skew-t, K=1","mcmc","t",TRUE,0,TRUE,1,FALSE,NA,NA,2
+3,"3","t, K=1, q(0.80)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,NA,NA,3
+4,"4","Skew-t, K=5","mcmc","t",TRUE,0,TRUE,5,FALSE,NA,NA,4
+5,"5","t, K=5, q(0.80)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,NA,NA,5

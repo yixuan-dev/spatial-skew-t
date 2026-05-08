@@ -23,6 +23,31 @@ resolve_simstudy_prop_data <- function() {
   normalizePath(existing[1], winslash = "/", mustWork = TRUE)
 }
 
+# Resolve an arbitrary dataset path. If data_arg is NULL/empty, use the
+# default simdata.RData lookup. Otherwise try the given path as-is and
+# fall back to ../simstudy/<basename> (so --data=simdata_def.RData works
+# when the file lives only in the sibling simstudy/ folder).
+resolve_simstudy_prop_data_path <- function(data_arg = NULL) {
+  if (is.null(data_arg) || !nzchar(data_arg)) {
+    return(resolve_simstudy_prop_data())
+  }
+  if (file.exists(data_arg)) {
+    return(normalizePath(data_arg, winslash = "/", mustWork = TRUE))
+  }
+  sibling <- file.path("..", "simstudy", basename(data_arg))
+  if (file.exists(sibling)) {
+    return(normalizePath(sibling, winslash = "/", mustWork = TRUE))
+  }
+  stop(
+    sprintf(
+      "Data file not found: %s (also tried %s)",
+      data_arg,
+      sibling
+    ),
+    call. = FALSE
+  )
+}
+
 load(file = resolve_simstudy_prop_data())
 
 source_required("../../R/prop/auxfunctions.R")
