@@ -17,12 +17,12 @@ ctx <- load_us_all_context()
 ensure_us_all_output_dirs()
 ensure_plot_packages()
 
-results_bundle_path <- us_all_output_path("us-all-results-proposed.RData", subdir = "results")
+results_bundle_path <- us_all_output_path("us-all-results-extend.RData", subdir = "results")
 if (!file.exists(results_bundle_path)) {
   stop(
-    "Missing proposed results bundle: ",
+    "Missing extend results bundle: ",
     results_bundle_path,
-    ". Run refactor_results/12_run_proposed_results.R first."
+    ". Run refactor_results/12_run_extend_results.R first."
   )
 }
 
@@ -53,7 +53,7 @@ focus_settings <- build_mrts_focus_settings(
   available_settings = get("available_settings", envir = bundle_env)
 )
 if (nrow(focus_settings) == 0) {
-  stop("No MRTS comparison rows were found in us-all-results-proposed.RData.")
+  stop("No MRTS comparison rows were found in us-all-results-extend.RData.")
 }
 
 result_dirs <- resolve_plot_result_dirs()

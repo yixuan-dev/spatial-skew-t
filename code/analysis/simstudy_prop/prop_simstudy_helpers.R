@@ -144,6 +144,48 @@ derive_prop_results_dir <- function(data_path, default_dir = "fits") {
   paste0(default_dir, suffix)
 }
 
+# Suffix for output filenames derived from the dataset filename.
+# Matches the tail of derive_prop_results_dir():
+#   simdata.RData      -> ""
+#   simdata_def.RData  -> "_def"
+#   other.RData        -> "_other"
+derive_data_suffix <- function(data_path) {
+  base <- tools::file_path_sans_ext(basename(data_path))
+  if (identical(base, "simdata")) return("")
+  s <- sub("^simdata", "", base)
+  if (!nzchar(s)) paste0("_", base) else s
+}
+
+# Resolve a dataset path with sibling-fallback to ../simstudy/<basename>.
+# data_arg = NULL or empty -> default lookup (./simdata.RData,
+# then ../simstudy/simdata.RData). Otherwise try the path as-is, then
+# the sibling. Lifted from the duplicated resolvers in run-prop.R,
+# results-prop.R, and analyze_mrts.R.
+resolve_simstudy_data_path <- function(data_arg = NULL) {
+  if (!is.null(data_arg) && nzchar(data_arg)) {
+    if (file.exists(data_arg)) {
+      return(normalizePath(data_arg, winslash = "/", mustWork = TRUE))
+    }
+    sibling <- file.path("..", "simstudy", basename(data_arg))
+    if (file.exists(sibling)) {
+      return(normalizePath(sibling, winslash = "/", mustWork = TRUE))
+    }
+    stop(
+      sprintf("Data file not found: %s (also tried %s)", data_arg, sibling),
+      call. = FALSE
+    )
+  }
+  candidates <- c("./simdata.RData", "../simstudy/simdata.RData")
+  existing <- candidates[file.exists(candidates)]
+  if (length(existing) == 0L) {
+    stop(
+      "Unable to locate simdata.RData (looked in ./ and ../simstudy/).",
+      call. = FALSE
+    )
+  }
+  normalizePath(existing[1], winslash = "/", mustWork = TRUE)
+}
+
 parse_setting_spec <- function(setting_str, y_array) {
   setting_ids <- parse_index_expr(setting_str, "setting")
   if (length(setting_ids) != 1L) {
@@ -346,6 +388,14 @@ load_settings_prop_manifest <- function(path = "settings_prop.csv") {
       ),
       call. = FALSE
     )
+  }
+
+  # Optional: `data` column maps to run-prop.R's --data=<path> flag.
+  # Empty / missing -> default simdata.RData lookup.
+  if (!"data" %in% names(manifest)) {
+    manifest$data <- ""
+  } else {
+    manifest$data <- ifelse(is.na(manifest$data), "", trimws(manifest$data))
   }
 
   manifest$row_id <- seq_len(nrow(manifest))

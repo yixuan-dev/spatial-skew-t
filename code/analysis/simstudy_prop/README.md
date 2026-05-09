@@ -12,8 +12,8 @@
 
 - `run-prop.R`：執行 prop backend 的 simstudy-style 模擬（直接以這支腳本作為 CLI 入口）
 - `run-prop-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
-- `results-prop.R`：將 proposed outputs 和 baseline `../simstudy/results/` 做對照
-- `analyze_mrts.R`：掃描 `fits/<setting>-<method>-<dataset>-p<K>.RData`，計算 Brier / Quantile score，分析 score 隨 MRTS rank `K` 的變化
+- `scores-prop.R`：Stage 1，從 `fits<suffix>/` 計算 Brier / Quantile 分數，存到 `scores<setting>-prop<suffix>.RData`
+- `tables-prop.R`：Stage 2，讀 `scores<setting>-prop<suffix>.RData`，產出 CSV 表格 + 預設 PDF
 - `prop_load.R`：載入 `../../R/prop` backend 與 simstudy 資料
 - `prop_simstudy_helpers.R`：CLI / 檔名 / seed / method catalog helper
 - `settings_prop.csv`：prop 專用的批次 manifest
@@ -52,19 +52,30 @@ Rscript run-prop.R --data=simdata_def.RData --setting=1 1 1 1 1 5
 - `output/tables/`：比較表（含 `mrts_brier_long.csv`、`mrts_brier_summary.csv`）
 - `output/plots/`：後續比較圖
 
-## MRTS rank 分析（`analyze_mrts.R`）
+## Post-fit 分析 pipeline (`scores-prop.R` + `tables-prop.R`)
 
-針對同一個 `(setting, method, dataset)`、不同 MRTS rank `K` 的 fits 做 Brier / Quantile score 比較：
+擬合完成後，分數計算與表格產出是兩個獨立步驟：
 
 ```
-Rscript analyze_mrts.R                                # fits/ 中所有檔案
-Rscript analyze_mrts.R --setting=4 --method=2 --dataset=1   # 只挑某個 block
+Rscript scores-prop.R --setting=4                       # Stage 1：算分數，存 .RData
+Rscript tables-prop.R --setting=4                       # Stage 2：讀 .RData，輸出表格
+
+Rscript scores-prop.R --setting=1 --data=simdata_def.RData
+Rscript tables-prop.R --setting=1 --data=simdata_def.RData
 ```
 
-輸入：`fits/<setting>-<method>-<dataset>-p<K>.RData`（讀取 `fit.1$yp`，並使用 `../../R/prop/auxfunctions.R` 中的 `BrierScore` / `QuantScore`）。
+Stage 1（`scores-prop.R`）讀 `fits<suffix>/<setting>-<method>-<dataset>-p<K>.RData` 中的 `fit.1`，使用 `../../R/prop/auxfunctions.R` 的 `BrierScore` / `QuantScore`，輸出單一 `.RData` 快取：
 
-輸出：
+- `output/results/scores<setting>-prop<suffix>.RData`：4 維分數陣列 `[probs, dataset, method, prop_k]` + 參數區間 + `elapsed_sec`
 
-- `output/tables/mrts_brier_long.csv`：每個 `(K, quantile)` 一列，含 threshold、Brier、quantile score、elapsed time
-- `output/tables/mrts_brier_summary.csv`：每個 `K` 的 score 平均，並依 band 拆分（`bulk` = q ∈ [0.90, 0.95]、`tail` = q ≥ 0.98、`all` = 全部 quantile）
-- `output/results/mrts_brier_analysis.RData`：`brier_long`、`brier_summary`、`brier_wide`（K × quantile 矩陣）
+Stage 2（`tables-prop.R`）從 Stage 1 快取彙整：
+
+- `output/tables/score_long<setting>-prop<suffix>.csv`（per-dataset 長表）
+- `output/tables/score_mean<setting>-prop<suffix>.csv`（dataset 平均 + 中位數）
+- `output/tables/score_rel_gauss<setting>-prop<suffix>.csv`（相對 Gaussian）
+- `output/tables/best_method_per_K<setting>-prop<suffix>.csv`
+- `output/tables/lambda_coverage<setting>-prop<suffix>.csv`
+- `output/results/simresults<setting>-prop<suffix>.RData`
+- 預設另出 `output/plots/` 下的 PDF（`--no-plots` 可關閉）
+
+更完整的選項說明請看 [run-prop.md](run-prop.md) 的「Post-fit pipeline」節。

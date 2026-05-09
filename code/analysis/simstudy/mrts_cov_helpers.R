@@ -593,3 +593,109 @@ run_mrts_pot_setting <- function(
 
   invisible(plan)
 }
+
+# ===================================================================
+# Helpers for the scores.R / tables.R post-fit pipeline.
+# Mirrors the analogous helpers in
+# code/analysis/simstudy_prop/prop_simstudy_helpers.R.
+# ===================================================================
+
+# Derive a fits/results directory from the dataset filename:
+#   simdata.RData      -> default_dir (e.g. "results")
+#   simdata_def.RData  -> "<default_dir>_def"
+#   other.RData        -> "<default_dir>_<other>"
+derive_results_dir <- function(data_path, default_dir = "results") {
+  base <- tools::file_path_sans_ext(basename(data_path))
+  if (identical(base, "simdata")) {
+    return(default_dir)
+  }
+  suffix <- sub("^simdata", "", base)
+  if (!nzchar(suffix)) {
+    return(paste0(default_dir, "_", base))
+  }
+  paste0(default_dir, suffix)
+}
+
+# Suffix appended to output filenames, derived from the dataset filename.
+# Matches the tail of derive_results_dir():
+#   simdata.RData      -> ""
+#   simdata_def.RData  -> "_def"
+#   other.RData        -> "_other"
+derive_data_suffix <- function(data_path) {
+  base <- tools::file_path_sans_ext(basename(data_path))
+  if (identical(base, "simdata")) return("")
+  s <- sub("^simdata", "", base)
+  if (!nzchar(s)) paste0("_", base) else s
+}
+
+# Resolve a dataset path with sibling-fallback to ../simstudy/<basename>.
+# data_arg = NULL or empty -> default lookup (./simdata.RData).
+resolve_simstudy_data_path <- function(data_arg = NULL) {
+  if (!is.null(data_arg) && nzchar(data_arg)) {
+    if (file.exists(data_arg)) {
+      return(normalizePath(data_arg, winslash = "/", mustWork = TRUE))
+    }
+    sibling <- file.path("..", "simstudy", basename(data_arg))
+    if (file.exists(sibling)) {
+      return(normalizePath(sibling, winslash = "/", mustWork = TRUE))
+    }
+    stop(
+      sprintf("Data file not found: %s (also tried %s)", data_arg, sibling),
+      call. = FALSE
+    )
+  }
+  candidates <- c("./simdata.RData", "../simstudy/simdata.RData")
+  existing <- candidates[file.exists(candidates)]
+  if (length(existing) == 0L) {
+    stop(
+      "Unable to locate simdata.RData (looked in ./ and ../simstudy/).",
+      call. = FALSE
+    )
+  }
+  normalizePath(existing[1], winslash = "/", mustWork = TRUE)
+}
+
+# Generic leading --key=value (or --key value) parser. Pulls one or more
+# named flags from the front of args, stops at the first positional.
+extract_leading_flags <- function(args, flag_names) {
+  values <- setNames(vector("list", length(flag_names)), flag_names)
+  while (length(args) > 0L && startsWith(args[1], "--")) {
+    first <- args[1]
+    matched <- FALSE
+    for (name in flag_names) {
+      flag_eq <- paste0("--", name, "=")
+      flag_word <- paste0("--", name)
+      if (startsWith(first, flag_eq)) {
+        if (!is.null(values[[name]])) {
+          stop(sprintf("Specify --%s only once", name), call. = FALSE)
+        }
+        values[[name]] <- sub(paste0("^", flag_eq), "", first)
+        args <- if (length(args) > 1L) args[-1] else character(0)
+        matched <- TRUE
+        break
+      } else if (first == flag_word) {
+        if (!is.null(values[[name]])) {
+          stop(sprintf("Specify --%s only once", name), call. = FALSE)
+        }
+        if (length(args) < 2L) {
+          stop(sprintf("Missing value after --%s", name), call. = FALSE)
+        }
+        values[[name]] <- args[2]
+        args <- if (length(args) > 2L) args[-c(1, 2)] else character(0)
+        matched <- TRUE
+        break
+      }
+    }
+    if (!matched) {
+      stop(
+        sprintf(
+          "Unknown leading flag: %s. Place known flags (%s) before positional args.",
+          first,
+          paste0("--", flag_names, collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+  }
+  list(args = args, values = values)
+}

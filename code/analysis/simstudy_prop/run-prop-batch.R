@@ -84,7 +84,7 @@ if (!dir.exists(output_results_dir)) {
 write.csv(
   selected[, c(
     "row_id", "run_id", "status", "enabled", "priority", "runner_script",
-    "setting", "datasets", "methods", "prop_k", "workers", "ms_threads",
+    "data", "setting", "datasets", "methods", "prop_k", "workers", "ms_threads",
     "iters", "burn", "update", "thin", "prop_cov_update_every",
     "compare_after", "note"
   )],
@@ -105,16 +105,27 @@ for (ii in seq_len(nrow(selected))) {
     stop(sprintf("Runner script not found for row %d: %s", spec$row_id[1], runner_script), call. = FALSE)
   }
 
+  data_spec <- trimws(spec$data[1])
+  fits_dir_for_row <- derive_prop_results_dir(
+    if (nzchar(data_spec)) data_spec else "simdata.RData",
+    default_dir = "fits"
+  )
+
   env_fit <- c(
     SIMSTUDY_PROP_ITERS = as.character(spec$iters[1]),
     SIMSTUDY_PROP_BURN = as.character(spec$burn[1]),
     SIMSTUDY_PROP_UPDATE = as.character(spec$update[1]),
     SIMSTUDY_PROP_THIN = as.character(spec$thin[1]),
     SIMSTUDY_PROP_COV_UPDATE_EVERY = as.character(spec$prop_cov_update_every[1]),
-    SIMSTUDY_PROP_FITS_DIR = "fits"
+    SIMSTUDY_PROP_FITS_DIR = fits_dir_for_row
   )
 
+  fit_args <- character(0)
+  if (nzchar(data_spec)) {
+    fit_args <- c(fit_args, sprintf("--data=%s", data_spec))
+  }
   fit_args <- c(
+    fit_args,
     sprintf("--setting=%s", spec$setting[1]),
     spec$datasets[1],
     as.character(spec$workers[1]),
@@ -124,8 +135,11 @@ for (ii in seq_len(nrow(selected))) {
   )
 
   cat(sprintf(
-    "[batch] start row=%d run_id=%s setting=%s datasets=%s methods=%s prop_k=%s\n",
-    spec$row_id[1], spec$run_id[1], spec$setting[1], spec$datasets[1], spec$methods[1], spec$prop_k[1]
+    "[batch] start row=%d run_id=%s data=%s fits_dir=%s setting=%s datasets=%s methods=%s prop_k=%s\n",
+    spec$row_id[1], spec$run_id[1],
+    if (nzchar(data_spec)) data_spec else "<default>",
+    fits_dir_for_row,
+    spec$setting[1], spec$datasets[1], spec$methods[1], spec$prop_k[1]
   ))
   fit_status <- run_rscript_source_with_env(
     rscript_bin = rscript_bin,
@@ -137,22 +151,49 @@ for (ii in seq_len(nrow(selected))) {
     stop(sprintf("Batch fit failed for row %d (run_id=%s).", spec$row_id[1], spec$run_id[1]), call. = FALSE)
   }
 
-  compare_status <- NA_integer_
+  scores_status <- NA_integer_
+  tables_status <- NA_integer_
   if (isTRUE(spec$compare_after_flag[1])) {
-    env_compare <- c(
-      SIMSTUDY_PROP_FITS_DIR = "fits",
-      SIMSTUDY_PROP_RESULTS_SETTINGS = as.character(spec$setting[1]),
-      SIMSTUDY_PROP_RESULTS_DATASETS = spec$datasets[1],
-      SIMSTUDY_PROP_RESULTS_METHODS = spec$methods[1],
-      SIMSTUDY_PROP_RESULTS_K = spec$prop_k[1]
+    env_post <- c(SIMSTUDY_PROP_FITS_DIR = fits_dir_for_row)
+
+    scores_args <- character(0)
+    if (nzchar(data_spec)) {
+      scores_args <- c(scores_args, sprintf("--data=%s", data_spec))
+    }
+    scores_args <- c(
+      scores_args,
+      sprintf("--setting=%s",  spec$setting[1]),
+      sprintf("--methods=%s",  spec$methods[1]),
+      sprintf("--datasets=%s", spec$datasets[1]),
+      sprintf("--prop_k=%s",   spec$prop_k[1])
     )
-    compare_status <- run_rscript_source_with_env(
+
+    scores_status <- run_rscript_source_with_env(
       rscript_bin = rscript_bin,
-      script = "results-prop.R",
-      env = env_compare
+      script = "scores-prop.R",
+      args = scores_args,
+      env = env_post
     )
-    if (as.integer(compare_status) != 0L) {
-      stop(sprintf("Comparison step failed for row %d (run_id=%s).", spec$row_id[1], spec$run_id[1]), call. = FALSE)
+    if (as.integer(scores_status) != 0L) {
+      stop(sprintf("scores-prop.R failed for row %d (run_id=%s).",
+                   spec$row_id[1], spec$run_id[1]), call. = FALSE)
+    }
+
+    tables_args <- character(0)
+    if (nzchar(data_spec)) {
+      tables_args <- c(tables_args, sprintf("--data=%s", data_spec))
+    }
+    tables_args <- c(tables_args, sprintf("--setting=%s", spec$setting[1]))
+
+    tables_status <- run_rscript_source_with_env(
+      rscript_bin = rscript_bin,
+      script = "tables-prop.R",
+      args = tables_args,
+      env = env_post
+    )
+    if (as.integer(tables_status) != 0L) {
+      stop(sprintf("tables-prop.R failed for row %d (run_id=%s).",
+                   spec$row_id[1], spec$run_id[1]), call. = FALSE)
     }
   }
 
@@ -161,13 +202,16 @@ for (ii in seq_len(nrow(selected))) {
     run_id = spec$run_id[1],
     selection_mode = selection_mode,
     runner_script = runner_script,
+    data = data_spec,
+    fits_dir = fits_dir_for_row,
     setting = spec$setting[1],
     datasets = spec$datasets[1],
     methods = spec$methods[1],
     prop_k = spec$prop_k[1],
     compare_after = spec$compare_after[1],
     fit_status = fit_status,
-    compare_status = compare_status,
+    scores_status = scores_status,
+    tables_status = tables_status,
     stringsAsFactors = FALSE
   )
 }

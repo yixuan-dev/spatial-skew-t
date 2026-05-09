@@ -6,22 +6,42 @@ Metric formulas and field definitions are documented in `METRIC_CALCULATION.md`.
 
 ## 執行所有 settings 的比較
 
+### 1. extend lane (`/ozone/US-all/results/`)
+
 ```ps
 cd D:\Github\spatial-skew-t\code\analysis\ozone\US-all
 $env:US_ALL_SUMMARY_DRAWS='5000'   # 全部 draws；若要預設 400，就把這行拿掉
-Rscript refactor_results/12_run_proposed_results.R
+Rscript refactor_results/12_run_extend_results.R
 ```
 
-yp 是 5000 x 400 x 31，所以 5000 就是全量。
+yp 是 5000 x 400 x 31，所以 5000 就是全量。輸出全部帶 `_extend` 後綴 (`us-all-results-extend.RData`、`comparison_*_extend.csv` / `.xlsx`)。
+
+### 2. proposed lane (`/ozone_prop/US-all/results/`)
+
+```ps
+cd D:\Github\spatial-skew-t\code\analysis\ozone\US-all
+Rscript refactor_results/14_run_prop_results.R
+```
+
+只跑 10 個 ozone_prop fits，再加上 `/ozone/US-all/results/us-all-1.RData` 當 Gaussian baseline；輸出全部帶 `_proposed` 後綴。
+
+### 3. pool — extend + proposed 合併比較
+
+```ps
+cd D:\Github\spatial-skew-t\code\analysis\ozone\US-all
+Rscript refactor_results/15_pool_extend_prop.R
+```
+
+不會重新計算 score；只是把 `us-all-results-extend.RData` 與 `us-all-results-proposed.RData` 的 score 陣列在 setting 軸上拼接，extend 保留原本的 ID（1-209），ozone_prop fits 移到 unified ID 301-310。輸出全部帶 `_pool` 後綴。如果要改 prop 的偏移，調整 `15_pool_extend_prop.R` 裡的 `prop_id_base` 即可。
 
 ## 產生 MRTS 重點圖
 
-先跑完 `12_run_proposed_results.R` 之後，再執行：
+先跑完 `12_run_extend_results.R` 之後，再執行：
 
 ```ps
 cd D:\Github\spatial-skew-t\code\analysis\ozone\US-all
 $env:US_ALL_PLOT_SUMMARY_DRAWS='400'  # optional；mean diagnostics 預設沿用 400 draws
-Rscript refactor_results/13_plot_proposed_results.R
+Rscript refactor_results/13_plot_extend_results.R
 ```
 
 這個 runner 會額外寫出：
@@ -88,14 +108,16 @@ This refactor keeps the scoring/comparison path modular and reproducible.
 
 ## Runner files
 
-- `10_run_morris_results.R`
-  - Morris baseline scoring lane (replacement for scoring part of `us-all-results.R`)
-- `11_run_a_results.R`
-  - CMAQ vs no-CMAQ lane from `us-all-results-a.R`
-- `12_run_proposed_results.R`
-  - baseline + AR2 proposed lane from `us-all-results-proposed.R`
-- `13_plot_proposed_results.R`
-  - MRTS-focused plot runner using `output/us-all/results/us-all-results-proposed.RData`
+| runner                          | scope                                                           | reads                                                                            | writes (`output/us-all/`)                                                                |
+|---------------------------------|-----------------------------------------------------------------|----------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| `10_run_morris_results.R`       | Morris baseline only (legacy `us-all-results.R`)                | `code/analysis/ozone/US-all/results/us-all-{i}.RData`                            | `results/us-all-results.RData`, `results/us-all-results-0401.RData`                      |
+| `11_run_a_results.R`            | CMAQ-vs-no-CMAQ paired lane                                     | `code/analysis/ozone/US-all/results/`                                            | `results/us-all-results-a.RData`, `results/us-all-results-combined.RData`                |
+| `12_run_extend_results.R`     | extend lane: Morris + AR2 + MRTS                                 | `code/analysis/ozone/US-all/results/us-all-{i}.RData`                            | `results/us-all-results-extend.RData`, `tables/comparison_*_extend.csv` / `.xlsx`        |
+| `13_plot_extend_results.R`    | MRTS-focused plots (extend lane)                                | `results/us-all-results-extend.RData`                                            | `plots/mrts_*.png`, `tables/mrts_mean_diagnostics.csv`                                   |
+| `14_run_prop_results.R`         | proposed lane: 10 ozone_prop fits + Gaussian baseline reused     | `code/analysis/ozone_prop/US-all/results/ozone-prop-{i}.RData` + `us-all-1.RData` | `results/us-all-results-proposed.RData`, `tables/comparison_*_proposed.csv` / `.xlsx`     |
+| `15_pool_extend_prop.R`         | pool: extend ∪ proposed in one comparison (no re-scoring)       | `results/us-all-results-extend.RData` + `results/us-all-results-proposed.RData`   | `results/us-all-results-pool.RData`, `tables/comparison_*_pool.csv` / `.xlsx`            |
+
+The historical name *"proposed"* in runner `12` referred to the AR2/MRTS extensions vs the Morris baseline, all within `/ozone/US-all/results/`. After the new ozone_prop lane was added, runner `12` and reader `13` were both patched (and the existing on-disk tables renamed) to use the `_extend` suffix, so `*_proposed` now unambiguously means the ozone_prop lane. The top-level wrapper [us-all-results-proposed.R](../us-all-results-proposed.R) still sources `12_*` (so its filename is now misleading — feel free to rename to `us-all-results-extend.R`).
 
 ## Output compatibility notes
 
@@ -110,7 +132,11 @@ The runners keep the same key filenames used in your current workflow, but write
 
 - Morris runner: `output/us-all/results/us-all-results-0401.RData`, `output/us-all/results/us-all-results.RData`
 - A runner: `output/us-all/results/us-all-results-combined.RData`, `output/us-all/results/us-all-results-a.RData`
-- Proposed runner: `output/us-all/results/us-all-results-proposed.RData` + CSVs in `output/us-all/tables/`
+- Extend runner (12): `output/us-all/results/us-all-results-extend.RData` + `tables/comparison_*_extend.csv` / `.xlsx`
+- Proposed runner (14): `output/us-all/results/us-all-results-proposed.RData` + `tables/comparison_*_proposed.csv` / `.xlsx`
+- Pool runner (15): `output/us-all/results/us-all-results-pool.RData` + `tables/comparison_*_pool.csv` / `.xlsx`
+
+See `output/us-all/README.md` for the full suffix-to-source table.
 
 Additional Excel-ready tables from the proposed runner:
 
@@ -138,7 +164,7 @@ Additional Excel-ready tables from the proposed runner:
 
 | 情況                 | `ranking_basis`     | `rank_value`           | `score_value` | 代表指標                                                                                                      |
 | -------------------- | ------------------- | ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------- |
-| 相對 Gaussian 排名   | `rel_to_gaussian`   | 真正拿來排名的相對分數 | 原始分數本身  | `brier`, `quantile`, `crps`, `mspe`, `mape`, `brier_split`                                                     |
+| 相對 Gaussian 排名   | `rel_to_gaussian`   | 真正拿來排名的相對分數 | 原始分數本身  | `brier`, `quantile`, `crps`, `mspe`, `mape`, `brier_split`                                                    |
 | 原始分數直接排名     | `raw_score`         | 真正拿來排名的原始分數 | 原始分數本身  | `accuracy`, `precision`, `recall`, `specificity`, `f1`, `pit_ks`, `pit_uniformity_mae`, `pit_uniformity_rmse` |
 | 與 target 的距離排名 | `abs_gap_to_target` | 與理想值的絕對差       | 原始分數本身  | `coverage`, `pit_mean`, `pit_variance`                                                                        |
 

@@ -5,7 +5,7 @@
 
 ## 資料來源
 
-`run-prop.R` 與 `results-prop.R` 預設會優先找：
+`run-prop.R`、`scores-prop.R`、`tables-prop.R` 預設會優先找：
 
 1. `./simdata.RData`
 2. `../simstudy/simdata.RData`
@@ -84,11 +84,12 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
   - model fit `.RData`，命名為 `<fits_dir>/<setting>-<method>-<dataset>-p<k>.RData`
   - `run-plan-setting-<setting>.csv`
 - `output/results/`
-  - 載入 fits 後產生的 analysis `.RData`
+  - `scores<setting>-prop<suffix>.RData`：scores-prop.R 的分數快取
+  - `simresults<setting>-prop<suffix>.RData`：tables-prop.R 的彙整物件
 - `output/tables/`
-  - comparison CSV tables
+  - tables-prop.R 產出的 CSV
 - `output/plots/`
-  - 預留給比較圖
+  - tables-prop.R 預設產出的 PDF（`--no-plots` 可關閉）
 
 ## Windows PowerShell 範例
 
@@ -104,8 +105,41 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-prop-batch.R" 1
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-prop-batch.R" --run_id=phase3-02
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\results-prop.R"
 ```
+
+## Post-fit pipeline
+
+擬合完成後，分數計算與表格產出分成兩步驟：
+
+```powershell
+# Stage 1: 從 fits/ 讀取，計算 Brier / Quantile 分數，存到 scores<setting>-prop<suffix>.RData
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\scores-prop.R" --setting=4
+
+# Stage 2: 讀 scores<setting>-prop<suffix>.RData，產出 CSV 表格 + 預設 PDF
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\tables-prop.R" --setting=4
+
+# Deformed-covariance 範例（同一個 CLI，加上 --data=...）
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\scores-prop.R" --setting=1 --data=simdata_def.RData
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\tables-prop.R" --setting=1 --data=simdata_def.RData
+```
+
+`scores-prop.R` 重要選項：
+
+- `--setting=<id>` 必填
+- `--data=<path>` 可選（同 run-prop.R 規則）
+- `--methods=<spec>`、`--datasets=<spec>`、`--prop_k=<spec>` 可選；
+  `--prop_k` 預設會掃描 `fits<suffix>/<setting>-*-*-p<K>.RData` 自動偵測
+
+`tables-prop.R` 會自動以 setting + suffix 推導出對應的 `scores...RData`，
+並產出：
+
+- `output/tables/score_long<setting>-prop<suffix>.csv`（per-dataset 長表）
+- `output/tables/score_mean<setting>-prop<suffix>.csv`（dataset 平均）
+- `output/tables/score_rel_gauss<setting>-prop<suffix>.csv`（相對 Gaussian）
+- `output/tables/best_method_per_K<setting>-prop<suffix>.csv`
+- `output/tables/lambda_coverage<setting>-prop<suffix>.csv`
+- `output/results/simresults<setting>-prop<suffix>.RData`
+- `output/plots/` 下的 PDF（`--no-plots` 可關閉）
 
 例如：
 
@@ -120,6 +154,12 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 - 列號是以資料列為準的 1-based 編號，不含 header
 - 若不給 selector，會依 `enabled=yes` 與 `priority` 順序依序執行
 - `runner_script` 欄位目前預期為 `run-prop.R`
+- `data` 欄位（optional）對應 `--data=<path>` flag：
+  - 留空 → 使用預設 `simdata.RData`，輸出到 `fits/`
+  - 例如 `simdata_def.RData` → 輸出自動分流到 `fits_def/`
+  - 路徑會先試 `./<value>`，找不到時自動回退到 `../simstudy/<basename>`
+- `compare_after=yes` 會在擬合完成後依序執行 `scores-prop.R` 與
+  `tables-prop.R`，使用同一個 `fits<suffix>/` 讀取 fits
 
 批次腳本會另外輸出：
 
@@ -128,12 +168,13 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 
 ## 比較目的
 
-`results-prop.R` 的定位不是單純彙整 `prop` 自己的表現，而是回答：
+`scores-prop.R` + `tables-prop.R` 主要回答：
 
-- 在相同模擬資料下，`prop model` 是否可行？
-- `prop` 相對於 Morris baseline 的 `QuantScore` / `BrierScore` 表現如何？
-- 哪些 setting、哪種 method family、哪個 `prop_k` 比較值得往下追？
+- `prop` 在同一份資料上的 `BrierScore` / `QuantScore` 隨 `prop_k` 怎麼變？
+- 在哪個 quantile / band 上，哪個 (method, prop_k) 表現最好？
+- skew methods 對 lambda 的 95% 區間覆蓋率如何？
 
-baseline 結果預設從 `../simstudy/results/` 讀取，
-而 `prop` fits 預設從 `fits/`（或對應的 `fits<suffix>/`）讀取。
-`results-prop.R` 會優先找新的 `-p<k>.RData` 命名，必要時也能回讀舊的 `-P<k>.RData` 檔案。
+兩支腳本都只看 `prop` 自己的 fits（讀 `fits<suffix>/`），不依賴
+`../simstudy/results/` 的 baseline。要對 baseline 比較時，請另外把
+`../simstudy/run-settings.R` 的對應結果跑出來，再自行讀兩邊的
+`scores<setting>-prop<suffix>.RData` 與 `simresults...` 物件來比。

@@ -195,7 +195,7 @@ score_obj <- compute_us_all_scores(
   summary_draws = summary_draws
 )
 summary_obj <- summarize_us_all_scores(score_obj, baseline_setting = 1L)
-print_score_summary(score_obj, label = "us-all-results-proposed (all settings incl. AR2 + MRTS)")
+print_score_summary(score_obj, label = "us-all-results-extend (all settings incl. Morris baseline + AR2 + MRTS)")
 
 comparison_full_table <- build_comparison_full_table(
   summary_obj = summary_obj,
@@ -290,18 +290,18 @@ if (nrow(comparison_calibration_bins) > 0) {
   comparison_calibration_bins <- decorate_setting_table(comparison_calibration_bins, setting_col = "setting")
 }
 
-write.csv(comparison_full_table, us_all_output_path("comparison_full_table.csv", subdir = "tables"), row.names = FALSE)
-write.csv(comparison_top2, us_all_output_path("comparison_top2.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_full_table, us_all_output_path("comparison_full_table_extend.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_top2, us_all_output_path("comparison_top2_extend.csv", subdir = "tables"), row.names = FALSE)
 write_comparison_top2_workbook(
   comparison_top2 = comparison_top2,
-  output_path = us_all_output_path("comparison_top2.xlsx", subdir = "tables")
+  output_path = us_all_output_path("comparison_top2_extend.xlsx", subdir = "tables")
 )
-write.csv(comparison_paired_same_basis, us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), row.names = FALSE)
-write.csv(comparison_scalar_metrics, us_all_output_path("comparison_scalar_metrics.csv", subdir = "tables"), row.names = FALSE)
-write.csv(comparison_classification_metrics, us_all_output_path("comparison_classification_metrics.csv", subdir = "tables"), row.names = FALSE)
-write.csv(comparison_brier_split, us_all_output_path("comparison_brier_split.csv", subdir = "tables"), row.names = FALSE)
-write.csv(comparison_uncertainty_summary, us_all_output_path("comparison_uncertainty_summary.csv", subdir = "tables"), row.names = FALSE)
-write.csv(comparison_calibration_bins, us_all_output_path("comparison_calibration_bins.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_paired_same_basis, us_all_output_path("comparison_paired_same_basis_extend.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_scalar_metrics, us_all_output_path("comparison_scalar_metrics_extend.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_classification_metrics, us_all_output_path("comparison_classification_metrics_extend.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_brier_split, us_all_output_path("comparison_brier_split_extend.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_uncertainty_summary, us_all_output_path("comparison_uncertainty_summary_extend.csv", subdir = "tables"), row.names = FALSE)
+write.csv(comparison_calibration_bins, us_all_output_path("comparison_calibration_bins_extend.csv", subdir = "tables"), row.names = FALSE)
 
 available_settings <- summary_obj$available_settings
 skipped_missing_file <- summary_obj$skipped_missing_file
@@ -394,7 +394,7 @@ save(
     "comparison_brier_split", "comparison_uncertainty_summary", "comparison_calibration_bins",
     "score_obj", "summary_obj"
   ),
-  file = us_all_output_path("us-all-results-proposed.RData", subdir = "results")
+  file = us_all_output_path("us-all-results-extend.RData", subdir = "results")
 )
 
 cat("Result directories searched (priority order):\n")
@@ -403,12 +403,13 @@ for (d in result_dirs) {
 }
 
 cat("Outputs written:\n")
-cat("- ", us_all_output_path("us-all-results-proposed.RData", subdir = "results"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_full_table.csv", subdir = "tables"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_top2.csv", subdir = "tables"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_paired_same_basis.csv", subdir = "tables"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_scalar_metrics.csv", subdir = "tables"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_classification_metrics.csv", subdir = "tables"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_brier_split.csv", subdir = "tables"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_uncertainty_summary.csv", subdir = "tables"), "\n", sep = "")
-cat("- ", us_all_output_path("comparison_calibration_bins.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("us-all-results-extend.RData", subdir = "results"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_full_table_extend.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_top2_extend.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_top2_extend.xlsx", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_paired_same_basis_extend.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_scalar_metrics_extend.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_classification_metrics_extend.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_brier_split_extend.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_uncertainty_summary_extend.csv", subdir = "tables"), "\n", sep = "")
+cat("- ", us_all_output_path("comparison_calibration_bins_extend.csv", subdir = "tables"), "\n", sep = "")

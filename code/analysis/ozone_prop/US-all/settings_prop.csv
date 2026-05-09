@@ -9,3 +9,13 @@ setting,method,knots,thresh,CMAQ,TS,rerun,ar2,mrts
 8,skew-t,1,50,yes,,,,60
 9,skew-t,1,50,yes,,,,80
 10,skew-t,1,50,yes,,,,100
+11,skew-t,1,0,yes,,,,120
+12,skew-t,1,0,yes,,,,140
+13,skew-t,1,0,yes,,,,160
+14,skew-t,1,0,yes,,,,180
+15,skew-t,1,0,yes,,,,200
+16,skew-t,1,50,yes,,,,120
+17,skew-t,1,50,yes,,,,140
+18,skew-t,1,50,yes,,,,160
+19,skew-t,1,50,yes,,,,180
+20,skew-t,1,50,yes,,,,200

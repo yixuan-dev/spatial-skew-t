@@ -12,4 +12,4 @@ if (length(script_arg) > 0) {
 }
 
 # Canonical implementation lives in refactor_results.
-source("refactor_results/12_run_proposed_results.R")
+source("refactor_results/12_run_extend_results.R")

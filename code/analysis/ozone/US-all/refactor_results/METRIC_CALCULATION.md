@@ -10,7 +10,7 @@
 
 - 單一 fold 的分數計算：`01_score_engine.R`
 - 跨 folds 的平均、標準誤、relative score：`01_score_engine.R`
-- 匯出成 CSV：`02_comparison_tables.R`、`12_run_proposed_results.R`
+- 匯出成 CSV：`02_comparison_tables.R`、`12_run_extend_results.R`
 
 ## 記號
 
