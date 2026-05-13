@@ -9,7 +9,7 @@
 ## 主要腳本
 
 - `setup.R`、`setup_def.R`：產生 `simdata.RData`、`simdata_def.RData`
-- `run-settings.R`：擬合 driver；method 1–6，可選 MRTS basis K（細節見 [run-settings.md](run-settings.md)）
+- `run-settings.R`：擬合 driver；method 1–8，可選 MRTS basis K（細節見 [run-settings.md](run-settings.md)）
 - `scores.R`：**Stage 1**——從 `results<suffix>/<setting>-<method>-<dataset>[-K<mrts_k>].RData` 計算分數，輸出 `output/results/scores<setting><suffix>.RData`
 - `tables.R`：**Stage 2**——讀 Stage 1 快取，輸出 `output/tables/` 下的 CSV 表格 + 預設 `output/plots/` 下的 PDF
 - `mrts_cov_helpers.R`：CLI / 檔名 / seed / method catalog helper（兩個階段共用）
@@ -51,13 +51,15 @@ Rscript tables.R --setting=1 --data=simdata_def.RData
 | 6 | Max-stable, ξ = 0.2 |
 | 7 | Skew-t (setting 4) 但 threshold 以下做 exp 變換 |
 | 8 | Brown-Resnick |
+| 9 | Skew-t, K = 1, fixed AR(2), stronger serial dependence: φ=(0.80, -0.35) |
+| 10 | Skew-t, K = 1, fixed AR(2), weaker serial dependence: φ=(0.12, -0.05) |
 
 setting 4 / 5 是文件最常用的 skew-t 目標。`simdata_def.RData`（deformed
 covariance）只有 setting 1–3，傳 `--setting=4` 會直接報「setting must be in 1..3」。
 
 ## Method catalog（分析方法，對應 `--methods=<spec>`）
 
-Morris baseline 的 method 1–6：
+Morris baseline 的 method 1–8：
 
 - 1: Gaussian
 - 2: Skew-t, K = 1
@@ -65,9 +67,11 @@ Morris baseline 的 method 1–6：
 - 4: Skew-t, K = 5
 - 5: t, K = 5, threshold q(0.80)
 - 6: Max-stable, threshold q(0.80)
+- 7: Skew-t, K = 1 + AR(2) temporal (τ, z, knots：`temporaltau/z/w=TRUE`, `ar2_tau/z/w=TRUE`)
+- 8: Skew-t, K = 5 + AR(2) temporal (同上三組 φ)
 
 `scores.R` 預設 `--methods=1:5`（method 6 max-stable 因為 fit 物件結構不同，
-通常另外處理；`--methods=1:6` 仍可加進來，缺少的參數欄位會被填成 NA）。
+通常另外處理；`--methods=1:8` 仍可加進來，缺少的參數欄位會被填成 NA）。
 
 注意 setting 與 method 是兩條獨立的軸：例如 `--setting=4 --methods=1:5` 表示
 「在 skew-t-K1 資料上跑 Gaussian / Skew-t / t / Skew-t / t 五個分析方法」。
@@ -169,6 +173,14 @@ mean-vs-K 系列圖（沒有意義），CSV 仍正常產出。
 # Setting 4 全部（auto-detect baseline + 所有 MRTS K）
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\scores.R --setting=4
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\tables.R --setting=4
+
+# AR(2) 固定係數新設定（setting 9 / 10）+ AR(2) 分析法 7／8 smoke test
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\run-settings.R --setting=9 "1" 1 2 "(7,8)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\run-settings.R --setting=10 "1" 1 2 "(7,8)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\scores.R --setting=9 --methods="(7,8)" --datasets="1" --mrts_k=0
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\scores.R --setting=10 --methods="(7,8)" --datasets="1" --mrts_k=0
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\tables.R --setting=9 --no-plots
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" .\tables.R --setting=10 --no-plots
 
 # Deformed-covariance dataset，3 個 setting
 foreach ($s in 1..3) {

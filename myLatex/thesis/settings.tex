@@ -1,0 +1,129 @@
+% !TeX root = mythesis.tex
+
+% -------------------------------
+% 數學相關套件
+% -------------------------------
+\usepackage{amsmath, amsthm, amssymb} % 數學公式、定理、符號
+\usepackage{mathtools}                % 數學工具（amsmath 擴充）
+\allowdisplaybreaks                   % 允許 align 環境跨頁
+
+% -------------------------------
+% 表格環境相關
+% -------------------------------
+\usepackage{longtable}                % 長表格，允許跨頁。用法: \begin{longtable} \end{longtable}
+\usepackage{makecell}                 % 表格內換行，用法: \makecell{文字 \\ 文字}
+\usepackage{array}                    % 表格欄位格式
+\usepackage{booktabs}                 % 三線表
+\usepackage{multirow}                 % 合併多列儲存格
+\renewcommand{\arraystretch}{1.5}     % 表格行高 1.5 倍
+
+% -------------------------------
+% 字型設定
+% -------------------------------
+\usepackage{xeCJK} % 使用繁體中文
+\setCJKmainfont[AutoFakeSlant=.2, AutoFakeBold=3]{AR PL KaitiM Big5} % 標楷體 (AutoFakeSlant -> 調整斜體, AutoFakeBold -> 調整粗體度)
+\setmainfont{Times New Roman}         % 英文字型
+\setCJKmonofont{AR PL KaitiM Big5}    % 中文字型，多數電腦通用。 \setCJKmainfont 也要記得一併更改，否則出現兩種字體很奇怪
+%\setCJKmonofont{kaiu.ttf}            % 中文字型，Windows 內建。 \setCJKmainfont 也要記得一併更改，否則出現兩種字體很奇怪
+\usepackage{fontspec}                 % 字型設定
+
+% -------------------------------
+% 圖片控制
+% -------------------------------
+\usepackage{graphicx}                 % 插入圖片
+\usepackage{float}                    % 圖片位置控制
+%\usepackage{subfigure}               % (建議已淘汰，改用 subcaption)
+\usepackage{setspace}                 % 行距設定
+\linespread{1.25}                     % 行距 1.25 倍
+\usepackage{caption}                  % 圖表標題格式設定
+\usepackage{geometry}                 % 頁邊距設定
+%\renewcommand{\figurename}{Figure}   % 將圖片標題格式更改為 ""
+%\renewcommand{\tablename}{Table}     % 將圖片標題格式更改為 ""
+%\renewcommand{\refname}{\tiny}       % 將參考資料標題格式更改為 ""
+
+% -------------------------------
+% 排版控制
+% -------------------------------
+\geometry{left=3cm, right=3cm, top=3cm, bottom=3cm}                 % 頁邊距，左右上下
+
+% -------------------------------
+% 目錄設定
+% -------------------------------
+\usepackage{tocloft}                  % 目錄點線控制
+\renewcommand{\cftdotsep}{1}          % 設置點線間距
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}               % 章節線段
+\renewcommand{\cftsubsecleader}{\cftdotfill{\cftdotsep}}            % 子章節線段
+%\renewcommand{\cftsecfont}{\normalfont}                            % 取消章節粗體
+%\renewcommand{\cftsubsecfont}{\normalfont}                         % 取消子章節粗體
+
+% -------------------------------
+% 超連結與網址
+% -------------------------------
+\usepackage[hyphens]{url}               % 處理長網址換行
+\usepackage[hidelinks, linktoc=all]{hyperref}                       % 超連結設定，可使用 \url{} 超連結
+
+% -------------------------------
+% 圖示、流程圖
+% -------------------------------
+\usepackage{tikz}                       % 繪圖
+\usetikzlibrary{shapes, arrows}         % 流程圖元件
+
+% -------------------------------
+% 文獻管理
+% -------------------------------
+\usepackage[backend=biber,style=authoryear]{biblatex}               % 參考文獻
+\addbibresource{../references/references.bib}                       % 參考文獻檔案
+\DeclareDelimFormat{nameyeardelim}{\addcomma\space}                 % 作者與年份間加逗號
+
+% -------------------------------
+% 浮水印設定
+% -------------------------------
+\usepackage{background}                 % 浮水印
+\backgroundsetup{
+  %scale=3,                             % 縮放大小
+  %color=black,                         % 顏色
+  opacity=0.2,                          % 透明度 (0=透明, 1=不透明)
+  angle=0,                              % 角度
+  position=current page.center,         % 位置
+  %vshift=5cm,                          % 垂直偏移
+  contents={\includegraphics[width=0.5cm]{../img/NDHU_logo.png}}    % 浮水印的文字或圖片
+}
+
+% 有浮水印的設定，用法: \WatermarkOn
+\newcommand{\WatermarkOn}{
+    \backgroundsetup{
+      contents={\includegraphics[width=0.5cm]{../img/NDHU_logo.png}}
+    }
+}
+
+% 沒有浮水印的設定，用法: \WatermarkOff
+\newcommand{\WatermarkOff}{
+  \backgroundsetup{contents={}}         % 空內容，等於無浮水印
+}
+
+% -------------------------------
+% 其他工具
+% -------------------------------
+\usepackage{mdframed}                   % 文字框
+\usepackage{lscape}                     % 橫向頁面
+\usepackage{ragged2e}                   % 左右對齊工具
+\usepackage{enumitem}                   % 調整清單編號 enumerate/itemize
+\usepackage{authblk}                    % 作者、機構排版
+\usepackage{pdfpages}                   % 插入 PDF
+
+% -------------------------------
+% 自訂環境
+% -------------------------------
+% 定理類環境
+\newtheorem{theorem}{Theorem}           % 定理
+\newtheorem{definition}{Definition}     % 定義
+\newtheorem{lemma}{Lemma}               % 引理
+\newtheorem{proposition}{Proposition}   % 命題
+\newtheorem{corollary}{Corollary}       % 推論
+\newtheorem{example}{Example}           % 範例
+\newtheorem{remark}{Remark}             % 備註
+
+% -------------------------------
+% 其他設定
+% -------------------------------
+\hbadness=10000                         % 忽略文字過長警告

@@ -88,7 +88,7 @@ if (!dir.exists(results_dir)) {
 # ---- methods / datasets / mrts_k -------------------------------------
 methods <- if (!is.null(flags$methods) && nzchar(flags$methods)) {
   m <- parse_index_expr(flags$methods, "methods")
-  if (any(m < 1L | m > 6L)) stop("methods must be in 1..6", call. = FALSE)
+  if (any(m < 1L | m > 8L)) stop("methods must be in 1..8", call. = FALSE)
   sort(unique(as.integer(m)))
 } else {
   1:5
@@ -186,7 +186,7 @@ elapsed_sec <- array(NA_real_, dim = c(nsets, nmeth, nks),
                                      method  = as.character(methods),
                                      mrts_k  = as.character(mrts_ks)))
 
-skew.methods <- c(2L, 4L)
+skew.methods <- c(2L, 4L, 7L, 8L)
 
 obs <- c(rep(TRUE, nrow(y) - ntest), rep(FALSE, ntest))
 

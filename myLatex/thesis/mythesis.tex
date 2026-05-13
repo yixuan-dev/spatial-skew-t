@@ -1,205 +1,7 @@
 \documentclass[12pt]{article}
-% -------------------------------
-% 說明
-% -------------------------------
-% This thesis example template is created by Yao-Chih Hsu at 113/09/01.
 
-% -------------------------------
-% 數學相關套件
-% -------------------------------
-\usepackage{amsmath, amsthm, amssymb} % 數學公式、定理、符號
-\usepackage{mathtools}                % 數學工具（amsmath 擴充）
-\allowdisplaybreaks                   % 允許 align 環境跨頁
-
-% -------------------------------
-% 表格環境相關
-% -------------------------------
-\usepackage{longtable}                % 長表格，允許跨頁。用法: \begin{longtable} \end{longtable}
-\usepackage{makecell}                 % 表格內換行，用法: \makecell{文字 \\ 文字}
-\usepackage{array}                    % 表格欄位格式
-\usepackage{booktabs}                 % 三線表
-\usepackage{multirow}                 % 合併多列儲存格
-\renewcommand{\arraystretch}{1.5}     % 表格行高 1.5 倍
-
-% -------------------------------
-% 字型設定
-% -------------------------------
-\usepackage{xeCJK} % 使用繁體中文
-\setCJKmainfont[AutoFakeSlant=.2, AutoFakeBold=3]{AR PL KaitiM Big5} % 標楷體 (AutoFakeSlant -> 調整斜體, AutoFakeBold -> 調整粗體度)
-\setmainfont{Times New Roman}         % 英文字型
-\setCJKmonofont{AR PL KaitiM Big5}    % 中文字型，多數電腦通用。 \setCJKmainfont 也要記得一併更改，否則出現兩種字體很奇怪
-%\setCJKmonofont{kaiu.ttf}            % 中文字型，Windows 內建。 \setCJKmainfont 也要記得一併更改，否則出現兩種字體很奇怪
-\usepackage{fontspec}                 % 字型設定
-
-% -------------------------------
-% 圖片控制
-% -------------------------------
-\usepackage{graphicx}                 % 插入圖片
-\usepackage{float}                    % 圖片位置控制
-%\usepackage{subfigure}               % (建議已淘汰，改用 subcaption)
-\usepackage{setspace}                 % 行距設定
-\linespread{1.25}                     % 行距 1.25 倍
-\usepackage{caption}                  % 圖表標題格式設定
-\usepackage{geometry}                 % 頁邊距設定
-%\renewcommand{\figurename}{Figure}   % 將圖片標題格式更改為 ""
-%\renewcommand{\tablename}{Table}     % 將圖片標題格式更改為 ""
-%\renewcommand{\refname}{\tiny}       % 將參考資料標題格式更改為 ""
-
-% -------------------------------
-% 排版控制
-% -------------------------------
-\geometry{left=3cm, right=3cm, top=3cm, bottom=3cm}                 % 頁邊距，左右上下
-
-% -------------------------------
-% 目錄設定
-% -------------------------------
-\usepackage{tocloft}                  % 目錄點線控制
-\renewcommand{\cftdotsep}{1}          % 設置點線間距
-\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}               % 章節線段
-\renewcommand{\cftsubsecleader}{\cftdotfill{\cftdotsep}}            % 子章節線段
-%\renewcommand{\cftsecfont}{\normalfont}                            % 取消章節粗體
-%\renewcommand{\cftsubsecfont}{\normalfont}                         % 取消子章節粗體
-
-% -------------------------------
-% 程式碼顯示
-% -------------------------------
-\usepackage{xcolor}                   % 顏色
-\definecolor{lightlightgray}{gray}{0.93}                            % 定義顏色，淺淺灰
-\usepackage{listings}                 % 程式碼顯示
-\usepackage{minted}                   % 高亮程式碼（需 -shell-escape）
-%\usemintedstyle{friendly}            % minted 程式碼樣式，已取消使用，並使用下方自訂樣式
-
-% % 預設使用 R 程式碼樣式
-% \lstset{
-%   language=R,                     % the language of the code
-%   basicstyle=\ttfamily,           % the size of the fonts that are used for the code
-%   numbers=left,                   % where to put the line-numbers
-%   numberstyle=\tiny\color{blue},  % the style that is used for the line-numbers
-%   stepnumber=1,                   % the step between two line-numbers. If it is 1, each line will be numbered
-%   numbersep=5pt,                  % how far the line-numbers are from the code
-%   backgroundcolor=\color{lightlightgray},  % choose the background color. You must add \usepackage{color}
-%   showspaces=false,               % show spaces adding particular underscores
-%   showstringspaces=false,         % underline spaces within strings
-%   showtabs=false,                 % show tabs within strings adding particular underscores
-%   frame=single,                   % adds a frame around the code
-%   rulecolor=\color{black},        % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. commens (green here))
-%   tabsize=4,                      % sets default tabsize to 2 spaces
-%   captionpos=b,                   % sets the caption-position to bottom
-%   breaklines=true,                % sets automatic line breaking
-%   breakatwhitespace=false,        % sets if automatic breaks should only happen at whitespace
-%   keywordstyle=\color{blue},      % keyword style
-%   commentstyle=\color{teal},      % comment style
-%   stringstyle=\color{teal}        % string literal style
-% }
-
-% -------------------------------
-% 超連結與網址
-% -------------------------------
-\usepackage[hyphens]{url}               % 處理長網址換行
-\usepackage[hidelinks, linktoc=all]{hyperref}                       % 超連結設定，可使用 \url{} 超連結
-
-% -------------------------------
-% 圖示、流程圖
-% -------------------------------
-\usepackage{tikz}                       % 繪圖
-\usetikzlibrary{shapes, arrows}         % 流程圖元件
-
-% -------------------------------
-% 文獻管理
-% -------------------------------
-\usepackage[backend=biber,style=authoryear]{biblatex}               % 參考文獻
-\addbibresource{../references/references.bib}                       % 參考文獻檔案
-\DeclareDelimFormat{nameyeardelim}{\addcomma\space}                 % 作者與年份間加逗號
-
-% -------------------------------
-% 浮水印設定
-% -------------------------------
-\usepackage{background}                 % 浮水印
-\backgroundsetup{ 
-  %scale=3,                             % 縮放大小
-  %color=black,                         % 顏色
-  opacity=0.2,                          % 透明度 (0=透明, 1=不透明)
-  angle=0,                              % 角度
-  position=current page.center,         % 位置
-  %vshift=5cm,                          % 垂直偏移
-  contents={\includegraphics[width=0.5cm]{../img/NDHU_logo.png}}    % 浮水印的文字或圖片
-}
-
-% 有浮水印的設定，用法: \WatermarkOn
-\newcommand{\WatermarkOn}{
-    \backgroundsetup{
-      contents={\includegraphics[width=0.5cm]{../img/NDHU_logo.png}}
-    }
-}
-
-% 沒有浮水印的設定，用法: \WatermarkOff
-\newcommand{\WatermarkOff}{
-  \backgroundsetup{contents={}}         % 空內容，等於無浮水印
-}
-
-% -------------------------------
-% 其他工具
-% -------------------------------
-\usepackage{mdframed}                   % 文字框
-\usepackage{lscape}                     % 橫向頁面
-\usepackage{ragged2e}                   % 左右對齊工具
-\usepackage{enumitem}                   % 調整清單編號 enumerate/itemize
-\usepackage{authblk}                    % 作者、機構排版
-\usepackage{pdfpages}                   % 插入 PDF
-
-% -------------------------------
-% 自訂環境
-% -------------------------------
-% 定理類環境
-\newtheorem{theorem}{Theorem}           % 定理
-\newtheorem{definition}{Definition}     % 定義
-\newtheorem{lemma}{Lemma}               % 引理
-\newtheorem{proposition}{Proposition}   % 命題
-\newtheorem{corollary}{Corollary}       % 推論
-\newtheorem{example}{Example}           % 範例
-\newtheorem{remark}{Remark}             % 備註
-
-% 習題與解答環境
-\newenvironment{ex}[2][Exercise]{       % 習題環境
-  \begin{trivlist}
-  \item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]
-}{\end{trivlist}}
-
-\newenvironment{sol}[1][Solution]{      % 解答環境
-  \begin{trivlist}
-  \item[\hskip \labelsep {\bfseries #1:}]
-}{\end{trivlist}}
-
-% -------------------------------
-% 自訂指令
-% -------------------------------
-\newcommand{\N}{\mathbb{N}}
-\newcommand{\Z}{\mathbb{Z}}
-\newcommand{\R}{\mathbb{R}}
-\newcommand{\E}{\mathbb{E}}
-\newcommand{\indep}{\perp \!\!\! \perp}
-\newcommand{\nindep}{\perp\!\!\!\!\!/\!\!\!\!\! \perp}
-\newcommand{\1}{\geq}
-\newcommand{\2}{\leq}
-\newcommand{\limn}{\lim_{n \to \infty}}
-\newcommand{\limi}{\lim_{i \to \infty}}
-\newcommand{\fbf}{\boldsymbol}
-\newcommand{\imp}{=\!\Rightarrow \ }
-\newcommand{\intinfity}{\int_{-\infty}^{\infty}}
-\newcommand{\sumn}{\sum_{i=1}^{n}}
-\newcommand{\sumjn}{\sum_{j=1}^{n}}
-\newcommand{\sumkn}{\sum_{k=1}^{n}}
-\newcommand{\sumk}{\sum_{k = 1}^K}
-\newcommand{\bX}{\fbf{X}}
-\newcommand{\bY}{\fbf{Y}}
-\newcommand{\bb}{\fbf{b}}
-\newcommand{\bbeta}{\fbf{\beta}}
-\newcommand*\circled[1]{\tikz[baseline=(char.base)]{\node[shape=circle,draw,inner sep=2pt] (char) {#1};}}   % 圓圈，用法:\circled{圓圈內的東西} ，用於出考卷
-
-% -------------------------------
-% 其他設定
-% -------------------------------
-\hbadness=10000                         % 忽略文字過長警告
+\input{settings}
+\input{mycommands.sty}
 
 % -------------------------------
 % 文件起始
@@ -227,10 +29,10 @@
     \vspace{3\baselineskip}
     
     % 標楷體、24 號、粗體、單行間距
-    {\fontsize{24}{24}\selectfont \textbf{待定}\par}
+    {\fontsize{24}{24}\selectfont \textbf{}\par}
     
     % Times New Roman、14 號、粗斜體、單行間距
-    {\fontsize{14}{14}\selectfont \textbf{\textit{To Be Determined}}\par}
+    {\fontsize{14}{14}\selectfont \textbf{\textit{Exploration and Extension in Spatial Extremes Incorporating Thin-plate Splines Basis Functions}}\par}
     
     % 空 8 列，14 號、單行間距
     \vspace{8\baselineskip}
@@ -287,7 +89,7 @@
     \vspace{0.5cm} % 空 0.5 cm
     
     % 標楷體、22 號、單行間距
-    {\fontsize{22}{22}\selectfont 研究生：許堯智 \par}
+    {\fontsize{22}{22}\selectfont 研究生：謝易軒 \par}
     {\fontsize{22}{22}\selectfont 指導教授：黃灝勻~~博士 \par}
     
     % 空 2 列，14 號、單行間距
@@ -319,7 +121,7 @@
 \thispagestyle{empty}                   % 不顯示頁碼
 \WatermarkOff                           % 不要浮水印
 ~
-fig
+
 %% 論文原創性聲明書
 \addcontentsline{toc}{section}{學位論文原創性聲明書}
 \includepdf[pages={1}, pagecommand={
@@ -353,7 +155,7 @@ fig
 \section*{摘要}
 \addcontentsline{toc}{section}{摘要}
 
-
+我的論文的目的延續 USA EPA，是利用 AQS 校正 CMAQ 的預測值。CMAQ 的尾部預測較差。Morris 用 skew-t process 及 matern covariance modeling guassian noise term 來校正 CMAQ 的預測值。 Morris 還在建模上設計有 time-varing coefficients with AR(1) structure, censoring to the tail, partition 的開關讓使用者更有彈性去見模。我的論文的目的在於將 time-varing coefficients expand to AR(2) structure, and incorporate multiple resolution thin-plate splines basis functions as covariates to improve modeling non-stationarity spatial dependence. 給予使用者更多的彈性去見模，並且提升模型的預測能力。
 
 \textbf{關鍵字}：
 
@@ -371,7 +173,7 @@ fig
 \section*{Abstract}
 \addcontentsline{toc}{section}{Abstract}
 
-
+To more accurately calibrate CMAQ by the ozone site data, Morris develope partition, threshold, AR(1) time-varying coefficients based on spatial skew-t process. To let model more scalable, we extend the time-varying coefficients to AR(2) structure. And incorporate the multiple thin-plate spline basis functions as covariates to capture the non-staionary spatial dependence. We find that in some level of exceedance, the model with the AR(2) time varying coefficients or the mrts covariates have a lower brier score than the Morris model. Give user more choice in model selection.
 
 \textbf{Keywords}: 
 
@@ -399,30 +201,239 @@ fig
 % --------------------------------------------------------------
 %% 正文
 \newpage
+\section{Introduction}
 \pagenumbering{arabic}                  % 阿拉伯數字
 \setcounter{page}{1}                    % 將頁碼重設為 1
 \WatermarkOn                            % 浮水印
 
-\circled{} 這是正文範例。x1gf23sgssfgs
+\section{Methodology}
+\subsection{Spatio-temporal skew-t process}
+\subsection{MRTS covariates}
+\subsection{Extension to AR(2) time-varying coefficients}
 
-% 輸入"fig"，然後按 Tab 鍵，即可快速產生圖片範例
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.6\textwidth]{../img/NDHU_logo.png}
-    \caption{說明}
-    \label{fig:標籤}
-\end{figure}
+\section{Simulation study}
+\subsection{Design}
+
+The simulation study is used to evaluate whether the proposed extensions improve predictive performance beyond the space-time \skewt threshold model of \textcite{morris_space-time_2017}.  The benchmark simulation follows the structure of Morris et al.: observations are generated at $n_s=144$ spatial sites, sampled uniformly on $[0,10]\times[0,10]$, over $n_t=50$ independent time points.  The mean structure is constant in the data generation, $\bX^\top\bbeta=10$, while the fitted models include an intercept and first-order spatial trend.  The main data-generating settings include Gaussian data, \skewt data with one knot, \skewt data with five knots, a max-stable setting, and a Brown-Resnick max-stable setting.  For each setting, $50$ simulated data sets are generated.
+
+For the baseline comparison, five Bayesian models are considered:
+\begin{enumerate}[leftmargin=3em]
+  \item Gaussian marginal distribution with $K=1$ knot;
+  \item \Skewt marginal distribution with $K=1$ knot and no thresholding;
+  \item Symmetric-$t$ marginal distribution with $K=1$ knot and threshold $T=q(0.80)$;
+  \item \Skewt marginal distribution with $K=5$ knots and no thresholding;
+  \item Symmetric-$t$ marginal distribution with $K=5$ knots and threshold $T=q(0.80)$.
+\end{enumerate}
+Here $q(0.80)$ denotes the empirical $80$th percentile of the simulated response.  These five models represent the main combinations of tail behavior, thresholding, and spatial partitioning used in the Morris model.
+
+Two additional simulation experiments are conducted for the extensions in this thesis.  First, to evaluate the AR(2) time-varying coefficient structure, data are generated with temporal dependence in the latent $\tau$, $\bw$, and $\bz$ processes.  The experiment uses $n=100$ sites and $T=30$ time points, with $90$ sites used for training and $10$ sites withheld for prediction.  We repeat the experiment $20$ times and compare three temporal structures: no time series, AR(1), and AR(2).  Each fitted model uses a \skewt marginal distribution with $K=5$ knots and no thresholding, and the MCMC is run for $5000$ iterations with $2500$ burn-in iterations.
+
+Second, to evaluate the MRTS covariate extension, we augment the original five models with multi-resolution thin-plate spline basis functions \parencite{tzeng_resolution_2018}.  These basis functions are added to the regression component in order to capture nonstationary spatial structure that may not be fully represented by a stationary \Matern covariance.  We focus on simulation settings 4 and 5: setting 4 is a one-knot \skewt data-generating process with $\lambda=3$, and setting 5 is a five-knot partitioned \skewt data-generating process with $\lambda=3$.  For setting 4, each original model is compared with versions using $10$, $15$, and $20$ MRTS covariates.  For setting 5, each original model is compared with a version using $15$ MRTS covariates.  Each setting uses $50$ simulated data sets, and each MCMC chain is run for $20000$ iterations with $10000$ burn-in iterations.
+
+\subsection{Cross validation}
+
+Predictive performance is evaluated by withholding spatial sites from model fitting and scoring posterior predictive distributions at the held-out sites.  In the benchmark simulation, $100$ sites are used as training sites and $44$ sites are withheld for validation.  In the AR(2) experiment, the split is $90$ training sites and $10$ testing sites.  The MRTS experiment follows the benchmark simulation structure and compares each MRTS-augmented model with the corresponding non-MRTS model on the same simulated data sets.
+
+Because the main inferential target is prediction of high-level exceedances, the primary scoring rule is the Brier score \parencite{gneiting_strictly_2007}.  For an exceedance level $L$, the Brier score is $\text{BS}(L) = \{ I(y > L) - \widehat{P}(Y > L) \}^2$, where $y$ is the held-out observation and $\widehat{P}(Y>L)$ is the posterior predictive probability of exceeding $L$.  The score is averaged over all held-out sites and time points, and lower values indicate better exceedance prediction.
+
+For the extension experiments, we also record MAPE and quantile scores.  The quantile score at level $\alpha$ is used to evaluate the accuracy of posterior predictive quantiles, with lower values again indicating better prediction.  The reported exceedance and quantile levels are concentrated in the upper tail: the AR(2) experiment uses $q(0.90)$, $q(0.95)$, $q(0.98)$, and $q(0.99)$, while the MRTS experiment uses levels from $q(0.90)$ to $q(0.995)$.
+
+\subsection{Results}
+
+The benchmark simulation supports the main conclusion of \textcite{morris_space-time_2017}: when the fitted model matches the data-generating mechanism, it tends to improve predictive performance, and when the data are non-Gaussian the \skewt models generally improve over a Gaussian model.  Thresholded models are not uniformly better in the simulation setting, which is expected because most simulated data are generated directly from the full \skewt model rather than from a censored tail model.  The simulation therefore confirms that the \skewt framework provides flexibility for asymmetric and heavy-tailed data while remaining competitive with Gaussian methods when the data are light-tailed and symmetric.
+
+To integrate the proposed extensions in one comparison framework, we summarize AR(2) and MRTS evidence together.  For AR(2), Table~\ref{tab:sim-ar2-missing-location} reports selected quantitative results from the detailed missing-at-location experiments in \texttt{ar2\_extend\_detail\_doc.md}.  Across scenarios, AR(2) sometimes improves mid-tail Brier scores (for example BS90/BS95 in stronger-dependence settings), but AR(1) or no-time-series can still be preferable for runtime or at specific tail levels.  This reinforces that temporal flexibility does not imply uniform predictive dominance.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}p{4.6cm}p{3.0cm}p{3.0cm}p{3.0cm}p{3.0cm}@{}}
+\toprule
+Scenario (missing-at-location) & BS90 (AR2/AR1/NoTS) & BS95 (AR2/AR1/NoTS) & BS99 (AR2/AR1/NoTS) & Time(s) (AR2/AR1/NoTS) \\
+\midrule
+$\sigma^2$ AR(2) only & 0.0129/0.0130/0.0128 & 0.0106/0.0106/0.0106 & 0.0032/0.0032/0.0032 & 54.78/54.53/51.41 \\
+All large $\phi$ & 0.0344/0.0346/0.0352 & 0.0269/0.0267/0.0268 & 0.0071/0.0061/0.0069 & 138.47/135.74/109.64 \\
+All small $\phi$ & 0.0267/0.0267/0.0266 & 0.0178/0.0178/0.0179 & 0.0059/0.0060/0.0060 & 232.74/228.68/187.20 \\
+Big $\phi_{\tau}$, others small & 0.0388/0.0390/0.0389 & 0.0181/0.0182/0.0182 & 0.0045/0.0044/0.0043 & 135.17/134.59/102.93 \\
+\bottomrule
+\end{tabular}
+\caption{Selected AR(2) simulation results under missing-at-location settings.  Values are moved from \texttt{ar2\_extend\_detail\_doc.md}; lower values indicate better performance.}
+\label{tab:sim-ar2-missing-location}
+\end{table}
+
+For MRTS, the simulation evidence is more pattern-based than scenario-wise dominant: in setting 4 and setting 5, adding MRTS covariates can improve some upper-tail Brier or quantile scores, but the gains are not stable across all model families and quantile levels.  Increasing the number of MRTS covariates also increases computation time, especially when $K_{\text{MRTS}}=20$.  Table~\ref{tab:sim-integrated-extensions} places AR(2) and MRTS side-by-side as proposed extensions in a common decision summary.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}p{2.3cm}p{4.4cm}p{5.4cm}p{3.3cm}@{}}
+\toprule
+Extension & Simulation setup & Main empirical pattern & Practical implication \\
+\midrule
+AR(2) time-varying coefficients & Missing-at-location experiments with AR(2), AR(1), and no-time-series fitted to multiple dependence regimes & AR(2) can improve selected mid-tail Brier scores, but runtime advantages are often with AR(1) or no-time-series; no uniform winner across regimes & Use AR(2) as a candidate temporal model, not as a default replacement \\
+MRTS covariates & Benchmark simulation settings 4--5 with additional multi-resolution thin-plate spline covariates ($K_{\text{MRTS}}=10,15,20$ or $15$) & Improvements appear at selected tail levels, but average differences are small and not stable across quantiles/model classes; runtime increases with larger $K_{\text{MRTS}}$ & Use MRTS selectively when nonstationarity is plausible and tail-score gains justify added cost \\
+\bottomrule
+\end{tabular}
+\caption{Integrated simulation summary for the two proposed extensions.}
+\label{tab:sim-integrated-extensions}
+\end{table}
+
+Overall, the simulation study indicates that both extensions expand the usable model class, but neither extension uniformly dominates the Morris baseline.  The AR(2) structure provides temporal flexibility, and MRTS covariates enrich spatial nonstationarity representation; however, their empirical benefits depend on data-generating conditions and target exceedance levels.  Therefore, in the ozone analysis, AR(2) and MRTS should be treated as candidate options to be selected by held-out predictive scores.
+
+\textbf{Recommended additional experiments to strengthen logical completeness:}
+
+\textbf{(1) Add a full AR(2) vs AR(1) vs NoTS experiment under the exact benchmark simulation design ($n_s=144$, $n_t=50$, same train/test split as Morris), so temporal-structure comparisons are directly comparable with the baseline five-model benchmark.}
+
+\textbf{(2) Add a factorial AR(2)$\times$MRTS experiment (e.g., AR(2) with $K_{\text{MRTS}}=0,10,15,20$) to test whether temporal flexibility and nonstationary covariates are complementary or redundant.  This is currently missing, so the thesis cannot yet quantify interaction effects between the two proposed extensions.}
+
+\textbf{(3) Add replicated uncertainty summaries (mean $\pm$ SD or median with interval) for all MRTS comparisons at each exceedance/quantile level, matching the AR(2) detailed tables, to improve comparability and statistical interpretability.}
+
+\textbf{(4) Add sensitivity analysis for MCMC budget (short vs long chains) and report score stability per unit time, so computational cost comparisons between AR(2), AR(1), NoTS, and MRTS variants are on a fair basis.}
+
+\section{Ozone data analysis}
+
+The real-data analysis applies the model comparison framework to daily maximum 8-hour ozone observations from July 2005.  The response is the AQS monitor observation, and the main covariate is the corresponding CMAQ model output.  Following the ozone analysis in \textcite{morris_space-time_2017}, the regression component uses $\bX_t(\bs) = [1,\text{CMAQ}_t(\bs)]^\top$, so the model is interpreted as a statistical calibration of CMAQ using site-level observations.  The full comparison data set contains $800$ monitoring sites observed over $31$ days.  We use two-fold cross validation, with $400$ sites used for training and $400$ sites used for validation in each fold.
+
+The purpose of this analysis is not only to reproduce the Morris ozone comparison, but also to evaluate whether the AR(2) time-varying coefficient extension and the MRTS covariate extension are useful for real ozone prediction.  A preliminary MERRA-2 analysis with $100$ sites and $100$ time points showed that AR(2), AR(1), and no-time-series models have very similar MAPE, Brier scores, and quantile scores.  The ozone analysis therefore focuses on whether the enlarged model class can improve held-out tail prediction rather than assuming that the more flexible extension must be better.
+
+\subsection{Model comparisons}
+
+The candidate set contains approximately one hundred model settings.  The baseline settings include Gaussian, \skewt, symmetric-$t$, and max-stable models, with different numbers of knots, censoring thresholds, and time-series choices.  For the \skewt and symmetric-$t$ models, the number of knots includes values such as $K=1,5,6,7,8,9,10$, and $15$.  Censoring thresholds include no censoring, a moderate threshold such as $T=50$, and a high threshold such as $T=75$ ppb.  The threshold $75$ ppb is scientifically important because it corresponds to the air-quality exceedance level emphasized in the original ozone application.
+
+The extended candidate set adds two families.  The first replaces the AR(1) time-varying coefficient structure with the AR(2) structure developed in this thesis.  The second adds MRTS covariates to selected Morris-type settings, so that nonstationary spatial structure can enter through multiple-resolution thin-plate spline basis functions.  These extensions are compared against the original Morris-type specifications using the same cross-validation splits, so the ranking reflects predictive performance rather than differences in train-test construction.
+
+For each fitted model, posterior predictive samples at the validation sites are used to compute Brier scores and quantile scores.  The Brier scores are evaluated at upper-tail empirical thresholds $q(0.90)$, $q(0.95)$, $q(0.98)$, $q(0.99)$, and $q(0.995)$, and quantile scores are evaluated at the same probability levels.  Scores are averaged over validation sites, days, and folds.  Lower scores indicate better prediction.
+
+Each MCMC chain is run for $30000$ iterations with $25000$ burn-in iterations.  As in the simulation study, convergence of prediction summaries is more important here than direct interpretation of partition-specific latent variables, because multiple-partition models can suffer from label switching.  The model-selection criterion is therefore based on held-out prediction scores, not on a visual comparison of latent partition labels.
+
+\subsection{Results}
+
+The real-data results support the use of a broader model class than the original baseline alone.  In the enlarged ozone comparison, the top two models for Brier and quantile scores at the upper-tail levels include AR(2) and MRTS variants.  Tables~\ref{tab:ozone-top2-brier} and~\ref{tab:ozone-top2-quantile} summarize the leading models in the primary 400-site training and 400-site validation comparison.  At the 0.90 Brier threshold, the best model is an MRTS \skewt specification and the runner-up is the corresponding Morris \skewt specification, with nearly indistinguishable scores.  At higher thresholds, the leading model changes across score levels: AR2 models lead the Brier comparisons at 0.95 and 0.995 and the quantile-score comparisons at 0.98, 0.99, and 0.995, whereas Morris \skewt or symmetric-$t$ specifications remain strongest at some intermediate extreme thresholds.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}p{1cm}p{4.4cm}p{1.4cm}p{4.4cm}p{1.4cm}@{}}
+\toprule
+Level & Rank 1 model & Score & Rank 2 model & Score \\
+\midrule
+0.9000 & \textbf{MRTS} \skewt, $K=1$, $T=0$, AR(1), 10 MRTS covariates & 0.04467 & Morris \skewt, $K=1$, $T=0$, AR(1) & 0.04470 \\
+0.9500 & \textbf{AR2} \skewt, $K=7$, $T=50$ & 0.02664 & \textbf{AR2} \skewt, $K=10$, $T=50$ & 0.02672 \\
+0.9800 & Morris \skewt, $K=6$, $T=50$, AR(1) & 0.01257 & Morris \skewt, $K=5$, $T=50$, AR(1) & 0.01257 \\
+0.9900 & Morris symmetric-$t$, $K=9$, $T=75$, AR(1) & 0.00688 & Morris \skewt, $K=5$, $T=50$ & 0.00690 \\
+0.9950 & \textbf{AR2} symmetric-$t$, $K=15$, $T=75$ & 0.00384 & Morris symmetric-$t$, $K=9$, $T=75$, AR(1) & 0.00385 \\
+\bottomrule
+\end{tabular}
+\caption{Top two Brier-score models in the US-all ozone validation study. Values in parentheses are held-out scores from the comparison workbook; smaller values indicate better predictive performance.}
+\label{tab:ozone-top2-brier}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}p{1cm}p{4.4cm}p{1.4cm}p{4.4cm}p{1.4cm}@{}}
+\toprule
+Level & Rank 1 model & Score & Rank 2 model & Score \\
+\midrule
+0.9000 & \textbf{MRTS} \skewt, $K=1$, $T=0$, AR(1), 5 MRTS covariates & 5.033 & Morris \skewt, $K=5$, $T=0$ & 5.033 \\
+0.9500 & Morris \skewt, $K=7$, $T=50$, AR(1) & 2.988 & \textbf{AR2} \skewt, $K=10$, $T=0$ & 2.988 \\
+0.9800 & \textbf{AR2} \skewt, $K=10$, $T=0$ & 1.423 & Morris \skewt, $K=9$, $T=0$ & 1.424 \\
+0.9900 & \textbf{AR2} \skewt, $K=6$, $T=50$ & 0.797 & Morris \skewt, $K=9$, $T=50$, AR(1) & 0.798 \\
+0.9950 & \textbf{AR2} \skewt, $K=6$, $T=50$ & 0.441 & \textbf{AR2} \skewt, $K=8$, $T=50$ & 0.442 \\
+\bottomrule
+\end{tabular}
+\caption{Top two quantile-score models in the US-all ozone validation study. Values in parentheses are held-out scores from the comparison workbook; smaller values indicate better predictive performance.}
+\label{tab:ozone-top2-quantile}
+\end{table}
+
+The ranking is not concentrated on a single universal model.  Across Brier scores, the strongest settings typically combine CMAQ, a time-series component, moderate to high thresholds, and a small to moderate number of knots.  Across quantile scores, AR(2) settings appear frequently among the best-ranked models, especially for $q(0.95)$ and above.  MRTS settings are more selective: they improve some tail exceedance scores, but they are not uniformly preferred across all scores or quantile levels.
 
 
-% 參考文獻插入範例
-\parencite{morris_space-time_2017}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+Level & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
+\midrule
+0.9000 & 204 (MRTS, 0.041) & 55 (Morris's, 0.041) & 205 (MRTS, 0.041) & 70 (Morris's, 0.041) \\
+0.9500 & 70 (Morris's, 0.020) & 41 (Morris's, 0.020) & 12 (Morris's, 0.020) & 39 (Morris's, 0.020) \\
+0.9800 & 204 (MRTS, 0.008) & 117 (AR2, 0.008) & 67 (Morris's, 0.008) & 111 (AR2, 0.008) \\
+0.9900 & 117 (AR2, 0.003) & 15 (Morris's, 0.003) & 70 (Morris's, 0.003) & 61 (Morris's, 0.003) \\
+0.9950 & 15 (Morris's, 0.001) & 70 (Morris's, 0.001) & 61 (Morris's, 0.001) & 117 (AR2, 0.001) \\
+\bottomrule
+\end{tabular}
+\caption{Validation selection result using 300 sites to predict 100 sites}
+\label{tab:ozone-top4-quantile-300-100}
+\end{table}
 
-\textcite{morris_space-time_2017}
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+Level & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
+\midrule
+0.9000 & 54 (Morris's, 0.050) & 105 (AR2, 0.050) & 35 (Morris's, 0.050) & 215 (MRTS, 0.050) \\
+0.9500 & 117 (AR2, 0.030) & 116 (AR2, 0.030) & 114 (AR2, 0.030) & 70 (Morris's, 0.030) \\
+0.9800 & 215 (MRTS, 0.015) & 205 (MRTS, 0.015) & 111 (AR2, 0.015) & 58 (Morris's, 0.015) \\
+0.9900 & 58 (Morris's, 0.008) & 112 (AR2, 0.008) & 216 (AR2, 0.008) & 67 (Morris's, 0.008) \\
+0.9950 & 29 (Morris's, 0.004) & 35 (Morris's, 0.004) & 60 (Morris's, 0.004) & 116 (AR2, 0.004) \\
+\bottomrule
+\end{tabular}
+\caption{Validation selection result using 200 sites to predict 200 sites}
+\label{tab:ozone-top4-quantile-200-200}
+\end{table}
+
+The small-sample stability check gives a similar but not identical conclusion.  The primary 400/400 split uses empirical thresholds 73.25, 79.75, 88.50, 94.75, and 100.52 for the 0.90, 0.95, 0.98, 0.99, and 0.995 Brier comparisons, respectively.  Under this split, the top setting numbers across these thresholds are 204, 111, 58, 68, and 124.  When the experiment is repeated with 300 training sites and 100 validation sites, the leading settings become 204, 70, 204, 117, and 15; with 200 training sites and 200 validation sites, they become 54, 117, 215, 58, and 29.  Thus, the same broad model families remain competitive, but the exact best setting changes across thresholds and sample splits.  This instability is expected because extreme-ozone validation uses relatively few exceedances, especially at the 0.99 and 0.995 levels.  Consequently, the real-data analysis should not be read as identifying a single universally optimal tuning setting, but as evidence that AR(2) and MRTS versions are useful additions to the candidate pool when the target is held-out tail prediction.
+
+Overall, the real-data analysis provides stronger practical motivation for the proposed extensions than the simulation study alone.  The AR(2) extension gives additional temporal flexibility and appears in the leading models for several tail quantile scores.  The MRTS extension gives a way to enrich the spatial regression component and can improve selected exceedance scores.  Therefore, the final modeling recommendation is not to replace the Morris model by a single proposed specification, but to include AR(2) and MRTS versions in the candidate pool and select among them using held-out Brier and quantile scores.
+
+\section{MERRA-2 data analysis}
+This preliminary analysis is conducted on MERRA-2 hourly surface-temperature data to assess whether temporal extensions provide practical predictive gains in a controlled medium-size setting.  We use $100$ spatial locations and $100$ hourly time points, with longitude and latitude retained for each site.
+
+\subsection{Data preprocessing and model setup}
+
+We randomly split the sites into training and testing sets using seed $123$, with $70\%$ of sites used for model fitting and $30\%$ reserved for validation.  The regression design is specified as
+
+so each time point has an intercept and first-order spatial trend terms.  Because the covariates are not standardized in this experiment, we set \texttt{nu.upper = 10} to stabilize posterior exploration and avoid unstable large-$\nu$ behavior during MCMC.
+
+All three temporal specifications are fitted under the same core configuration (\skewt margin, \Matern covariance, $K=5$ knots, and no censoring threshold) to isolate the effect of temporal structure.  Following the real-data experiment setup, each chain is run for $20000$ iterations with $10000$ burn-in iterations, yielding $10000$ retained posterior draws per model.
+
+\subsection{Results}
+
+Table~\ref{tab:merra2-temporal-compare} summarizes quantile-score (QS) and Brier-score (BS) comparisons for no-temporal, AR(1), and AR(2) specifications.  The table shows a clear but subtle trade-off: the no-temporal model performs slightly better on the QS metrics and achieves the smallest BS at the most extreme level ($0.99$), whereas AR(2) attains the best BS at the $0.90$ and $0.95$ levels.  Because the numerical differences are very small, none of the three temporal structures dominates uniformly; instead, the preferred model depends on whether one emphasizes bulk accuracy, mid-tail exceedances, or the far tail.
+
+The additional summary metrics reinforce this interpretation.  MAPE is slightly lower for AR(2) ($0.01058699$), with AR(1) close behind, while the no-temporal model is somewhat worse on this bulk-accuracy measure.  The $95\%$ predictive-interval coverage is also nearly identical across models (approximately $0.912$--$0.916$), which suggests that temporal dependence changes predictive sharpness more than calibration.  These modest gains come at a cost: computation time rises from about $777.26$ seconds for no-temporal to $1041.65$ seconds for AR(1) and $1075.83$ seconds for AR(2).  Taken together, the results indicate that AR(2) is a reasonable option when slightly better mid-tail behavior is desired, but the improvement is incremental rather than decisive.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Model & QS90 & QS95 & QS99 & BS90 & BS95 & BS99 \\
+\midrule
+No Temporal & \textbf{4.714} & \textbf{2.522} & \textbf{0.570} & 0.041 & 0.018 & \textbf{0.008} \\
+AR(1) & 4.716 & 2.522 & 0.570 & 0.040 & 0.016 & 0.009 \\
+AR(2) & 4.717 & 2.522 & 0.571 & \textbf{0.040} & \textbf{0.016} & 0.009 \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of temporal specifications in the MERRA-2 experiment. Smaller values indicate better predictive performance.}
+\label{tab:merra2-temporal-compare}
+\end{table}
+
+
+\section{Discussion}
 
 % --------------------------------------------------------------
 %% References
-\section{References}
 \printbibliography        % 顯示參考文獻
+
+% 參考文獻插入範例
+% \parencite{morris_space-time_2017}
+
+% \textcite{morris_space-time_2017}
 
 % -------------------------------
 % 文件結束

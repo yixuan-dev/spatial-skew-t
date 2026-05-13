@@ -6,22 +6,7 @@ check_ar2_stability <- function(phi1, phi2, tol = 1e-08) {
     cond1 && cond2 && cond3
 }
 
-# Function to simulate stationary AR(2) time series
-draw_ar2_initial <- function(n, gamma0, gamma1) {
-    Sigma <- matrix(c(gamma0, gamma1, gamma1, gamma0), nrow = 2, ncol = 2) # covariance matrix
-    chol.Sigma <- tryCatch(
-        chol(Sigma),
-        error = function(e) {
-            eig.inv(Sigma, inv = FALSE, logdet = FALSE)$sd.mtx
-        }
-    ) # Cholesky decomposition
-
-    z <- matrix(rnorm(2 * n), nrow = 2, ncol = n) # 2 x n matrix
-    draws <- t(chol.Sigma %*% z) # n x 2 matrix
-    return(draws)
-}
-
-simulate_ar2_standard <- function(nt, n, phi1, phi2, tol = 1e-06, param_name = NULL) {
+get_ar2_standard_moments <- function(phi1, phi2, tol = 1e-06, param_name = NULL) {
     if (!check_ar2_stability(phi1, phi2, tol = tol / 10)) {
         if (!is.null(param_name)) {
             stop(paste0(
@@ -46,8 +31,8 @@ simulate_ar2_standard <- function(nt, n, phi1, phi2, tol = 1e-06, param_name = N
     gamma0 <- 1
     gamma1 <- phi1 * gamma0 / denom
     gamma2 <- phi1 * gamma1 + phi2 * gamma0
-    sigma2 <- gamma0 - phi1 * gamma1 - phi2 * gamma2
-    if (sigma2 <= tol) {
+    innov_var <- gamma0 - phi1 * gamma1 - phi2 * gamma2
+    if (innov_var <= tol) {
         if (!is.null(param_name)) {
             stop(paste0(
                 "AR(2) innovation variance on ", param_name,
@@ -58,7 +43,82 @@ simulate_ar2_standard <- function(nt, n, phi1, phi2, tol = 1e-06, param_name = N
             stop("AR(2) innovation variance is non-positive; please check phi1 and phi2")
         }
     }
-    innov.sd <- sqrt(sigma2)
+
+    list(
+        gamma0 = gamma0,
+        gamma1 = gamma1,
+        gamma2 = gamma2,
+        innov_var = innov_var,
+        innov_sd = sqrt(innov_var)
+    )
+}
+
+get_ar2_conditional_params <- function(t, lag1 = NULL, lag2 = NULL,
+                                       phi1, phi2, moments = NULL) {
+    if (is.null(moments)) {
+        moments <- get_ar2_standard_moments(phi1, phi2)
+    }
+
+    if (t <= 0) {
+        stop("AR(2) time index must be positive")
+    }
+
+    if (t == 1) {
+        return(list(mean = 0, sd = sqrt(moments$gamma0)))
+    }
+
+    if (t == 2) {
+        if (is.null(lag1)) {
+            stop("lag1 is required for AR(2) t = 2 conditional density")
+        }
+        return(list(mean = phi1 * lag1, sd = moments$innov_sd))
+    }
+
+    if (is.null(lag1) || is.null(lag2)) {
+        stop("lag1 and lag2 are required for AR(2) t > 2 conditional density")
+    }
+
+    list(mean = phi1 * lag1 + phi2 * lag2, sd = moments$innov_sd)
+}
+
+ar2_conditional_log_density <- function(x, t, lag1 = NULL, lag2 = NULL,
+                                        phi1, phi2, moments = NULL) {
+    params <- get_ar2_conditional_params(
+        t = t, lag1 = lag1, lag2 = lag2,
+        phi1 = phi1, phi2 = phi2, moments = moments
+    )
+
+    dnorm(x, params$mean, params$sd, log = TRUE)
+}
+
+ar2_transition_loglik <- function(current, lag1, lag2, phi1, phi2, moments = NULL) {
+    if (is.null(moments)) {
+        moments <- get_ar2_standard_moments(phi1, phi2)
+    }
+
+    sum(dnorm(current, phi1 * lag1 + phi2 * lag2, moments$innov_sd, log = TRUE))
+}
+
+# Function to simulate stationary AR(2) time series
+draw_ar2_initial <- function(n, gamma0, gamma1) {
+    Sigma <- matrix(c(gamma0, gamma1, gamma1, gamma0), nrow = 2, ncol = 2) # covariance matrix
+    chol.Sigma <- tryCatch(
+        chol(Sigma),
+        error = function(e) {
+            eig.inv(Sigma, inv = FALSE, logdet = FALSE)$sd.mtx
+        }
+    ) # Cholesky decomposition
+
+    z <- matrix(rnorm(2 * n), nrow = 2, ncol = n) # 2 x n matrix
+    draws <- t(chol.Sigma %*% z) # n x 2 matrix
+    return(draws)
+}
+
+simulate_ar2_standard <- function(nt, n, phi1, phi2, tol = 1e-06, param_name = NULL) {
+    moments <- get_ar2_standard_moments(phi1, phi2, tol = tol, param_name = param_name)
+    gamma0 <- moments$gamma0
+    gamma1 <- moments$gamma1
+    innov.sd <- moments$innov_sd
 
     ar2 <- matrix(0, nrow = n, ncol = nt)
 

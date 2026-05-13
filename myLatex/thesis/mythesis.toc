@@ -3,4 +3,19 @@
 \contentsline {section}{摘要}{iii}{section*.1}%
 \contentsline {section}{Abstract}{iv}{section*.2}%
 \contentsline {section}{Contents}{v}{section*.2}%
-\contentsline {section}{\numberline {1}References}{1}{section.1}%
+\contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
+\contentsline {section}{\numberline {2}Methodology}{1}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Spatio-temporal skew-t process}{1}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}MRTS covariates}{1}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Extension to AR(2) time-varying coefficients}{1}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Simulation study}{1}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Design}{1}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Cross validation}{2}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Results}{3}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Ozone data analysis}{4}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Model comparisons}{5}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Results}{6}{subsection.4.2}%
+\contentsline {section}{\numberline {5}MERRA-2 data analysis}{8}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Data preprocessing and model setup}{8}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Results}{9}{subsection.5.2}%
+\contentsline {section}{\numberline {6}Discussion}{10}{section.6}%

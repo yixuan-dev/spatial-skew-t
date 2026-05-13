@@ -148,15 +148,17 @@ get_simstudy_seed <- function(setting_id, method_id, dataset_id, mrts_k = NA_int
 
 get_simstudy_method_catalog <- function(include_maxstable = TRUE) {
   catalog <- data.frame(
-    method_id = 1:6,
-    method_key = as.character(1:6),
+    method_id = 1:8,
+    method_key = as.character(1:8),
     family = c(
       "gaussian",
       "skew_t_k1_thresh0",
       "t_k1_thresh_q80",
       "skew_t_k5_thresh0",
       "t_k5_thresh_q80",
-      "max_stable_thresh_q80"
+      "max_stable_thresh_q80",
+      "skew_t_k1_thresh0_ar2_temporal",
+      "skew_t_k5_thresh0_ar2_temporal"
     ),
     label = c(
       "Gaussian",
@@ -164,15 +166,23 @@ get_simstudy_method_catalog <- function(include_maxstable = TRUE) {
       "t, K=1, q(0.80)",
       "Skew-t, K=5",
       "t, K=5, q(0.80)",
-      "Max-stable, q(0.80)"
+      "Max-stable, q(0.80)",
+      "Skew-t, K=1, AR(2) temporal (tau,z,w)",
+      "Skew-t, K=5, AR(2) temporal (tau,z,w)"
     ),
-    runner = c(rep("mcmc", 5), "maxstable"),
-    method = c("gaussian", "t", "t", "t", "t", NA_character_),
-    skew = c(FALSE, TRUE, FALSE, TRUE, FALSE, NA),
-    thresh_all = c(0, 0, 0.80, 0, 0.80, NA),
-    thresh_quant = c(TRUE, TRUE, TRUE, TRUE, TRUE, NA),
-    nknots = c(1L, 1L, 1L, 5L, 5L, NA_integer_),
-    use_exponential_fallback = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE),
+    runner = c(rep("mcmc", 5), "maxstable", "mcmc", "mcmc"),
+    method = c("gaussian", "t", "t", "t", "t", NA_character_, "t", "t"),
+    skew = c(FALSE, TRUE, FALSE, TRUE, FALSE, NA, TRUE, TRUE),
+    thresh_all = c(0, 0, 0.80, 0, 0.80, NA, 0, 0),
+    thresh_quant = c(TRUE, TRUE, TRUE, TRUE, TRUE, NA, TRUE, TRUE),
+    nknots = c(1L, 1L, 1L, 5L, 5L, NA_integer_, 1L, 5L),
+    use_exponential_fallback = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE),
+    temporaltau = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE),
+    temporalz = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE),
+    temporalw = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE),
+    ar2_tau = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE),
+    ar2_z = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE),
+    ar2_w = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE),
     stringsAsFactors = FALSE
   )
 

@@ -39,7 +39,7 @@ thin <- 1
 #   - --data and --setting (if provided) must be leading flags (any order, before positionals).
 #   - --data defaults to ./simdata.RData; results dir is derived from the file basename
 #     ("simdata" -> results, "simdata_def" -> results_def, etc.).
-#   - methods remains numeric in 1..6.
+#   - methods remains numeric in 1..8.
 #   - mrts_k is optional and, when provided, replaces selected methods 1..5 with MRTS-augmented variants.
 # Examples:
 #   methods="1:6"
@@ -58,8 +58,8 @@ parse_dataset_spec <- function(dataset_str) {
 
 parse_methods_spec <- function(methods_str) {
     method_ids <- parse_index_expr(methods_str, "methods")
-    if (any(method_ids < 1 | method_ids > 6)) {
-        stop("methods must be integers in 1..6", call. = FALSE)
+    if (any(method_ids < 1 | method_ids > 8)) {
+        stop("methods must be integers in 1..8", call. = FALSE)
     }
     sort(unique(as.integer(method_ids)))
 }
@@ -168,6 +168,7 @@ build_run_plan <- function(method_ids, mrts_k_values) {
     plan_cols <- c(
         "method_id", "method_key", "label", "runner", "method", "skew",
         "thresh_all", "thresh_quant", "nknots", "use_exponential_fallback",
+        "temporaltau", "temporalz", "temporalw", "ar2_tau", "ar2_z", "ar2_w",
         "mrts_k", "output_tag"
     )
     mrts_rows <- baseline[0, plan_cols, drop = FALSE]
@@ -283,9 +284,12 @@ run_method_mcmc <- function(plan_id, dataset_id) {
                 update = update,
                 min.s = c(0, 0),
                 max.s = c(10, 10),
-                temporalw = FALSE,
-                temporaltau = FALSE,
-                temporalz = FALSE,
+                temporalw = isTRUE(spec$temporalw[1]),
+                temporaltau = isTRUE(spec$temporaltau[1]),
+                temporalz = isTRUE(spec$temporalz[1]),
+                ar2_w = isTRUE(spec$ar2_w[1]),
+                ar2_tau = isTRUE(spec$ar2_tau[1]),
+                ar2_z = isTRUE(spec$ar2_z[1]),
                 rho.upper = 15,
                 nu.upper = 10
             ),
@@ -307,9 +311,12 @@ run_method_mcmc <- function(plan_id, dataset_id) {
                     update = update,
                     min.s = c(0, 0),
                     max.s = c(10, 10),
-                    temporalw = FALSE,
-                    temporaltau = FALSE,
-                    temporalz = FALSE,
+                    temporalw = isTRUE(spec$temporalw[1]),
+                    temporaltau = isTRUE(spec$temporaltau[1]),
+                    temporalz = isTRUE(spec$temporalz[1]),
+                    ar2_w = isTRUE(spec$ar2_w[1]),
+                    ar2_tau = isTRUE(spec$ar2_tau[1]),
+                    ar2_z = isTRUE(spec$ar2_z[1]),
                     rho.upper = 15,
                     nu.upper = 10,
                     cov.model = "exponential"
@@ -334,9 +341,12 @@ run_method_mcmc <- function(plan_id, dataset_id) {
             update = update,
             min.s = c(0, 0),
             max.s = c(10, 10),
-            temporalw = FALSE,
-            temporaltau = FALSE,
-            temporalz = FALSE,
+            temporalw = isTRUE(spec$temporalw[1]),
+            temporaltau = isTRUE(spec$temporaltau[1]),
+            temporalz = isTRUE(spec$temporalz[1]),
+            ar2_w = isTRUE(spec$ar2_w[1]),
+            ar2_tau = isTRUE(spec$ar2_tau[1]),
+            ar2_z = isTRUE(spec$ar2_z[1]),
             rho.upper = 15,
             nu.upper = 10
         )

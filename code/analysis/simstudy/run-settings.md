@@ -3,27 +3,36 @@
 此腳本可執行任意 data setting 的複現實驗，支援：
 
 - `datasets` 向量輸入，例如 `1:5`、`20:28`
-- `methods` 向量輸入，例如 `1:6`、`(2,3,6)`
+- `methods` 向量輸入，例如 `1:8`、`(2,3,8)`
 - methods 1–5 的平行執行（PSOCK）
 - method 6（max-stable）以 `ms_threads` 控制 C++ threads
 - 以額外參數 `mrts_k` 將 methods 1–5 切換為指定 MRTS basis 個數的版本
 
 ## 命令列格式
 
-`Rscript run-settings.R [--setting=<id>|--setting <id>] [datasets] [workers] [ms_threads] [methods] [mrts_k]`
+`Rscript run-settings.R [--data=<path>|--data <path>] [--setting=<id>|--setting <id>] [datasets] [workers] [ms_threads] [methods] [mrts_k]`
 
-- 若提供 `--setting`，必須放在腳本名稱後的第一個參數位置。
+- `--data`、`--setting` 僅接受放在 positional args 之前（兩者順序可互換）。
+- `--data` 與 `--setting` 若有提供，需放在所有 positional args 之前（兩者順序可互換）。
 - 若未提供 `--setting`，預設使用 `setting = 5`。
+- 若未提供 `--data`，預設讀取 `./simdata.RData`。
 - `mrts_k` 為選填；若提供，原本選到的 method 1–5 會改為只執行對應的 MRTS 版本（不再同時跑 baseline）。
 
 ## 參數說明
 
+- `data`：資料檔路徑，對應 `--data`（預設 `./simdata.RData`）
 - `setting`：單一整數 setting（有效範圍依 `simdata.RData` 的 setting 維度）
 - `datasets`：dataset 向量表達式（範圍 1..50）
 - `workers`：methods 1–5 的平行 worker 數
 - `ms_threads`：method 6 的執行緒數
-- `methods`：method 向量表達式（範圍 1..6）
+- `methods`：method 向量表達式（範圍 1..8）
 - `mrts_k`：MRTS basis 個數，可為單一整數或向量；只會套用到 method 1–5
+
+### `--data` 輸出目錄規則
+
+- `--data` 預設：`./simdata.RData`，輸出目錄為 `results/`
+- 若檔名為 `simdata_def.RData`，輸出目錄為 `results_def/`
+- 規則為：`results` + 去掉副檔名後檔名中 `simdata` 之後的 suffix
 
 ## 支援的向量語法
 
@@ -42,6 +51,8 @@ PowerShell 建議用字串傳入，避免 shell 先行解讀。
 - 4: Skew-t, K=5
 - 5: t, K=5, threshold q(0.80)
 - 6: Max-stable, threshold q(0.80)
+- 7: Skew-t, K=1 + temporal AR(2) (`temporaltau/z/w=TRUE`, `ar2_tau/z/w=TRUE`)
+- 8: Skew-t, K=5 + temporal AR(2) (同上三組 φ)
 
 ## MRTS 擴增規則
 
@@ -101,9 +112,14 @@ MRTS 擴增版本輸出：
 ## Windows PowerShell 範例
 
 ```powershell
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "1:6"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "1:8"
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "(1,4,6)" "15"
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "(1,3,5)" "c(5,10,15)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --data=.\simdata_def.RData --setting=5 "1:5" 4 2 "(7,8)"
+
+# Fixed-phi AR(2) settings + methods 7／8 AR(2) (pilot)
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=9 "1" 1 2 "(7,8)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=10 "1" 1 2 "(7,8)"
 ```
 
 ## 平行策略說明

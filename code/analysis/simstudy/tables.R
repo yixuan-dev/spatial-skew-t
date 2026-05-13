@@ -281,10 +281,17 @@ save(
 # ---- plots (default-on; --no-plots to skip) -------------------------
 if (!no_plots) {
   set_tag <- sprintf("set%d%s", setting_id, data_suffix)
-  mlty <- c(1, 1, 3, 3, 5, 6)
-  mpch <- c(21, 22, 23, 24, 25, 4)
-  mcol <- c("gray30", "firebrick4", "dodgerblue4", "firebrick1", "dodgerblue1", "darkgreen")
-  mbg  <- c("gray70", "firebrick2", "dodgerblue2", "firebrick1", "dodgerblue1", "lightgreen")
+  # One entry per Morris method id 1..8 (palette[methods[j]], not palette[j]).
+  mlty <- c(1, 1, 3, 3, 5, 6, 2, 4)
+  mpch <- c(21, 22, 23, 24, 25, 4, 8, 9)
+  mcol <- c(
+    "gray30", "firebrick4", "dodgerblue4", "firebrick1", "dodgerblue1", "darkgreen",
+    "purple4", "darkorange2"
+  )
+  mbg  <- c(
+    "gray70", "firebrick2", "dodgerblue2", "firebrick1", "dodgerblue1", "lightgreen",
+    "plum", "moccasin"
+  )
 
   # (1) relative score vs quantile, lines per method, one PDF per mrts_k
   plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
@@ -296,8 +303,9 @@ if (!no_plots) {
       mat <- arr_rel[, , ki]
       ymin <- min(mat, 1, na.rm = TRUE)
       ymax <- max(mat, 1, na.rm = TRUE)
+      m1 <- methods[1]
       plot(probs, mat[, 1], type = "o", ylim = c(ymin, ymax),
-           pch = mpch[1], lty = mlty[1], col = mcol[1], bg = mbg[1],
+           pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
            xlab = "Threshold quantile",
            ylab = sprintf("Relative %s score (vs. Gaussian)", score_lab),
            main = sprintf("Setting %d%s, mrts_k = %d",
@@ -305,13 +313,14 @@ if (!no_plots) {
       abline(h = 1, lty = 2, col = "gray60")
       if (n_methods >= 2) {
         for (j in 2:n_methods) {
-          lines(probs, mat[, j], lty = mlty[j], col = mcol[j])
-          points(probs, mat[, j], pch = mpch[j], col = mcol[j], bg = mbg[j])
+          mj <- methods[j]
+          lines(probs, mat[, j], lty = mlty[mj], col = mcol[mj])
+          points(probs, mat[, j], pch = mpch[mj], col = mcol[mj], bg = mbg[mj])
         }
       }
       legend("topleft", legend = method_label,
-             lty = mlty[seq_len(n_methods)], pch = mpch[seq_len(n_methods)],
-             col = mcol[seq_len(n_methods)], pt.bg = mbg[seq_len(n_methods)],
+             lty = mlty[methods], pch = mpch[methods],
+             col = mcol[methods], pt.bg = mbg[methods],
              cex = 0.7, bty = "n")
       dev.off()
     }
@@ -334,21 +343,23 @@ if (!no_plots) {
                       nrow = n_methods, ncol = n_ks)
         ymin <- min(mat, na.rm = TRUE)
         ymax <- max(mat, na.rm = TRUE)
+        m1 <- methods[1]
         plot(mrts_ks, mat[1, ], type = "o", ylim = c(ymin, ymax),
-             pch = mpch[1], lty = mlty[1], col = mcol[1], bg = mbg[1],
+             pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
              xlab = "MRTS basis rank K",
              ylab = sprintf("Mean %s score", score_lab),
              main = sprintf("Setting %d%s, q = %.3f",
                             setting_id, data_suffix, probs[qi]))
         if (n_methods >= 2) {
           for (j in 2:n_methods) {
-            lines(mrts_ks, mat[j, ], lty = mlty[j], col = mcol[j])
-            points(mrts_ks, mat[j, ], pch = mpch[j], col = mcol[j], bg = mbg[j])
+            mj <- methods[j]
+            lines(mrts_ks, mat[j, ], lty = mlty[mj], col = mcol[mj])
+            points(mrts_ks, mat[j, ], pch = mpch[mj], col = mcol[mj], bg = mbg[mj])
           }
         }
         legend("topright", legend = method_label,
-               lty = mlty[seq_len(n_methods)], pch = mpch[seq_len(n_methods)],
-               col = mcol[seq_len(n_methods)], pt.bg = mbg[seq_len(n_methods)],
+               lty = mlty[methods], pch = mpch[methods],
+               col = mcol[methods], pt.bg = mbg[methods],
                cex = 0.7, bty = "n")
         dev.off()
       }

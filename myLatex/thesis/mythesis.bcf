@@ -2375,7 +2375,10 @@
   </bcf:bibdata>
   <bcf:section number="0">
     <bcf:citekey order="1" intorder="1">morris_space-time_2017</bcf:citekey>
-    <bcf:citekey order="2" intorder="1">morris_space-time_2017</bcf:citekey>
+    <bcf:citekey order="2" intorder="1">tzeng_resolution_2018</bcf:citekey>
+    <bcf:citekey order="3" intorder="1">gneiting_strictly_2007</bcf:citekey>
+    <bcf:citekey order="4" intorder="1">morris_space-time_2017</bcf:citekey>
+    <bcf:citekey order="5" intorder="1">morris_space-time_2017</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nyt">

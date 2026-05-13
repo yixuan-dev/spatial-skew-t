@@ -42,5 +42,3 @@
   \caption{Panels (a) -- (d) give the posterior predictive $\widehat{q}(0.99)$ for the month of July under four different models, panel (e) gives the difference between $\widehat{q}(0.99)$ in panels (d) and (a), panel (f) gives the difference between $\widehat{q}(0.99)$ in panels (d) and (b).}
   \label{stfig:ozoneq99}
 \end{figure}
-\efloatseparator
- 

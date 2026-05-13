@@ -17,6 +17,7 @@ updateTauTS_AR2 <- function(phi1, phi2, tau, taug, g, res, nparts.tau, prec,
     }
 
     tau.star <- gamma.cop(tau, tau.alpha, tau.beta)
+    ar2.moments <- get_ar2_standard_moments(phi1, phi2)
 
     if (nknots == 1) {
         for (t in 1:nt) {
@@ -45,47 +46,32 @@ updateTauTS_AR2 <- function(phi1, phi2, tau, taug, g, res, nparts.tau, prec,
             R <- can.lly - cur.lly + can.llz - cur.llz
 
             # AR(2) 時間序列先驗分佈
-            # 計算 AR(2) 的創新標準差 (innovation variance)
-            gamma0 <- 1 # 標準化邊際方差
-            gamma1 <- phi1 * gamma0 / (1 - phi2)
-            gamma2 <- phi1 * gamma1 + phi2 * gamma0
-            innov_var <- gamma0 - phi1 * gamma1 - phi2 * gamma2
-
-            # 確保創新方差為正
-            if (innov_var <= 1e-6) {
-                innov_var <- 1e-6
-            }
-            innov_sd <- sqrt(innov_var)
-
-            if (t > 2) {
-                mean <- phi1 * tau.star[1, (t - 1)] + phi2 * tau.star[1, (t - 2)]
-                sd <- innov_sd
-            } else if (t == 2) {
-                mean <- phi1 * tau.star[1, 1]
-                sd <- innov_sd # AR(2) 的創新標準差
-            } else { # t == 1
-                mean <- 0
-                sd <- sqrt(gamma0) # 邊際標準差
-            }
-
-            # evaluate the prior
-            R <- R + dnorm(can.tau.star, mean, sd, log = TRUE) -
-                dnorm(tau.star[1, t], mean, sd, log = TRUE)
+            lag1 <- if (t >= 2) tau.star[1, t - 1] else NULL
+            lag2 <- if (t >= 3) tau.star[1, t - 2] else NULL
+            R <- R +
+                ar2_conditional_log_density(
+                    can.tau.star, t, lag1, lag2,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                ) -
+                ar2_conditional_log_density(
+                    tau.star[1, t], t, lag1, lag2,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                )
 
             # 考慮下一時刻的影響
             if (t < nt) {
                 tau.star.next <- tau.star[1, t + 1]
+                next.lag2 <- if (t >= 2) tau.star[1, t - 1] else NULL
 
-                if (t == 1) {
-                    next_mean_can <- phi1 * can.tau.star
-                    next_mean_cur <- phi1 * tau.star[1, t]
-                } else {
-                    next_mean_can <- phi1 * can.tau.star + phi2 * tau.star[1, t - 1]
-                    next_mean_cur <- phi1 * tau.star[1, t] + phi2 * tau.star[1, t - 1]
-                }
-
-                R <- R + dnorm(tau.star.next, next_mean_can, 1, log = TRUE) -
-                    dnorm(tau.star.next, next_mean_cur, 1, log = TRUE)
+                R <- R +
+                    ar2_conditional_log_density(
+                        tau.star.next, t + 1, can.tau.star, next.lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    ) -
+                    ar2_conditional_log_density(
+                        tau.star.next, t + 1, tau.star[1, t], next.lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    )
             }
 
             if (!is.na(R)) {
@@ -131,46 +117,32 @@ updateTauTS_AR2 <- function(phi1, phi2, tau, taug, g, res, nparts.tau, prec,
                 R <- can.lly - cur.lly + can.llz - cur.llz
 
                 # AR(2) 時間序列先驗分佈 (修正: 使用 [k, t] 索引)
-                # 計算 AR(2) 的創新標準差 (innovation variance)
-                gamma0 <- 1 # 標準化邊際方差
-                gamma1 <- phi1 * gamma0 / (1 - phi2)
-                gamma2 <- phi1 * gamma1 + phi2 * gamma0
-                innov_var <- gamma0 - phi1 * gamma1 - phi2 * gamma2
-
-                # 確保創新方差為正
-                if (innov_var <= 1e-6) {
-                    innov_var <- 1e-6
-                }
-                innov_sd <- sqrt(innov_var)
-
-                if (t > 2) {
-                    mean <- phi1 * tau.star[k, (t - 1)] + phi2 * tau.star[k, (t - 2)]
-                    sd <- innov_sd
-                } else if (t == 2) {
-                    mean <- phi1 * tau.star[k, 1]
-                    sd <- innov_sd # AR(2) 的創新標準差
-                } else { # t == 1
-                    mean <- 0
-                    sd <- sqrt(gamma0) # 邊際標準差
-                }
-
-                R <- R + dnorm(can.tau.star[k], mean, sd, log = TRUE) -
-                    dnorm(tau.star[k, t], mean, sd, log = TRUE)
+                lag1 <- if (t >= 2) tau.star[k, t - 1] else NULL
+                lag2 <- if (t >= 3) tau.star[k, t - 2] else NULL
+                R <- R +
+                    ar2_conditional_log_density(
+                        can.tau.star[k], t, lag1, lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    ) -
+                    ar2_conditional_log_density(
+                        tau.star[k, t], t, lag1, lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    )
 
                 # 考慮下一時刻的影響 (修正: 使用 [k, ...] 索引)
                 if (t < nt) {
                     tau.star.next <- tau.star[k, t + 1]
+                    next.lag2 <- if (t >= 2) tau.star[k, t - 1] else NULL
 
-                    if (t == 1) {
-                        next_mean_can <- phi1 * can.tau.star[k]
-                        next_mean_cur <- phi1 * tau.star[k, t]
-                    } else {
-                        next_mean_can <- phi1 * can.tau.star[k] + phi2 * tau.star[k, t - 1]
-                        next_mean_cur <- phi1 * tau.star[k, t] + phi2 * tau.star[k, t - 1]
-                    }
-
-                    R <- R + dnorm(tau.star.next, next_mean_can, innov_sd, log = TRUE) -
-                        dnorm(tau.star.next, next_mean_cur, innov_sd, log = TRUE)
+                    R <- R +
+                        ar2_conditional_log_density(
+                            tau.star.next, t + 1, can.tau.star[k], next.lag2,
+                            phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                        ) -
+                        ar2_conditional_log_density(
+                            tau.star.next, t + 1, tau.star[k, t], next.lag2,
+                            phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                        )
                 }
 
                 if (!is.na(R)) {
@@ -246,25 +218,37 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
     p.s.1 <- if (length(prior.sd) >= 1) prior.sd[1] else 0.5
     p.s.2 <- if (length(prior.sd) >= 2) prior.sd[2] else p.s.1
 
-    # 當前模型的條件均值
-    cur.mean <- phi1 * data.lag1 + phi2 * data.lag2
+    cur.moments <- get_ar2_standard_moments(phi1, phi2)
+    cur.ll <- ar2_transition_loglik(
+        data.current, data.lag1, data.lag2,
+        phi1 = phi1, phi2 = phi2, moments = cur.moments
+    )
 
     # 更新 phi1
     can.phi1 <- rnorm(1, phi1, mh.phi1)
 
     # 檢查穩定性
     if (check_ar2_stability(can.phi1, phi2)) {
-        can.mean <- can.phi1 * data.lag1 + phi2 * data.lag2
+        can.moments <- tryCatch(
+            get_ar2_standard_moments(can.phi1, phi2),
+            error = function(e) NULL
+        )
 
-        R <- sum(dnorm(data.current, can.mean, 1, log = TRUE)) -
-            sum(dnorm(data.current, cur.mean, 1, log = TRUE)) +
-            dnorm(can.phi1, p.m.1, p.s.1, log = TRUE) -
-            dnorm(phi1, p.m.1, p.s.1, log = TRUE)
+        if (!is.null(can.moments)) {
+            can.ll <- ar2_transition_loglik(
+                data.current, data.lag1, data.lag2,
+                phi1 = can.phi1, phi2 = phi2, moments = can.moments
+            )
 
-        if (!is.na(R) && log(runif(1)) < R) {
-            phi1 <- can.phi1
-            acc.phi1 <- acc.phi1 + 1
-            cur.mean <- can.mean # 更新當前均值供 phi2 使用
+            R <- can.ll - cur.ll +
+                dnorm(can.phi1, p.m.1, p.s.1, log = TRUE) -
+                dnorm(phi1, p.m.1, p.s.1, log = TRUE)
+
+            if (!is.na(R) && log(runif(1)) < R) {
+                phi1 <- can.phi1
+                acc.phi1 <- acc.phi1 + 1
+                cur.ll <- can.ll
+            }
         }
     }
 
@@ -273,16 +257,25 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
 
     # 檢查穩定性
     if (check_ar2_stability(phi1, can.phi2)) {
-        can.mean <- phi1 * data.lag1 + can.phi2 * data.lag2
+        can.moments <- tryCatch(
+            get_ar2_standard_moments(phi1, can.phi2),
+            error = function(e) NULL
+        )
 
-        R <- sum(dnorm(data.current, can.mean, 1, log = TRUE)) -
-            sum(dnorm(data.current, cur.mean, 1, log = TRUE)) +
-            dnorm(can.phi2, p.m.2, p.s.2, log = TRUE) -
-            dnorm(phi2, p.m.2, p.s.2, log = TRUE)
+        if (!is.null(can.moments)) {
+            can.ll <- ar2_transition_loglik(
+                data.current, data.lag1, data.lag2,
+                phi1 = phi1, phi2 = can.phi2, moments = can.moments
+            )
 
-        if (!is.na(R) && log(runif(1)) < R) {
-            phi2 <- can.phi2
-            acc.phi2 <- acc.phi2 + 1
+            R <- can.ll - cur.ll +
+                dnorm(can.phi2, p.m.2, p.s.2, log = TRUE) -
+                dnorm(phi2, p.m.2, p.s.2, log = TRUE)
+
+            if (!is.na(R) && log(runif(1)) < R) {
+                phi2 <- can.phi2
+                acc.phi2 <- acc.phi2 + 1
+            }
         }
     }
 
@@ -318,16 +311,7 @@ updateZTS_AR2 <- function(z, zg, y, lambda, x.beta,
     }
 
     # 計算 AR(2) 的創新標準差 (innovation variance)
-    gamma0 <- 1 # 標準化邊際方差
-    gamma1 <- phi1 * gamma0 / (1 - phi2)
-    gamma2 <- phi1 * gamma1 + phi2 * gamma0
-    innov_var <- gamma0 - phi1 * gamma1 - phi2 * gamma2
-
-    # 確保創新方差為正
-    if (innov_var <= 1e-6) {
-        innov_var <- 1e-6
-    }
-    innov_sd <- sqrt(innov_var)
+    ar2.moments <- get_ar2_standard_moments(phi1, phi2)
 
     for (t in 1:nt) {
         taug.t <- sqrt(taug[, t])
@@ -352,35 +336,31 @@ updateZTS_AR2 <- function(z, zg, y, lambda, x.beta,
             can.res <- y[, t] - can.mu.t
             can.lly <- -0.5 * quad.form(prec, taug.t * can.res)
 
-            # prior
-            if (t > 2) {
-                mean <- phi1 * z.star[k, (t - 1)] + phi2 * z.star[k, (t - 2)]
-                sd <- innov_sd
-            } else if (t == 2) {
-                mean <- phi1 * z.star[k, 1]
-                sd <- innov_sd
-            } else {
-                mean <- 0
-                sd <- sqrt(gamma0)
-            }
-
+            lag1 <- if (t >= 2) z.star[k, t - 1] else NULL
+            lag2 <- if (t >= 3) z.star[k, t - 2] else NULL
             R <- can.lly - cur.lly +
-                dnorm(can.z.star[k], mean, sd, log = TRUE) -
-                dnorm(z.star[k, t], mean, sd, log = TRUE)
+                ar2_conditional_log_density(
+                    can.z.star[k], t, lag1, lag2,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                ) -
+                ar2_conditional_log_density(
+                    z.star[k, t], t, lag1, lag2,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                )
 
             if (t < nt) {
                 z.star.next <- z.star[k, t + 1]
+                next.lag2 <- if (t >= 2) z.star[k, t - 1] else NULL
 
-                if (t == 1) {
-                    next_mean_can <- phi1 * can.z.star[k]
-                    next_mean_cur <- phi1 * z.star[k, t]
-                } else {
-                    next_mean_can <- phi1 * can.z.star[k] + phi2 * z.star[k, t - 1]
-                    next_mean_cur <- phi1 * z.star[k, t] + phi2 * z.star[k, t - 1]
-                }
-
-                R <- R + dnorm(z.star.next, next_mean_can, innov_sd, log = TRUE) -
-                    dnorm(z.star.next, next_mean_cur, innov_sd, log = TRUE)
+                R <- R +
+                    ar2_conditional_log_density(
+                        z.star.next, t + 1, can.z.star[k], next.lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    ) -
+                    ar2_conditional_log_density(
+                        z.star.next, t + 1, z.star[k, t], next.lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    )
             }
 
             if (!is.na(R)) {
@@ -458,16 +438,7 @@ updateKnotsTS_AR2 <- function(phi1, phi2, knots, g, ts, tau, z, s, min.s,
     }
 
     # 計算 AR(2) 的創新標準差 (innovation variance)
-    gamma0 <- 1 # 標準化邊際方差
-    gamma1 <- phi1 * gamma0 / (1 - phi2)
-    gamma2 <- phi1 * gamma1 + phi2 * gamma0
-    innov_var <- gamma0 - phi1 * gamma1 - phi2 * gamma2
-
-    # 確保創新方差為正
-    if (innov_var <= 1e-6) {
-        innov_var <- 1e-6
-    }
-    innov_sd <- sqrt(innov_var)
+    ar2.moments <- get_ar2_standard_moments(phi1, phi2)
 
     for (t in 1:nt) {
         att[, t] <- att[, t] + 1
@@ -501,36 +472,39 @@ updateKnotsTS_AR2 <- function(phi1, phi2, knots, g, ts, tau, z, s, min.s,
         can.lly <- 0.5 * sum(log(can.taug)) -
             0.5 * quad.form(prec, sqrt(can.taug) * can.res)
 
-        # remember, when not a TS, phi = 0
-        if (ts & (t > 2)) {
-            mean <- phi1 * knots.star[, , (t - 1)] + phi2 * knots.star[, , (t - 2)]
-            sd <- innov_sd
-        } else if (ts & (t == 2)) {
-            mean <- phi1 * knots.star[, , 1]
-            sd <- innov_sd
+        if (ts) {
+            lag1 <- if (t >= 2) knots.star[, , t - 1] else NULL
+            lag2 <- if (t >= 3) knots.star[, , t - 2] else NULL
+            prior.can <- ar2_conditional_log_density(
+                can.knots.star, t, lag1, lag2,
+                phi1 = phi1, phi2 = phi2, moments = ar2.moments
+            )
+            prior.cur <- ar2_conditional_log_density(
+                cur.knots.star, t, lag1, lag2,
+                phi1 = phi1, phi2 = phi2, moments = ar2.moments
+            )
         } else {
-            mean <- 0
-            sd <- sqrt(gamma0)
+            prior.can <- dnorm(can.knots.star, 0, sqrt(ar2.moments$gamma0), log = TRUE)
+            prior.cur <- dnorm(cur.knots.star, 0, sqrt(ar2.moments$gamma0), log = TRUE)
         }
 
         R <- can.lly - cur.lly +
-            sum(dnorm(can.knots.star, mean, sd, log = TRUE)) -
-            sum(dnorm(cur.knots.star, mean, sd, log = TRUE))
+            sum(prior.can) - sum(prior.cur)
 
         # time series also needs to adjust R to account for next day
         if (ts & (t < nt)) {
             knots.star.next <- knots.star[, , t + 1]
+            next.lag2 <- if (t >= 2) knots.star[, , t - 1] else NULL
 
-            if (t == 1) {
-                next_mean_can <- phi1 * can.knots.star
-                next_mean_cur <- phi1 * cur.knots.star
-            } else {
-                next_mean_can <- phi1 * can.knots.star + phi2 * knots.star[, , t - 1]
-                next_mean_cur <- phi1 * cur.knots.star + phi2 * knots.star[, , t - 1]
-            }
-
-            R <- R + sum(dnorm(knots.star.next, next_mean_can, innov_sd, log = TRUE)) -
-                sum(dnorm(knots.star.next, next_mean_cur, innov_sd, log = TRUE))
+            R <- R +
+                sum(ar2_conditional_log_density(
+                    knots.star.next, t + 1, can.knots.star, next.lag2,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                )) -
+                sum(ar2_conditional_log_density(
+                    knots.star.next, t + 1, cur.knots.star, next.lag2,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                ))
         }
 
         if (!is.na(R)) {
