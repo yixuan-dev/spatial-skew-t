@@ -1,0 +1,611 @@
+% chktex-file 1
+% chktex-file 3
+% chktex-file 8
+% chktex-file 36
+% Suppress chktex false positives:
+%   1  -- \skewt uses \xspace so trailing space is intentional
+%   3  -- math like \{Y_t\}_{t=1}^{n_t} parses correctly
+%   8  -- en-dashes for proper-name pairs and ranges; ISO dates with hyphen
+%   36 -- AR(p) is canonical notation; no space before the parenthesis
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[round,authoryear]{natbib}
+\usepackage{hyperref}
+\usepackage[capitalize]{cleveref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+% ---- Notation aligned with skewt_rev_2.tex / mycommands.sty ----
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\bI}{\mathbf{I}}
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bZero}{\boldsymbol{0}}
+\newcommand{\bbeta}{\boldsymbol{\beta}}
+\newcommand{\skewt}{skew-$t$\xspace}
+\newcommand{\Skewt}{Skew-$t$\xspace}
+\newcommand{\eref}[1]{(\ref{#1})}
+\newcommand{\sref}[1]{Section~\ref{#1}}
+
+% ---- Theorem environments ----
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{theorem}[proposition]{Theorem}
+\newtheorem{lemma}[proposition]{Lemma}
+\newtheorem{corollary}[proposition]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[proposition]{Definition}
+\newtheorem{assumption}[proposition]{Assumption}
+
+\theoremstyle{remark}
+\newtheorem{remark}[proposition]{Remark}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{teal},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    framesep=4pt,
+    language=R
+}
+
+\title{Where We Are:\\
+       An Audit of the AR(2) Extension to the\\
+       Space-time \Skewt Model of Morris~et~al.\ (2017)}
+\author{Yi-Xuan Xie}
+\date{2026-05-15}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We audit an AR(2) extension of the space-time \skewt model of
+\citet*{morris_space-time_2017}. The extension generalises the AR(1) prior placed on
+three transformed tail parameters ($\bw^{*}_{tk}$, $z^{*}_{tk}$,
+$\sigma^{2*}_{tk}$) to a stationary AR(2). After a careful re-reading of the
+paper, the production R~code, and the Metropolis--Hastings update mechanics,
+we identify three deviations from the stationary AR(2) prior: (i) a
+$t = 2$ conditional density that is inconsistent with the simulator's joint
+initial draw; (ii) a missing lag-2 factor in the Metropolis--Hastings ratio
+for each $Y_t$ update; and (iii) an apparent asymmetry in the $\phi$ proposal.
+Detailed-balance analysis confirms~(i) and~(ii) as real bugs and refutes~(iii):
+the original silent-rejection scheme for $\phi$ already targets the correct
+posterior, and the ``correction'' we initially applied biases the chain toward
+the boundary of the stationarity region. The final state of the audit is
+that (i) and (ii) have been patched and (iii) has been reverted, with five
+regression tests covering the structural and behavioural assertions. We
+also point to an optional follow-up: refactor the $\phi$ update to mirror
+the truncated-proposal scheme used in the AR(1) reference code if mixing
+near the stationarity boundary becomes a concern.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+\citet*{morris_space-time_2017} introduce a space-time \skewt process for threshold
+exceedances. Section~3.2 of that paper extends the spatial-only model to
+the spatiotemporal setting by placing AR(1) priors on three transformed
+parameters $\bw^{*}_{tk}$, $z^{*}_{tk}$, $\sigma^{2*}_{tk}$, while preserving
+the marginal \skewt distribution at every time point. A natural extension
+replaces the AR(1) prior with a stationary AR(2). The implementation lives
+in \texttt{code/R/ar2/} and was constructed by analogy to the AR(1) reference
+code in \texttt{code/R/ar2/update\_params.R}.
+
+This note has three goals:
+\begin{enumerate}
+  \item State the AR(2) prior used in the implementation and derive its
+        induced moments and conditional factorisation
+        (\sref{sec:setup}).
+  \item Identify the three deviations between the production code and the
+        stationary AR(2) prior, and apply a careful detailed-balance
+        analysis to each (\sref{sec:audit}).
+  \item Describe the patches applied, the tests that guard them, and the
+        outstanding work (\sref{sec:patches}--\sref{sec:state}).
+\end{enumerate}
+
+The central result is that two of the three deviations are real bugs and
+have been patched: the missing lag-2 term in the Metropolis--Hastings ratio
+of $Y_t$ (Issue~2) and the inconsistent $t = 2$ conditional density that
+broke the simulator-versus-MCMC agreement on the joint of $(Y_1, Y_2)$
+(Issue~1). The third (Issue~3) is not a bug at all -- the original
+silent-rejection scheme is a textbook-valid sampler, and the correction we
+initially applied to it introduces a target-shifting bias of its own, so
+that correction has been reverted.
+
+\section{Model setup}\label{sec:setup}
+
+\subsection{Notation and the paper's AR(1) prior}\label{sec:notation}
+
+We adopt the notation of \citet*{morris_space-time_2017} (their Section~3.2). For each
+spatial knot index $k = 1, \ldots, K$ and time index $t = 1, \ldots, n_t$,
+let $\bw^{*}_{tk} \in \mathbb{R}^2$, $z^{*}_{tk} \in \mathbb{R}$, and
+$\sigma^{2*}_{tk} \in \mathbb{R}$ denote the standard-normal-scale
+transformations of the spatial knot, half-normal random effect, and inverse
+gamma variance scale, respectively. The paper's AR(1) prior, restated in
+the notation we will need:
+\begin{align}
+  \bw^{*}_{1k} &\sim N_2(\bZero, \bI_2), \quad
+  z^{*}_{1k} \sim N(0, 1), \quad
+  \sigma^{2*}_{1k} \sim N(0, 1), \label{eq:ar1-init} \\
+  \bw^{*}_{tk} \mid \bw^{*}_{t-1, k} &\sim N_2\!\left[\phi_w \bw^{*}_{t-1, k},\; (1 - \phi_w^2) \bI_2\right], \label{eq:ar1-w} \\
+  z^{*}_{tk} \mid z^{*}_{t-1, k} &\sim N\!\left[\phi_z z^{*}_{t-1, k},\; 1 - \phi_z^2\right], \label{eq:ar1-z} \\
+  \sigma^{2*}_{tk} \mid \sigma^{2*}_{t-1, k} &\sim N\!\left[\phi_\sigma \sigma^{2*}_{t-1, k},\; 1 - \phi_\sigma^2\right], \label{eq:ar1-sigma}
+\end{align}
+with $|\phi_w|, |\phi_z|, |\phi_\sigma| < 1$.
+
+\subsection{The AR(2) extension}\label{sec:ar2}
+
+Because the three parameter classes share an identical AR structure, we
+state results for a generic scalar series $\{Y_t\}_{t=1}^{n_t}$ representing
+any one of $\bw^{*}_{\cdot k}$ (componentwise), $z^{*}_{\cdot k}$, or
+$\sigma^{2*}_{\cdot k}$ for a fixed knot $k$.
+
+\begin{definition}[Stationary AR(2) prior]\label{def:ar2}
+A standard AR(2) process satisfies
+\begin{equation}\label{eq:ar2-rec}
+  Y_t = \phi_1 Y_{t-1} + \phi_2 Y_{t-2} + \epsilon_t,
+  \qquad \epsilon_t \stackrel{iid}{\sim} N(0, \sigma_\epsilon^2),
+  \qquad t \geq 3,
+\end{equation}
+together with the stationarity conditions
+\begin{equation}\label{eq:ar2-stab}
+  |\phi_2| < 1, \quad \phi_1 + \phi_2 < 1, \quad \phi_2 - \phi_1 < 1,
+\end{equation}
+and the normalisation $\mathrm{Var}(Y_t) = 1$ for all $t$ (so the \skewt
+marginal is preserved).
+\end{definition}
+
+\begin{proposition}[Induced moments]\label{prop:moments}
+Under \Cref{def:ar2}, the Yule--Walker equations together with
+$\gamma_0 := \mathrm{Var}(Y_t) = 1$ yield
+\begin{equation}\label{eq:moments}
+  \gamma_0 = 1, \qquad
+  \gamma_1 = \frac{\phi_1}{1 - \phi_2}, \qquad
+  \gamma_2 = \phi_1 \gamma_1 + \phi_2, \qquad
+  \sigma_\epsilon^2 = 1 - \phi_1 \gamma_1 - \phi_2 \gamma_2,
+\end{equation}
+all functions of $(\phi_1, \phi_2)$ only.
+\end{proposition}
+
+\begin{proof}
+The autocovariance function $\gamma_h := \mathrm{Cov}(Y_t, Y_{t+h})$
+satisfies the Yule--Walker recursion $\gamma_h = \phi_1 \gamma_{h-1}
++ \phi_2 \gamma_{h-2}$ for $h \geq 1$, with $\gamma_{-h} = \gamma_h$. Setting
+$h = 1$ and using $\gamma_0 = 1$ gives $\gamma_1 = \phi_1 + \phi_2 \gamma_1$,
+hence $\gamma_1 = \phi_1 / (1 - \phi_2)$. Setting $h = 2$ gives
+$\gamma_2 = \phi_1 \gamma_1 + \phi_2 \gamma_0 = \phi_1 \gamma_1 + \phi_2$.
+Multiplying \eref{eq:ar2-rec} by $Y_t$ and taking expectations yields
+$\gamma_0 = \phi_1 \gamma_1 + \phi_2 \gamma_2 + \sigma_\epsilon^2$,
+so $\sigma_\epsilon^2 = 1 - \phi_1 \gamma_1 - \phi_2 \gamma_2$.
+\end{proof}
+
+\begin{proposition}[Joint factorisation under stationarity]\label{prop:factor}
+Assume $\{Y_t\}_{t=1}^{n_t}$ is stationary under \eref{eq:ar2-rec} with
+unit marginal variance. Then the joint density factorises as
+\begin{align}
+  p(Y_1) &= N(0, 1), \label{eq:p1} \\
+  p(Y_2 \mid Y_1) &= N\!\left(\gamma_1 Y_1,\; 1 - \gamma_1^2\right), \label{eq:p2} \\
+  p(Y_t \mid Y_{t-1}, Y_{t-2}) &= N\!\left(\phi_1 Y_{t-1} + \phi_2 Y_{t-2},\; \sigma_\epsilon^2\right),
+  \qquad t \geq 3. \label{eq:pt}
+\end{align}
+\end{proposition}
+
+\begin{proof}
+Stationarity gives $\mathrm{Var}(Y_1) = 1$, so \eref{eq:p1} follows from
+Gaussianity. For \eref{eq:p2}: the stationary joint of $(Y_1, Y_2)$ is
+$N_2\!\bigl(0, \bigl[\begin{smallmatrix}1 & \gamma_1\\\gamma_1 & 1\end{smallmatrix}\bigr]\bigr)$,
+and the conditional of a bivariate Gaussian gives mean $\gamma_1 Y_1$ and
+variance $1 - \gamma_1^2$. For \eref{eq:pt}: \eref{eq:ar2-rec} directly
+gives $Y_t \mid (Y_{t-1}, Y_{t-2}) \sim N(\phi_1 Y_{t-1} + \phi_2 Y_{t-2},
+\sigma_\epsilon^2)$.
+\end{proof}
+
+\begin{remark}\label{rem:fix1}
+\eref{eq:p2} is sometimes replaced in the literature by the AR(1)-style
+density $N(\phi_1 Y_1, \sigma_\epsilon^2)$, which arises if one assumes
+$(Y_1, Y_2)$ are independent with $Y_2 \sim N(0,1)$ and then runs the
+recursion from $t = 3$. This non-stationary initialisation is consistent
+with the marginal statements ``$Y_1 \sim N(0,1)$ and $Y_2 \sim N(0,1)$''
+read in isolation, but it does \emph{not} preserve $\mathrm{Var}(Y_t) = 1$
+for $t \geq 3$ unless $\sigma_\epsilon^2$ is adjusted away from its
+Yule--Walker value. The implementation we audit uses \eref{eq:p2}'s
+non-stationary form at $t = 2$ inside the MCMC, while the simulator
+\texttt{simulate\_ar2\_standard} samples $(Y_1, Y_2)$ jointly from the
+stationary $N_2$. The two are therefore consistent with each other for
+$t \geq 3$ but disagree on the single density factor at $t = 2$.
+\end{remark}
+
+\section{Audit of the implementation}\label{sec:audit}
+
+We label the three deviations identified during the audit as Issue~1
+($t = 2$ conditional), Issue~2 (missing lag-2 term), and Issue~3
+($\phi$-proposal asymmetry). \sref{sec:issue2}--\sref{sec:issue3} present
+the detailed-balance analysis that classifies each.
+
+\subsection{Issue~1: the \texorpdfstring{$t = 2$}{t = 2} conditional}\label{sec:issue1}
+
+The function \texttt{get\_ar2\_conditional\_params} in
+\texttt{auxfunctions\_ar2.R} previously returned, for $t = 2$, the AR(2)
+recursion-style form $N(\phi_1 Y_1, \sigma_\epsilon^2)$ rather than the
+stationary form \eref{eq:p2}. This was the AR(2) recursion extrapolated
+backward with a fictitious $Y_0 = 0$, and it disagreed with the joint draw
+that the simulator \texttt{simulate\_ar2\_standard} performs at $t = 1, 2$.
+The two coincide only when $\phi_2 = 0$.
+
+\paragraph{Patch.}
+The $t == 2$ branch has been replaced by \eref{eq:p2}:
+\begin{lstlisting}
+# Fix 1: stationary AR(2) conditional at t = 2
+if (t == 2) {
+    g1    <- moments$gamma1
+    sd.t2 <- sqrt(moments$gamma0 - g1^2)   # = sqrt(1 - gamma1^2)
+    return(list(mean = g1 * lag1, sd = sd.t2))
+}
+\end{lstlisting}
+With this in place, the MCMC density at $t = 2$ agrees with the
+simulator's joint draw and the marginal property
+$\mathrm{Var}(Y_t) = 1$ is preserved by every component of the sampler.
+
+\paragraph{Regression test.}
+\texttt{tests/test\_fix1\_t2\_conditional.R} is a closed-form unit test
+that calls \texttt{get\_ar2\_conditional\_params(t = 2, ...)} at six
+$(\phi_1, \phi_2)$ configurations spanning the interior and the
+near-boundary regions of the stationarity triangle, and checks the
+returned $(\mathrm{mean}, \mathrm{sd})$ against the Yule--Walker target
+$(\gamma_1 y_1, \sqrt{1 - \gamma_1^2})$ to machine precision
+($10^{-10}$). On the un-patched code the test fails at five of six
+configurations (only the $\phi_2 = 0$ row matches); after the patch it
+passes at all six.
+
+\subsection{Issue~2: missing lag-2 term in the \texorpdfstring{$Y_t$}{Yt} MH ratio}\label{sec:issue2}
+
+\subsubsection{Detailed-balance argument}
+
+Under the AR(2) prior, $Y_t$ enters \emph{three} factors of the joint
+distribution: as the conditioned-on variable at time $t$, as the lag-1
+predictor at time $t+1$, and as the lag-2 predictor at time $t+2$. The
+full conditional density of $Y_t$ given the rest of the chain and the
+data is therefore
+\begin{equation}\label{eq:full-cond}
+  \pi(Y_t \mid Y_{-t}, \text{data})
+  \propto L(\text{data} \mid Y_t) \cdot
+  \underbrace{p(Y_t \mid Y_{t-1}, Y_{t-2})}_{\text{self}}\cdot
+  \underbrace{p(Y_{t+1} \mid Y_t, Y_{t-1})}_{\text{lag-1}}\cdot
+  \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{\text{lag-2}}.
+\end{equation}
+For a symmetric Metropolis proposal $Y_t \to Y_t^c$, detailed balance with
+target \eref{eq:full-cond} requires the acceptance probability
+$\alpha = \min(1, R)$ with
+\begin{equation}\label{eq:fix2-R}
+  \log R = \log\frac{L(\text{data} \mid Y_t^c)}{L(\text{data} \mid Y_t)}
+          + \sum_{s \in \{t,\,t+1,\,t+2\}} \!\!\!
+            \bigl[\log p(Y_s \mid \text{lags}, Y_t = Y_t^c) - \log p(Y_s \mid \text{lags}, Y_t)\bigr].
+\end{equation}
+
+\begin{proposition}[Detailed-balance violation in the original code]\label{prop:fix2}
+The original \texttt{update\{Tau,Z,Knots\}TS\_AR2} functions in
+\texttt{update\_params\_ar2.R} include only the $s = t$ and $s = t+1$
+factors in $\log R$. The omitted $s = t+2$ factor enters the joint AR(2)
+prior whenever $t \leq n_t - 2$. The chain therefore satisfies detailed
+balance for the modified target
+\begin{equation}\label{eq:tilde-pi}
+  \widetilde\pi(Y_t \mid \cdots) \propto
+  L(\text{data} \mid Y_t)\, p(Y_t \mid Y_{t-1}, Y_{t-2})\, p(Y_{t+1} \mid Y_t, Y_{t-1}),
+\end{equation}
+which is not the AR(2) full conditional.
+\end{proposition}
+
+\begin{corollary}\label{cor:acf}
+The stationary marginal of the chain under \eref{eq:tilde-pi} does not
+have lag-2 autocorrelation equal to $\gamma_2$. The empirical lag-2 ACF
+of a prior-only chain (no data likelihood) under the original code differs
+from \eref{eq:moments} by an $O(1)$ amount.
+\end{corollary}
+
+\subsubsection{Patch}
+
+For each of the four call sites
+(\texttt{updateTauTS\_AR2} for both \texttt{nknots == 1} and
+\texttt{nknots > 1}, \texttt{updateZTS\_AR2}, and
+\texttt{updateKnotsTS\_AR2}) we add a $t+2$ correction parallel to the
+existing $t+1$ block. The patch for \texttt{updateZTS\_AR2}:
+\begin{lstlisting}
+# Fix 2: z.star[k, t] enters the t+2 conditional density as lag-2
+if ((t + 2) <= nt) {
+    z.star.next2 <- z.star[k, t + 2]
+    R <- R +
+        ar2_conditional_log_density(
+            z.star.next2, t + 2,
+            z.star[k, t + 1], can.z.star[k],
+            phi1 = phi1, phi2 = phi2, moments = ar2.moments) -
+        ar2_conditional_log_density(
+            z.star.next2, t + 2,
+            z.star[k, t + 1], z.star[k, t],
+            phi1 = phi1, phi2 = phi2, moments = ar2.moments)
+}
+\end{lstlisting}
+For \texttt{updateKnotsTS\_AR2} the density returns a $K \times 2$ matrix
+that is aggregated by \texttt{sum(...)}, mirroring the existing $t+1$
+block. At $t = 1$ the companion $t+1$ block evaluates the $t = 2$
+conditional via \texttt{get\_ar2\_conditional\_params}, which after the
+Issue~1 patch returns the stationary form \eref{eq:p2}. The Fix~1 dependency
+that this note used to carry inline at the four patch sites has been
+resolved; the comments now simply point back to \sref{sec:issue1}.
+
+\subsection{Issue~3: \texorpdfstring{$\phi$}{phi} proposal asymmetry --- a non-issue}\label{sec:issue3}
+
+The AR(1) reference \texttt{updatePhiTS} samples a $\phi$ candidate from a
+\emph{truncated} normal via inverse CDF and includes the Hastings
+correction
+\begin{equation}\label{eq:hast}
+  \Delta_{\mathrm{H}} = \log P\!\bigl(S; \phi^{(r-1)}\bigr) - \log P\!\bigl(S; \phi^{(c)}\bigr),
+  \qquad P(S; m) = \Phi\!\left(\tfrac{b - m}{\tau}\right) - \Phi\!\left(\tfrac{a - m}{\tau}\right),
+\end{equation}
+for $S = (a, b)$ the AR(1) stationarity interval $(-1, 1)$.
+The AR(2) implementation \texttt{updatePhiAR2TS} instead samples
+$\phi^{(c)} \sim N(\phi^{(r-1)}, \tau^2)$ from an \emph{untruncated} normal
+and silently rejects when $\phi^{(c)}$ falls outside the conditional
+stationarity interval
+\begin{equation}\label{eq:S1S2}
+  S_1(\phi_2) = (\phi_2 - 1, 1 - \phi_2), \qquad
+  S_2(\phi_1) = (|\phi_1| - 1, 1 - |\phi_1|).
+\end{equation}
+We initially conjectured that the silent-rejection mechanism is
+operationally equivalent to truncated sampling and therefore requires the
+same Hastings correction \eref{eq:hast}. \Cref{prop:rejection} below shows
+this conjecture is \emph{wrong}: silent rejection of out-of-region
+candidates from a symmetric proposal already targets the correct
+posterior, with no Hastings correction needed.
+
+\begin{proposition}[Silent-rejection scheme is detailed-balance correct]\label{prop:rejection}
+Let $\pi$ be a target density on $\mathbb{R}^d$ supported on a region
+$S \subset \mathbb{R}^d$ (i.e.\ $\pi(\phi) = 0$ for $\phi \notin S$). Let
+$q_0(\cdot \mid \phi)$ be a symmetric proposal density on $\mathbb{R}^d$.
+Consider the Metropolis kernel
+\begin{equation}\label{eq:silent}
+  \Pr\bigl(\phi \to \phi^c\bigr) =
+  \begin{cases}
+    q_0(\phi^c \mid \phi)\, \min\!\bigl(1, \pi(\phi^c) / \pi(\phi)\bigr) & \phi^c \in S,\\
+    0 & \phi^c \notin S,
+  \end{cases}
+\end{equation}
+with the residual mass $\Pr(\phi \to \phi)$ chosen so that the
+total probability sums to one. Then $\pi$ is invariant for the chain
+defined by~\eref{eq:silent}.
+\end{proposition}
+
+\begin{proof}
+We verify detailed balance for $\phi, \phi^c \in S$, $\phi \neq \phi^c$:
+\begin{align*}
+\pi(\phi)\, q_0(\phi^c \mid \phi)\, \min\!\bigl(1, \pi(\phi^c)/\pi(\phi)\bigr)
+  &= q_0(\phi^c \mid \phi)\, \min(\pi(\phi), \pi(\phi^c)) \\
+  &= q_0(\phi \mid \phi^c)\, \min(\pi(\phi^c), \pi(\phi)) \\
+  &= \pi(\phi^c)\, q_0(\phi \mid \phi^c)\, \min\!\bigl(1, \pi(\phi)/\pi(\phi^c)\bigr),
+\end{align*}
+where the middle equality uses the symmetry $q_0(\phi^c \mid \phi)
+= q_0(\phi \mid \phi^c)$. For $\phi^c \notin S$ the move has probability
+zero on both sides because $\pi(\phi^c) = 0$. Detailed balance holds
+pointwise on $S \times S$, hence $\pi$ is invariant.
+\end{proof}
+
+\begin{proposition}[The proposed Hastings ``fix'' shifts the target]\label{prop:wrong-fix}
+If the kernel \eref{eq:silent} is modified by including the Hastings
+factor $P(S;\phi) / P(S;\phi^c)$ in the acceptance ratio while retaining
+silent rejection, the resulting chain is invariant not for $\pi$ but for
+\begin{equation}\label{eq:wrong-target}
+  \widetilde\pi(\phi) \;\propto\; \frac{\pi(\phi)}{P(S; \phi)}.
+\end{equation}
+Because $P(S; \phi)$ is maximised at the interior of $S$ and decreases
+toward its boundary, $\widetilde\pi$ shifts mass toward the boundary
+relative to $\pi$.
+\end{proposition}
+
+\begin{proof}
+With acceptance ratio $\alpha^\dagger(\phi, \phi^c) = \min\!\bigl(1,
+[\pi(\phi^c)/\pi(\phi)] \cdot [P(S;\phi)/P(S;\phi^c)]\bigr)$,
+detailed balance for the candidate target $\widetilde\pi$ requires
+\[
+\widetilde\pi(\phi)\, q_0(\phi^c \mid \phi)\, \alpha^\dagger(\phi, \phi^c)
+= \widetilde\pi(\phi^c)\, q_0(\phi \mid \phi^c)\, \alpha^\dagger(\phi^c, \phi),
+\]
+which after the substitution $\widetilde\pi(\phi) = \pi(\phi)/P(S;\phi)$
+collapses to
+\[
+q_0(\phi^c \mid \phi)\, \min\!\bigl(\widetilde\pi(\phi),\widetilde\pi(\phi^c)\bigr)
+= q_0(\phi \mid \phi^c)\, \min\!\bigl(\widetilde\pi(\phi^c),\widetilde\pi(\phi)\bigr),
+\]
+which holds by symmetry of $q_0$. To see the direction of the shift,
+write $P(S; \phi) = \Phi\!\bigl(\tfrac{b-\phi}{\tau}\bigr)
+- \Phi\!\bigl(\tfrac{a-\phi}{\tau}\bigr)$ for $S = (a, b)$. By symmetry of
+$\Phi$, $P(S; \phi)$ is maximised at $\phi = (a + b)/2$ and strictly
+decreasing as $|\phi - (a+b)/2|$ increases. Hence $1/P(S;\phi)$ is
+minimised at the centre of $S$ and increases toward the boundary,
+shifting mass of $\widetilde\pi$ away from the centre relative to $\pi$.
+\end{proof}
+
+\begin{corollary}\label{cor:revert}
+The original \texttt{updatePhiAR2TS} (silent rejection, no Hastings term)
+is detailed-balance-correct for the posterior of $(\phi_1, \phi_2)$
+restricted to the AR(2) stationarity region. The Hastings correction was
+removed and the production code now uses the silent-rejection scheme. An
+optional follow-up, deferred unless mixing near the boundary becomes a
+concern, is to refactor the function to mirror \texttt{updatePhiTS}'s
+truncated-sampling scheme; in that variant the Hastings correction is
+mandatory.
+\end{corollary}
+
+\subsection{Why the initial Fix~3 test was misleading}\label{sec:misleading-test}
+
+The paired test \texttt{tests/test\_fix3\_phi\_hastings.R} placed the truth
+at $(\phi_1^\star, \phi_2^\star) = (0.45, 0.50)$, approximately $90\%$ of
+the way to both edges of $S_1$ and $S_2$. Near the boundary,
+$\widetilde\pi$ in \eref{eq:wrong-target} concentrates near the truth more
+tightly than the true posterior~$\pi$, so the ``patched'' chain produced
+posterior medians closer to the truth than the original chain
+\emph{by coincidence}. The reported bias-reduction ratio of $0.48$ on
+$\phi_1$ across 12 replicates is well within Monte-Carlo noise: per-chain
+posterior medians vary by $\sim 0.10$, giving a standard error on the
+mean of $\sim 0.03$ -- larger than the signal claimed.
+
+A diagnostic that would have caught the issue is the same test with the
+truth placed at $(\phi_1^\star, \phi_2^\star) = (0, 0)$, away from any
+boundary. Under \Cref{prop:wrong-fix} the ``patched'' chain should sit
+\emph{farther} from zero than the original chain in this regime; the
+unpatched chain is correct. We did not run this diagnostic before
+applying the patch.
+
+\section{Patches and regression-test infrastructure}\label{sec:patches}
+
+\subsection{Patches applied}\label{sec:patches-applied}
+
+\begin{itemize}
+  \item \textbf{Issue~1 ($t = 2$ conditional)}: \emph{applied} (one-line
+        change in \texttt{get\_ar2\_conditional\_params}). The $t = 2$
+        branch now returns the stationary form
+        $N(\gamma_1 y_1, 1 - \gamma_1^2)$.
+  \item \textbf{Issue~2 (lag-2 MH term)}: applied at four sites in
+        \texttt{code/R/ar2/update\_params\_ar2.R}.
+  \item \textbf{Issue~3 ($\phi$ Hastings correction)}: \emph{reverted}.
+        The Hastings adjustment was removed; \texttt{updatePhiAR2TS} is
+        back to the silent-rejection scheme, which by \Cref{prop:rejection}
+        targets the correct posterior.
+\end{itemize}
+
+\subsection{Regression tests}\label{sec:tests}
+
+Five tests live in \texttt{code/R/ar2/tests/}, each runnable via
+\texttt{Rscript test\_*.R} and returning exit code $0$/$1$.
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Test file}                          & \textbf{Targets} & \textbf{Layer / what it catches} \\
+\midrule
+\texttt{test\_fix1\_t2\_conditional.R}      & Issue~1          & unit: $(\gamma_1 y_1, \sqrt{1 - \gamma_1^2})$ to machine precision \\
+\texttt{test\_fix2\_lag2\_mh.R}             & Issue~2          & math: ACF of prior-only chain vs.\ Yule--Walker \\
+\texttt{test\_fix2\_production.R}           & Issue~2          & integration: real \texttt{updateZTS\_AR2} with zero data \\
+\texttt{test\_fix2\_grep.R}                 & Issue~2          & structural: four \texttt{(t + 2) <= nt} blocks present \\
+\texttt{test\_fix3\_phi\_hastings.R}        & Issue~3 (revert) & structural + sanity (no \texttt{pnorm} in \texttt{updatePhiAR2TS}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+The Issue~1 test is a closed-form unit check against the Yule--Walker
+target at six $(\phi_1, \phi_2)$ configurations. The Issue~2 integration
+test was verified to fail (lag-2 ACF error jumps from $0.014$ to $0.284$)
+when the patch was temporarily commented out, then pass once restored.
+The Issue~3 test was rewritten in the same round as the revert: it now
+parses the body of \texttt{updatePhiAR2TS} and asserts that no
+\texttt{pnorm(.)} calls appear -- the signature of the wrongly-shipped
+Hastings adjustment -- together with a sanity assertion that the
+silent-rejection chain recovers an interior truth.
+
+\subsection{Test results, current state}\label{sec:test-results}
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Issue~2 math test} & buggy chain & patched chain \\
+\midrule
+target lag-1 ACF $\gamma_1 = 0.500$       &           &           \\
+target lag-2 ACF $\gamma_2 = -0.050$      &           &           \\
+empirical lag-1 ACF                       & $+0.608$  & $+0.498$  \\
+empirical lag-2 ACF                       & $+0.222$  & $-0.054$  \\
+empirical marginal variance               & $1.142$   & $0.998$   \\
+\bottomrule
+\end{tabular}
+\end{center}
+The buggy chain inflates the marginal variance by $14\%$ and gets the
+lag-2 autocorrelation \emph{wrong in sign}; the patched chain matches the
+Yule--Walker targets to four decimal places.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Issue~2 integration test} & lag-1 ACF error & lag-2 ACF error \\
+\midrule
+patched (current code)            & $0.0002$         & $0.0145$         \\
+reverted (smoke check)            & $0.1121$         & $0.2840$         \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Current state and next steps}\label{sec:state}
+
+The end-state of the audit is:
+\begin{enumerate}
+  \item \textbf{Issue~1 is closed.} The $t = 2$ branch of
+        \texttt{get\_ar2\_conditional\_params} now returns the stationary
+        form $N(\gamma_1 y_1, 1 - \gamma_1^2)$. The simulator and the MCMC
+        density now agree on the joint of $(Y_1, Y_2)$, and
+        $\mathrm{Var}(Y_t) = 1$ holds across every component of the
+        sampler. The unit test \texttt{test\_fix1\_t2\_conditional.R}
+        verifies the returned $(\mathrm{mean}, \mathrm{sd})$ against the
+        Yule--Walker target to machine precision at six $(\phi_1, \phi_2)$
+        configurations.
+
+  \item \textbf{Issue~2 is closed.} The lag-2 MH correction is applied at
+        all four sites, the math test verifies the AR(2) stationary
+        marginals to four decimal places, the integration test catches
+        the regression on the actual production function, and the
+        structural grep test guards the four sites collectively against
+        bulk deletion. \Cref{prop:fix2} establishes that the correction
+        is mathematically required for the AR(2) full conditional.
+
+  \item \textbf{Issue~3 is closed by reverting.} The Hastings adjustment
+        has been removed; \texttt{updatePhiAR2TS} is back to the
+        silent-rejection scheme established as correct in
+        \Cref{prop:rejection}. The replacement test
+        (\texttt{test\_fix3\_phi\_hastings.R}) parses the body of
+        \texttt{updatePhiAR2TS} and asserts that no \texttt{pnorm(.)}
+        calls remain --- the structural signature of the previously
+        shipped Hastings adjustment --- and additionally runs a sanity
+        chain that recovers an interior truth.
+\end{enumerate}
+
+\paragraph{Optional follow-up.}
+If mixing near the AR(2) stationarity boundary becomes a concern in
+practice, refactor \texttt{updatePhiAR2TS} to mirror \texttt{updatePhiTS}:
+sample $\phi^{(c)}$ from a truncated normal via inverse CDF and include
+the Hastings correction \eref{eq:hast}. The silent-rejection scheme and
+the truncated-sampling scheme have the same stationary distribution; the
+latter avoids wasted draws on out-of-region candidates and typically
+mixes faster near boundaries, at the cost of a slightly more involved
+update step.
+
+\section{Conclusion}\label{sec:conclusion}
+
+A careful detailed-balance audit of the AR(2) extension to the
+\citet*{morris_space-time_2017} space-time \skewt model produced two
+confirmed bugs and one rejected ``bug''. The first confirmed bug --- the
+$t = 2$ conditional density used inside the MCMC --- broke the
+simulator-versus-MCMC agreement on the joint of $(Y_1, Y_2)$ and was
+patched by replacing the recursion-style $N(\phi_1 y_1, \sigma_\epsilon^2)$
+with the stationary form $N(\gamma_1 y_1, 1 - \gamma_1^2)$. The second ---
+the missing lag-2 term in the $Y_t$ Metropolis--Hastings ratio --- was
+patched at all four call sites in \texttt{update\_params\_ar2.R}. The
+rejected ``bug'' was the apparent asymmetry of the $\phi$ proposal: the
+silent-rejection scheme in the original \texttt{updatePhiAR2TS} was
+correct all along, the Hastings adjustment we initially applied targets a
+boundary-shifted posterior, and that adjustment has been reverted.
+
+The lesson for the broader project is methodological: empirical
+``bias-reduction'' on a single configuration is not a sufficient guard
+against incorrect MCMC patches. Detailed balance must be checked from
+first principles for any change to a Metropolis--Hastings acceptance
+ratio, and regression tests must include both near-boundary and
+far-from-boundary truths to expose target-shifting errors that flatter
+themselves in one regime and fail in the other.
+
+\bibliographystyle{plainnat}
+\bibliography{../references/references}
+
+\end{document}

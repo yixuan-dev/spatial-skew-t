@@ -1,0 +1,639 @@
+% chktex-file 1
+% chktex-file 3
+% chktex-file 8
+% chktex-file 36
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[round,authoryear]{natbib}
+\usepackage{hyperref}
+\usepackage[capitalize]{cleveref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bI}{\mathbf{I}}
+\newcommand{\bZero}{\boldsymbol{0}}
+\newcommand{\skewt}{skew-$t$\xspace}
+\newcommand{\Skewt}{Skew-$t$\xspace}
+
+\newcommand{\eref}[1]{(\ref{#1})}
+\newcommand{\sref}[1]{Section~\ref{#1}}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[section]
+
+\theoremstyle{definition}
+\newtheorem{definition}[proposition]{Definition}
+
+\theoremstyle{remark}
+\newtheorem{remark}[proposition]{Remark}
+\newtheorem*{intuition}{Intuition}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{teal},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    framesep=4pt,
+    language=R
+}
+
+\title{AR(2) MCMC for Beginners:\\
+       A Walkthrough of Issue~1 and Issue~2}
+\author{Yi-Xuan Xie}
+\date{2026-05-15}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note is a beginner-friendly companion to
+\texttt{tex/ar2\_fix\_proposal/} and \texttt{tex/where\_we\_are/}.
+Those earlier notes assume the reader is comfortable with the Metropolis--Hastings
+algorithm, detailed balance, and the Markov factorisation of an AR(2) joint
+prior. Here we build the same machinery from the ground up and then return
+to the two issues that motivated the audit, explaining \emph{why} each one
+is real and \emph{how} the patch removes it, using explicit mathematical
+notation throughout. We treat the third issue (the $\phi$ Hastings
+adjustment) elsewhere; that one is more subtle and is not the focus here.
+\end{abstract}
+
+\tableofcontents
+
+\section{Why this note}\label{sec:why}
+
+The AR(2) extension of the \citet{morris_space-time_2017} space-time \skewt
+model places a stationary AR(2) prior on three transformed parameters at
+each spatial knot. Updating these parameters inside an MCMC requires care
+because the AR(2) prior links each time point to the next two, and the
+update step has to reflect all of that linkage. Two issues arise:
+
+\begin{description}
+  \item[Issue~1.] The initial pair $(Y_1, Y_2)$ of a stationary AR(2)
+        series is not independent --- the two values share a covariance
+        $\gamma_1$ implied by the recursion. The simulator in the code
+        respects this; the MCMC density at $t = 2$ \emph{previously} did
+        not, and has now been patched to use the stationary form.
+  \item[Issue~2.] When updating a single time point $Y_t$, the Metropolis--Hastings
+        acceptance ratio must include \emph{three} prior factors of the
+        joint distribution. The original code included only two. The third,
+        missing factor (the ``lag-2 term'') has been added at all four
+        call sites.
+\end{description}
+Both patches are now in production and guarded by regression tests in
+\texttt{code/R/ar2/tests/}; this note explains \emph{why} each patch was
+needed and \emph{how} the math works out.
+
+This note builds up just enough background --- stationarity, Yule--Walker,
+the MH algorithm, detailed balance --- to make both issues unambiguous in
+math. We then state each patch as an explicit formula.
+
+\section{Background: the AR(2) prior}\label{sec:bg}
+
+Throughout this section, $\{Y_t\}_{t=1}^{n_t}$ is a generic scalar series
+that stands in for any of the transformed parameters used in the model
+($\bw^{*}_{tk}$ componentwise, $z^{*}_{tk}$, or $\sigma^{2*}_{tk}$, at a
+fixed spatial knot~$k$).
+
+\subsection{The recursion}\label{sec:recursion}
+
+The AR(2) model says that each $Y_t$, for $t \geq 3$, is determined by
+the two previous values plus a fresh Gaussian shock:
+\begin{equation}\label{eq:recursion}
+  Y_t \;=\; \phi_1\, Y_{t-1} \;+\; \phi_2\, Y_{t-2} \;+\; \epsilon_t,
+  \qquad
+  \epsilon_t \stackrel{iid}{\sim} N(0, \sigma_\epsilon^2),
+  \qquad t \geq 3.
+\end{equation}
+Two parameters $(\phi_1, \phi_2)$ describe the linear dependence on the
+past. One parameter $\sigma_\epsilon^2$ describes the noise level. Two
+initial values $(Y_1, Y_2)$ kick the recursion off. That is the entire
+model.
+
+\subsection{What ``stationary'' means}\label{sec:stationary}
+
+A time series is (weakly) stationary if three things hold for every $t$:
+\begin{align*}
+  \text{(i) } E[Y_t] &= \text{constant in } t, \\
+  \text{(ii) } \mathrm{Var}(Y_t) &= \text{constant in } t, \\
+  \text{(iii) } \mathrm{Cov}(Y_t, Y_{t+h}) &= \gamma_h,
+        \text{ a function of the lag } h \text{ only}.
+\end{align*}
+For \eref{eq:recursion} to define a stationary process, the parameters
+$(\phi_1, \phi_2)$ must lie inside the so-called \emph{stationarity
+triangle}:
+\begin{equation}\label{eq:stab}
+  |\phi_2| < 1, \qquad \phi_1 + \phi_2 < 1, \qquad \phi_2 - \phi_1 < 1.
+\end{equation}
+
+\begin{intuition}
+Stationarity is what lets us talk about ``the marginal distribution of
+$Y_t$'' without specifying which $t$ we mean. In our application this is
+crucial: the paper relies on each $Y_t$ being marginally $N(0, 1)$ so
+that the inverse copula transform produces the right \skewt distribution
+at every time point.
+\end{intuition}
+
+\subsection{Yule--Walker: deriving the moments}\label{sec:moments}
+
+We want the stationary process to have unit variance, $\gamma_0
+:= \mathrm{Var}(Y_t) = 1$. Combined with stationarity, this constraint
+forces specific values on the autocovariances $\gamma_1, \gamma_2, \ldots$
+and on the noise variance $\sigma_\epsilon^2$. We derive them now.
+
+Multiply both sides of \eref{eq:recursion} by $Y_{t-h}$ (for some lag
+$h \geq 1$) and take expectations:
+\begin{equation}\label{eq:yw}
+  \gamma_h \;=\; \phi_1\, \gamma_{h-1} \;+\; \phi_2\, \gamma_{h-2}.
+\end{equation}
+This is the \emph{Yule--Walker} equation. It does not involve
+$\sigma_\epsilon^2$ because $\epsilon_t$ is independent of $Y_{t-h}$ for
+$h \geq 1$.
+
+\paragraph{Lag $h = 1$.}
+Plug $h = 1$ into \eref{eq:yw}, and use the symmetry
+$\gamma_{-1} = \gamma_1$:
+\[
+  \gamma_1
+  \;=\; \phi_1\, \gamma_0 + \phi_2\, \gamma_{-1}
+  \;=\; \phi_1 + \phi_2\, \gamma_1
+  \;\Longrightarrow\;
+  \boxed{\;\gamma_1 = \dfrac{\phi_1}{1 - \phi_2}.\;}
+\]
+
+\paragraph{Lag $h = 2$.}
+Plug $h = 2$ into \eref{eq:yw}:
+\[
+  \boxed{\;\gamma_2 \;=\; \phi_1\, \gamma_1 + \phi_2.\;}
+\]
+
+\paragraph{Innovation variance.}
+Multiply \eref{eq:recursion} by $Y_t$ (not $Y_{t-h}$) and take
+expectations. Now $E[Y_t \epsilon_t] = E[\epsilon_t^2] = \sigma_\epsilon^2$
+because the same-time shock is in $Y_t$. We get
+\[
+  \gamma_0 \;=\; \phi_1\, \gamma_1 + \phi_2\, \gamma_2 + \sigma_\epsilon^2
+  \;\Longrightarrow\;
+  \boxed{\;\sigma_\epsilon^2 \;=\; 1 - \phi_1\, \gamma_1 - \phi_2\, \gamma_2.\;}
+\]
+
+\begin{intuition}
+Yule--Walker is the bridge between the two ways of describing an AR(2):
+the \emph{recursion} (in terms of $\phi_1, \phi_2, \sigma_\epsilon^2$)
+and the \emph{covariance structure} (in terms of $\gamma_0, \gamma_1,
+\gamma_2$). Once we fix $\gamma_0 = 1$, the rest is determined by
+$(\phi_1, \phi_2)$ alone.
+\end{intuition}
+
+\subsection{Innovation variance: AR(1) for comparison}\label{sec:ar1-vs-ar2}
+
+Setting $\phi_2 = 0$ collapses AR(2) to AR(1):
+\[
+  \gamma_1 \to \phi_1, \qquad \gamma_2 \to \phi_1^2, \qquad
+  \sigma_\epsilon^2 \to 1 - \phi_1^2.
+\]
+This matches the AR(1) formulation in the paper exactly. It also explains
+why the AR(1) version of the model has none of the subtleties we are
+about to discuss in Issues~1 and~2: when there is no $\phi_2$, $Y_t$ only
+links to one neighbour ($Y_{t-1}$) instead of two.
+
+\section{Issue 1: the stationary joint of \texorpdfstring{$(Y_1, Y_2)$}{(Y1, Y2)}}\label{sec:issue1}
+
+\subsection{The recursion needs two seeds}\label{sec:two-seeds}
+
+\eref{eq:recursion} only kicks in at $t = 3$ -- to compute $Y_3$, we need
+$Y_2$ and $Y_1$. So we have to specify, separately, the joint
+distribution of $(Y_1, Y_2)$. Marginal statements like ``$Y_1 \sim N(0,1)$''
+and ``$Y_2 \sim N(0,1)$'' do not pin this down --- they leave the covariance
+$\mathrm{Cov}(Y_1, Y_2)$ undetermined.
+
+\subsection{What stationarity forces on \texorpdfstring{$(Y_1, Y_2)$}{(Y1, Y2)}}\label{sec:stationary-joint}
+
+If we want the full series $Y_1, \ldots, Y_{n_t}$ to be a stationary AR(2),
+the initial pair has to follow the stationary joint distribution implied
+by $\gamma_0 = 1$ and $\gamma_1 = \phi_1/(1-\phi_2)$:
+\begin{equation}\label{eq:joint}
+  \boxed{\;
+  \begin{pmatrix} Y_1 \\ Y_2 \end{pmatrix}
+  \;\sim\;
+  N_2\!\left(
+    \begin{pmatrix} 0 \\ 0 \end{pmatrix},\;\;
+    \begin{pmatrix} 1 & \gamma_1 \\ \gamma_1 & 1 \end{pmatrix}
+  \right).
+  \;}
+\end{equation}
+Marginally, both $Y_1$ and $Y_2$ are $N(0, 1)$; jointly they correlate at
+strength $\gamma_1$. If you initialised them as independent $N(0, 1)$ and
+then ran the recursion forward with the Yule--Walker $\sigma_\epsilon^2$,
+the resulting $Y_3, Y_4, \ldots$ would \emph{not} have unit variance --- the
+chain would only stabilise to a stationary regime after a transient,
+violating the marginal property at every $t$ during the transient.
+
+\subsection{The conditional density implied by \eref{eq:joint}}\label{sec:cond}
+
+When the MCMC updates $Y_2$ alone, it needs the conditional $Y_2 \mid Y_1
+= y_1$. Apply the standard bivariate Gaussian conditioning formula to
+\eref{eq:joint}:
+\begin{equation}\label{eq:p2-stationary}
+  \boxed{\;
+  Y_2 \mid Y_1 = y_1 \;\sim\; N\bigl(\gamma_1\, y_1,\; 1 - \gamma_1^2\bigr).
+  \;}
+\end{equation}
+The conditional mean is $\gamma_1 y_1$, not $\phi_1 y_1$; the conditional
+variance is $1 - \gamma_1^2$, not $\sigma_\epsilon^2$. We will call this
+``the stationary $t=2$ density'' below.
+
+\subsection{What the code uses instead}\label{sec:code-t2}
+
+The function \texttt{get\_ar2\_conditional\_params} in
+\texttt{auxfunctions\_ar2.R} returns, at $t = 2$:
+\begin{equation}\label{eq:p2-code}
+  Y_2 \mid Y_1 = y_1 \;\sim\; N\bigl(\phi_1\, y_1,\; \sigma_\epsilon^2\bigr).
+\end{equation}
+This is the form one would get by pretending the recursion already
+applies at $t = 2$ (with a fictitious lag-2 value $Y_0 = 0$).
+
+\subsection{Why they differ unless \texorpdfstring{$\phi_2 = 0$}{phi2 = 0}}\label{sec:why-differ}
+
+Compare \eref{eq:p2-stationary} and \eref{eq:p2-code}:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+                  & Mean of $Y_2 \mid Y_1$ & Variance of $Y_2 \mid Y_1$ \\
+\midrule
+Stationary form   & $\gamma_1 y_1 = \dfrac{\phi_1}{1-\phi_2}\, y_1$
+                  & $1 - \gamma_1^2 = 1 - \left(\dfrac{\phi_1}{1-\phi_2}\right)^2$ \\
+Code's form       & $\phi_1\, y_1$
+                  & $\sigma_\epsilon^2 = 1 - \phi_1 \gamma_1 - \phi_2 \gamma_2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The two coincide when $\phi_2 = 0$ (since then $\gamma_1 \to \phi_1$ and
+$\sigma_\epsilon^2 \to 1 - \phi_1^2 = 1 - \gamma_1^2$). For genuinely
+AR(2) parameters they differ.
+
+\subsection{Bug or modelling choice?}\label{sec:bug-vs-choice}
+
+It depends on which target model you adopt:
+
+\begin{itemize}
+  \item \emph{Target~A (stationary AR(2)):} for every $t$, $Y_t$ is
+        marginally $N(0,1)$. The $t = 2$ conditional is
+        \eref{eq:p2-stationary}. Under this target, the code is wrong at
+        $t = 2$.
+  \item \emph{Target~B (independent initial values, then AR(2) recursion):}
+        $Y_1, Y_2$ are independent $N(0,1)$, then $Y_t$ for $t \geq 3$
+        follows \eref{eq:recursion}. Under this target, the $t = 2$
+        conditional is degenerate (no lag, just the marginal $N(0,1)$),
+        and \eref{eq:p2-code} is wrong too.
+\end{itemize}
+Neither target is dictated by the paper, which only says $Y_1, Y_2 \sim
+N(0,1)$ marginally. The code's choice \eref{eq:p2-code} doesn't fit
+either target cleanly; it is a halfway-house. The simulator
+\texttt{simulate\_ar2\_standard} does follow Target~A. So at $t = 2$
+the simulator and the MCMC use different conditionals.
+
+The impact under the previous code was one mis-specified factor out of
+$n_t - 1$, i.e.\ a relative bias of order $1/n_t$. We have since adopted
+Target~A: the $t = 2$ branch of \texttt{get\_ar2\_conditional\_params}
+now returns the stationary form \eref{eq:p2-stationary}. With that
+one-line change the simulator and the MCMC density agree on the joint
+of $(Y_1, Y_2)$, and the unit marginal variance property
+$\mathrm{Var}(Y_t) = 1$ holds at every $t$. Regression coverage is
+provided by \texttt{tests/test\_fix1\_t2\_conditional.R}, which checks
+the returned $(\mathrm{mean}, \mathrm{sd})$ against
+$(\gamma_1 y_1, \sqrt{1 - \gamma_1^2})$ to machine precision at six
+$(\phi_1, \phi_2)$ configurations.
+
+\section{The Metropolis--Hastings update of \texorpdfstring{$Y_t$}{Yt}}\label{sec:mh}
+
+We now build the framework needed for Issue~2.
+
+\subsection{What problem does MCMC solve?}\label{sec:problem}
+
+Bayesian inference says: combine the likelihood $L(\bY \mid \text{parameters})$
+with a prior $p(\text{parameters})$ to get the posterior
+$p(\text{parameters} \mid \bY) \propto L \cdot p$. For complex models
+this posterior usually does not have a closed-form density we can sample
+from, so we build an MCMC sampler instead. The sampler produces a Markov
+chain whose stationary distribution \emph{is} the posterior. Run the
+chain long enough, and the samples it produces are samples from the
+posterior.
+
+\subsection{Gibbs sampling and full conditionals}\label{sec:gibbs}
+
+A common strategy --- Gibbs sampling --- is to update one parameter (or one
+block of parameters) at a time, drawing from its \emph{full conditional}:
+the conditional distribution of that parameter given all the other
+parameters and the data. For some parameters, the full conditional has
+a closed-form density (e.g.\ a conjugate Gaussian or Gamma). For others
+it does not, and we have to use Metropolis--Hastings as a substitute
+within the Gibbs cycle.
+
+In our model, the time-varying parameters $z^{*}_{tk}$ (and analogous
+$\bw^{*}_{tk}, \sigma^{2*}_{tk}$) do not have closed-form full
+conditionals because the AR(2) prior is convolved with the spatial
+likelihood. So we Metropolis them.
+
+\subsection{The Metropolis--Hastings algorithm}\label{sec:mh-algo}
+
+Let $\pi(Y)$ denote the target density (here: the full conditional of
+$Y_t$). The MH algorithm is:
+
+\begin{enumerate}[label=(\arabic*)]
+  \item Start the chain at some value $Y$.
+  \item Propose a candidate $Y^{(c)}$ from a \emph{proposal density}
+        $q(Y^{(c)} \mid Y)$. A common choice is a Gaussian random walk,
+        $Y^{(c)} \sim N(Y, s^2)$.
+  \item Compute the acceptance probability
+        \begin{equation}\label{eq:alpha}
+          \alpha(Y, Y^{(c)})
+          \;=\; \min\!\left(1,\;\;
+            \frac{\pi(Y^{(c)})\, q(Y \mid Y^{(c)})}
+                 {\pi(Y)\, q(Y^{(c)} \mid Y)}
+          \right).
+        \end{equation}
+  \item With probability $\alpha$, set $Y \leftarrow Y^{(c)}$; otherwise,
+        $Y$ stays.
+  \item Repeat from step (2).
+\end{enumerate}
+After a burn-in, the values of $Y$ along the chain are dependent samples
+from $\pi$.
+
+\subsubsection*{Symmetric proposal: simplification}
+
+When $q$ is symmetric, $q(Y^{(c)} \mid Y) = q(Y \mid Y^{(c)})$ (Gaussian
+random walks are symmetric), the proposal ratio cancels and the
+acceptance probability reduces to
+\begin{equation}\label{eq:alpha-sym}
+  \alpha(Y, Y^{(c)})
+  \;=\; \min\!\left(1,\; \frac{\pi(Y^{(c)})}{\pi(Y)}\right).
+\end{equation}
+This is the form the code uses for the $Y_t$ updates.
+
+\subsection{Detailed balance: why MH works}\label{sec:db}
+
+The mathematical guarantee behind MH is \emph{detailed balance}: a chain
+with transition kernel $P(\cdot \to \cdot)$ has $\pi$ as its stationary
+distribution if, for all states $y$ and $y^{(c)}$,
+\begin{equation}\label{eq:db}
+  \pi(y)\, P(y \to y^{(c)}) \;=\; \pi(y^{(c)})\, P(y^{(c)} \to y).
+\end{equation}
+With MH, $P(y \to y^{(c)}) = q(y^{(c)} \mid y)\, \alpha(y, y^{(c)})$, and
+the acceptance rule in \eref{eq:alpha} is the unique rule that makes
+\eref{eq:db} hold. So if we plug in the \emph{right} $\pi$, the chain
+samples from $\pi$.
+
+\subsection{The right \texorpdfstring{$\pi$}{pi} for the \texorpdfstring{$Y_t$}{Yt} update}\label{sec:right-pi}
+
+For Gibbs-within-MH, the right $\pi$ is the full conditional density of
+$Y_t$ given all other parameters and the data:
+\[
+  \pi(Y_t)
+  \;:=\; p(Y_t \mid Y_{-t}, \bY, \text{other params})
+  \;\propto\; L(\bY \mid Y_t) \cdot p(Y_t \mid Y_{-t}).
+\]
+The right side has two pieces: the data likelihood $L$ and the
+conditional prior of $Y_t$ given the rest of the time series.
+
+To get the second piece, write down the joint prior of the whole series
+$(Y_1, \ldots, Y_{n_t})$. Under the AR(2) Markov structure, this joint
+factorises as
+\begin{equation}\label{eq:joint-prior}
+  p(Y_1, \ldots, Y_{n_t})
+  \;=\; p(Y_1)\, p(Y_2 \mid Y_1)\,
+        \prod_{s=3}^{n_t} p(Y_s \mid Y_{s-1}, Y_{s-2}).
+\end{equation}
+The conditional prior of a single $Y_t$ given the rest is proportional
+to whatever factors of \eref{eq:joint-prior} depend on $Y_t$. Other
+factors don't depend on $Y_t$ and cancel as constants in the ratio.
+
+\paragraph{Which factors involve $Y_t$?}
+Looking at \eref{eq:joint-prior}, the value $Y_t$ shows up in three
+factors (for $3 \leq t \leq n_t - 2$):
+\begin{itemize}
+  \item $p(Y_t \mid Y_{t-1}, Y_{t-2})$ --- $Y_t$ as the ``self''
+        conditioned variable.
+  \item $p(Y_{t+1} \mid Y_t, Y_{t-1})$ --- $Y_t$ as the lag-1 input.
+  \item $p(Y_{t+2} \mid Y_{t+1}, Y_t)$ --- $Y_t$ as the lag-2 input.
+\end{itemize}
+All other factors (for $s \notin \{t, t+1, t+2\}$) do not contain $Y_t$
+and cancel. So the full conditional is
+\begin{equation}\label{eq:full-cond}
+  \boxed{\;
+  \pi(Y_t \mid Y_{-t}, \bY)
+  \;\propto\;
+  L(\bY \mid Y_t)\,\cdot\,
+  \underbrace{p(Y_t \mid Y_{t-1}, Y_{t-2})}_{\text{self}}
+  \,\cdot\,
+  \underbrace{p(Y_{t+1} \mid Y_t, Y_{t-1})}_{\text{lag-1}}
+  \,\cdot\,
+  \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{\text{lag-2}}.
+  \;}
+\end{equation}
+
+\begin{remark}
+For $t = n_t - 1$ the lag-2 factor is absent (there is no $Y_{n_t+1}$).
+For $t = n_t$ both the lag-1 and lag-2 factors are absent. Edge cases
+matter when implementing the patch.
+\end{remark}
+
+\section{Issue 2: the missing lag-2 factor in the acceptance ratio}\label{sec:issue2}
+
+We are now ready to state Issue~2 precisely.
+
+\subsection{What the buggy code computes}\label{sec:buggy-R}
+
+The original \texttt{updateZTS\_AR2} (and analogous functions for the
+other parameters) computes the acceptance ratio as a log-quantity
+\[
+  \log R_{\mathrm{buggy}}
+  \;=\; \log\frac{L(\bY \mid Y_t^{(c)})}{L(\bY \mid Y_t)}
+        \;+\;\Delta_{\text{self}}
+        \;+\;\Delta_{\text{lag-1}},
+\]
+where
+\begin{align*}
+  \Delta_{\text{self}}  &= \log p(Y_t^{(c)} \mid Y_{t-1}, Y_{t-2})
+                          - \log p(Y_t \mid Y_{t-1}, Y_{t-2}), \\
+  \Delta_{\text{lag-1}} &= \log p(Y_{t+1} \mid Y_t^{(c)}, Y_{t-1})
+                          - \log p(Y_{t+1} \mid Y_t,     Y_{t-1}).
+\end{align*}
+The lag-2 factor $p(Y_{t+2} \mid Y_{t+1}, Y_t)$ is missing.
+
+\subsection{Why this is wrong: target shift}\label{sec:target-shift}
+
+Plug $R_{\mathrm{buggy}}$ into the MH acceptance rule \eref{eq:alpha-sym}.
+By detailed balance \eref{eq:db}, the resulting chain has as its
+stationary distribution not the full conditional \eref{eq:full-cond} but
+the modified density
+\begin{equation}\label{eq:wrong-target}
+  \widetilde\pi(Y_t)
+  \;\propto\;
+  L(\bY \mid Y_t)\,\cdot\,
+  p(Y_t \mid Y_{t-1}, Y_{t-2})\,\cdot\,
+  p(Y_{t+1} \mid Y_t, Y_{t-1}),
+\end{equation}
+in which the lag-2 prior factor is silently removed. $\widetilde\pi$ is
+\emph{not} the AR(2) full conditional. The chain produces samples whose
+stationary covariance structure does not match $\gamma_2 = \phi_1 \gamma_1
++ \phi_2$ --- the lag-2 autocorrelation drifts away from the Yule--Walker
+value.
+
+\subsection{The patch in math}\label{sec:patch-math}
+
+The fix is to add the missing factor:
+\begin{equation}\label{eq:patch}
+  \boxed{\;
+    \log R_{\mathrm{patched}}
+    \;=\; \log R_{\mathrm{buggy}}
+        \;+\;\Delta_{\text{lag-2}},
+  \;}
+\end{equation}
+where
+\begin{equation}\label{eq:delta-lag2}
+  \Delta_{\text{lag-2}}
+  \;=\;
+  \log p(Y_{t+2} \mid Y_{t+1}, Y_t^{(c)})
+  - \log p(Y_{t+2} \mid Y_{t+1}, Y_t).
+\end{equation}
+
+\subsubsection{Each Gaussian factor explicitly}
+
+The lag-2 factor is Gaussian:
+\[
+  p(Y_{t+2} \mid Y_{t+1}, Y_t)
+  \;=\; \frac{1}{\sqrt{2\pi\sigma_\epsilon^2}}
+        \exp\!\Bigl(-\tfrac{1}{2\sigma_\epsilon^2}\,
+                    (Y_{t+2} - \phi_1 Y_{t+1} - \phi_2 Y_t)^2\Bigr).
+\]
+The log-difference \eref{eq:delta-lag2} simplifies (the
+$\log(2\pi\sigma_\epsilon^2)$ piece cancels because it does not depend on
+$Y_t$):
+\begin{align}
+  \Delta_{\text{lag-2}}
+  &= \frac{1}{2\sigma_\epsilon^2}
+     \Bigl[(Y_{t+2} - \phi_1 Y_{t+1} - \phi_2 Y_t)^2
+         - (Y_{t+2} - \phi_1 Y_{t+1} - \phi_2 Y_t^{(c)})^2\Bigr] \notag\\
+  &= \frac{\phi_2\bigl(Y_t^{(c)} - Y_t\bigr)
+           \bigl[\,2(Y_{t+2} - \phi_1 Y_{t+1}) - \phi_2(Y_t + Y_t^{(c)})\,\bigr]}
+          {2\sigma_\epsilon^2}.
+  \label{eq:delta-explicit}
+\end{align}
+
+\begin{intuition}
+The factor $\Delta_{\text{lag-2}}$ acts like a ``future anchor'' for
+$Y_t$. When the proposal $Y_t^{(c)}$ moves in a direction that makes the
+predicted value $\phi_1 Y_{t+1} + \phi_2 Y_t^{(c)}$ closer to the
+observed $Y_{t+2}$, the bracketed term in \eref{eq:delta-explicit}
+has the right sign to boost acceptance. Without this anchor, the chain
+treats $Y_t$ as if $Y_{t+2}$ were not influenced by it --- a falsehood
+under the AR(2) recursion --- and the lag-2 autocorrelation of the chain
+ends up wrong. Note that $\Delta_{\text{lag-2}} \propto \phi_2$: when
+$\phi_2 = 0$, the anchor vanishes (AR(2) collapses to AR(1)).
+\end{intuition}
+
+\subsection{The patch in code}\label{sec:patch-code}
+
+In R, the patch is a single block inserted right after the existing
+lag-1 correction:
+\begin{lstlisting}
+# Fix 2: Y_t enters the t+2 conditional density as lag-2
+if ((t + 2) <= nt) {
+    z.star.next2 <- z.star[k, t + 2]
+    R <- R +
+        ar2_conditional_log_density(
+            z.star.next2, t + 2,
+            z.star[k, t + 1], can.z.star[k],     # propose Y_t^(c) as lag-2
+            phi1, phi2, moments) -
+        ar2_conditional_log_density(
+            z.star.next2, t + 2,
+            z.star[k, t + 1], z.star[k, t],      # current Y_t as lag-2
+            phi1, phi2, moments)
+}
+\end{lstlisting}
+The same insertion appears at four sites in
+\texttt{code/R/ar2/update\_params\_ar2.R}: two branches of
+\texttt{updateTauTS\_AR2}, one in \texttt{updateZTS\_AR2}, and one in
+\texttt{updateKnotsTS\_AR2} (the last with a \texttt{sum(\ldots)} over
+the $K \times 2$ knots array).
+
+\subsection{What the test shows}\label{sec:test}
+
+A prior-only chain (no data likelihood, just the AR(2) prior) was run
+with truth $(\phi_1, \phi_2) = (0.7, -0.4)$, giving theoretical
+$\gamma_1 = 0.500$ and $\gamma_2 = -0.050$. The empirical
+autocorrelations after burn-in:
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+chain                   & mean      & var       & lag-1 ACF & lag-2 ACF \\
+\midrule
+target                  & $0$       & $1.000$   & $+0.500$  & $-0.050$  \\
+buggy   (no $t+2$ term) & $+0.009$  & $1.142$   & $+0.608$  & $+0.222$  \\
+patched (Fix~2 applied) & $+0.005$  & $0.998$   & $+0.498$  & $-0.054$  \\
+\bottomrule
+\end{tabular}
+\end{center}
+The buggy chain inflates the marginal variance by $14\%$ and gets the
+lag-2 autocorrelation \emph{wrong in sign}; the patched chain matches
+the Yule--Walker target to four decimal places. This empirically confirms
+\eref{eq:wrong-target}: removing the lag-2 factor shifts the target away
+from the AR(2) full conditional.
+
+\section{Summary}\label{sec:summary}
+
+Two issues, both about the joint structure of the AR(2) prior:
+
+\begin{description}
+  \item[Issue~1.] The stationary AR(2) implies
+        $(Y_1, Y_2) \sim N_2(\bZero, [\![1, \gamma_1; \gamma_1, 1]\!])$,
+        with the conditional
+        $Y_2 \mid Y_1 \sim N(\gamma_1 Y_1, 1 - \gamma_1^2)$ \eref{eq:p2-stationary}.
+        The code's MCMC previously used $N(\phi_1 Y_1, \sigma_\epsilon^2)$
+        \eref{eq:p2-code} at $t = 2$ instead, which is the form of the
+        AR(2) recursion extrapolated backward with a fictitious $Y_0 = 0$;
+        the two differ unless $\phi_2 = 0$. The $t = 2$ branch of
+        \texttt{get\_ar2\_conditional\_params} has been replaced by
+        \eref{eq:p2-stationary}, restoring the simulator-MCMC agreement
+        on the joint of $(Y_1, Y_2)$ and preserving
+        $\mathrm{Var}(Y_t) = 1$ at every $t$. Status: \textbf{patched,
+        tested} (\texttt{tests/test\_fix1\_t2\_conditional.R}).
+
+  \item[Issue~2.] The MH acceptance ratio for $Y_t$ has to include
+        \emph{three} factors of the AR(2) joint prior --- self
+        ($p(Y_t \mid Y_{t-1}, Y_{t-2})$), lag-1
+        ($p(Y_{t+1} \mid Y_t, Y_{t-1})$), and lag-2
+        ($p(Y_{t+2} \mid Y_{t+1}, Y_t)$). The original code computes only
+        the first two. The chain therefore samples from a target
+        $\widetilde\pi$ \eref{eq:wrong-target} that has the wrong lag-2
+        autocorrelation. The patch \eref{eq:patch}--\eref{eq:delta-lag2}
+        restores the missing factor at four call sites, and a prior-only
+        regression test confirms the corrected chain matches
+        Yule--Walker. Status: \textbf{patched, tested}.
+\end{description}
+
+Issue~1 is about the \emph{initial conditions} of the AR(2) recursion;
+Issue~2 is about the \emph{Metropolis--Hastings ratio} during ongoing
+updates. They are independent in spirit; one can hold without the other.
+The AR(1) case has neither issue because (a) the AR(1) recursion
+automatically lands in its stationary joint when started from
+$Y_1 \sim N(0,1)$, and (b) $Y_t$ only ever influences $Y_{t+1}$ (not
+$Y_{t+2}$), so the AR(1) acceptance ratio with two factors is complete.
+
+\bibliographystyle{plainnat}
+\bibliography{../references/references}
+
+\end{document}

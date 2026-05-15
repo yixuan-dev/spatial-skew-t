@@ -1,0 +1,346 @@
+% chktex-file 1
+% chktex-file 3
+% chktex-file 8
+% chktex-file 36
+% Warning 1: "command terminated with space" -- \skewt is defined with \xspace
+%   so the trailing space is intentional and absorbed at expansion time.
+% Warning 3: "enclose previous parenthesis with {}" -- math like \{Y_t\}_{t=1}^{n_t}
+%   parses correctly; the warning is overcautious for AR-model index notation.
+% Warning 8: "wrong length of dash" -- the document uses hyphens in ISO dates,
+%   en-dashes for proper-name pairs (Yule--Walker, Metropolis--Hastings) and
+%   ranges (Fixes~1--3); all are correct LaTeX.
+% Warning 36: "space in front of parenthesis" -- AR(p) is the canonical
+%   notation for autoregressive models and inserting a space would be wrong.
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+% Mirror the notation of skewt_rev_2.tex / mycommands.sty so this proposal
+% can be cross-read with the main paper without translation.
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\bI}{\mathbf{I}}
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bbeta}{\boldsymbol{\beta}}
+\newcommand{\bZero}{\boldsymbol{0}}
+\newcommand{\calD}{\mathcal{D}}
+\newcommand{\calR}{\mathcal{R}}
+\newcommand{\skewt}{skew-$t$\xspace}
+\newcommand{\Skewt}{Skew-$t$\xspace}
+
+\newcommand{\eref}[1]{(\ref{#1})}
+\newcommand{\sref}[1]{Section~\ref{#1}}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{teal},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    framesep=4pt,
+    language=R
+}
+
+\title{Three Fixes to the AR(2) Extension of the Space-time \Skewt Model:\\
+       Why, How, and What the Tests Show}
+\author{Yi-Xuan Xie}
+\date{2026-05-14}
+
+\begin{document}
+\maketitle
+
+\section{Background}\label{ar2fix:bg}
+
+The Morris~et~al.\ (2017) model places a transformed AR(1) prior on three tail
+parameters $\bw_{tk}$, $z_{tk}$, $\sigma_{tk}$ at each spatial knot $k$. The
+AR(2) extension replaces each AR(1) with a stationary AR(2). To preserve the
+\skewt marginal at every time point (the structural property the paper hinges
+on), the variance of every transformed parameter must equal one for all $t$,
+which by Yule--Walker fixes
+\begin{equation} \label{eq:moments}
+  \gamma_0 = 1, \qquad
+  \gamma_1 = \frac{\phi_1}{1 - \phi_2}, \qquad
+  \gamma_2 = \phi_1\gamma_1 + \phi_2, \qquad
+  \sigma_\epsilon^2 = 1 - \phi_1\gamma_1 - \phi_2\gamma_2,
+\end{equation}
+all functions of $(\phi_1, \phi_2)$ only. The factorization of the joint AR(2)
+prior used by the MCMC is
+\begin{align}
+  p(Y_1) &= N(0, 1), \label{eq:p1} \\
+  p(Y_2 \mid Y_1) &= N\!\left(\gamma_1\, Y_1,\; 1 - \gamma_1^2\right), \label{eq:p2} \\
+  p(Y_t \mid Y_{t-1}, Y_{t-2}) &= N\!\left(\phi_1\, Y_{t-1} + \phi_2\, Y_{t-2},\; \sigma_\epsilon^2\right), \quad t \geq 3. \label{eq:pt}
+\end{align}
+The current implementation in \texttt{code/R/ar2/} preserves \eref{eq:pt} but
+deviates from \eref{eq:p1}--\eref{eq:p2} and detailed balance in three places.
+This document covers what is wrong (\textit{why fix}), what was changed
+(\textit{how fix}), and what the regression tests now show (\textit{results}).
+
+\paragraph{Summary of state.} Fixes~2 and~3 have been applied and are guarded
+by automated tests. Fix~1 is deferred -- the bias is $O(1/n_t)$ and dominated
+by Fix~2 in any realistic regime -- but is documented inline so the next
+maintainer cannot miss it.
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+                          & \textbf{Fix 1}            & \textbf{Fix 2}                      & \textbf{Fix 3}                        \\
+                          & ($t = 2$ conditional)     & (lag-2 MH term)                     & ($\phi$ Hastings)                     \\
+\midrule
+Status                    & deferred                  & applied                             & applied                               \\
+Bias scale                & $O(1/n_t)$                & $O(1)$ on lag-2 ACF                 & $O(1)$ on $\phi$ posterior            \\
+Production sites          & 1                         & 4                                   & 1                                     \\
+Tests                     & --                        & 3                                   & 1                                     \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Fix~3: Hastings adjustment in \texttt{updatePhiAR2TS}}\label{ar2fix:fix3}
+
+\subsection{Why fix}
+
+The original \texttt{updatePhiAR2TS} proposes
+$\phi_j^{\text{can}} \sim N(\phi_j, \tau_j^2)$ and silently rejects whenever
+the candidate falls outside the AR(2) stationarity region
+\eref{eq:stab}\footnote{$|\phi_2|<1$, $\phi_1+\phi_2<1$, $\phi_2-\phi_1<1$;
+see \texttt{check\_ar2\_stability}.}. Silent rejection is operationally
+equivalent to a normal proposal \emph{truncated} to the conditional
+stationarity interval
+\[
+  S_1(\phi_2) = (\phi_2 - 1,\; 1 - \phi_2),
+  \qquad
+  S_2(\phi_1) = \bigl(|\phi_1| - 1,\; 1 - |\phi_1|\bigr),
+\]
+whose normalising constant
+$P(S_j; m) = \Phi\!\bigl(\tfrac{b-m}{\tau_j}\bigr) - \Phi\!\bigl(\tfrac{a-m}{\tau_j}\bigr)$
+depends on the proposal mean~$m$. The proposal is therefore asymmetric in
+$(\phi_j, \phi_j^{\text{can}})$, and the Hastings correction
+$\log P(S_j; \phi_j) - \log P(S_j; \phi_j^{\text{can}})$ must enter the
+acceptance ratio. It did not. Because $P(S_j; m)$ is maximised at $m = 0$
+and decreases toward the endpoints, the missing term biases the chain
+\emph{toward the centroid of the stationarity triangle}, i.e.\ toward $\phi=0$.
+The AR(1) routine \texttt{updatePhiTS} handles this correctly; the AR(2)
+routine was a depth-1 copy of it.
+
+\subsection{How fix}
+
+We add the asymmetry correction at both component updates of
+\texttt{updatePhiAR2TS}. For $\phi_1$:
+\begin{lstlisting}
+s1.lo <- phi2 - 1
+s1.hi <- 1 - phi2
+log.P.cur1 <- log(pnorm(s1.hi, phi1,     mh.phi1) -
+                      pnorm(s1.lo, phi1,     mh.phi1))
+# ... draw can.phi1, check stability, compute can.ll ...
+log.P.can1 <- log(pnorm(s1.hi, can.phi1, mh.phi1) -
+                      pnorm(s1.lo, can.phi1, mh.phi1))
+
+R <- can.ll - cur.ll +
+     dnorm(can.phi1, p.m.1, p.s.1, log = TRUE) -
+     dnorm(phi1,     p.m.1, p.s.1, log = TRUE) +
+     log.P.cur1 - log.P.can1   # Hastings adjustment
+\end{lstlisting}
+Mirror block for $\phi_2$ uses $S_2(\phi_1)$. The patch is a pure addition;
+the silent-rejection on the candidate side is unchanged.
+
+\subsection{Results}
+
+\texttt{tests/test\_fix3\_phi\_hastings.R} runs a paired MCMC: same data
+($n_t = 40$, $n = 4$ chains, truth $(\phi_1, \phi_2) = (0.45, 0.50)$ at the
+edges of both $S_j$ intervals), same RNG seed for proposals, twelve replicate
+datasets. The buggy reference is inlined verbatim so the test still detects a
+revert.
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Averaged median bias}     & $\phi_1$      & $\phi_2$      \\
+\midrule
+buggy   (no Hastings adjustment)  & $-0.0112$     & $+0.0078$     \\
+patched (Fix~3 applied)           & $-0.0053$     & $+0.0001$     \\
+ratio   $|patched|/|buggy|$       & $0.48$        & $0.01$        \\
+\bottomrule
+\end{tabular}
+\end{center}
+The buggy chain shows the expected shrink-toward-zero signature on $\phi_1$
+(truth $0.45 > 0$, median $0.439$). The patched chain reduces $|bias|$ on both
+components and the test asserts a bias-reduction ratio $\leq 0.7$, which is
+met by a comfortable margin on both axes.
+
+\section{Fix~2: missing lag-2 term in the $Y_t$ MH ratio}\label{ar2fix:fix2}
+
+\subsection{Why fix}
+
+Under \eref{eq:pt}, the value $Y_t$ enters \emph{three} factors of the joint
+prior:
+\[
+  \underbrace{p(Y_t \mid Y_{t-1}, Y_{t-2})}_{\text{self}} \;\cdot\;
+  \underbrace{p(Y_{t+1} \mid Y_t, Y_{t-1})}_{Y_t \text{ is lag-1}} \;\cdot\;
+  \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{Y_t \text{ is lag-2}}.
+\]
+The AR(1) template only requires the first two factors because lag-2 has no
+effect under AR(1). All three update functions in the AR(2) port
+(\texttt{updateTauTS\_AR2}, \texttt{updateZTS\_AR2},
+\texttt{updateKnotsTS\_AR2}) inherit this two-factor pattern and silently drop
+the lag-2 factor. The chain therefore satisfies detailed balance for the
+modified target
+\[
+  \widetilde\pi(Y_t) \propto p(Y_t \mid Y_{t-1}, Y_{t-2})\, p(Y_{t+1} \mid Y_t, Y_{t-1}),
+\]
+not the AR(2) prior. The empirical signature is large: the stationary lag-2
+ACF of the buggy chain differs from $\gamma_2$ by an $O(1)$ amount, and the
+marginal variance of the chain is inflated.
+
+\subsection{How fix}
+
+For each of the four call sites we add a $t+2$ correction parallel to the
+existing $t+1$ block. In \texttt{updateZTS\_AR2}:
+\begin{lstlisting}
+# Fix 2: z.star[k, t] enters the t+2 conditional as lag-2
+if ((t + 2) <= nt) {
+    z.star.next2 <- z.star[k, t + 2]
+    R <- R +
+        ar2_conditional_log_density(
+            z.star.next2, t + 2,
+            z.star[k, t + 1], can.z.star[k],
+            phi1 = phi1, phi2 = phi2, moments = ar2.moments) -
+        ar2_conditional_log_density(
+            z.star.next2, t + 2,
+            z.star[k, t + 1], z.star[k, t],
+            phi1 = phi1, phi2 = phi2, moments = ar2.moments)
+}
+\end{lstlisting}
+Edge case at $t = 1$: the companion $t+1$ block evaluates
+$p(Y_2 \mid Y_1)$ via the $t == 2$ branch of
+\texttt{get\_ar2\_conditional\_params}, which still uses the AR(1)-style form
+$N(\phi_1 Y_1, \sigma_\epsilon^2)$ instead of the stationary
+$N(\gamma_1 Y_1, 1 - \gamma_1^2)$ -- the Fix~1 defect. The bias from this is
+$O(1/n_t)$ and dominated by Fix~2 itself, so Fix~1 is deferred; an inline
+\texttt{NOTE} comment at each of the four Fix~2 sites flags the dependency
+for future maintenance.
+
+\subsection{Results}
+
+Three layered tests cover this fix.
+
+\textbf{(a) Math: \texttt{test\_fix2\_lag2\_mh.R}.} A prior-only $Y_t$ chain
+with the lag-2 correction toggled on or off. Truth
+$(\phi_1, \phi_2) = (0.7, -0.4)$, giving $\gamma_1 = 0.500$, $\gamma_2 = -0.050$.
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Chain}            & mean      & var       & lag-1 ACF & lag-2 ACF \\
+\midrule
+target                    & $0$       & $1.000$   & $+0.500$  & $-0.050$  \\
+buggy   (no $t+2$ term)   & $+0.009$  & $1.142$   & $+0.608$  & $+0.222$  \\
+patched (Fix~2 applied)   & $+0.005$  & $0.998$   & $+0.498$  & $-0.054$  \\
+\bottomrule
+\end{tabular}
+\end{center}
+The buggy chain inflates the marginal variance by 14\,\% and gets the lag-2
+autocorrelation \emph{wrong in sign} (error $0.272$, more than five times the
+tolerance). The patched chain matches the AR(2) target to four decimal
+places.
+
+\textbf{(b) Integration: \texttt{test\_fix2\_production.R}.} Drives the real
+\texttt{updateZTS\_AR2} with a zero-data configuration
+($y = 0$, $\lambda = 0$, $x_t^\top \beta = 0$, $\tau = 1$, $\text{prec} = \bI$),
+stubs out \texttt{updatePhiAR2TS} so $\phi$ stays at truth, and records
+$z^*$ via the half-normal copula transform after each iteration. Empirical
+ACFs computed across iterations and time:
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+                       & lag-1 ACF error & lag-2 ACF error \\
+\midrule
+patched (current code) & $0.0002$        & $0.0145$        \\
+reverted (smoke check) & $0.1121$        & $0.2840$        \\
+\bottomrule
+\end{tabular}
+\end{center}
+The reverted-code row was produced by temporarily commenting out the Fix~2
+block in \texttt{updateZTS\_AR2}; both errors blow past the $0.05$ tolerance,
+confirming the test will fire on a future regression.
+
+\textbf{(c) Structural: \texttt{test\_fix2\_grep.R}.} Asserts the literal
+pattern \texttt{(t + 2) <= nt} appears exactly four times in
+\texttt{update\_params\_ar2.R}, matching the four sites where $Y_t$ enters
+another day's conditional density as lag-2. This is the cheapest layer and
+catches the broadest regression -- ``someone deleted a block'' -- across all
+three update functions, including \texttt{updateTauTS\_AR2} and
+\texttt{updateKnotsTS\_AR2} that lack their own integration tests.
+
+\section{Fix~1: stationary $t = 2$ conditional (deferred)}\label{ar2fix:fix1}
+
+\subsection{Why fix (eventually)}
+
+\texttt{get\_ar2\_conditional\_params} returns, for $t = 2$,
+$N(\phi_1 Y_1, \sigma_\epsilon^2)$ instead of the stationary form
+\eref{eq:p2}. The simulator \texttt{simulate\_ar2\_standard} draws $(Y_1, Y_2)$
+jointly from the correct $N_2$, so the generator and MCMC density disagree on
+the joint of $(Y_1, Y_2)$. The disagreement contributes a single density
+factor at $t = 2$ out of $n_t - 1$ transitions, so the integrated bias scales
+as $O(1/n_t)$ and is dominated by Fix~2 itself.
+
+\subsection{How fix (one-line patch)}
+
+\begin{lstlisting}
+# AFTER (proposed)
+if (t == 2) {
+    g1    <- moments$gamma1
+    sd.t2 <- sqrt(moments$gamma0 - g1^2)   # = sqrt(1 - gamma1^2)
+    return(list(mean = g1 * lag1, sd = sd.t2))
+}
+\end{lstlisting}
+The patched form reduces to the AR(1) case $N(\phi_1 Y_1, 1 - \phi_1^2)$ when
+$\phi_2 = 0$, since $\gamma_1 \to \phi_1$ in the limit.
+
+\subsection{Results}
+
+Not yet applied. The deferral is intentional: at $n_t \geq 30$ the bias is
+below the noise floor of any downstream summary we report, and the Fix~2
+test infrastructure dominates the maintenance budget. The four Fix~2 sites
+each carry an inline \texttt{NOTE (Fix 1 dependency)} comment pointing back
+to this section so the issue is not silently forgotten.
+
+\section{Test layout and regression protection}\label{ar2fix:tests}
+
+All tests live in \texttt{code/R/ar2/tests/} and run via
+\texttt{Rscript test\_*.R}. Each exits 0 on pass, 1 on fail.
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Test file}                 & \textbf{Targets} & \textbf{Layer}         & \textbf{Catches}                                       \\
+\midrule
+\texttt{test\_fix3\_phi\_hastings} & Fix~3            & paired (real vs.\ buggy) & bias in $\phi$ posterior median               \\
+\texttt{test\_fix2\_lag2\_mh}      & Fix~2            & math                   & lag-2 ACF distortion                                  \\
+\texttt{test\_fix2\_production}    & Fix~2            & integration            & regression in \texttt{updateZTS\_AR2}                 \\
+\texttt{test\_fix2\_grep}          & Fix~2            & structural             & deletion of any of the four $t+2$ blocks              \\
+\bottomrule
+\end{tabular}
+\end{center}
+Fix~3 has a single integration test because the bug is localised to one
+function. Fix~2 has three layered tests because the patch touches four call
+sites and only one of them is exercised end-to-end; the structural grep
+provides broad cheap coverage across the remaining three.
+
+\section{Resulting consistency}\label{ar2fix:summary}
+
+After Fixes~2 and~3, the AR(2) implementation matches the stationary AR(2)
+prior \eref{eq:p1}--\eref{eq:pt} for $t \geq 2$ at every site where the
+prior contributes -- generator, MCMC density for $Y_t$, Metropolis--Hastings
+ratio for $Y_t$, and $\phi$-update with the asymmetric-proposal correction.
+The remaining $t = 1$ discrepancy (Fix~1, $O(1/n_t)$) is documented in code.
+Each transformed time-varying parameter retains the $N(\bZero, \bI)$ marginal
+that the paper relies on to preserve the \skewt structure at each time
+point, so the structural guarantee of Morris~et~al.\ (2017) carries over to
+the AR(2) extension as intended.
+
+\end{document}

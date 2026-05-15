@@ -58,7 +58,7 @@ updateTauTS_AR2 <- function(phi1, phi2, tau, taug, g, res, nparts.tau, prec,
                     phi1 = phi1, phi2 = phi2, moments = ar2.moments
                 )
 
-            # 考慮下一時刻的影響
+            # 考慮下一時刻的影響 (tau.star[1, t] 在 t+1 條件密度中為 lag-1)
             if (t < nt) {
                 tau.star.next <- tau.star[1, t + 1]
                 next.lag2 <- if (t >= 2) tau.star[1, t - 1] else NULL
@@ -70,6 +70,26 @@ updateTauTS_AR2 <- function(phi1, phi2, tau, taug, g, res, nparts.tau, prec,
                     ) -
                     ar2_conditional_log_density(
                         tau.star.next, t + 1, tau.star[1, t], next.lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    )
+            }
+
+            # Fix 2: tau.star[1, t] 在 t+2 條件密度中為 lag-2，缺此項會破壞
+            # AR(2) 先驗的細緻平衡 (lag-2 ACF 會偏離 gamma_2)。
+            # The companion t+1 block above evaluates p(y_2 | y_1) via the
+            # t == 2 branch of get_ar2_conditional_params, which now returns
+            # the stationary form N(gamma_1*y_1, 1 - gamma_1^2) -- see Fix 1.
+            if ((t + 2) <= nt) {
+                tau.star.next2 <- tau.star[1, t + 2]
+                R <- R +
+                    ar2_conditional_log_density(
+                        tau.star.next2, t + 2,
+                        tau.star[1, t + 1], can.tau.star,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    ) -
+                    ar2_conditional_log_density(
+                        tau.star.next2, t + 2,
+                        tau.star[1, t + 1], tau.star[1, t],
                         phi1 = phi1, phi2 = phi2, moments = ar2.moments
                     )
             }
@@ -129,7 +149,7 @@ updateTauTS_AR2 <- function(phi1, phi2, tau, taug, g, res, nparts.tau, prec,
                         phi1 = phi1, phi2 = phi2, moments = ar2.moments
                     )
 
-                # 考慮下一時刻的影響 (修正: 使用 [k, ...] 索引)
+                # 考慮下一時刻的影響 (tau.star[k, t] 在 t+1 為 lag-1)
                 if (t < nt) {
                     tau.star.next <- tau.star[k, t + 1]
                     next.lag2 <- if (t >= 2) tau.star[k, t - 1] else NULL
@@ -141,6 +161,25 @@ updateTauTS_AR2 <- function(phi1, phi2, tau, taug, g, res, nparts.tau, prec,
                         ) -
                         ar2_conditional_log_density(
                             tau.star.next, t + 1, tau.star[k, t], next.lag2,
+                            phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                        )
+                }
+
+                # Fix 2: tau.star[k, t] 在 t+2 為 lag-2
+                # The t == 2 branch of get_ar2_conditional_params now
+                # returns the stationary N(gamma_1*y_1, 1 - gamma_1^2);
+                # see Fix 1.
+                if ((t + 2) <= nt) {
+                    tau.star.next2 <- tau.star[k, t + 2]
+                    R <- R +
+                        ar2_conditional_log_density(
+                            tau.star.next2, t + 2,
+                            tau.star[k, t + 1], can.tau.star[k],
+                            phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                        ) -
+                        ar2_conditional_log_density(
+                            tau.star.next2, t + 2,
+                            tau.star[k, t + 1], tau.star[k, t],
                             phi1 = phi1, phi2 = phi2, moments = ar2.moments
                         )
                 }
@@ -224,10 +263,15 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
         phi1 = phi1, phi2 = phi2, moments = cur.moments
     )
 
-    # 更新 phi1
+    # 更新 phi1 (silent-rejection scheme)
+    # Propose phi1.can ~ N(phi1, mh.phi1^2) untruncated. If the candidate
+    # falls outside the AR(2) stationarity region we silently leave the
+    # state unchanged. Per Prop. 3.3 of tex/where_we_are/where_we_are.tex,
+    # this kernel has the posterior pi restricted to S as its invariant
+    # distribution -- no Hastings adjustment is needed for a symmetric
+    # untruncated proposal combined with silent rejection.
     can.phi1 <- rnorm(1, phi1, mh.phi1)
 
-    # 檢查穩定性
     if (check_ar2_stability(can.phi1, phi2)) {
         can.moments <- tryCatch(
             get_ar2_standard_moments(can.phi1, phi2),
@@ -252,10 +296,9 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
         }
     }
 
-    # 更新 phi2 (使用更新後的 phi1)
+    # 更新 phi2 (使用更新後的 phi1; same silent-rejection scheme)
     can.phi2 <- rnorm(1, phi2, mh.phi2)
 
-    # 檢查穩定性
     if (check_ar2_stability(phi1, can.phi2)) {
         can.moments <- tryCatch(
             get_ar2_standard_moments(phi1, can.phi2),
@@ -348,6 +391,7 @@ updateZTS_AR2 <- function(z, zg, y, lambda, x.beta,
                     phi1 = phi1, phi2 = phi2, moments = ar2.moments
                 )
 
+            # z.star[k, t] 在 t+1 條件密度中為 lag-1
             if (t < nt) {
                 z.star.next <- z.star[k, t + 1]
                 next.lag2 <- if (t >= 2) z.star[k, t - 1] else NULL
@@ -359,6 +403,24 @@ updateZTS_AR2 <- function(z, zg, y, lambda, x.beta,
                     ) -
                     ar2_conditional_log_density(
                         z.star.next, t + 1, z.star[k, t], next.lag2,
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    )
+            }
+
+            # Fix 2: z.star[k, t] 在 t+2 條件密度中為 lag-2
+            # The t == 2 branch of get_ar2_conditional_params now returns
+            # the stationary N(gamma_1*y_1, 1 - gamma_1^2); see Fix 1.
+            if ((t + 2) <= nt) {
+                z.star.next2 <- z.star[k, t + 2]
+                R <- R +
+                    ar2_conditional_log_density(
+                        z.star.next2, t + 2,
+                        z.star[k, t + 1], can.z.star[k],
+                        phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                    ) -
+                    ar2_conditional_log_density(
+                        z.star.next2, t + 2,
+                        z.star[k, t + 1], z.star[k, t],
                         phi1 = phi1, phi2 = phi2, moments = ar2.moments
                     )
             }
@@ -492,6 +554,7 @@ updateKnotsTS_AR2 <- function(phi1, phi2, knots, g, ts, tau, z, s, min.s,
             sum(prior.can) - sum(prior.cur)
 
         # time series also needs to adjust R to account for next day
+        # (knots.star[, , t] 在 t+1 為 lag-1)
         if (ts & (t < nt)) {
             knots.star.next <- knots.star[, , t + 1]
             next.lag2 <- if (t >= 2) knots.star[, , t - 1] else NULL
@@ -503,6 +566,24 @@ updateKnotsTS_AR2 <- function(phi1, phi2, knots, g, ts, tau, z, s, min.s,
                 )) -
                 sum(ar2_conditional_log_density(
                     knots.star.next, t + 1, cur.knots.star, next.lag2,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                ))
+        }
+
+        # Fix 2: knots.star[, , t] 在 t+2 為 lag-2
+        # The t == 2 branch of get_ar2_conditional_params now returns the
+        # stationary N(gamma_1*y_1, 1 - gamma_1^2); see Fix 1.
+        if (ts & ((t + 2) <= nt)) {
+            knots.star.next2 <- knots.star[, , t + 2]
+            R <- R +
+                sum(ar2_conditional_log_density(
+                    knots.star.next2, t + 2,
+                    knots.star[, , t + 1], can.knots.star,
+                    phi1 = phi1, phi2 = phi2, moments = ar2.moments
+                )) -
+                sum(ar2_conditional_log_density(
+                    knots.star.next2, t + 2,
+                    knots.star[, , t + 1], cur.knots.star,
                     phi1 = phi1, phi2 = phi2, moments = ar2.moments
                 ))
         }

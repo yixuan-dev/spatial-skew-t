@@ -41,18 +41,18 @@ Rscript tables.R --setting=1 --data=simdata_def.RData
 `--setting` 是 `simdata.RData` 第 4 維的索引（`dim(y)[4]`）。Setup 對應如下
 （見 [setup.R](setup.R)）：
 
-| setting | 資料生成過程 |
-|---|---|
-| 1 | Gaussian |
-| 2 | t, K = 1 |
-| 3 | t, K = 5 |
-| 4 | **Skew-t, K = 1, λ = 3** |
-| 5 | Skew-t, K = 5, λ = 3 |
-| 6 | Max-stable, ξ = 0.2 |
-| 7 | Skew-t (setting 4) 但 threshold 以下做 exp 變換 |
-| 8 | Brown-Resnick |
-| 9 | Skew-t, K = 1, fixed AR(2), stronger serial dependence: φ=(0.80, -0.35) |
-| 10 | Skew-t, K = 1, fixed AR(2), weaker serial dependence: φ=(0.12, -0.05) |
+| setting | 資料生成過程                                                            |
+| ------- | ----------------------------------------------------------------------- |
+| 1       | Gaussian                                                                |
+| 2       | t, K = 1                                                                |
+| 3       | t, K = 5                                                                |
+| 4       | **Skew-t, K = 1, λ = 3**                                                |
+| 5       | Skew-t, K = 5, λ = 3                                                    |
+| 6       | Max-stable, ξ = 0.2                                                     |
+| 7       | Skew-t (setting 4) 但 threshold 以下做 exp 變換                         |
+| 8       | Brown-Resnick                                                           |
+| 9       | Skew-t, K = 1, fixed AR(2), stronger serial dependence: φ=(0.80, -0.35) |
+| 10      | Skew-t, K = 1, fixed AR(2), weaker serial dependence: φ=(0.12, -0.05)   |
 
 setting 4 / 5 是文件最常用的 skew-t 目標。`simdata_def.RData`（deformed
 covariance）只有 setting 1–3，傳 `--setting=4` 會直接報「setting must be in 1..3」。
@@ -89,10 +89,10 @@ output/plots/           Stage 2 PDF
 
 依 `--data` 推導：
 
-| 輸入 | fits 目錄 | 輸出 suffix |
-|---|---|---|
+| 輸入                | fits 目錄      | 輸出 suffix   |
+| ------------------- | -------------- | ------------- |
 | `simdata.RData`     | `results/`     | （無 suffix） |
-| `simdata_def.RData` | `results_def/` | `_def` |
+| `simdata_def.RData` | `results_def/` | `_def`        |
 
 也就是說 `--data=simdata_def.RData` 不會和原本 `simdata.RData` 的輸出檔混在一起。
 
@@ -106,16 +106,16 @@ output/plots/           Stage 2 PDF
 
 ### 檔名規則（output）
 
-| 階段 | 檔名 |
-|---|---|
-| Stage 1 cache | `output/results/scores<setting><suffix>.RData` |
-| Stage 2 long table | `output/tables/score_long<setting><suffix>.csv` |
-| Stage 2 mean / median | `output/tables/score_mean<setting><suffix>.csv` |
-| Stage 2 rel-vs-Gaussian | `output/tables/score_rel_gauss<setting><suffix>.csv` |
-| Stage 2 best (method, K) | `output/tables/best_method_per_K<setting><suffix>.csv` |
-| Stage 2 lambda 95% 覆蓋率 | `output/tables/lambda_coverage<setting><suffix>.csv` |
-| Stage 2 aggregated objects | `output/results/simresults<setting><suffix>.RData` |
-| Stage 2 plots | `output/plots/{bs,qs}_*-set<setting><suffix>-K<k>.pdf`、`lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf` |
+| 階段                       | 檔名                                                                                                                   |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Stage 1 cache              | `output/results/scores<setting><suffix>.RData`                                                                         |
+| Stage 2 long table         | `output/tables/score_long<setting><suffix>.csv`                                                                        |
+| Stage 2 mean / median      | `output/tables/score_mean<setting><suffix>.csv`                                                                        |
+| Stage 2 rel-vs-Gaussian    | `output/tables/score_rel_gauss<setting><suffix>.csv`                                                                   |
+| Stage 2 best (method, K)   | `output/tables/best_method_per_K<setting><suffix>.csv`                                                                 |
+| Stage 2 lambda 95% 覆蓋率  | `output/tables/lambda_coverage<setting><suffix>.csv`                                                                   |
+| Stage 2 aggregated objects | `output/results/simresults<setting><suffix>.RData`                                                                     |
+| Stage 2 plots              | `output/plots/{bs,qs}_*-set<setting><suffix>-K<k>.pdf`、`lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf` |
 
 ## Post-fit pipeline (`scores.R` + `tables.R`)
 
@@ -198,13 +198,13 @@ foreach ($s in 1..3) {
 simstudy 與 simstudy_prop 共用同一份 `simdata.RData` / `simdata_def.RData`。
 post-fit pipeline 結構相同，只差在第 4 維軸的名稱與 fits 目錄：
 
-| | simstudy（這裡） | simstudy_prop |
-|---|---|---|
-| K 軸名稱 | `mrts_k` | `prop_k` |
-| fits 目錄 | `results/` / `results_def/` | `fits/` / `fits_def/` |
-| 檔名 K 後綴 | `-K<K>.RData` | `-p<K>.RData` |
+|               | simstudy（這裡）                | simstudy_prop                        |
+| ------------- | ------------------------------- | ------------------------------------ |
+| K 軸名稱      | `mrts_k`                        | `prop_k`                             |
+| fits 目錄     | `results/` / `results_def/`     | `fits/` / `fits_def/`                |
+| 檔名 K 後綴   | `-K<K>.RData`                   | `-p<K>.RData`                        |
 | Stage 1 cache | `scores<setting><suffix>.RData` | `scores<setting>-prop<suffix>.RData` |
-| 預設 method | 1:5（method 6 max-stable 另論） | 1:5 |
+| 預設 method   | 1:5（method 6 max-stable 另論） | 1:5                                  |
 
 兩邊的 CSV 欄位結構完全一致（除了 `mrts_k` ↔ `prop_k`），跨資料夾比較時可以
 直接 `rbind`。

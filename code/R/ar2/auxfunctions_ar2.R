@@ -71,7 +71,17 @@ get_ar2_conditional_params <- function(t, lag1 = NULL, lag2 = NULL,
         if (is.null(lag1)) {
             stop("lag1 is required for AR(2) t = 2 conditional density")
         }
-        return(list(mean = phi1 * lag1, sd = moments$innov_sd))
+        # Fix 1: stationary AR(2) conditional from the bivariate joint
+        #   (Y_1, Y_2) ~ N_2(0, [[1, gamma_1], [gamma_1, 1]]) ,
+        # which yields  Y_2 | Y_1 = lag1  ~  N(gamma_1 * lag1, 1 - gamma_1^2).
+        # The previous form N(phi_1 * lag1, sigma_eps^2) was the AR(2)
+        # recursion extrapolated backward with a fictitious Y_0 = 0; the
+        # two coincide only when phi_2 = 0. Using the stationary form
+        # preserves Var(Y_t) = 1 for all t and matches the joint draw
+        # in simulate_ar2_standard / draw_ar2_initial.
+        g1    <- moments$gamma1
+        sd.t2 <- sqrt(moments$gamma0 - g1^2)
+        return(list(mean = g1 * lag1, sd = sd.t2))
     }
 
     if (is.null(lag1) || is.null(lag2)) {
