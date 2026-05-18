@@ -207,9 +207,129 @@ To more accurately calibrate CMAQ by the ozone site data, Morris develope partit
 \WatermarkOn                            % 浮水印
 
 \section{Methodology}
-\subsection{Spatio-temporal skew-t process}
-\subsection{MRTS covariates}
-\subsection{Extension to AR(2) time-varying coefficients}
+\subsection{Spatio-temporal skew-t process}\label{sec:sttskewt}
+
+The methodology in this thesis builds on the spatio-temporal \skewt model of \textcite{morris_space-time_2017}.  We briefly summarize that model here so that the AR(2) and MRTS extensions in the next two subsections can be stated against a common notation.
+
+Let $Y_t(\bs)$ denote the response at spatial location $\bs \in \calD \subset \calR^2$ on day $t \in \{1, \ldots, n_t\}$.  Following \textcite{morris_space-time_2017}, we model
+\begin{align}
+  Y_t(\bs) \;=\; \bX_t(\bs)^\top \bbeta \;+\; \lambda\, \sigma_t(\bs)\, |z_t(\bs)| \;+\; \sigma_t(\bs)\, v_t(\bs), \label{eq:fullmodel}
+\end{align}
+where $\bX_t(\bs)$ is a $p$-vector of covariates, $\bbeta$ is the corresponding regression coefficient, $\lambda \in \calR$ is a scalar skewness parameter, and $v_t(\bs)$ is a standard Gaussian process with stationary isotropic \Matern correlation
+\begin{align}
+  \rho(h) \;=\; (1 - \gamma)\, I(h = 0) \;+\; \gamma\, \frac{1}{\Gamma(\nu)\, 2^{\nu - 1}} \left( \sqrt{2\nu}\, \frac{h}{\varphi} \right)^{\nu} K_\nu\!\left( \sqrt{2\nu}\, \frac{h}{\varphi} \right),
+\end{align}
+where $\varphi > 0$ is the spatial range, $\nu > 0$ is the smoothness, $\gamma \in [0, 1]$ is the proportion of variance attributed to the spatial component, $K_\nu$ is the modified Bessel function of the second kind, and $h = \|\bs_1 - \bs_2\|$.  Marginalizing over $|z_t(\bs)|$ and $\sigma_t(\bs)$, the finite-dimensional vector $\bY_t = [Y_t(\bs_1), \ldots, Y_t(\bs_n)]^\top$ follows an $n$-dimensional \skewt distribution; consequently \eref{eq:fullmodel} provides asymmetric and heavy-tailed margins together with asymptotic dependence between nearby sites.
+
+To remove the long-range asymptotic dependence that arises when a single scalar $z$ and $\sigma^2$ are shared across the entire domain, the model uses a daily random partition.  For each day $t$, let $\bw_{t1}, \ldots, \bw_{tK}$ denote $K$ spatial knots in $\calD$, and define the partition subregions
+\begin{align}
+  P_{tk} \;=\; \{\bs \in \calD : k = \argmin_\ell \|\bs - \bw_{t\ell}\| \}, \qquad k = 1, \ldots, K.
+\end{align}
+For $\bs \in P_{tk}$ we set $z_t(\bs) = z_{tk}$ and $\sigma^2_t(\bs) = \sigma^2_{tk}$, with $z_{tk} \iid N(0, 1)$ and $\sigma^2_{tk} \iid \mathrm{IG}(a/2, b/2)$.  Within each subregion the model retains the \skewt form, while sites in different partitions are not asymptotically dependent.
+
+Because the EPA compliance criterion focuses on exceedances of a high level $L$, the model fits only the upper tail by censoring the data at a pre-specified threshold $T \le L$.  Writing the partially censored response $\widetilde{Y}_t(\bs) = \max\{Y_t(\bs), T\}$, inference is based on $\widetilde{\bY}_t = [\widetilde{Y}_t(\bs_1), \ldots, \widetilde{Y}_t(\bs_n)]^\top$, and the censored values below $T$ are imputed inside the MCMC.
+
+Daily temporal dependence is introduced on the latent parameters that drive the tail, namely the knot locations $\bw_{tk}$, the skewness latents $z_{tk}$, and the scale parameters $\sigma^2_{tk}$.  To preserve the marginal \skewt distribution at every day, each parameter is first transformed to a standard normal scale via the probability integral transform:
+\begin{align}
+  w^*_{tki} &= \Phi^{-1}\!\left[\frac{w_{tki} - \min(\bs_i)}{\max(\bs_i) - \min(\bs_i)}\right], \quad i = 1, 2, \label{eq:wstar}\\
+  z^*_{tk}  &= \Phi^{-1}\{\mathrm{HN}(z_{tk})\}, \label{eq:zstar}\\
+  \sigma^{2*}_{tk} &= \Phi^{-1}\{\mathrm{IG}(\sigma^2_{tk})\}, \label{eq:sigmastar}
+\end{align}
+where $\Phi$ is the standard normal distribution function, $\mathrm{HN}$ is the half-normal distribution function, and $\mathrm{IG}$ is the inverse-gamma distribution function with parameters $(a/2, b/2)$.  After transformation, each $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ has a standard normal marginal distribution, and \textcite{morris_space-time_2017} place a stationary AR(1) Gaussian time series on each of them:
+\begin{align}
+  \bw^*_{tk} \mid \bw^*_{t-1, k} &\sim N_2\!\left(\phi_w\, \bw^*_{t-1, k},\; (1 - \phi_w^2)\, \bI_2\right), \label{eq:ar1-w}\\
+  z^*_{tk} \mid z^*_{t-1, k} &\sim N\!\left(\phi_z\, z^*_{t-1, k},\; 1 - \phi_z^2\right), \label{eq:ar1-z}\\
+  \sigma^{2*}_{tk} \mid \sigma^{2*}_{t-1, k} &\sim N\!\left(\phi_\sigma\, \sigma^{2*}_{t-1, k},\; 1 - \phi_\sigma^2\right), \label{eq:ar1-sigma}
+\end{align}
+with $|\phi_w|, |\phi_z|, |\phi_\sigma| < 1$, and initial values $\bw^*_{1k} \sim N_2(\bZero, \bI_2)$, $z^*_{1k} \sim N(0, 1)$, $\sigma^{2*}_{1k} \sim N(0, 1)$.  Transforming back through \eref{eq:wstar}--\eref{eq:sigmastar} gives $\bw_{tk} \sim \mathrm{Unif}(\calD)$, $z_{tk} \sim \mathrm{HN}(0, 1)$, and $\sigma^2_{tk} \sim \mathrm{IG}(a/2, b/2)$ at every $t$, so that the spatial \skewt structure of \eref{eq:fullmodel} is preserved at each day.  The complete hierarchical model is fitted via MCMC with Gibbs and Metropolis--Hastings steps, with predictions at unobserved sites obtained by Bayesian kriging on the multivariate normal full conditional of $\bY_t$.
+
+This \skewt baseline -- partitioned, censored, and AR(1)-correlated in time -- defines the reference specification against which the two proposed extensions of this thesis are evaluated.
+
+\subsection{Extension to AR(2) time-varying coefficients}\label{sec:ar2}
+
+The AR(1) time series in \eref{eq:ar1-w}--\eref{eq:ar1-sigma} links each transformed parameter on day $t$ to its value on day $t - 1$ only.  This may be too restrictive for daily atmospheric variables such as ozone, where persistence and weather-driven cycles can carry information across multiple lags.  We therefore replace the AR(1) prior on each transformed parameter by a stationary AR(2) prior, while preserving the unit marginal variance required by the probability integral transforms in \eref{eq:wstar}--\eref{eq:sigmastar}.
+
+\paragraph{The AR(2) recursion.}
+For a generic transformed parameter $\{Y_t\}_{t=1}^{n_t}$ -- standing in for any of the scalar components of $\bw^*_{tk}$, or for $z^*_{tk}$ or $\sigma^{2*}_{tk}$ at a fixed knot $k$ -- the AR(2) prior is
+\begin{align}
+  Y_t \;=\; \phi_1\, Y_{t-1} \;+\; \phi_2\, Y_{t-2} \;+\; \epsilon_t,
+  \qquad \epsilon_t \iid N(0, \sigma_\epsilon^2),
+  \qquad t \ge 3. \label{eq:ar2-recursion}
+\end{align}
+For the recursion to define a stationary process, $(\phi_1, \phi_2)$ must lie inside the stationarity triangle
+\begin{align}
+  |\phi_2| < 1, \qquad \phi_1 + \phi_2 < 1, \qquad \phi_2 - \phi_1 < 1. \label{eq:stab-triangle}
+\end{align}
+Just as in the AR(1) case, the AR(2) parameters $(\phi^{(w)}_1, \phi^{(w)}_2)$, $(\phi^{(z)}_1, \phi^{(z)}_2)$, and $(\phi^{(\sigma)}_1, \phi^{(\sigma)}_2)$ are separately defined for $\bw^*_{tk}$, $z^*_{tk}$, and $\sigma^{2*}_{tk}$.
+
+\paragraph{Yule--Walker moments under unit marginal variance.}
+We require $\gamma_0 := \mathrm{Var}(Y_t) = 1$ so that the inverse PIT applied to $Y_t$ recovers the half-normal, inverse-gamma, or uniform target margins on the original scale.  Multiplying \eref{eq:ar2-recursion} by $Y_{t-h}$ and taking expectations yields the Yule--Walker recursion
+\begin{align}
+  \gamma_h \;=\; \phi_1\, \gamma_{h-1} \;+\; \phi_2\, \gamma_{h-2}. \label{eq:yw}
+\end{align}
+Setting $h = 1$ and using the symmetry $\gamma_{-1} = \gamma_1$ gives
+\begin{align}
+  \gamma_1 \;=\; \frac{\phi_1}{1 - \phi_2}, \qquad
+  \gamma_2 \;=\; \phi_1\, \gamma_1 + \phi_2, \label{eq:gamma12}
+\end{align}
+and multiplying \eref{eq:ar2-recursion} by $Y_t$ pins down the innovation variance
+\begin{align}
+  \sigma_\epsilon^2 \;=\; 1 - \phi_1\, \gamma_1 - \phi_2\, \gamma_2. \label{eq:sigeps}
+\end{align}
+Setting $\phi_2 = 0$ in \eref{eq:gamma12}--\eref{eq:sigeps} recovers the AR(1) form $\gamma_1 = \phi_1$, $\sigma_\epsilon^2 = 1 - \phi_1^2$, so the AR(2) prior strictly contains the AR(1) prior used by \textcite{morris_space-time_2017}.
+
+\paragraph{Stationary joint of the initial pair.}
+Because the recursion \eref{eq:ar2-recursion} requires two seeds, the joint distribution of $(Y_1, Y_2)$ has to be specified separately.  Independent $N(0, 1)$ initial values would create a transient regime in which $\mathrm{Var}(Y_t) \ne 1$ for the first several days, breaking the PIT mechanism that produces the correct \skewt margin.  Stationarity therefore forces the bivariate Gaussian initial condition
+\begin{align}
+  \begin{pmatrix} Y_1 \\ Y_2 \end{pmatrix}
+  \;\sim\;
+  N_2\!\left(
+    \begin{pmatrix} 0 \\ 0 \end{pmatrix},\;
+    \begin{pmatrix} 1 & \gamma_1 \\ \gamma_1 & 1 \end{pmatrix}
+  \right), \label{eq:joint-init}
+\end{align}
+which yields the conditional density used when updating $Y_2$ alone:
+\begin{align}
+  Y_2 \mid Y_1 \;\sim\; N\!\left(\gamma_1\, Y_1,\; 1 - \gamma_1^2\right). \label{eq:p2-stationary}
+\end{align}
+Note that the mean of \eref{eq:p2-stationary} is $\gamma_1 Y_1$, not $\phi_1 Y_1$, and its variance is $1 - \gamma_1^2$, not $\sigma_\epsilon^2$; the two expressions coincide only when $\phi_2 = 0$.  In the AR(2) implementation it is essential that both the simulator and the MCMC density at $t = 2$ use \eref{eq:p2-stationary} so that the marginal property $\mathrm{Var}(Y_t) = 1$ holds at every $t$.
+
+\paragraph{Full conditional with three prior factors.}
+The AR(2) Markov structure factorizes the joint prior of $(Y_1, \ldots, Y_{n_t})$ as
+\begin{align}
+  p(Y_1, \ldots, Y_{n_t})
+  \;=\; p(Y_1, Y_2) \prod_{s = 3}^{n_t} p(Y_s \mid Y_{s-1}, Y_{s-2}), \label{eq:joint-prior}
+\end{align}
+with $p(Y_1, Y_2)$ given by \eref{eq:joint-init} and each conditional factor for $s \ge 3$ following \eref{eq:ar2-recursion}.  For an interior time point $3 \le t \le n_t - 2$, the value $Y_t$ enters \eref{eq:joint-prior} through three factors: the self factor $p(Y_t \mid Y_{t-1}, Y_{t-2})$, the lag-1 factor $p(Y_{t+1} \mid Y_t, Y_{t-1})$, and the lag-2 factor $p(Y_{t+2} \mid Y_{t+1}, Y_t)$.  The full conditional in the Gibbs-within-MH update of $Y_t$ is therefore
+\begin{align}
+  \pi(Y_t \mid Y_{-t}, \bY)
+  \;\propto\;
+  L(\bY \mid Y_t) \,\cdot\,
+  \underbrace{p(Y_t \mid Y_{t-1}, Y_{t-2})}_{\text{self}}
+  \,\cdot\,
+  \underbrace{p(Y_{t+1} \mid Y_t, Y_{t-1})}_{\text{lag-1}}
+  \,\cdot\,
+  \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{\text{lag-2}}, \label{eq:full-cond}
+\end{align}
+where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through the partition and Gaussian process structure of \eref{eq:fullmodel}.  The lag-2 factor is absent for $t = n_t - 1$ and both lag-1 and lag-2 factors are absent for $t = n_t$.  Under a symmetric Gaussian random-walk proposal $Y_t^{(c)} \sim N(Y_t, s^2)$, the Metropolis--Hastings acceptance ratio is
+\begin{align}
+  R \;=\; \min\!\left(1,\; \frac{\pi(Y_t^{(c)} \mid Y_{-t}, \bY)}{\pi(Y_t \mid Y_{-t}, \bY)}\right), \label{eq:mh-ratio}
+\end{align}
+in which all three prior factors must appear; omitting the lag-2 factor distorts the stationary distribution of the chain away from the AR(2) joint and produces a lag-2 autocorrelation that does not match the Yule--Walker value in \eref{eq:gamma12}.
+
+\paragraph{Application to all three transformed parameters.}
+The AR(2) prior \eref{eq:ar2-recursion} together with the stationary initial condition \eref{eq:joint-init} replaces \eref{eq:ar1-w}--\eref{eq:ar1-sigma} for each transformed parameter:
+\begin{align}
+  \bw^*_{tk} \mid \bw^*_{t-1, k}, \bw^*_{t-2, k}
+    &\sim N_2\!\left(\phi^{(w)}_1\, \bw^*_{t-1, k} + \phi^{(w)}_2\, \bw^*_{t-2, k},\; \sigma_{\epsilon, w}^2\, \bI_2\right), \label{eq:ar2-w}\\
+  z^*_{tk} \mid z^*_{t-1, k}, z^*_{t-2, k}
+    &\sim N\!\left(\phi^{(z)}_1\, z^*_{t-1, k} + \phi^{(z)}_2\, z^*_{t-2, k},\; \sigma_{\epsilon, z}^2\right), \label{eq:ar2-z}\\
+  \sigma^{2*}_{tk} \mid \sigma^{2*}_{t-1, k}, \sigma^{2*}_{t-2, k}
+    &\sim N\!\left(\phi^{(\sigma)}_1\, \sigma^{2*}_{t-1, k} + \phi^{(\sigma)}_2\, \sigma^{2*}_{t-2, k},\; \sigma_{\epsilon, \sigma}^2\right), \label{eq:ar2-sigma}
+\end{align}
+where each pair $(\phi^{(\cdot)}_1, \phi^{(\cdot)}_2)$ lies inside the stationarity triangle \eref{eq:stab-triangle}, the innovation variances are obtained from \eref{eq:gamma12}--\eref{eq:sigeps}, and the initial pairs $(\bw^*_{1k}, \bw^*_{2k})$, $(z^*_{1k}, z^*_{2k})$, $(\sigma^{2*}_{1k}, \sigma^{2*}_{2k})$ follow the bivariate Gaussian \eref{eq:joint-init} component-wise.  After inverse transformation through \eref{eq:wstar}--\eref{eq:sigmastar}, the back-transformed parameters $\bw_{tk}, z_{tk}, \sigma^2_{tk}$ retain the same marginal distributions as in the AR(1) baseline, so that the spatial \skewt model \eref{eq:fullmodel} is preserved at every $t$.  Setting $\phi^{(\cdot)}_2 = 0$ in \eref{eq:ar2-w}--\eref{eq:ar2-sigma} recovers the Morris AR(1) specification, so the AR(2) extension nests the original time-series model and adds one additional autoregressive coefficient per latent process.
+
+\subsection{Incorporate MRTS covariates}
 
 \section{Simulation study}
 \subsection{Design}

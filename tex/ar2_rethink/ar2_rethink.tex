@@ -1,0 +1,590 @@
+\documentclass[11pt]{article}
+
+% ---- Packages ----
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+}
+
+% ---- Theorem environments ----
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{remark}{Remark}
+
+% ---- Notation shortcuts ----
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\renewcommand{\Pr}{\mathbb{P}}
+\newcommand{\Norm}{\mathcal{N}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\Ltot}{\mathcal{L}}
+\newcommand{\indicator}{\mathbf{1}}
+\newcommand{\given}{\,\vert\,}
+
+% ---- Listings setup for R code ----
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  showstringspaces=false,
+  language=R,
+  commentstyle=\color{gray},
+  keywordstyle=\color{blue!60!black},
+  stringstyle=\color{green!50!black},
+  frame=single,
+  framerule=0.3pt
+}
+
+% ---- Title block ----
+\title{
+  AR(2) in a Spatial Skew-$t$ Model:\\
+  Why a Temporal Prior Loses to an i.i.d.\ Baseline\\
+  Under Spatial-Only Holdout
+}
+\author{Technical Note --- \texttt{ar2\_rethink}}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ====================================================================
+\begin{abstract}
+We document a sequence of derivations explaining why an AR(2) temporal
+prior on the latent processes of a spatial skew-$t$ model fails to
+dominate its independent-in-time counterpart when the prediction task
+is scored by the Brier score on held-out \emph{spatial} sites. The
+construction normalizes each AR(2) latent so that its stationary
+marginal variance equals one; we show this construction implies the
+time-$t$ marginal of every latent is invariant to the autoregressive
+coefficients $\phi_1, \phi_2$. The Brier loss in the spatial-holdout
+design integrates the predictive kernel against precisely this
+time-$t$ marginal, so the temporal coupling marginalizes out. The AR(2)
+parameters can still leak into the predictive through the posterior of
+the latents at training times, but each of the four available leakage
+channels is damped (discrete knot membership, likelihood-dominated
+latents, $\phi$-independent spatial noise), while the cost of six
+additional AR coefficients inflates posterior variance. We close with
+three concrete redesigns---block-time-forecast holdout, multivariate
+energy score, variogram score---under which the AR(2) prior is
+expected to recover its advantage.
+\end{abstract}
+
+% ====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+The simulation study in
+\path{code/analysis/simstudy/} compares eight prediction methods for
+spatial extremes, including four variants of the skew-$t$ knot model
+of which two (methods 7 and 8) place an AR(2) prior on every latent
+temporal process. Tabulated Brier and quantile scores for settings 9
+and 10 show that the AR(2) methods do \emph{not} systematically
+outperform their i.i.d.\ siblings; in setting 10 the
+\verb|K=5| AR(2) variant is in fact worse than the
+\verb|K=5| no-AR baseline at every quantile.
+
+This note explains the discrepancy. The conclusion has nothing to do
+with bugs in the AR(2) implementation in
+\verb|simulate_ar2_standard()| and everything to do with the
+interaction between (i) the AR(2) standardisation, (ii) the spatial
+structure of the holdout, and (iii) the scoring rule. The reasoning
+is reproduced here in a single place because it determines what
+experiments would actually credit the AR(2) machinery.
+
+The structure of the note is as follows. Section~\ref{sec:model}
+fixes notation and lists the assumptions of the underlying model.
+Section~\ref{sec:ar2-construction} formalises the AR(2)
+standardisation and establishes the marginal invariance proposition.
+Section~\ref{sec:derivations} carries the invariance through the
+Brier predictive integral and identifies the four leakage channels.
+Section~\ref{sec:redesign} proposes alternative scoring designs.
+Section~\ref{sec:conclusion} summarises.
+
+% ====================================================================
+\section{Model Setup and Notation}
+\label{sec:model}
+
+\subsection{Spatial skew-$t$ knot model}
+
+Let $\{s_i\}_{i=1}^{n_s} \subset \R^2$ denote spatial locations and
+$t \in \{1, \dots, T\}$ time indices. Fix $K$ knots in the spatial
+domain. The conditional model for the observed process is
+
+\begin{equation}
+  Y_t(s) = x_t(s)^\top \beta
+         + \lambda \, z_{g(s, t), t}
+         + \frac{1}{\sqrt{\tau_{g(s, t), t}}} \,
+           \big[L_C \, \varepsilon_t\big]_s,
+  \qquad \varepsilon_t \sim \Norm(0, I_{n_s}),
+  \label{eq:kernel}
+\end{equation}
+
+where:
+\begin{itemize}[leftmargin=2em, itemsep=0pt]
+  \item $\beta \in \R^p$ are regression coefficients and $\lambda$ is
+        the skewness parameter;
+  \item $z_{k, t}, \tau_{k, t}$ are knot-level latent processes
+        governing skew and scale;
+  \item $w_{k, t} \in \R^2$ is the (possibly time-varying) location of
+        knot $k$ at time $t$;
+  \item $g(s, t) = \arg\min_k \|s - w_{k, t}\|$ is the knot membership
+        function (a Voronoi assignment);
+  \item $C = C(\rho, \nu, \gamma)$ is the spatial covariance matrix on
+        the observation grid and $L_C = \operatorname{chol}(C)^\top$.
+\end{itemize}
+
+We collect the time-$t$ slice of all latents into
+$\Ltot_t = (z_{\cdot, t}, \tau_{\cdot, t}, w_{\cdot, t})$ and the full
+fixed-parameter vector into $\theta$.
+
+\subsection{AR(2) standardisation}
+
+Each scalar latent process (one per knot per quantity $z, \tau, w$) is
+generated by
+
+\begin{equation}
+  X_t = \phi_1 X_{t-1} + \phi_2 X_{t-2} + \eta_t,
+  \qquad \eta_t \sim \Norm(0, \sigma_\eta^2),
+  \label{eq:ar2}
+\end{equation}
+
+with $(\phi_1, \phi_2)$ in the stationarity region. We adopt the
+construction in
+\verb|simulate_ar2_standard()|, which fixes the
+stationary variance and \emph{solves} for the innovation variance.
+
+\begin{definition}[Standardised AR(2)]
+\label{def:standardised}
+Set $\gamma_0 = 1$, $\gamma_1 = \phi_1 / (1 - \phi_2)$, and
+\begin{equation}
+  \sigma_\eta^2
+    = \gamma_0 - \phi_1 \gamma_1 - \phi_2 \gamma_2,
+  \qquad \gamma_2 = \phi_1 \gamma_1 + \phi_2 \gamma_0.
+  \label{eq:innovvar}
+\end{equation}
+The initial pair $(X_1, X_2)$ is drawn jointly from
+\[
+  \Norm\!\left(0,
+    \begin{bmatrix} 1 & \gamma_1 \\ \gamma_1 & 1 \end{bmatrix}\right),
+\]
+and the recursion~\eqref{eq:ar2} runs forward for $t \ge 3$.
+\end{definition}
+
+\begin{assumption}[Stationarity]
+\label{assn:stationary}
+$(\phi_1, \phi_2)$ satisfies
+$|\phi_2| < 1, \ \phi_1 + \phi_2 < 1, \ \phi_2 - \phi_1 < 1$,
+so the roots of the AR(2) characteristic polynomial lie strictly
+outside the unit circle.
+\end{assumption}
+
+\subsection{Prediction task}
+
+The simstudy holdout fixes a subset $\mathcal S_{\mathrm{test}}$ of
+test \emph{sites}; the training set is
+$\D = \{Y_t(s) : s \notin \mathcal S_{\mathrm{test}}, \, t \in
+\{1, \dots, T\}\}$, and the prediction targets are
+$\{Y_t(s^*) : s^* \in \mathcal S_{\mathrm{test}}, \, t \in
+\{1, \dots, T\}\}$. Note that every time point is observed at every
+training site.
+
+\begin{definition}[Brier score]
+\label{def:brier}
+For threshold $c$ and predictive probability
+$\hat p(s^*, t; c) = \Pr(Y_t(s^*) > c \given \D)$,
+\begin{equation}
+  \mathrm{BS}(c) = \E\big[(\indicator\{Y_t(s^*) > c\}
+                        - \hat p(s^*, t; c))^2\big].
+  \label{eq:brier}
+\end{equation}
+\end{definition}
+
+% ====================================================================
+\section{Marginal Invariance of the Standardised AR(2)}
+\label{sec:ar2-construction}
+
+\begin{proposition}[Marginal invariance to $\phi$]
+\label{prop:invariance}
+Under Definition~\ref{def:standardised} and
+Assumption~\ref{assn:stationary}, for every $t \in \{1, \dots, T\}$,
+\begin{equation}
+  X_t \sim \Norm(0, 1)
+  \qquad \text{regardless of } (\phi_1, \phi_2).
+  \label{eq:invariance}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+By construction $X_1, X_2 \sim \Norm(0, 1)$ marginally. Suppose
+inductively that $\Var(X_{t-1}) = \Var(X_{t-2}) = 1$ and
+$\Cov(X_{t-1}, X_{t-2}) = \gamma_1$. Then from~\eqref{eq:ar2},
+\[
+  \Var(X_t)
+    = \phi_1^2 + \phi_2^2 + 2 \phi_1 \phi_2 \gamma_1 + \sigma_\eta^2.
+\]
+Substituting~\eqref{eq:innovvar} and using
+$\gamma_2 = \phi_1 \gamma_1 + \phi_2$ gives
+$\Var(X_t) = 1$. Mean is zero by linearity. Joint normality of $X_t$
+with previous lags is preserved by the linear recursion.
+\end{proof}
+
+\begin{corollary}[AR(1) toy]
+\label{cor:ar1}
+For an AR(1) process standardised to $\gamma_0 = 1$,
+$\sigma_\eta^2 = 1 - \phi^2$, and $X_t \sim \Norm(0, 1)$ for every
+admissible $\phi$. The autocorrelation $\Cov(X_t, X_{t+h}) = \phi^{|h|}$
+is the only quantity that moves with $\phi$.
+\end{corollary}
+
+\begin{remark}[Identifiability]
+$\phi$ is identifiable only from \emph{joint} distributions across
+time; the one-point marginal is $\phi$-blind. Sampling one $X_t$
+alone provides zero information about $\phi$.
+\end{remark}
+
+% ====================================================================
+\section{Why Brier Marginalises $\phi$ Away}
+\label{sec:derivations}
+
+\subsection{The predictive integral collapses to the time-$t$ marginal}
+
+\begin{proposition}[Predictive at $(s^*, t)$ depends only on time-$t$
+latents]
+\label{prop:kernel-decomposition}
+For the kernel~\eqref{eq:kernel}, the conditional CDF at $(s^*, t)$
+given $(\theta, \Ltot_t)$ does not depend on $\Ltot_{t'}$ for any
+$t' \ne t$. Consequently the marginal predictive is
+\begin{equation}
+  \hat p(s^*, t; c)
+    = \int \!\!\int
+        \Pr\!\big(Y_t(s^*) > c \given \theta, \Ltot_t\big) \,
+        \pi(\Ltot_t \given \theta, \D) \,
+        \pi(\theta \given \D) \, d\Ltot_t \, d\theta.
+  \label{eq:predictive}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Direct from inspection of~\eqref{eq:kernel}: the right-hand side
+involves only $\Ltot_t$ at the same $t$. Fubini and the conditional
+factorisation $\pi(\theta, \Ltot_t \given \D) = \pi(\Ltot_t \given
+\theta, \D) \pi(\theta \given \D)$ give the displayed form.
+\end{proof}
+
+\begin{proposition}[$\phi$-free prior marginal at one $t$]
+\label{prop:phi-free}
+Under Definition~\ref{def:standardised}, the \emph{prior} marginal of
+$\Ltot_t$ at any single $t$ does not depend on
+$\phi := (\phi_z, \phi_\tau, \phi_w)$.
+\end{proposition}
+
+\begin{proof}
+Each component of $\Ltot_t$ is obtained by a fixed monotone transform
+(gamma inverse copula for $\tau$, half-normal inverse copula for $z$,
+inverse probit for $w$) applied to a standardised AR(2) latent.
+Proposition~\ref{prop:invariance} establishes that each underlying
+latent has marginal $\Norm(0, 1)$ for every admissible $\phi$. The
+fixed transforms preserve this invariance.
+\end{proof}
+
+\begin{corollary}[Bayes vs.\ prior]
+\label{cor:posterior-route}
+Combining Propositions~\ref{prop:kernel-decomposition} and
+\ref{prop:phi-free}, the only route through which $\phi$ can affect
+$\hat p(s^*, t; c)$ is the posterior $\pi(\theta \given \D)$ together
+with the conditional $\pi(\Ltot_t \given \theta, \D)$. The
+likelihood $p(\D \given \theta)$ couples observations across time and
+therefore depends on $\phi$, but the kernel at the held-out cell does
+not.
+\end{corollary}
+
+\subsection{Four leakage channels}
+
+We enumerate the channels through which $\phi$ can move the predictive
+at $(s^*, t)$ in spite of Corollary~\ref{cor:posterior-route}.
+
+\begin{description}[leftmargin=2em, itemsep=0.25em]
+  \item[Channel A: $z_{g, t}$ via temporal pooling.] AR(2) tightens
+    $\pi(z_{k, t} \given \D)$ at training $t$ by borrowing from
+    $z_{k, t \pm 1}, z_{k, t \pm 2}$. The benefit is bounded by how
+    much information the time-$t$ training likelihood already
+    provides.
+  \item[Channel B: $\tau_{g, t}$ via temporal pooling.] Symmetric to
+    Channel A.
+  \item[Channel C: knot membership $g(s^*, t)$.] AR(2) tightens
+    $\pi(w_{k, t} \given \D)$ at training $t$. Because $g(s^*, t)$ is a
+    discrete \emph{argmin} over $\{w_{1, t}, \dots, w_{K, t}\}$, the
+    posterior tightening propagates to $g$ only when the perturbation
+    crosses a Voronoi boundary near $s^*$. For $K = 1$ the channel is
+    closed entirely.
+  \item[Channel D: spatial noise $L_C \varepsilon_t / \sqrt{\tau_{g,t}}$.]
+    $\varepsilon_t$ is i.i.d.\ in $t$ given $\theta$. AR(2) does not
+    appear in this channel at all.
+\end{description}
+
+We also account for a cost channel that operates against any benefit
+from A--C.
+
+\begin{description}[leftmargin=2em, itemsep=0.25em]
+  \item[Channel E (cost): posterior on $\phi$.] Methods 7 and 8 turn
+    on AR(2) for $z, \tau, w$ simultaneously, introducing six new
+    parameters $\phi_{1z}, \phi_{2z}, \phi_{1\tau}, \phi_{2\tau},
+    \phi_{1w}, \phi_{2w}$. Their joint posterior contributes
+    variability to the predictive integral~\eqref{eq:predictive}.
+\end{description}
+
+\subsection{Variance decomposition}
+
+\begin{lemma}[Predictive variance decomposition]
+\label{lem:variance}
+For the held-out predictive probability
+$\hat F_{s^*, t}(c) = \hat p(s^*, t; c)$,
+\begin{equation}
+  \Var\!\big(\hat F_{s^*, t}(c)\big)
+    \approx \E_\phi\!\big[\Var\!\big(\hat F \given \phi\big)\big]
+          + \Var_\phi\!\big(\E[\hat F \given \phi]\big).
+  \label{eq:variance-decomp}
+\end{equation}
+\end{lemma}
+
+The AR(2) prior reduces the first summand through Channels A--C; it
+introduces the second summand, which is identically zero under
+i.i.d.\ time. The Brier score is sensitive to the sum, not the
+decomposition. Empirically (Section~\ref{sec:evidence}) the second
+summand dominates the first reduction in the simstudy configuration.
+
+\subsection{Evidence in the simstudy}
+\label{sec:evidence}
+
+Table~\ref{tab:rel-brier} summarises Brier scores relative to the
+Gaussian baseline (method 1) at selected quantiles for setting 9.
+
+\begin{table}[h]
+\centering
+\caption{Relative Brier score versus method 1, setting 9. Smaller is
+         better; entries below~1 indicate improvement over the
+         Gaussian baseline.}
+\label{tab:rel-brier}
+\begin{tabular}{c r r r r}
+\toprule
+$q$ & M2 (skew-$t$, $K{=}1$) & M4 (skew-$t$, $K{=}5$)
+    & M7 (AR(2), $K{=}1$)    & M8 (AR(2), $K{=}5$) \\
+\midrule
+0.90  & 0.961 & 0.973 & 0.968 & 0.972 \\
+0.95  & 0.951 & 0.969 & 0.964 & 0.969 \\
+0.97  & 0.943 & 0.965 & 0.958 & 0.958 \\
+0.99  & 0.955 & 0.987 & 0.975 & 0.980 \\
+0.995 & 0.946 & 0.955 & 0.957 & 0.962 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The i.i.d.\ skew-$t$ at $K = 1$ (method 2) systematically beats its
+AR(2) sibling (method 7). Setting~10 shows an even sharper version of
+the same phenomenon: method 8 ($K = 5$ with AR(2)) ranges from
+\(0.96\) to \(1.16\) of the Gaussian baseline, while method 4
+($K = 5$ without AR(2)) is at \(0.87\)--\(0.94\).
+
+% ====================================================================
+\section{Redesigns That Restore the AR(2) Signal}
+\label{sec:redesign}
+
+Three designs expose the temporal coupling that the spatial-only Brier
+ignores.
+
+\subsection{Design A: block-time-forecast holdout}
+
+Hold out the last $T_h$ time points; train on
+$\{Y_{t}(s) : t \le T - T_h, \, s \in \mathcal S\}$. The predictive at
+horizon $t^* > T - T_h$ requires the conditional
+\[
+  z_{k, t^*} \given \D \;\sim\;
+    \Norm\!\big(\phi_1 \hat z_{k, t^* - 1} + \phi_2 \hat z_{k, t^* - 2},\,
+                \sigma_\eta^2 + \text{filter uncertainty}\big),
+\]
+which is strictly $\phi$-dependent. Brier and any scoring rule applied
+to the forecast cells will distinguish AR(2) from i.i.d.\ time.
+
+\subsection{Design B: multivariate score on the spatial holdout}
+
+Keep the spatial holdout. Score the held-out site-level trajectory
+$\bm y_{s^*} = (Y_1(s^*), \dots, Y_T(s^*))$ as a $T$-vector.
+
+\paragraph{Energy score.} For predictive $F$ and observation
+$\bm y \in \R^T$,
+\begin{equation}
+  \mathrm{ES}(F, \bm y)
+    = \E_F \|X - \bm y\|_2
+      - \tfrac{1}{2} \E_F \|X - X'\|_2,
+  \qquad X, X' \overset{\text{iid}}{\sim} F.
+\end{equation}
+The Monte Carlo estimator with $M$ samples is
+\[
+  \widehat{\mathrm{ES}}
+    = \frac{1}{M} \sum_{m=1}^{M} \|X^{(m)} - \bm y\|_2
+      - \frac{1}{2 M (M - 1)} \sum_{m \ne m'} \|X^{(m)} - X^{(m')}\|_2.
+\]
+
+\paragraph{Variogram score of order $p$.}
+\begin{equation}
+  \mathrm{VS}_p(F, \bm y)
+    = \sum_{t < t'} w_{t, t'}
+      \Big( |y_t - y_{t'}|^p - \E_F |X_t - X_{t'}|^p \Big)^2.
+\end{equation}
+With $p = 0.5$ the score is particularly sensitive to temporal
+dependence misspecification.
+
+\subsection{Design C (recommended): combined holdout + energy score}
+
+Hold out both a set of test sites and the last $T_h$ time points at
+the remaining sites. Report:
+\begin{enumerate}[leftmargin=2em, itemsep=0pt]
+  \item marginal Brier on $(s^*, t)$ for $s^* \in
+        \mathcal S_{\mathrm{test}}$, $t \le T - T_h$ --- the legacy
+        comparison;
+  \item energy score on $(s, t_{\mathrm{block}})$ for $s$ in the
+        training spatial set, $t > T - T_h$ --- the temporal-coupling
+        test;
+  \item energy score on $(s^*, t_{\mathrm{block}})$ ---
+        space-and-time extrapolation.
+\end{enumerate}
+
+\begin{remark}[Reporting]
+Report paired score differences across the 50 simulation replicates
+and bootstrap the resulting boxplots. Also report
+score-per-CPU-hour: methods 7 and 8 are more expensive, and a small
+score gain may not be worth the additional compute.
+\end{remark}
+
+% ====================================================================
+\section{Intuition Summary}
+\label{sec:intuition}
+
+AR(2) is a model of how today's latent values relate to yesterday's
+and the day before yesterday's. The Brier score on the spatial
+holdout asks for the marginal exceedance probability at a new
+\emph{location} on a day that is already observed at other locations.
+The temporal coupling that AR(2) models has no opportunity to act,
+because every relevant time point is already pinned by training-time
+likelihood. The score sees only the cost of the additional
+parameters --- six $\phi$'s with their own posterior variance --- and
+penalises the model for buying capability it never gets to use.
+
+The fix is not to remove AR(2); it is to design an experiment that
+asks the model to act like a temporal model. Forecast forward in
+time, or score whole trajectories at once. The temporal coupling then
+enters the predictive integral non-trivially, and the AR(2) prior
+recovers its rent.
+
+% ====================================================================
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+We have established that the AR(2) standardisation
+(Definition~\ref{def:standardised}) makes the prior time-$t$ marginal
+of every latent invariant to the autoregressive coefficients
+(Proposition~\ref{prop:invariance}, Proposition~\ref{prop:phi-free}).
+The spatial-only Brier score integrates the predictive kernel
+against precisely this marginal
+(Proposition~\ref{prop:kernel-decomposition}), so the temporal
+coupling vanishes from the loss. Of the four leakage channels through
+which $\phi$ could re-enter via the posterior, three (Channels A--C)
+are damped by likelihood dominance, discrete knot membership, or
+spatial $\phi$-independence; the fourth (Channel D) is closed. The
+cost channel (E) is unbounded above and inflates the predictive
+variance, which Brier penalises directly. The net effect is that
+i.i.d.-time skew-$t$ wins the comparison on this score.
+
+Future work, in order of priority:
+\begin{enumerate}[leftmargin=2em, itemsep=0pt]
+  \item Implement Design C in
+        \texttt{scores.R} and \texttt{run-settings.R}: extend the MCMC
+        predictive loop in \texttt{rpotspatTS\_arp()} to propagate the
+        AR(2) recursion past the training horizon, and add
+        \texttt{EnergyScore} and \texttt{VariogramScore} alongside
+        \texttt{BrierScore}.
+  \item Re-run settings 9 and 10 with $T_h \in \{3, 5, 10\}$ and
+        report paired score differences between methods (2, 7) and
+        (4, 8).
+  \item Run model selection over AR order $p \in \{0, 1, 2\}$ using
+        DIC/WAIC before fixing the temporal-prior order, so any
+        observed AR(2) advantage cannot be attributed to a
+        coincidentally matched simulation truth.
+  \item Investigate whether channel C activates non-trivially when
+        the data-generating $w$ has small inter-knot separation,
+        i.e.\ when many held-out sites sit near Voronoi boundaries.
+\end{enumerate}
+
+% ====================================================================
+\appendix
+
+\section{Reference R implementation}
+\label{app:r-code}
+
+The standardised AR(2) simulator in
+\path{code/00_core/auxfunctions_ar2.R}.
+
+\begin{lstlisting}
+simulate_ar2_standard <- function(nt, n, phi1, phi2,
+                                  tol = 1e-06, param_name = NULL) {
+  # ... stationarity check ...
+  denom  <- 1 - phi2
+  gamma0 <- 1
+  gamma1 <- phi1 * gamma0 / denom
+  gamma2 <- phi1 * gamma1 + phi2 * gamma0
+  sigma2 <- gamma0 - phi1 * gamma1 - phi2 * gamma2
+  innov.sd <- sqrt(sigma2)
+
+  ar2 <- matrix(0, nrow = n, ncol = nt)
+  init.states <- draw_ar2_initial(n, gamma0, gamma1)
+  ar2[, 1] <- init.states[, 1]
+  ar2[, 2] <- init.states[, 2]
+
+  for (t in 3:nt) {
+    ar2[, t] <- phi1 * ar2[, t - 1] +
+                phi2 * ar2[, t - 2] +
+                rnorm(n, 0, innov.sd)
+  }
+  ar2
+}
+\end{lstlisting}
+
+The construction matches Definition~\ref{def:standardised}: the
+marginal variance is fixed at $\gamma_0 = 1$ and the innovation
+variance is derived. Initial states are drawn jointly from the
+stationary bivariate Gaussian via \texttt{draw\_ar2\_initial()},
+removing the need for a burn-in.
+
+\section{Verification by reverse simulation}
+\label{app:verification}
+
+To confirm the marginal invariance empirically we simulate $n = 1000$
+AR(2) paths under
+$(\phi_1, \phi_2) = (0.6, -0.3)$ via manual recursion and via
+\texttt{stats::filter(\ldots, method = "recursive")}, fit
+\texttt{arima(order = c(2, 0, 0))} to each, and run a residual
+diagnostic. Both fits recover the true coefficients within one
+standard error, and the Ljung--Box and Shapiro--Wilk tests on the
+residuals are non-significant ($p > 0.4$). Manual recursion and
+filtering produce statistically equivalent AR(2) series.
+
+\end{document}
