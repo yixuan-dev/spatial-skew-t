@@ -245,17 +245,24 @@ tbf_blocks <- function(block_seams, block_H, nt) {
 # Returns: predictive sample array yhat [iters x ns x H].
 #########################################################################
 forecast_block <- function(fit, seam, H, x_block, s, ar2 = TRUE) {
-  iters <- dim(fit$tau)[1]
-  K <- dim(fit$tau)[2]
+  # The AR(2) backend stores tau/z as keepers[iters, nknots, T_o] but
+  # drops the singleton knot axis on return when nknots == 1, so fit$tau
+  # arrives as a 2-D [iters, T_o] matrix. Restore the knot axis so the
+  # [iter, knot, time] indexing below is uniform for any K.
+  tau_traj <- fit$tau
+  z_traj <- fit$z
+  if (length(dim(tau_traj)) == 2L) {
+    d2 <- dim(tau_traj)
+    tau_traj <- array(tau_traj, dim = c(d2[1], 1L, d2[2]))
+    if (!is.null(z_traj)) z_traj <- array(z_traj, dim = c(d2[1], 1L, d2[2]))
+  }
+  iters <- dim(tau_traj)[1]
+  K <- dim(tau_traj)[2]
   ns <- nrow(s)
   p <- dim(x_block)[3]
   yhat <- array(NA_real_, dim = c(iters, ns, H))
 
-  # latent slices of the fitted trajectory carry the K knot dimension;
-  # drop=FALSE keeps the K=1 case 3-dimensional.
-  tau_traj <- fit$tau            # iters x K x T_o
-  z_traj <- fit$z                # iters x K x T_o
-  has_knots <- !is.null(fit$knots)
+  seam_cols <- c(seam - 1L, seam)  # the two seam states, T_o-1 and T_o
 
   for (m in seq_len(iters)) {
     a.m <- fit$tau.alpha[m] / 2   # rpotspatTS_arp uses the /2 reparam
@@ -267,10 +274,14 @@ forecast_block <- function(fit, seam, H, x_block, s, ar2 = TRUE) {
     if (ar2) {
       phi.tau <- fit$phi.tau[m, ]
       phi.z <- fit$phi.z[m, ]
-      # seam state on the Gaussian scale: invert the copula at T_o-1, T_o
-      tau.seam <- gamma.cop(tau_traj[m, , (seam - 1):seam], a.m, b.m)
-      sd.z <- 1 / sqrt(tau_traj[m, , (seam - 1):seam])
-      z.seam <- hn.cop(z_traj[m, , (seam - 1):seam], sig = sd.z)
+      # seam state on the Gaussian scale: invert the copula at T_o-1, T_o.
+      # drop = FALSE then reshape to [K, 2] so the K = 1 case does not
+      # collapse to a vector (ar2_recurse indexes seam_state[, j]).
+      tau.obs <- matrix(tau_traj[m, , seam_cols, drop = FALSE], K, 2L)
+      z.obs <- matrix(z_traj[m, , seam_cols, drop = FALSE], K, 2L)
+      tau.seam <- gamma.cop(tau.obs, a.m, b.m)
+      sd.z <- 1 / sqrt(tau.obs)
+      z.seam <- hn.cop(z.obs, sig = sd.z)
       tau.star <- ar2_recurse(tau.seam, phi.tau, H, K)
       z.star <- ar2_recurse(z.seam, phi.z, H, K)
     } else {

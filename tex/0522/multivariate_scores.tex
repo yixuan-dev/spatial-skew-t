@@ -1,0 +1,382 @@
+\documentclass[11pt]{article}
+
+% ---- Packages ----
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+}
+
+% ---- Notation shortcuts (consistent with ar2_rethink.tex) ----
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\renewcommand{\Pr}{\mathbb{P}}
+\newcommand{\Norm}{\mathcal{N}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\Ltot}{\mathcal{L}}
+\newcommand{\indicator}{\mathbf{1}}
+\newcommand{\given}{\,\vert\,}
+
+% ---- Code-location annotation ----
+% Marks the file / function / lines that implement the adjacent maths.
+\newcommand{\impl}[1]{{\footnotesize\textsf{\textcolor{blue!45!black}{[\,#1\,]}}}}
+
+% ---- Title block ----
+\title{
+  Multivariate Predictive Scores in the \texttt{simstudy} Pipeline:\\
+  Sample Energy and Variogram Estimators
+}
+\author{Technical Note --- \texttt{0522}}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ====================================================================
+\begin{abstract}
+This note states, with the population definitions driving the
+construction, exactly how the energy score and the variogram score are
+computed in \path{code/analysis/simstudy/}. Notation follows
+\texttt{ar2\_rethink.tex} \S2--\S7.4; every displayed quantity is
+annotated with the file, function, and line range that evaluate it.
+\end{abstract}
+
+% ====================================================================
+\section{Setup and notation}
+\label{sec:setup}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+  \item The holdout fixes a set of test sites
+        $\mathcal S_{\mathrm{test}}\subset\{s_1,\dots,s_{n_s}\}$, with
+        \begin{equation}
+          n^\ast \;:=\; |\mathcal S_{\mathrm{test}}|,
+        \end{equation}
+        and every time $t\in\{1,\dots,T\}$ is observed at all training
+        sites $s\notin\mathcal S_{\mathrm{test}}$
+        (\texttt{ar2\_rethink.tex} \S2.3).
+        \impl{\texttt{scores.R}: \texttt{obs}, l.~216; \texttt{validate}, l.~271}
+  \item The held-out truth at time $t$ is the vector
+        \begin{equation}
+          \bm y_t \;:=\; \big(Y_t(s)\big)_{s\in\mathcal S_{\mathrm{test}}}
+                  \;\in\;\R^{n^\ast},
+          \qquad [\bm y_t]_i = Y_t(s_i^\ast).
+          \label{eq:ytruth}
+        \end{equation}
+        \impl{\texttt{scores.R}: \texttt{validate <- y[!obs,\,,set,setting]}; column $t$ is $\bm y_t$}
+  \item The forecast is the joint posterior predictive law over the test
+        sites at time $t$,
+        \begin{equation}
+          F_t \;:=\; \mathrm{Law}\!\big(\bm Y_t(\mathcal S_{\mathrm{test}})
+                     \given \D\big),
+          \qquad
+          \bm Y_t(\mathcal S_{\mathrm{test}})
+            = \big(Y_t(s)\big)_{s\in\mathcal S_{\mathrm{test}}},
+          \label{eq:predlaw}
+        \end{equation}
+        the vector generalisation of the scalar predictive
+        $\hat p(s^\ast,t;c)$ of \texttt{ar2\_rethink.tex} eq.~(predictive).
+  \item $F_t$ is available only through an MCMC sample: the fit stores
+        $m$ posterior predictive draws
+        \begin{equation}
+          \bm x_t^{(1)},\dots,\bm x_t^{(m)}
+            \;\overset{\text{approx.}}{\sim}\; F_t,
+          \qquad
+          \bm x_t^{(j)}\in\R^{n^\ast},
+          \label{eq:sample}
+        \end{equation}
+        held in the array $\texttt{yp}\in\R^{m\times n^\ast\times T}$ with
+        $[\texttt{yp}]_{j,i,t}=x_{t,i}^{(j)}$; here $m=10^4$.
+        \impl{\texttt{scores.R}: \texttt{fit\$yp}, passed to \texttt{multivar\_scores}, l.~296}
+\end{itemize}
+
+% ====================================================================
+\section{Population scoring rules}
+\label{sec:population}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+  \item For a forecast law $F$ on $\R^{n^\ast}$ and an observation
+        $\bm y\in\R^{n^\ast}$, the \emph{energy score}
+        \cite{gneiting2007} is
+        \begin{equation}
+          \mathrm{ES}(F,\bm y)
+            \;=\; \E_{X\sim F}\,\|X-\bm y\|_2
+                 \;-\; \tfrac12\,
+                 \E_{X,X'\overset{\text{iid}}{\sim}F}\,\|X-X'\|_2 ,
+          \label{eq:es-pop}
+        \end{equation}
+        with $\|\cdot\|_2$ the Euclidean norm.
+  \item Equation~\eqref{eq:es-pop} is strictly proper relative to the
+        class $\{F:\E_F\|X\|_2<\infty\}$; the case $n^\ast=1$ reduces it
+        to the $\mathrm{CRPS}$.
+  \item For order $p>0$ and nonnegative weights $w_{ij}$, the
+        \emph{variogram score} \cite{scheuerer2015} is
+        \begin{equation}
+          \mathrm{VS}_p(F,\bm y)
+            \;=\; \sum_{1\le i<j\le n^\ast} w_{ij}
+                  \Big(\,|y_i-y_j|^p
+                       - \E_{X\sim F}\,|X_i-X_j|^p\,\Big)^{2}.
+          \label{eq:vs-pop}
+        \end{equation}
+  \item Equation~\eqref{eq:vs-pop} is proper --- but \emph{not} strictly
+        proper --- for every $F$ with finite $2p$-th moments: it sees $F$
+        only through the pairwise $p$-th absolute-difference moments
+        $\E_F|X_i-X_j|^p$.
+  \item Both rules are negatively oriented (smaller is better) and act on
+        the level $Y$ directly.
+\end{itemize}
+
+% ====================================================================
+\section{Sample estimators}
+\label{sec:estimators}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+  \item Given a sample $\{\bm x^{(j)}\}_{j=1}^{m}$, write
+        $\hat F_m := \tfrac1m\sum_{j=1}^m\delta_{\bm x^{(j)}}$ for its
+        empirical measure; the estimators replace $F$ by $\hat F_m$ in
+        \eqref{eq:es-pop}--\eqref{eq:vs-pop}.
+  \item The energy-score estimator (the plug-in
+        $\mathrm{ES}(\hat F_m,\bm y)$) is
+        \begin{equation}
+          \widehat{\mathrm{ES}}\big(\{\bm x^{(j)}\}_{j=1}^{m},\bm y\big)
+            = \frac{1}{m}\sum_{j=1}^{m}\big\|\bm x^{(j)}-\bm y\big\|_2
+            \;-\; \frac{1}{2m^{2}}\sum_{j=1}^{m}\sum_{k=1}^{m}
+                   \big\|\bm x^{(j)}-\bm x^{(k)}\big\|_2 .
+          \label{eq:es-hat}
+        \end{equation}
+        \impl{\texttt{scoringRules::es\_sample(y, dat)}; called in \texttt{scores.R}:\texttt{multivar\_scores}, l.~242}
+  \item The variogram-score estimator replaces each moment
+        $\E_F|X_i-X_j|^p$ by its sample mean,
+        \begin{equation}
+          \widehat{\mathrm{VS}}_p\big(\{\bm x^{(j)}\}_{j=1}^{m},\bm y\big)
+            = \sum_{i=1}^{n^\ast}\sum_{j=1}^{n^\ast} w_{ij}
+              \Big(\,|y_i-y_j|^p
+                   - \frac{1}{m}\sum_{k=1}^{m}
+                     \big|x_i^{(k)}-x_j^{(k)}\big|^p\,\Big)^{2}.
+          \label{eq:vs-hat}
+        \end{equation}
+        \impl{\texttt{scoringRules::vs\_sample(y, dat, p)}; called in \texttt{scores.R}:\texttt{multivar\_scores}, l.~246}
+  \item Equation~\eqref{eq:vs-hat} sums over all \emph{ordered} pairs;
+        since the summand is symmetric in $(i,j)$ and vanishes at $i=j$,
+        \begin{equation}
+          \widehat{\mathrm{VS}}_p
+            \;=\; 2\!\!\sum_{1\le i<j\le n^\ast}\!\! w_{ij}
+                  \big(\cdots\big)^2 ,
+        \end{equation}
+        i.e.\ twice the $\sum_{i<j}$ convention of \eqref{eq:vs-pop}; the
+        global factor is immaterial to method ranking.
+  \item The implementation uses uniform weights and order
+        \begin{equation}
+          w_{ij}\equiv 1,
+          \qquad
+          p = 0.5 ,
+        \end{equation}
+        the heavy-tail-robust choice of \texttt{ar2\_rethink.tex} \S7.4.
+        \impl{\texttt{scores.R}: \texttt{vs\_p <- 0.5}, l.~168; \texttt{vs\_sample} called with no \texttt{w} argument}
+\end{itemize}
+
+% ====================================================================
+\section{Predictive-draw thinning}
+\label{sec:thinning}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+  \item The double sum in \eqref{eq:es-hat} costs $O(m^2 n^\ast)$ per
+        time point; with $m=10^4$ stored draws this dominates runtime.
+  \item Fix a cap $M$ and thin the draw index to the evenly spaced set
+        \begin{equation}
+          \mathcal J \;=\; \Big\{\,
+            \operatorname{round}\!\big(1+(\ell-1)\tfrac{m-1}{M-1}\big)
+            \ :\ \ell=1,\dots,M\,\Big\},
+          \qquad
+          m' := |\mathcal J|\le M,
+          \label{eq:thin}
+        \end{equation}
+        and evaluate \eqref{eq:es-hat}--\eqref{eq:vs-hat} on
+        $\{\bm x^{(j)}\}_{j\in\mathcal J}$; when $m\le M$ no thinning
+        occurs and $\mathcal J=\{1,\dots,m\}$.
+        \impl{\texttt{scores.R}: \texttt{es\_max\_draws <- 1000L}, l.~175; \texttt{draw\_idx}, ll.~228--232}
+  \item Thinning leaves consistency intact: $\hat F_{m'}\Rightarrow F$ and
+        the Monte Carlo error is $O(m'^{-1/2})$, negligible at
+        $M=10^3$ against the between-dataset spread of
+        Section~\ref{sec:cross}.
+\end{itemize}
+
+% ====================================================================
+\section{Per-time evaluation and the per-fit score}
+\label{sec:perfit}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+  \item At each time $t$ the finite-truth coordinates are kept,
+        \begin{equation}
+          \mathcal K_t \;:=\;
+            \{\, i : [\bm y_t]_i \text{ is finite}\,\},
+        \end{equation}
+        and $\bm y_t,\bm x_t^{(j)}$ are restricted to $\mathcal K_t$.
+        \impl{\texttt{scores.R}: \texttt{keep <- is.finite(yt)}, l.~237}
+  \item The per-time scores are evaluated on the thinned, masked sample,
+        \begin{align}
+          \widehat{\mathrm{ES}}_t
+            &:= \widehat{\mathrm{ES}}\big(
+                 \{\bm x_t^{(j)}\}_{j\in\mathcal J},\,\bm y_t\big),
+            &&\text{defined when } |\mathcal K_t|\ge 1,
+            \label{eq:es-t}\\[2pt]
+          \widehat{\mathrm{VS}}_{p,t}
+            &:= \widehat{\mathrm{VS}}_p\big(
+                 \{\bm x_t^{(j)}\}_{j\in\mathcal J},\,\bm y_t\big),
+            &&\text{defined when } |\mathcal K_t|\ge 2 .
+            \label{eq:vs-t}
+        \end{align}
+        \impl{\texttt{scores.R}: \texttt{multivar\_scores}, per-$t$ loop, ll.~235--249}
+  \item Let $\mathcal T$ collect the times at which the score is defined
+        and finite; the \emph{per-fit} scores average over time,
+        \begin{equation}
+          \mathrm{ES}^\star
+            \;=\; \frac{1}{|\mathcal T|}\sum_{t\in\mathcal T}
+                  \widehat{\mathrm{ES}}_t,
+          \qquad
+          \mathrm{VS}_p^\star
+            \;=\; \frac{1}{|\mathcal T|}\sum_{t\in\mathcal T}
+                  \widehat{\mathrm{VS}}_{p,t}.
+          \label{eq:perfit}
+        \end{equation}
+        \impl{\texttt{scores.R}: \texttt{mean(es, na.rm=TRUE)} / \texttt{mean(vs, na.rm=TRUE)}, l.~250}
+  \item One fit is one $(\text{setting},\text{method},\text{dataset},K)$
+        tuple; the pair $(\mathrm{ES}^\star,\mathrm{VS}_p^\star)$ is stored
+        as one cell of the score arrays.
+        \impl{\texttt{scores.R}: \texttt{energy.score[di,mi,ki]} / \texttt{vario.score[di,mi,ki]}, ll.~297--298}
+\end{itemize}
+
+% ====================================================================
+\section{Cross-dataset aggregation}
+\label{sec:cross}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+  \item Fix a method $\mu$ and basis rank $K$; let $\mathcal D$ index the
+        datasets with a non-missing fit. The reported summaries are
+        \begin{equation}
+          \overline{\mathrm{ES}}_{\mu,K}
+            = \frac{1}{|\mathcal D|}\sum_{d\in\mathcal D}
+              \mathrm{ES}^\star_{d,\mu,K},
+          \qquad
+          \widetilde{\mathrm{ES}}_{\mu,K}
+            = \operatorname{median}_{d\in\mathcal D}
+              \mathrm{ES}^\star_{d,\mu,K},
+          \label{eq:agg}
+        \end{equation}
+        and identically for $\mathrm{VS}_p^\star$.
+        \impl{\texttt{tables.R}: \texttt{mv\_summary}, \texttt{apply(arr,c(2,3),mean/median)}, ll.~197--199}
+  \item Relative-to-Gaussian columns divide by method $1$ (Gaussian) at
+        the matched $K$,
+        \begin{equation}
+          \mathrm{rel\_mean}_{\mu,K}
+            = \frac{\overline{\mathrm{ES}}_{\mu,K}}
+                   {\overline{\mathrm{ES}}_{1,K}},
+          \qquad
+          \mathrm{rel\_median}_{\mu,K}
+            = \frac{\widetilde{\mathrm{ES}}_{\mu,K}}
+                   {\widetilde{\mathrm{ES}}_{1,K}},
+        \end{equation}
+        so a value below $1$ marks an improvement over the Gaussian
+        baseline.
+        \impl{\texttt{tables.R}: \texttt{rel\_of} via \texttt{sweep(\,\textperiodcentered\,,2,m["1",],"/")}, ll.~200--203}
+  \item These four numbers per $(\mu,K)$ and per score are written to
+        \path{output/tables/multivar_score<setting><suffix>.csv}.
+        \impl{\texttt{tables.R}: \texttt{multivar\_table}, \texttt{write.csv}, ll.~214--230}
+\end{itemize}
+
+% ====================================================================
+\section{Properties and caveats}
+\label{sec:caveats}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+  \item The double sum of \eqref{eq:es-hat} retains the $j=k$ terms, so
+        \begin{equation}
+          \E\,\widehat{\mathrm{ES}}
+            \;=\; \mathrm{ES}(F,\bm y)
+                 + \frac{1}{2m'}\,\E_F\|X-X'\|_2 ,
+        \end{equation}
+        an upward bias of order $O(m'^{-1})$ that vanishes as
+        $m'\to\infty$.
+  \item The squared form of \eqref{eq:vs-hat} likewise gives
+        \begin{equation}
+          \E\,\widehat{\mathrm{VS}}_p
+            \;=\; \mathrm{VS}_p(F,\bm y)
+                 + \sum_{i,j} w_{ij}\,
+                   \Var\!\Big(\tfrac1{m'}\textstyle\sum_k
+                   |x_i^{(k)}-x_j^{(k)}|^p\Big),
+        \end{equation}
+        an upward bias of order $O(m'^{-1})$; both estimators are
+        consistent.
+  \item Equations \eqref{eq:es-pop} and \eqref{eq:vs-pop} score the raw
+        level $Y$ and are scale-sensitive: a heavy-tailed $F_t$ inflates
+        $\widehat{\mathrm{ES}}_t$ without bound, so $\overline{\mathrm{ES}}$
+        may be dominated by a single dataset while
+        $\widetilde{\mathrm{ES}}$ stays stable --- report both.
+  \item The holdout vector \eqref{eq:ytruth} ranges over
+        $\mathcal S_{\mathrm{test}}$ at a \emph{common} $t$, so
+        $\mathrm{ES}^\star$ and $\mathrm{VS}_p^\star$ test the joint
+        \emph{spatial} law of $F_t$ and are blind to cross-time
+        dependence (\texttt{ar2\_rethink.tex} \S7.4: the temporal channel
+        needs a time-block holdout).
+\end{itemize}
+
+% ====================================================================
+\section*{Code map}
+\addcontentsline{toc}{section}{Code map}
+
+\begin{description}[leftmargin=2.4em, itemsep=2pt]
+  \item[\texttt{scores.R}] Stage 1 of \path{code/analysis/simstudy/}.
+    \begin{itemize}[leftmargin=1.3em, itemsep=1pt]
+      \item ll.~168, 175 --- constants $p=0.5$ (\texttt{vs\_p}) and
+            $M=10^3$ (\texttt{es\_max\_draws}).
+      \item ll.~218--251 --- \texttt{multivar\_scores()}: thinning
+            \eqref{eq:thin}, masking $\mathcal K_t$, per-time
+            \eqref{eq:es-t}--\eqref{eq:vs-t}, time mean \eqref{eq:perfit}.
+      \item ll.~296--298 --- per-fit $\mathrm{ES}^\star$,
+            $\mathrm{VS}_p^\star$ written to \texttt{energy.score},
+            \texttt{vario.score}.
+    \end{itemize}
+  \item[\texttt{tables.R}] Stage 2 --- aggregation \eqref{eq:agg}.
+    \begin{itemize}[leftmargin=1.3em, itemsep=1pt]
+      \item ll.~191--230 --- \texttt{mv\_summary()} builds
+            \texttt{multivar\_table}; emits
+            \path{output/tables/multivar_score<setting><suffix>.csv}.
+    \end{itemize}
+  \item[\texttt{scoringRules}] CRAN package supplying the estimators
+    \texttt{es\_sample} \eqref{eq:es-hat} and \texttt{vs\_sample}
+    \eqref{eq:vs-hat} \cite{jordan2019}.
+\end{description}
+
+\begin{thebibliography}{9}
+
+\bibitem{gneiting2007}
+Gneiting, T. and Raftery, A.~E. (2007).
+Strictly proper scoring rules, prediction, and estimation.
+\emph{Journal of the American Statistical Association}, 102(477),
+359--378.
+
+\bibitem{scheuerer2015}
+Scheuerer, M. and Hamill, T.~M. (2015).
+Variogram-based proper scoring rules for probabilistic forecasts of
+multivariate quantities.
+\emph{Monthly Weather Review}, 143(4), 1321--1334.
+
+\bibitem{jordan2019}
+Jordan, A., Kr\"uger, F., and Lerch, S. (2019).
+Evaluating probabilistic forecasts with \texttt{scoringRules}.
+\emph{Journal of Statistical Software}, 90(12), 1--37.
+
+\end{thebibliography}
+
+\end{document}
