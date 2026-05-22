@@ -167,6 +167,13 @@ intervals <- c(0.01, 0.025, 0.05, 0.1, 0.9, 0.95, 0.975, 0.99)
 # dominated by the largest pairs the way p = 2 is (ar2_rethink.tex Sec. 7.4).
 vs_p <- 0.5
 
+# The energy score costs O(m^2) in the number of predictive draws m, and
+# the fits here carry m = 1e4 MCMC draws. The iteration axis is thinned to
+# at most es_max_draws evenly spaced draws before scoring -- the score is a
+# Monte Carlo estimate either way and 1e3 draws is ample. Raise for a
+# tighter estimate at quadratic cost.
+es_max_draws <- 1000L
+
 dn_score <- list(
   quantile = as.character(probs),
   dataset  = as.character(datasets),
@@ -214,18 +221,23 @@ obs <- c(rep(TRUE, nrow(y) - ntest), rep(FALSE, ntest))
 # variogram score do: treat the vector of held-out test sites at one time
 # as a single multivariate observation, score it against the predictive
 # sample, then average over time. See ar2_rethink.tex Sec. 7.4.
-multivar_scores <- function(yp, validate, p = vs_p) {
+multivar_scores <- function(yp, validate, p = vs_p, max_draws = es_max_draws) {
   # yp: iters x np x nt predictive sample; validate: np x nt truth.
   iters <- dim(yp)[1]
   nt    <- dim(yp)[3]
+  draw_idx <- if (iters > max_draws) {
+    unique(round(seq(1, iters, length.out = max_draws)))
+  } else {
+    seq_len(iters)
+  }
   es <- rep(NA_real_, nt)
   vs <- rep(NA_real_, nt)
   for (t in seq_len(nt)) {
     yt   <- validate[, t]
     keep <- is.finite(yt)
     if (sum(keep) < 1L) next
-    mat  <- matrix(yp[, , t], nrow = iters)   # iters x np
-    dat  <- t(mat[, keep, drop = FALSE])      # np_keep x iters
+    mat  <- matrix(yp[, , t], nrow = iters)            # iters x np
+    dat  <- t(mat[draw_idx, keep, drop = FALSE])       # np_keep x n_draws
     es[t] <- tryCatch(
       scoringRules::es_sample(y = yt[keep], dat = dat),
       error = function(e) NA_real_)
@@ -248,7 +260,7 @@ save_checkpoint <- function() {
        beta.0, beta.1, beta.2,
        tau.alpha, tau.beta, rho, nu, gamma, lambda,
        elapsed_sec,
-       probs, intervals, vs_p, mrts_ks, datasets, methods, setting,
+       probs, intervals, vs_p, es_max_draws, mrts_ks, datasets, methods, setting,
        data_path, data_suffix, fits_dir,
        file = out_file)
 }

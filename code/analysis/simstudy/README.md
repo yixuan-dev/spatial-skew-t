@@ -149,7 +149,8 @@ elapsed_sec                      [n_datasets, n_methods, n_mrts_k]
 
 probs       <- c(0.9, 0.91, ..., 0.995)        # 11 個
 intervals   <- c(0.01, 0.025, ..., 0.99)        # 8 個
-vs_p        <- 0.5                              # variogram score 階數
+vs_p         <- 0.5                             # variogram score 階數
+es_max_draws <- 1000                            # 評分前 draw 抽稀上限
 mrts_ks, datasets, methods, setting
 data_path, data_suffix, fits_dir   # provenance
 ```
@@ -165,6 +166,11 @@ sites 的向量當成一個多變量觀測，用 `scoringRules::es_sample` /
 score 是 CRPS 的多變量推廣，variogram score 由 pairwise difference 構成、
 對相依結構較敏感；階數固定 `p = 0.5`（heavy tail 下較穩健）。動機與公式見
 [ar2_rethink.tex](../../../tex/ar2_rethink/ar2_rethink.tex) §7.4。
+
+energy score 的成本是 O(m²)（m = predictive draws），而 fit 內有 1e4 個
+MCMC draws，所以評分前會先把 iteration 軸等距抽稀到至多 `es_max_draws`
+（預設 1000）個 draws——分數本來就是 Monte Carlo 估計，1e3 個 draws 已足夠。
+要更精準的估計就調高它（成本平方成長）。
 
 ### Stage 2: `tables.R`
 
