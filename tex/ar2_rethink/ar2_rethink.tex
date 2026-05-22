@@ -1,7 +1,6 @@
 \documentclass[11pt]{article}
 
 % ---- Packages ----
-\usepackage[utf8]{inputenc}
 \usepackage{amsmath, amssymb, amsthm}
 \usepackage{mathtools}
 \usepackage{bm}
@@ -40,6 +39,7 @@
 \newcommand{\Ltot}{\mathcal{L}}
 \newcommand{\indicator}{\mathbf{1}}
 \newcommand{\given}{\,\vert\,}
+\newcommand{\SNR}{\mathrm{SNR}_{\mathrm{temporal}}}
 
 % ---- Listings setup for R code ----
 \lstset{
@@ -57,8 +57,8 @@
 % ---- Title block ----
 \title{
   AR(2) in a Spatial Skew-$t$ Model:\\
-  Why a Temporal Prior Loses to an i.i.d.\ Baseline\\
-  Under Spatial-Only Holdout
+  Marginal Invariance, the Level-Autocovariance Ceiling,\\
+  Predictive Scoring, and the Weak Identifiability of $\phi$
 }
 \author{Technical Note --- \texttt{ar2\_rethink}}
 \date{}
@@ -68,56 +68,84 @@
 
 % ====================================================================
 \begin{abstract}
-We document a sequence of derivations explaining why an AR(2) temporal
-prior on the latent processes of a spatial skew-$t$ model fails to
-dominate its independent-in-time counterpart when the prediction task
-is scored by the Brier score on held-out \emph{spatial} sites. The
-construction normalizes each AR(2) latent so that its stationary
-marginal variance equals one; we show this construction implies the
-time-$t$ marginal of every latent is invariant to the autoregressive
-coefficients $\phi_1, \phi_2$. The Brier loss in the spatial-holdout
-design integrates the predictive kernel against precisely this
-time-$t$ marginal, so the temporal coupling marginalizes out. The AR(2)
-parameters can still leak into the predictive through the posterior of
-the latents at training times, but each of the four available leakage
-channels is damped (discrete knot membership, likelihood-dominated
-latents, $\phi$-independent spatial noise), while the cost of six
-additional AR coefficients inflates posterior variance. We close with
-three concrete redesigns---block-time-forecast holdout, multivariate
-energy score, variogram score---under which the AR(2) prior is
-expected to recover its advantage.
+We document a connected sequence of derivations about the AR(2)
+temporal prior placed on the latent processes of a spatial skew-$t$
+model. The AR(2) construction normalises each latent so that its
+stationary marginal variance equals one; we prove this makes the
+time-$t$ marginal of every latent invariant to the autoregressive
+coefficients $\phi$. The Brier score under a spatial-only holdout
+integrates the predictive kernel against precisely this marginal, so
+the temporal coupling marginalises out: the AR(2) methods fail to
+dominate their i.i.d.-in-time siblings. We then sharpen the analysis in
+five directions. First, even a \emph{perfectly specified} $\phi$
+(frozen at the truth, zero estimation cost) cannot dominate, because
+the surviving posterior route delivers only an $O(q_t^{-2})$ variance
+reduction confined to non-spatial-noise components. Second --- the
+central new result --- we decompose the \emph{level} autocovariance of
+the observed process exactly: $\Cov(Y_t,Y_{t+h})=\lambda^2\gamma_z(h)$,
+so AR(2) reaches the level only through the skew channel $\lambda z$;
+the AR(2) on the scale $\tau$ is pure stochastic volatility, invisible
+to every score that is a functional of the predictive law of the level.
+Because the simulation truth sets $\phi_z=(0,0)$, the level of $Y$ is
+\emph{exactly white in time}, and no level-based score can reward the
+AR(2) prior for any holdout design --- a temporal signal-to-noise ratio
+$\SNR$ caps the achievable gain, with a closed-form CRPS ceiling
+$1-\sqrt{1-R(h)}$. Third, allowing $\phi$ to mix is more valuable for
+the convergence of the \emph{other} parameters than pinning $\phi$
+accurately. Fourth, a misspecified $\phi$ still reduces posterior
+variance but pays in bias; AR(2) collapses to i.i.d.\ only as
+$\phi\to0$. Fifth, the observed collapse $\hat\phi\to0$ is an
+errors-in-variables attenuation. We close with a scoring methodology ---
+block-time holdout, per-horizon multivariate scores, marginal
+standardisation by the PIT, and a detectability calculus --- under which
+the temporal structure that does exist becomes testable.
 \end{abstract}
 
 % ====================================================================
 \section{Introduction}
 \label{sec:intro}
 
-The simulation study in
-\path{code/analysis/simstudy/} compares eight prediction methods for
-spatial extremes, including four variants of the skew-$t$ knot model
-of which two (methods 7 and 8) place an AR(2) prior on every latent
-temporal process. Tabulated Brier and quantile scores for settings 9
-and 10 show that the AR(2) methods do \emph{not} systematically
-outperform their i.i.d.\ siblings; in setting 10 the
-\verb|K=5| AR(2) variant is in fact worse than the
-\verb|K=5| no-AR baseline at every quantile.
+\begin{itemize}[leftmargin=1.4em, itemsep=2pt]
+  \item The simulation study in \path{code/analysis/simstudy/} compares
+        eight prediction methods for spatial extremes; methods 7 and 8
+        place an AR(2) prior on every latent temporal process.
+  \item Tabulated Brier scores for settings 9 and 10 show the AR(2)
+        methods do \emph{not} systematically beat their i.i.d.\ siblings;
+        in setting 10 the $K=5$ AR(2) variant is worse than the $K=5$
+        no-AR baseline at every quantile.
+  \item This note explains the discrepancy and the follow-on questions
+        it raised. The conclusions concern the interaction of the AR(2)
+        standardisation, the holdout geometry, the scoring rule, the
+        MCMC sampler, and the identifiability of $\phi$ --- not bugs in
+        \verb|simulate_ar2_standard()|.
+  \item The decisive structural fact, isolated in
+        Section~\ref{sec:level-autocov}, is that AR(2) enters the
+        \emph{level} of the observed field through a single channel.
+        Two of the three AR(2) processes the model fits ($\tau$ and
+        $w$) do not move the level autocovariance at all, and the
+        simulation truth switches the one that could ($z$) off.
+\end{itemize}
 
-This note explains the discrepancy. The conclusion has nothing to do
-with bugs in the AR(2) implementation in
-\verb|simulate_ar2_standard()| and everything to do with the
-interaction between (i) the AR(2) standardisation, (ii) the spatial
-structure of the holdout, and (iii) the scoring rule. The reasoning
-is reproduced here in a single place because it determines what
-experiments would actually credit the AR(2) machinery.
-
-The structure of the note is as follows. Section~\ref{sec:model}
-fixes notation and lists the assumptions of the underlying model.
-Section~\ref{sec:ar2-construction} formalises the AR(2)
-standardisation and establishes the marginal invariance proposition.
-Section~\ref{sec:derivations} carries the invariance through the
-Brier predictive integral and identifies the four leakage channels.
-Section~\ref{sec:redesign} proposes alternative scoring designs.
-Section~\ref{sec:conclusion} summarises.
+The note is organised as follows.
+Section~\ref{sec:model} fixes notation, the model, and a Gaussian
+surrogate used throughout.
+Section~\ref{sec:ar2-construction} proves the marginal invariance of
+the standardised AR(2).
+Section~\ref{sec:derivations} carries that invariance through the
+Brier predictive integral and enumerates the leakage channels.
+Section~\ref{sec:frozen} shows that even a perfectly specified $\phi$
+cannot dominate.
+Section~\ref{sec:level-autocov} derives the exact level-autocovariance
+decomposition, defines the temporal signal-to-noise ratio, and proves
+the CRPS ceiling.
+Section~\ref{sec:mixing} analyses why a freely mixing $\phi$ helps the
+other parameters converge.
+Section~\ref{sec:misspecified} treats a misspecified $\phi$ and the
+robustness of the variance diagnostic.
+Section~\ref{sec:identifiability} derives the mechanism of the
+observed collapse $\hat\phi \to 0$.
+Section~\ref{sec:redesign} develops the scoring methodology and
+Section~\ref{sec:conclusion} concludes.
 
 % ====================================================================
 \section{Model Setup and Notation}
@@ -126,8 +154,8 @@ Section~\ref{sec:conclusion} summarises.
 \subsection{Spatial skew-$t$ knot model}
 
 Let $\{s_i\}_{i=1}^{n_s} \subset \R^2$ denote spatial locations and
-$t \in \{1, \dots, T\}$ time indices. Fix $K$ knots in the spatial
-domain. The conditional model for the observed process is
+$t \in \{1, \dots, T\}$ time indices. Fix $K$ knots. The conditional
+model for the observed process is
 
 \begin{equation}
   Y_t(s) = x_t(s)^\top \beta
@@ -148,13 +176,20 @@ where:
         knot $k$ at time $t$;
   \item $g(s, t) = \arg\min_k \|s - w_{k, t}\|$ is the knot membership
         function (a Voronoi assignment);
-  \item $C = C(\rho, \nu, \gamma)$ is the spatial covariance matrix on
-        the observation grid and $L_C = \operatorname{chol}(C)^\top$.
+  \item $C = C(\rho, \nu, \gamma)$ is the spatial covariance matrix and
+        $L_C = \operatorname{chol}(C)^\top$.
 \end{itemize}
 
 We collect the time-$t$ slice of all latents into
-$\Ltot_t = (z_{\cdot, t}, \tau_{\cdot, t}, w_{\cdot, t})$ and the full
-fixed-parameter vector into $\theta$.
+$\Ltot_t = (z_{\cdot, t}, \tau_{\cdot, t}, w_{\cdot, t})$ and the
+fixed-parameter vector into $\theta$. Throughout we abbreviate the
+conditional scale at a knot by
+\begin{equation}
+  \sigma_{k,t} := \tau_{k,t}^{-1/2},
+  \label{eq:sigma-def}
+\end{equation}
+so that the third term of \eqref{eq:kernel} is
+$\sigma_{g(s,t),t}\,[L_C\varepsilon_t]_s$.
 
 \subsection{AR(2) standardisation}
 
@@ -168,8 +203,7 @@ generated by
 \end{equation}
 
 with $(\phi_1, \phi_2)$ in the stationarity region. We adopt the
-construction in
-\verb|simulate_ar2_standard()|, which fixes the
+construction in \verb|simulate_ar2_standard()|, which fixes the
 stationary variance and \emph{solves} for the innovation variance.
 
 \begin{definition}[Standardised AR(2)]
@@ -182,11 +216,9 @@ Set $\gamma_0 = 1$, $\gamma_1 = \phi_1 / (1 - \phi_2)$, and
   \label{eq:innovvar}
 \end{equation}
 The initial pair $(X_1, X_2)$ is drawn jointly from
-\[
-  \Norm\!\left(0,
-    \begin{bmatrix} 1 & \gamma_1 \\ \gamma_1 & 1 \end{bmatrix}\right),
-\]
-and the recursion~\eqref{eq:ar2} runs forward for $t \ge 3$.
+$\Norm\!\big(0, [\begin{smallmatrix} 1 & \gamma_1 \\ \gamma_1 & 1
+\end{smallmatrix}]\big)$, and the recursion~\eqref{eq:ar2} runs
+forward for $t \ge 3$.
 \end{definition}
 
 \begin{assumption}[Stationarity]
@@ -203,9 +235,8 @@ The simstudy holdout fixes a subset $\mathcal S_{\mathrm{test}}$ of
 test \emph{sites}; the training set is
 $\D = \{Y_t(s) : s \notin \mathcal S_{\mathrm{test}}, \, t \in
 \{1, \dots, T\}\}$, and the prediction targets are
-$\{Y_t(s^*) : s^* \in \mathcal S_{\mathrm{test}}, \, t \in
-\{1, \dots, T\}\}$. Note that every time point is observed at every
-training site.
+$\{Y_t(s^*) : s^* \in \mathcal S_{\mathrm{test}}\}$. Every time point
+is observed at every training site.
 
 \begin{definition}[Brier score]
 \label{def:brier}
@@ -218,6 +249,47 @@ $\hat p(s^*, t; c) = \Pr(Y_t(s^*) > c \given \D)$,
 \end{equation}
 \end{definition}
 
+\subsection{Gaussian surrogate for one latent series}
+\label{subsec:surrogate}
+
+Sections~\ref{sec:frozen}--\ref{sec:identifiability} use a linear
+Gaussian surrogate that isolates a single knot's latent series.
+
+\begin{definition}[Gaussian surrogate]
+\label{def:surrogate}
+Fix a knot $k$ and a latent quantity; write the standardised AR(2)
+series as $X = (X_1, \dots, X_T)^\top$. The prior is
+$X \sim \Norm(0, Q(\phi)^{-1})$, with $Q(\phi)$ the banded AR(2)
+precision matrix, normalised so $\operatorname{diag}(Q(\phi)^{-1}) =
+\mathbf 1$ (Definition~\ref{def:standardised}). After integrating the
+remaining parameters, the time-$t$ training data act as a pseudo-%
+observation
+\begin{equation}
+  d_t = X_t + e_t, \qquad e_t \sim \Norm(0, q_t^{-1}),
+  \quad \text{independent across } t,
+  \label{eq:pseudo}
+\end{equation}
+with $D_q = \operatorname{diag}(q_1, \dots, q_T)$. The posterior is
+$X \mid d \sim \Norm(\mu(\phi), \Sigma(\phi))$,
+\begin{equation}
+  \Sigma(\phi) = \big(Q(\phi) + D_q\big)^{-1}, \qquad
+  \mu(\phi) = \Sigma(\phi)\, D_q\, d.
+  \label{eq:surrogate-post}
+\end{equation}
+We write $v_t(\phi) = [\Sigma(\phi)]_{tt}$ for the marginal posterior
+variance and
+$\kappa(\phi) = (1 + \phi_1^2 + \phi_2^2)/\sigma_\eta^2$
+for the AR(2) full-conditional precision (an interior diagonal entry
+of $Q(\phi)$).
+\end{definition}
+
+\begin{remark}
+The pseudo-observations \eqref{eq:pseudo} are independent across $t$
+because the kernel~\eqref{eq:kernel} couples sites at a \emph{common}
+$t$; the likelihood factorises over time given the latents. All
+cross-time structure resides in the prior $Q(\phi)$.
+\end{remark}
+
 % ====================================================================
 \section{Marginal Invariance of the Standardised AR(2)}
 \label{sec:ar2-construction}
@@ -225,12 +297,8 @@ $\hat p(s^*, t; c) = \Pr(Y_t(s^*) > c \given \D)$,
 \begin{proposition}[Marginal invariance to $\phi$]
 \label{prop:invariance}
 Under Definition~\ref{def:standardised} and
-Assumption~\ref{assn:stationary}, for every $t \in \{1, \dots, T\}$,
-\begin{equation}
-  X_t \sim \Norm(0, 1)
-  \qquad \text{regardless of } (\phi_1, \phi_2).
-  \label{eq:invariance}
-\end{equation}
+Assumption~\ref{assn:stationary}, for every $t$,
+$X_t \sim \Norm(0, 1)$ regardless of $(\phi_1, \phi_2)$.
 \end{proposition}
 
 \begin{proof}
@@ -241,24 +309,27 @@ $\Cov(X_{t-1}, X_{t-2}) = \gamma_1$. Then from~\eqref{eq:ar2},
   \Var(X_t)
     = \phi_1^2 + \phi_2^2 + 2 \phi_1 \phi_2 \gamma_1 + \sigma_\eta^2.
 \]
-Substituting~\eqref{eq:innovvar} and using
-$\gamma_2 = \phi_1 \gamma_1 + \phi_2$ gives
-$\Var(X_t) = 1$. Mean is zero by linearity. Joint normality of $X_t$
-with previous lags is preserved by the linear recursion.
+Substituting~\eqref{eq:innovvar} and
+$\gamma_2 = \phi_1 \gamma_1 + \phi_2$ gives $\Var(X_t) = 1$. The mean
+is zero by linearity, and joint normality is preserved by the linear
+recursion.
 \end{proof}
 
 \begin{corollary}[AR(1) toy]
 \label{cor:ar1}
 For an AR(1) process standardised to $\gamma_0 = 1$,
-$\sigma_\eta^2 = 1 - \phi^2$, and $X_t \sim \Norm(0, 1)$ for every
-admissible $\phi$. The autocorrelation $\Cov(X_t, X_{t+h}) = \phi^{|h|}$
-is the only quantity that moves with $\phi$.
+$\sigma_\eta^2 = 1 - \phi^2$ and $X_t \sim \Norm(0, 1)$ for every
+admissible $\phi$. The autocorrelation
+$\Cov(X_t, X_{t+h}) = \phi^{|h|}$ is the only quantity that moves with
+$\phi$.
 \end{corollary}
 
 \begin{remark}[Identifiability]
+\label{rem:identifiability}
 $\phi$ is identifiable only from \emph{joint} distributions across
-time; the one-point marginal is $\phi$-blind. Sampling one $X_t$
-alone provides zero information about $\phi$.
+time; the one-point marginal is $\phi$-blind. A single draw $X_t$
+carries zero information about $\phi$. This remark is made quantitative
+in Section~\ref{sec:identifiability}.
 \end{remark}
 
 % ====================================================================
@@ -267,12 +338,11 @@ alone provides zero information about $\phi$.
 
 \subsection{The predictive integral collapses to the time-$t$ marginal}
 
-\begin{proposition}[Predictive at $(s^*, t)$ depends only on time-$t$
-latents]
+\begin{proposition}[Predictive at $(s^*, t)$ uses only time-$t$ latents]
 \label{prop:kernel-decomposition}
 For the kernel~\eqref{eq:kernel}, the conditional CDF at $(s^*, t)$
-given $(\theta, \Ltot_t)$ does not depend on $\Ltot_{t'}$ for any
-$t' \ne t$. Consequently the marginal predictive is
+given $(\theta, \Ltot_t)$ does not depend on $\Ltot_{t'}$, $t' \ne t$.
+Hence
 \begin{equation}
   \hat p(s^*, t; c)
     = \int \!\!\int
@@ -284,10 +354,10 @@ $t' \ne t$. Consequently the marginal predictive is
 \end{proposition}
 
 \begin{proof}
-Direct from inspection of~\eqref{eq:kernel}: the right-hand side
-involves only $\Ltot_t$ at the same $t$. Fubini and the conditional
-factorisation $\pi(\theta, \Ltot_t \given \D) = \pi(\Ltot_t \given
-\theta, \D) \pi(\theta \given \D)$ give the displayed form.
+The right-hand side of~\eqref{eq:kernel} involves only $\Ltot_t$ at
+the same $t$. Fubini and the factorisation
+$\pi(\theta, \Ltot_t \given \D) = \pi(\Ltot_t \given \theta, \D)\,
+\pi(\theta \given \D)$ give the displayed form.
 \end{proof}
 
 \begin{proposition}[$\phi$-free prior marginal at one $t$]
@@ -298,61 +368,51 @@ $\phi := (\phi_z, \phi_\tau, \phi_w)$.
 \end{proposition}
 
 \begin{proof}
-Each component of $\Ltot_t$ is obtained by a fixed monotone transform
-(gamma inverse copula for $\tau$, half-normal inverse copula for $z$,
-inverse probit for $w$) applied to a standardised AR(2) latent.
-Proposition~\ref{prop:invariance} establishes that each underlying
-latent has marginal $\Norm(0, 1)$ for every admissible $\phi$. The
-fixed transforms preserve this invariance.
+Each component of $\Ltot_t$ is a fixed monotone transform (gamma
+inverse copula for $\tau$, half-normal inverse copula for $z$, inverse
+probit for $w$) of a standardised AR(2) latent. By
+Proposition~\ref{prop:invariance} each latent has marginal
+$\Norm(0,1)$ for every admissible $\phi$, and the fixed transforms
+preserve this invariance.
 \end{proof}
 
-\begin{corollary}[Bayes vs.\ prior]
+\begin{corollary}[The posterior is the only route]
 \label{cor:posterior-route}
 Combining Propositions~\ref{prop:kernel-decomposition} and
-\ref{prop:phi-free}, the only route through which $\phi$ can affect
-$\hat p(s^*, t; c)$ is the posterior $\pi(\theta \given \D)$ together
-with the conditional $\pi(\Ltot_t \given \theta, \D)$. The
-likelihood $p(\D \given \theta)$ couples observations across time and
-therefore depends on $\phi$, but the kernel at the held-out cell does
-not.
+\ref{prop:phi-free}, $\phi$ affects $\hat p(s^*, t; c)$ only through
+the posterior $\pi(\theta \given \D)$ and the conditional
+$\pi(\Ltot_t \given \theta, \D)$. The likelihood $p(\D \given \theta)$
+couples observations across time and so depends on $\phi$; the kernel
+at the held-out cell does not.
 \end{corollary}
 
 \subsection{Four leakage channels}
 
-We enumerate the channels through which $\phi$ can move the predictive
-at $(s^*, t)$ in spite of Corollary~\ref{cor:posterior-route}.
+We enumerate the channels through which $\phi$ can still move the
+predictive at $(s^*, t)$.
 
 \begin{description}[leftmargin=2em, itemsep=0.25em]
   \item[Channel A: $z_{g, t}$ via temporal pooling.] AR(2) tightens
-    $\pi(z_{k, t} \given \D)$ at training $t$ by borrowing from
-    $z_{k, t \pm 1}, z_{k, t \pm 2}$. The benefit is bounded by how
-    much information the time-$t$ training likelihood already
-    provides.
+    $\pi(z_{k, t} \given \D)$ by borrowing from $z_{k, t \pm 1},
+    z_{k, t \pm 2}$. Bounded by the time-$t$ likelihood precision.
   \item[Channel B: $\tau_{g, t}$ via temporal pooling.] Symmetric to
     Channel A.
   \item[Channel C: knot membership $g(s^*, t)$.] AR(2) tightens
-    $\pi(w_{k, t} \given \D)$ at training $t$. Because $g(s^*, t)$ is a
-    discrete \emph{argmin} over $\{w_{1, t}, \dots, w_{K, t}\}$, the
-    posterior tightening propagates to $g$ only when the perturbation
-    crosses a Voronoi boundary near $s^*$. For $K = 1$ the channel is
-    closed entirely.
-  \item[Channel D: spatial noise $L_C \varepsilon_t / \sqrt{\tau_{g,t}}$.]
-    $\varepsilon_t$ is i.i.d.\ in $t$ given $\theta$. AR(2) does not
-    appear in this channel at all.
+    $\pi(w_{k, t} \given \D)$, but $g(s^*, t)$ is a discrete
+    $\arg\min$; the tightening propagates only when a Voronoi boundary
+    crosses $s^*$. For $K = 1$ the channel is closed.
+  \item[Channel D: spatial noise $L_C \varepsilon_t /
+    \sqrt{\tau_{g,t}}$.] $\varepsilon_t$ is i.i.d.\ in $t$ given
+    $\theta$; $\phi$ does not appear in this channel at all.
 \end{description}
-
-We also account for a cost channel that operates against any benefit
-from A--C.
 
 \begin{description}[leftmargin=2em, itemsep=0.25em]
   \item[Channel E (cost): posterior on $\phi$.] Methods 7 and 8 turn
-    on AR(2) for $z, \tau, w$ simultaneously, introducing six new
+    on AR(2) for $z, \tau, w$ simultaneously, introducing six
     parameters $\phi_{1z}, \phi_{2z}, \phi_{1\tau}, \phi_{2\tau},
-    \phi_{1w}, \phi_{2w}$. Their joint posterior contributes
-    variability to the predictive integral~\eqref{eq:predictive}.
+    \phi_{1w}, \phi_{2w}$ whose joint posterior adds variability to
+    \eqref{eq:predictive}.
 \end{description}
-
-\subsection{Variance decomposition}
 
 \begin{lemma}[Predictive variance decomposition]
 \label{lem:variance}
@@ -366,23 +426,17 @@ $\hat F_{s^*, t}(c) = \hat p(s^*, t; c)$,
 \end{equation}
 \end{lemma}
 
-The AR(2) prior reduces the first summand through Channels A--C; it
-introduces the second summand, which is identically zero under
-i.i.d.\ time. The Brier score is sensitive to the sum, not the
-decomposition. Empirically (Section~\ref{sec:evidence}) the second
-summand dominates the first reduction in the simstudy configuration.
+The AR(2) prior shrinks the first summand through Channels A--C and
+introduces the second (Channel E), which is identically zero under
+i.i.d.\ time. Brier is sensitive to the sum.
 
 \subsection{Evidence in the simstudy}
 \label{sec:evidence}
 
-Table~\ref{tab:rel-brier} summarises Brier scores relative to the
-Gaussian baseline (method 1) at selected quantiles for setting 9.
-
 \begin{table}[h]
 \centering
-\caption{Relative Brier score versus method 1, setting 9. Smaller is
-         better; entries below~1 indicate improvement over the
-         Gaussian baseline.}
+\caption{Relative Brier score versus method 1 (Gaussian), setting 9.
+         Entries below~1 indicate improvement over the baseline.}
 \label{tab:rel-brier}
 \begin{tabular}{c r r r r}
 \toprule
@@ -398,140 +452,927 @@ $q$ & M2 (skew-$t$, $K{=}1$) & M4 (skew-$t$, $K{=}5$)
 \end{tabular}
 \end{table}
 
-The i.i.d.\ skew-$t$ at $K = 1$ (method 2) systematically beats its
-AR(2) sibling (method 7). Setting~10 shows an even sharper version of
-the same phenomenon: method 8 ($K = 5$ with AR(2)) ranges from
-\(0.96\) to \(1.16\) of the Gaussian baseline, while method 4
-($K = 5$ without AR(2)) is at \(0.87\)--\(0.94\).
+The i.i.d.\ skew-$t$ at $K=1$ (method 2) systematically beats its
+AR(2) sibling (method 7). Setting~10 is sharper: method 8 ranges over
+$0.96$--$1.16$ of the Gaussian baseline while the no-AR method 4 sits
+at $0.87$--$0.94$.
 
 % ====================================================================
-\section{Redesigns That Restore the AR(2) Signal}
-\label{sec:redesign}
+\section{A Perfectly Specified $\phi$ Still Cannot Dominate}
+\label{sec:frozen}
 
-Three designs expose the temporal coupling that the spatial-only Brier
-ignores.
+We now ask whether a \emph{frozen, true} $\phi$ --- which eliminates
+Channel E entirely --- would let AR(2) dominate. It does not.
 
-\subsection{Design A: block-time-forecast holdout}
+\subsection{Brier decomposition}
 
-Hold out the last $T_h$ time points; train on
-$\{Y_{t}(s) : t \le T - T_h, \, s \in \mathcal S\}$. The predictive at
-horizon $t^* > T - T_h$ requires the conditional
-\[
-  z_{k, t^*} \given \D \;\sim\;
-    \Norm\!\big(\phi_1 \hat z_{k, t^* - 1} + \phi_2 \hat z_{k, t^* - 2},\,
-                \sigma_\eta^2 + \text{filter uncertainty}\big),
-\]
-which is strictly $\phi$-dependent. Brier and any scoring rule applied
-to the forecast cells will distinguish AR(2) from i.i.d.\ time.
-
-\subsection{Design B: multivariate score on the spatial holdout}
-
-Keep the spatial holdout. Score the held-out site-level trajectory
-$\bm y_{s^*} = (Y_1(s^*), \dots, Y_T(s^*))$ as a $T$-vector.
-
-\paragraph{Energy score.} For predictive $F$ and observation
-$\bm y \in \R^T$,
+\begin{lemma}[Reducible/irreducible split]
+\label{lem:brier-split}
+For a held-out cell, with $p(c) = \Pr(Y_t(s^*) > c)$ the true
+exceedance probability,
 \begin{equation}
-  \mathrm{ES}(F, \bm y)
-    = \E_F \|X - \bm y\|_2
-      - \tfrac{1}{2} \E_F \|X - X'\|_2,
-  \qquad X, X' \overset{\text{iid}}{\sim} F.
+  \E[\mathrm{BS}(c)]
+    = \underbrace{p(c)\,(1 - p(c))}_{\text{irreducible}}
+    + \underbrace{\big(\E[\hat p] - p(c)\big)^2 + \Var(\hat p)}
+        _{\text{reducible}}.
+  \label{eq:brier-split}
 \end{equation}
-The Monte Carlo estimator with $M$ samples is
-\[
-  \widehat{\mathrm{ES}}
-    = \frac{1}{M} \sum_{m=1}^{M} \|X^{(m)} - \bm y\|_2
-      - \frac{1}{2 M (M - 1)} \sum_{m \ne m'} \|X^{(m)} - X^{(m')}\|_2.
-\]
+\end{lemma}
 
-\paragraph{Variogram score of order $p$.}
+The irreducible term is a property of the data-generating process and
+is $\phi$-invariant; AR(2) can act only on the reducible term. With
+$q_t$ training sites per knot informing each latent, the per-time
+likelihood swamps the prior, so both the AR(2) and i.i.d.\ models are
+unbiased to $O(q_t^{-1})$ and the contest reduces to $\Var(\hat p)$.
+
+\subsection{The variance splits into a $\phi$-reducible part and a
+$\phi$-invariant floor}
+
+By the delta method, $\Var(\hat p) \approx [\partial_\mu \Pr(Y>c)]^2\,
+\Var(Y_t(s^*) \given \D)$, and
+
 \begin{equation}
-  \mathrm{VS}_p(F, \bm y)
-    = \sum_{t < t'} w_{t, t'}
-      \Big( |y_t - y_{t'}|^p - \E_F |X_t - X_{t'}|^p \Big)^2.
+  \Var\big(Y_t(s^*) \given \D\big)
+    = \underbrace{\lambda^2\, v_t^z}_{\text{Ch.\ A}}
+    + \underbrace{(\cdots)\, v_t^\tau}_{\text{Ch.\ B}}
+    + \underbrace{\E[\tau_{g,t}^{-1} \given \D]\; C_{s^* s^*}}
+        _{\text{Ch.\ D, } \phi\text{-invariant}}.
+  \label{eq:var-split}
 \end{equation}
-With $p = 0.5$ the score is particularly sensitive to temporal
-dependence misspecification.
 
-\subsection{Design C (recommended): combined holdout + energy score}
+Channel D is the variance of the i.i.d.-in-time innovation
+$L_C \varepsilon_t$; it contains no $\phi$ and a perfect $\phi$ cannot
+shrink it.
 
-Hold out both a set of test sites and the last $T_h$ time points at
-the remaining sites. Report:
-\begin{enumerate}[leftmargin=2em, itemsep=0pt]
-  \item marginal Brier on $(s^*, t)$ for $s^* \in
-        \mathcal S_{\mathrm{test}}$, $t \le T - T_h$ --- the legacy
-        comparison;
-  \item energy score on $(s, t_{\mathrm{block}})$ for $s$ in the
-        training spatial set, $t > T - T_h$ --- the temporal-coupling
-        test;
-  \item energy score on $(s^*, t_{\mathrm{block}})$ ---
-        space-and-time extrapolation.
-\end{enumerate}
+\subsection{The latent tightening is strictly positive but bounded}
 
-\begin{remark}[Reporting]
-Report paired score differences across the 50 simulation replicates
-and bootstrap the resulting boxplots. Also report
-score-per-CPU-hour: methods 7 and 8 are more expensive, and a small
-score gain may not be worth the additional compute.
+\begin{proposition}[$O(q_t^{-2})$ bound on the frozen-$\phi$ benefit]
+\label{prop:frozen-bound}
+In the surrogate of Definition~\ref{def:surrogate} with constant
+$q_t \equiv q$, let $v_t^{\mathrm{iid}} = (1+q)^{-1}$ be the i.i.d.\
+posterior variance and $v_t(\phi)$ the AR(2) posterior variance. Then
+\begin{equation}
+  0 \;<\; \Delta v_t := v_t^{\mathrm{iid}} - v_t(\phi)
+    \;\le\; \frac{\kappa(\phi) - 1}{(1 + q)\,(\kappa(\phi) + q)}
+    \;=\; O\!\big(q^{-2}\big),
+  \label{eq:frozen-bound}
+\end{equation}
+for every $\phi \ne 0$, where
+$\kappa(\phi) = (1 + \phi_1^2 + \phi_2^2)/\sigma_\eta^2 > 1$.
+\end{proposition}
+
+\begin{proof}
+The i.i.d.\ prior contributes precision $1$ (the $\gamma_0 = 1$
+normalisation), so $v_t^{\mathrm{iid}} = (1+q)^{-1}$. The AR(2)
+posterior variance is bounded below by the case in which all
+neighbours are known exactly, which contributes the full-conditional
+precision $\kappa(\phi)$: $v_t(\phi) \ge (\kappa(\phi) + q)^{-1}$.
+Subtracting gives the upper bound. Strict positivity follows because
+$\sigma_\eta^2 \le 1$ forces $\kappa(\phi) \ge 1/\sigma_\eta^2 \ge 1$,
+with equality iff $\phi = 0$; any nonzero $\phi$ with an informed
+neighbour strictly tightens $v_t$. Expanding the bound for large $q$
+gives $\Delta v_t \lesssim (\kappa(\phi)-1)/q^2$.
+\end{proof}
+
+\begin{corollary}[Frozen-$\phi$ verdict]
+\label{cor:frozen-verdict}
+A frozen true $\phi$ zeroes the second term of~\eqref{eq:variance-decomp}
+but reduces the first only by $O(q^{-2})$, and only on the
+Channels A/B components of~\eqref{eq:var-split}, never on the
+$\phi$-invariant Channel-D floor. In the data-rich regime $q \gg 1$
+the improvement is below the Monte Carlo resolution of a $50$-dataset
+comparison: AR(2) fails to \emph{dominate} not because $\phi$ is
+useless but because its benefit is bounded, partial, and crowded out.
+\end{corollary}
+
+% ====================================================================
+\section{The Level-Autocovariance Ceiling}
+\label{sec:level-autocov}
+
+Section~\ref{sec:frozen} bounded the \emph{posterior-pooling} benefit
+of a frozen $\phi$ through a Gaussian surrogate. We now give an exact,
+model-level statement that does not rely on the surrogate: AR(2)
+reaches the \emph{level} of $Y_t(s)$ through a single channel, and the
+simulation truth closes even that channel.
+
+\subsection{Exact decomposition of the level autocovariance}
+
+Fix a held-out site $s^*$ with stable membership
+$g(s^*, t) \equiv g$ over the window of interest, and condition on the
+covariates so that $m_{s^*,t} := x_t(s^*)^\top\beta$ is deterministic.
+The stochastic part of the level is, using \eqref{eq:sigma-def},
+\begin{equation}
+  \widetilde Y_t
+    := Y_t(s^*) - m_{s^*,t}
+     = \lambda\, z_{g,t} \;+\; \sigma_{g,t}\, u_t,
+  \qquad u_t := \big[L_C\varepsilon_t\big]_{s^*},
+  \label{eq:ytilde}
+\end{equation}
+where $\Var(u_t) = C_{s^*s^*}$, the $u_t$ are i.i.d.\ across $t$, and
+$u \perp (z,\tau)$. The latent series $z$ and $\tau$ are driven by
+separate AR(2) recursions and separate inverse-copula transforms,
+hence $z \perp \tau$.
+
+\begin{proposition}[Level autocovariance]
+\label{prop:level-autocov}
+Under model~\eqref{eq:kernel} with the independence structure above,
+for every lag $h \ge 1$
+\begin{equation}
+  \Cov\big(\widetilde Y_t,\, \widetilde Y_{t+h}\big)
+    \;=\; \lambda^2\,\gamma_z(h),
+  \qquad
+  \gamma_z(h) := \Cov\big(z_{g,t},\, z_{g,t+h}\big).
+  \label{eq:level-autocov}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Expand the product of \eqref{eq:ytilde} at times $t$ and $t+h$ into
+four terms:
+\[
+  \Cov(\widetilde Y_t,\widetilde Y_{t+h})
+   = \lambda^2\Cov(z_{g,t},z_{g,t+h})
+   + \lambda\,\Cov(z_{g,t},\sigma_{g,t+h}u_{t+h})
+   + \lambda\,\Cov(\sigma_{g,t}u_t,z_{g,t+h})
+   + \Cov(\sigma_{g,t}u_t,\sigma_{g,t+h}u_{t+h}).
+\]
+Both mixed terms vanish: $u$ has mean zero and is independent of
+$(z,\sigma)$, so e.g.\ $\E[z_{g,t}\sigma_{g,t+h}u_{t+h}]
+= \E[z_{g,t}\sigma_{g,t+h}]\,\E[u_{t+h}] = 0$, and the marginal factor
+$\E[\sigma_{g,t+h}u_{t+h}]=0$ likewise. For the last term, $u\perp\sigma$
+and the $u_t$ are i.i.d.\ mean-zero across $t$, so for $h\ge1$
+\[
+  \E[\sigma_{g,t}u_t\,\sigma_{g,t+h}u_{t+h}]
+   = \E[\sigma_{g,t}\sigma_{g,t+h}]\;
+     \E[u_t]\,\E[u_{t+h}] = 0,
+\]
+and the product of marginal means is zero as well. Only the first term
+survives.
+\end{proof}
+
+\begin{corollary}[The $\tau$-AR(2) is pure stochastic volatility]
+\label{cor:tau-volatility}
+The AR(2) on $\tau$ contributes \emph{zero} to the level
+autocovariance~\eqref{eq:level-autocov}. Its temporal structure
+appears only in second-order moments: for $h\ge1$,
+\begin{equation}
+  \Cov\big(\widetilde Y_t^{\,2},\,\widetilde Y_{t+h}^{\,2}\big)
+   \;\supseteq\;
+   C_{s^*s^*}^2\;
+   \Cov\big(\sigma_{g,t}^2,\,\sigma_{g,t+h}^2\big)
+   \;\ne\; 0,
+  \label{eq:vol-cluster}
+\end{equation}
+since $\sigma_{g,t}^2 = \tau_{g,t}^{-1}$ inherits the AR(2) dependence
+of $\tau$. Hence $\tau$-AR(2) is invisible to any scoring rule that is
+a functional of the predictive law of the \emph{level} $Y$, and
+visible only to rules sensitive to $|Y|^p$ (volatility clustering).
+\end{corollary}
+
+\begin{corollary}[The $w$-channel is second order]
+\label{cor:w-channel}
+The AR(2) on knot locations $w$ enters \eqref{eq:level-autocov} only
+through the membership map $g(s^*,t)$. Under stable membership its
+contribution is zero; it becomes active only on the event that a
+Voronoi boundary sweeps across $s^*$, a second-order effect that is
+moreover absent for $K=1$.
+\end{corollary}
+
+Propositions~\ref{prop:level-autocov} and its corollaries isolate the
+single level-channel: \emph{the AR(2) prior moves the temporal
+autocovariance of the observable only through $\lambda z$.}
+
+\subsection{The temporal signal-to-noise ratio and the CRPS ceiling}
+
+\begin{definition}[Temporal signal-to-noise ratio]
+\label{def:snr}
+With $\Var(\widetilde Y_t) = \lambda^2\Var(z) + \E[\sigma^2]\,
+C_{s^*s^*}$, define
+\begin{equation}
+  \SNR \;:=\; \frac{\lambda^2\,\Var(z)}
+                   {\lambda^2\,\Var(z) + \E[\sigma^2]\,C_{s^*s^*}}
+  \;\in\;[0,1],
+  \label{eq:snr}
+\end{equation}
+the share of level variance carried by the AR-bearing skew channel.
+The \emph{forecastable fraction} at horizon $h$ is
+\begin{equation}
+  R(h) \;:=\; 1 - \frac{\Var(\widetilde Y_{t+h}\given\text{past})}
+                       {\Var(\widetilde Y_{t+h})}
+        \;=\; \SNR \cdot \kappa_z(h),
+  \label{eq:Rh}
+\end{equation}
+where $\kappa_z(h) := 1 - \Var(z_{t+h}\given z_{\le t})/\Var(z)
+\in[0,1]$ is the AR(2) forecastable variance fraction of $z$.
+\end{definition}
+
+\begin{proposition}[CRPS ceiling]
+\label{prop:crps-ceiling}
+Suppose the predictive law of the level is approximately Gaussian, so
+that for a calibrated forecast $\E\,\mathrm{CRPS} = \sigma_{\mathrm{pred}}
+/\sqrt{\pi}$. Conditioning on the past reduces the predictive standard
+deviation from $\sigma_Y$ (the marginal, no-AR model) to
+$\sigma_Y\sqrt{1-R(h)}$. Hence the best-case relative improvement of
+the AR(2) model over the i.i.d.-in-time model is
+\begin{equation}
+  \frac{\Delta\,\mathrm{CRPS}}{\mathrm{CRPS}}
+    \;=\; 1 - \sqrt{1 - R(h)}.
+  \label{eq:crps-ceiling}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+For $Y\sim\Norm(\mu,\sigma^2)$ the closed form of the CRPS gives
+$\E_{Y}\mathrm{CRPS}(\Norm(\mu,\sigma^2),Y) = \sigma/\sqrt\pi$, linear
+in $\sigma$. The marginal model predicts with standard deviation
+$\sigma_Y$; the AR(2) model, conditioning on the past, predicts with
+$\sigma_Y\sqrt{1-R(h)}$ by~\eqref{eq:Rh}. The ratio of expected scores
+is $\sqrt{1-R(h)}$ and the relative improvement is its complement.
+\end{proof}
+
+\begin{table}[h]
+\centering
+\caption{The CRPS ceiling \eqref{eq:crps-ceiling} as a function of the
+         forecastable fraction $R(h)$. The gain is concave and small
+         for the $R$ values plausible here.}
+\label{tab:crps-ceiling}
+\begin{tabular}{c c c c c}
+\toprule
+$R(h)$ & 0.05 & 0.10 & 0.20 & 0.30 \\
+\midrule
+$1-\sqrt{1-R(h)}$ & 0.025 & 0.051 & 0.106 & 0.163 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{remark}[There is no universal threshold]
+\label{rem:no-threshold}
+A value such as $\SNR\approx0.1$ is \emph{not} a constant from the
+spatial-extremes literature; it is simply the regime in which the
+best-case relative CRPS gain at $h=1$ is low single digits
+(Table~\ref{tab:crps-ceiling}), comparable to the Monte Carlo standard
+error of a few dozen holdout blocks. Whether a gain is detectable is
+the separate calculation of Section~\ref{subsec:detectability}, not a
+comparison against a magic number. The Brier score is strictly weaker
+than CRPS here: it binarises at a single threshold $\{Y>c\}$ and so
+sees the temporal signal through one crossing only --- a further
+information loss on top of the ceiling~\eqref{eq:crps-ceiling}.
+\end{remark}
+
+\subsection{The simulation truth sets the ceiling to zero}
+
+\begin{corollary}[Level whiteness under the experiment's truth]
+\label{cor:sim-truth-zero}
+The data-generating process of settings 9--10 sets
+$\phi_z = (0,0)$ (Eq.~\eqref{eq:adversarial} below). Then $z$ is
+i.i.d.\ in time, $\gamma_z(h) = 0$ and $\kappa_z(h) = 0$ for all
+$h\ge1$, so by Proposition~\ref{prop:level-autocov} and
+Definition~\ref{def:snr},
+\begin{equation}
+  \Cov\big(\widetilde Y_t,\widetilde Y_{t+h}\big) = 0,
+  \qquad R(h) = 0
+  \qquad\text{for all } h\ge1.
+\end{equation}
+The level of $Y$ is \emph{exactly white in time}. No level-based
+scoring rule --- Brier, $\sum$CRPS, or the energy score on levels ---
+can reward the AR(2) prior, for any holdout design and for any
+specification of $\phi$ (estimated, true-initialised, or frozen).
+\end{corollary}
+
+This is the exact counterpart of Corollary~\ref{cor:frozen-verdict}:
+not merely \emph{the benefit is small} but \emph{the level-channel
+benefit is identically zero under the experiment's own truth}. The
+true temporal structure of settings 9--10 lives entirely in $\tau$
+(volatility, Corollary~\ref{cor:tau-volatility}) and $w$ (membership
+drift, Corollary~\ref{cor:w-channel}), and is reachable only by
+volatility- or dependence-sensitive scores
+(Section~\ref{sec:redesign}).
+
+\begin{remark}[Two confounds to control]
+\label{rem:confounds}
+First, $\gamma_z(h)$ in~\eqref{eq:level-autocov} is the autocovariance
+of the \emph{transformed} $z$ (post inverse-copula); since the
+transform is a fixed monotone map of the standardised AR(2) latent
+$z^\star$, $\gamma_z(h)$ inherits the geometric decay of $z^\star$ but
+with a distorted magnitude --- the diagnostic of
+Appendix~\ref{app:acf-diagnostic} measures it directly rather than
+assuming it. Second, if the covariate $x_t(s^*)$ itself carries
+temporal autocorrelation, part of any observed
+$\Cov(Y_t,Y_{t+h})$ is covariate-driven and must be removed by
+conditioning on $x$ before attributing a score difference to AR(2).
 \end{remark}
 
 % ====================================================================
-\section{Intuition Summary}
-\label{sec:intuition}
+\section{MCMC Mixing: $\phi$ as a Compensating Degree of Freedom}
+\label{sec:mixing}
 
-AR(2) is a model of how today's latent values relate to yesterday's
-and the day before yesterday's. The Brier score on the spatial
-holdout asks for the marginal exceedance probability at a new
-\emph{location} on a day that is already observed at other locations.
-The temporal coupling that AR(2) models has no opportunity to act,
-because every relevant time point is already pinned by training-time
-likelihood. The score sees only the cost of the additional
-parameters --- six $\phi$'s with their own posterior variance --- and
-penalises the model for buying capability it never gets to use.
+A separate experiment compared three sampler strategies for $\phi$:
+(1) \emph{update}; (2) \emph{update from a true initialisation};
+(3) \emph{freeze at the true value}. The performance metrics were
+near-identical, but strategy~3 mixed \emph{worst} despite knowing the
+truth (Table~\ref{tab:phi-strategies}).
 
-The fix is not to remove AR(2); it is to design an experiment that
-asks the model to act like a temporal model. Forecast forward in
-time, or score whole trajectories at once. The temporal coupling then
-enters the predictive integral non-trivially, and the AR(2) prior
-recovers its rent.
+\begin{table}[h]
+\centering
+\caption{Three $\phi$ strategies: $144$ locations, $50$ times, $5$
+         knots; means over replicates (SD in parentheses). Lower MSPE
+         and runtime are better.}
+\label{tab:phi-strategies}
+\begin{tabular}{l r r r}
+\toprule
+Metric & Update & Update (true init) & Freeze (true) \\
+\midrule
+MSPE      & 2.4953 (0.329) & 2.4417 (0.344) & 2.5427 (0.497) \\
+Brier@0.95 & 0.0170 (0.003) & 0.0169 (0.004) & 0.0171 (0.004) \\
+Time (s)  & 4652.6 (21.9) & 4798.6 (21.2) & 4810.2 (26.7) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Conditional stiffness versus marginal softness}
+
+\begin{proposition}[Frozen $\phi$ targets a stiffer chain]
+\label{prop:stiff}
+Single-site updates of the latent field explore the conditional
+posterior $\pi(X \given \phi, \D)$; a sampler that also updates $\phi$
+explores the marginal
+$\pi(X \given \D) = \int \pi(X \given \phi, \D)\,\pi(\phi \given \D)\,
+d\phi$. The two are related by
+\begin{equation}
+  \Var(X \given \D)
+    = \E_\phi\!\big[\Var(X \given \phi, \D)\big]
+    + \Var_\phi\!\big(\E[X \given \phi, \D]\big),
+  \label{eq:cond-marg}
+\end{equation}
+so the marginal target is \emph{softer} (larger variance) in the
+smooth low-frequency directions than the conditional target at any
+fixed $\phi$, including $\phi = \phi_{\mathrm{true}}$.
+\end{proposition}
+
+The banded precision $Q(\phi)$ has small eigenvalues on its smooth
+eigenvectors; at fixed persistent $\phi$ the conditional posterior of
+$X$ is strongly internally correlated along those modes, and
+single-site updates crawl. Freezing $\phi$ --- even at the truth ---
+locks the chain onto this stiff slice; updating $\phi$ targets the
+softer marginal of~\eqref{eq:cond-marg}.
+
+\subsection{$\phi$ as a parameter-expansion coordinate}
+
+\begin{remark}[Compensating degree of freedom]
+\label{rem:param-expansion}
+The latent field's smoothness is a nuisance that $\tau$, the knots,
+and $\beta$ all interact with. When $\phi$ is frozen, the smoothness
+is a hard constraint and a $\tau$/knot proposal that would prefer a
+smoother field is rejected; when $\phi$ is free, $\phi$ absorbs the
+coordinated adjustment and the proposal is accepted. This is the
+mechanism of parameter-expanded data augmentation~\cite{liu1999px}:
+an extra coordinate aligned with a stiff direction improves the
+conditioning of the sampler for every coupled block. The
+centered/non-centered and interweaving literature
+\cite{prs2007, yu2011interweaving} describes the same phenomenon.
+\end{remark}
+
+\begin{remark}[Two roles of $\phi$]
+\label{rem:two-roles}
+$\phi$ has a role as an \emph{estimand} --- whose point value barely
+affects the held-out Brier (Sections~\ref{sec:derivations}--%
+\ref{sec:level-autocov}) --- and a role as a \emph{mixing coordinate}
+--- whose \emph{freedom to move} conditions the sampler for $\tau$, the
+knots, and $z$. Table~\ref{tab:phi-strategies} is explained by the
+second role: ``frozen at truth'' is not ``free.'' Updating $\phi$ is
+also fastest in wall-clock because $\phi$ is low-dimensional, so the
+mixing gain is bought at negligible per-iteration cost.
+\end{remark}
+
+% ====================================================================
+\section{A Misspecified $\phi$: Robust Variance, Fragile Bias}
+\label{sec:misspecified}
+
+We now treat the opposite extreme: $\phi$ estimated far from the truth.
+
+\subsection{The variance diagnostic is robust to a wrong $\phi$}
+
+\begin{proposition}[Posterior variance depends only on the assumed
+$\phi$]
+\label{prop:variance-only}
+In the surrogate of Definition~\ref{def:surrogate}, $v_t(\phi) =
+[\Sigma(\phi)]_{tt}$ depends on the \emph{assumed} $\phi$ and $D_q$
+only --- not on the true $\phi^\ast$. Moreover
+\begin{equation}
+  v_t(\phi) = \Var(X_t \given d_{1:T})
+    \;\le\; \Var(X_t \given d_t) = \frac{1}{1 + q_t}
+    = v_t^{\mathrm{iid}}
+  \label{eq:variance-monotone}
+\end{equation}
+for every stationary $\phi$, with strict inequality whenever
+$\phi \ne 0$ and some neighbour carries data.
+\end{proposition}
+
+\begin{proof}
+$v_t(\phi)$ is a function of $Q(\phi) + D_q$ only. Under the AR prior
+$X_t$ is correlated with $d_{t'}$, $t' \ne t$, so conditioning on those
+extra pseudo-observations cannot increase the variance; under the
+i.i.d.\ prior $X_t \perp d_{t'}$ and they are inert, giving
+$v_t^{\mathrm{iid}} = (1+q_t)^{-1}$.
+\end{proof}
+
+\begin{corollary}[The SD plot certifies coupling, not correctness]
+\label{cor:sd-plot}
+A per-cell posterior-SD plot of $X_{k,t}$ shows
+$\sqrt{v_t(\phi)} < \sqrt{v_t^{\mathrm{iid}}}$ for \emph{any} nonzero
+$\phi$, with the largest relative reduction at data-poor cells (small
+$q_t$). The plot is a diagnostic that the coupling is \emph{active},
+not that $\phi$ is \emph{correct}.
+\end{corollary}
+
+\subsection{Bias is where a wrong $\phi$ is punished}
+
+Using $\Sigma(\phi) D_q = I - \Sigma(\phi) Q(\phi)$, the posterior
+mean has conditional bias
+\begin{equation}
+  \E[\mu(\phi) \given X] - X = -\,\Sigma(\phi)\, Q(\phi)\, X,
+  \label{eq:bias-operator}
+\end{equation}
+so a smoother built on the wrong $\phi$ shrinks $X$ along the wrong
+correlation directions. The reconstruction risk
+
+\begin{equation}
+  R_t(\phi; \phi^\ast)
+    = \E\big[(\mu_t(\phi) - X_t)^2\big]
+    = R_t(\phi^\ast; \phi^\ast)
+    + \tfrac12 (\phi - \phi^\ast)^\top H_t (\phi - \phi^\ast)
+    + o\big(\|\phi - \phi^\ast\|^2\big)
+  \label{eq:risk-expansion}
+\end{equation}
+
+is minimised at $\phi = \phi^\ast$. Small misspecification costs only
+second order (robust); a large or wrong-sign $\phi$ can push
+$R_t(\phi;\phi^\ast)$ above the i.i.d.\ risk even while, by
+Proposition~\ref{prop:variance-only}, the SD plot still looks tighter.
+
+\subsection{Collapse to i.i.d.\ occurs only as $\phi \to 0$}
+
+\begin{proposition}[Collapse condition]
+\label{prop:collapse}
+As $\phi \to 0$, $Q(\phi) \to I$, $\Sigma(\phi) \to (I + D_q)^{-1}$
+(diagonal), $\mu(\phi) \to$ the i.i.d.\ posterior mean, and
+$v_t(\phi) \to v_t^{\mathrm{iid}}$. AR(2) degenerates to i.i.d.\
+\emph{continuously and only} in this limit; a merely wrong but nonzero
+$\phi$ keeps the coupling fully active.
+\end{proposition}
+
+\begin{remark}[Weak identifiability resurrects Channel E]
+\label{rem:bma}
+If $\pi(\phi \given \D)$ is wide, the predictive averages smoothers:
+\begin{equation}
+  v_t^{\mathrm{BMA}}
+    = \underbrace{\E_{\phi \given \D}[v_t(\phi)]}
+        _{\le\, v_t^{\mathrm{iid}}}
+    + \underbrace{\Var_{\phi \given \D}(\mu_t(\phi))}
+        _{\text{Channel E, reborn}}.
+  \label{eq:bma}
+\end{equation}
+Weak identifiability either collapses to i.i.d.\ (if $\pi(\phi)$ pulls
+to $0$) or keeps the coupling on while reinflating the
+estimation-variance cost.
+\end{remark}
+
+% ====================================================================
+\section{The Mechanism of the Observed Collapse $\hat\phi \to 0$}
+\label{sec:identifiability}
+
+The empirical posteriors show Case~1 of Remark~\ref{rem:bma}:
+$\hat\phi$ shrinks aggressively to $0$ even though the data-generating
+process carries a true temporal signal,
+$\phi_\tau = (0.8, -0.6)$. We derive why.
+
+\subsection{$\phi$-information is monotone increasing in $q_t$}
+
+\begin{proposition}[Marginal likelihood of $\phi$]
+\label{prop:fisher-monotone}
+In the surrogate of Definition~\ref{def:surrogate}, the marginal
+likelihood of $\phi$ from one knot series is
+\begin{equation}
+  2 \log L(\phi)
+    = \log|Q(\phi)| - \log|Q(\phi) + D_q|
+    + d^\top D_q (Q(\phi) + D_q)^{-1} D_q\, d + \mathrm{const}.
+  \label{eq:marginal-likelihood}
+\end{equation}
+Its limiting behaviour is
+\begin{align}
+  D_q \to 0:    &\quad 2\log L(\phi) \to \mathrm{const}
+                  \quad (\phi \text{ unidentified}); \\
+  D_q \to \infty:&\quad 2\log L(\phi) \to
+                  \log|Q(\phi)| - X^\top Q(\phi)\, X
+                  \quad (\text{complete-data AR(2) likelihood}).
+\end{align}
+The Fisher information $\mathcal I(\phi)$ interpolates monotonically
+between the two: richer per-time data \emph{increases} the information
+about $\phi$.
+\end{proposition}
+
+\begin{proof}
+Equation~\eqref{eq:marginal-likelihood} is the standard Gaussian
+integral $\int \exp(-\tfrac12 (X-d)^\top D_q (X-d) - \tfrac12 X^\top
+Q(\phi) X)\, dX$. For $D_q \to 0$ the determinant terms cancel and the
+quadratic form vanishes. For $D_q \to \infty$, $(Q+D_q)^{-1} \to
+D_q^{-1} - D_q^{-1} Q D_q^{-1}$ and $d \to X$, leaving the complete-data
+log-likelihood.
+\end{proof}
+
+The hypothesis ``rich $q_t$ masks the temporal linkage'' is thus
+inverted: rich $q_t$ is the only thing that reveals $\phi$. A collapse
+$\hat\phi \to 0$ implies the \emph{effective} $q_t$ for the relevant
+latent is small.
+
+\subsection{Errors-in-variables attenuation}
+
+\begin{lemma}[Attenuation of the visible autocorrelation]
+\label{lem:attenuation}
+The pseudo-data series of Definition~\ref{def:surrogate} has
+covariance $\Cov(d) = Q(\phi^\ast)^{-1} + D_q^{-1}$, i.e.\ AR(2)
+\emph{plus white noise}. With constant $q_t \equiv q$, its lag-$h$
+autocorrelation is
+\begin{equation}
+  \rho_h^{\mathrm{visible}}
+    = \frac{\gamma_h}{\gamma_0 + q^{-1}}
+    = \underbrace{\frac{q}{q + 1}}_{\text{attenuation } a}\;
+      \rho_h^{\mathrm{true}}, \qquad h \ge 1.
+  \label{eq:attenuation}
+\end{equation}
+Fitting the pure AR(2) model recovers $\phi$ from the attenuated
+autocorrelations; as $a \to 0$, $\hat\phi \to 0$.
+\end{lemma}
+
+For $\phi_\tau = (0.8, -0.6)$ the true lag-1 autocorrelation is
+$\gamma_1 = \phi_{1\tau}/(1 - \phi_{2\tau}) = 0.8/1.6 = 0.5$. With $K$
+knot series of length $T$, $\mathrm{SE}(\hat\rho_1) \approx (KT)^{-1/2}$,
+so $\phi$ is statistically alive only if
+
+\begin{equation}
+  \frac{q}{q+1}\,\gamma_1 \;\gtrsim\; \frac{1}{\sqrt{KT}}
+  \quad\Longrightarrow\quad
+  q \;\gtrsim\; 0.15
+  \qquad (\gamma_1 = 0.5,\ K = 5,\ T = 50).
+  \label{eq:collapse-threshold}
+\end{equation}
+
+An aggressive collapse therefore implies an effective $q_t^\tau$ of
+order $0.1$--$0.3$.
+
+\subsection{Why $q_t^\tau$ is structurally small}
+
+The raw site count is not the effective precision for a latent
+\emph{scale}. Six losses compound:
+\begin{enumerate}[leftmargin=2em, itemsep=0pt]
+  \item scale parameters carry less Fisher information than means;
+  \item sites in a knot cell are spatially correlated through
+        $C(\rho, \nu, \gamma)$, so the effective sample size is far
+        below the cell count;
+  \item residual dispersion is jointly explained by $\tau$, $C$,
+        $\nu$, and $z$ --- the information is split;
+  \item $\tau$ is the mixing variable of the $t$-distribution, weakly
+        identified per draw;
+  \item the gamma inverse-copula layer between $\tau$ and $\tau^\star$
+        loses further information;
+  \item knot membership $g(s,t)$ drifts in $t$, so the informing site
+        set is unstable.
+\end{enumerate}
+
+\subsection{The Gibbs feedback turns attenuation into collapse}
+
+\begin{remark}[Fixed point of the Gibbs map]
+\label{rem:gibbs-fixed-point}
+The two full conditionals form a self-reinforcing map:
+\[
+  \phi \given X \;\longrightarrow\; \text{small if } X \text{ looks
+  rough}, \qquad
+  X \given \phi \;\longrightarrow\; \text{rough if } \phi \text{ is
+  small}.
+\]
+If $\phi \approx 0$, the smoother is i.i.d., each $X_t$ is pulled only
+by its noisy $d_t$, the realised series has attenuated autocorrelation
+$a\,\gamma_1$, and $\pi(\phi \given X)$ concentrates near $0$ again.
+$\phi \approx 0$ is a stable fixed point; a prior centred at or diffuse
+around $0$ selects its basin. That a true-initialised chain also
+collapses indicates the \emph{marginal} posterior --- not merely the
+basin --- favours small $\phi$.
+\end{remark}
+
+\subsection{The data-generating process is adversarial}
+
+The truth places the temporal signal in exactly the latents with the
+weakest per-time information:
+\begin{equation}
+  \phi_z = (0, 0), \qquad
+  \phi_\tau = (0.8, -0.6), \qquad
+  \phi_w = (0.9, 0).
+  \label{eq:adversarial}
+\end{equation}
+The latent that \emph{would} be well identified is $z$ --- a
+location-type shift with large $q_t^z$ --- and its true $\phi$ is
+exactly zero. The signal lives in $\tau$ (a scale, tiny $q_t^\tau$)
+and $w$ (a knot location read through a discrete $\arg\min$, tiny
+$q_t^w$). Combined with Corollary~\ref{cor:sim-truth-zero}, this is
+doubly adversarial: the one latent whose AR(2) would have reached the
+\emph{level} of $Y$ is precisely the one the truth switches off.
+
+% ====================================================================
+\section{Scoring Redesign and Evaluation Methodology}
+\label{sec:redesign}
+
+The diagnosis above dictates the remedy. The level of $Y$ is white in
+time (Corollary~\ref{cor:sim-truth-zero}), so a level-based score on a
+spatial holdout cannot reward AR(2). Three things must change: the
+holdout geometry, the scoring rule, and the marginal scale on which it
+acts.
+
+\subsection{Averaged CRPS cannot see dependence}
+\label{subsec:avg-crps}
+
+\begin{proposition}[Averaged CRPS is proper for marginals only]
+\label{prop:avg-crps}
+Let $\overline{\mathrm{CRPS}}(F) = \tfrac{1}{n_s T}\sum_{s,t}
+\mathrm{CRPS}(F_{s,t}, y_{s,t})$, where $F_{s,t}$ is the predictive
+marginal at cell $(s,t)$. Then $\overline{\mathrm{CRPS}}$ is strictly
+proper for the collection of marginals $\{F_{s,t}\}$ but \emph{not}
+strictly proper for the joint law $F$: any two joint forecasts with
+identical marginals receive identical expected
+$\overline{\mathrm{CRPS}}$.
+\end{proposition}
+
+\begin{proof}
+$\mathrm{CRPS}(F_{s,t},\cdot)$ is a functional of the marginal
+$F_{s,t}$ alone. Its expectation under the true joint law depends only
+on the true marginals; hence every joint forecast whose marginals
+match the truth attains the same minimal expected score, irrespective
+of its copula.
+\end{proof}
+
+Consequently $\overline{\mathrm{CRPS}}$ is the correct
+\emph{marginal-calibration control} but is blind to the cross-time and
+cross-site dependence that AR(2) is meant to supply. The dependence
+test must come from a genuinely multivariate score
+(Section~\ref{subsec:multivariate}).
+
+\subsection{Design A: block-time-forecast holdout}
+\label{subsec:designA}
+
+Hold out a \emph{terminal} block $\mathcal B = \{T-T_h+1,\dots,T\}$ and
+train on $\{Y_t(s):t\le T-T_h\}$. The predictive at horizon
+$t^*\in\mathcal B$ requires the AR(2) conditional
+\begin{equation}
+  z_{k,t^*}\given\D \sim
+    \Norm\!\big(\phi_1\hat z_{k,t^*-1}+\phi_2\hat z_{k,t^*-2},\;
+                \sigma_\eta^2+\text{filter uncertainty}\big),
+  \label{eq:forecast-conditional}
+\end{equation}
+which is strictly $\phi$-dependent --- unlike the spatial holdout, the
+temporal channel is now load-bearing.
+
+\begin{remark}[Implementing the predictive loop]
+\label{rem:predictive-loop}
+Two implementations target different distributions. Treating
+$\mathcal B$ as missing data inside the Gibbs sampler samples
+$p(y_\mathcal{B}\given y_\mathcal{O}) = \int p(y_\mathcal{B}\given
+\theta,\Ltot)\,p(\theta,\Ltot\given y_\mathcal{O})\,d(\theta,\Ltot)$.
+For a \emph{terminal} block this integral \emph{is} the forecast
+distribution and in-sampler imputation coincides with a correct forward
+simulation. For an \emph{interior} block it conditions on future
+observations and yields a \emph{smoothing} distribution, which is not a
+forecast and flatters the AR(2) model unfairly. Recommendation: hold
+out a terminal block and use the model's missing-data imputation inside
+Gibbs --- it propagates $(\theta,\Ltot)$ uncertainty jointly. A
+post-hoc forward simulation is also valid but must, per posterior draw,
+run the AR(2) recursions of \verb|rpotspatTS_arp()| forward from the
+drawn terminal latent states; substituting posterior means collapses
+$\Var(y_\mathcal{B})$ and corrupts every score.
+\end{remark}
+
+\subsection{Per-horizon scoring and effective memory}
+\label{subsec:per-horizon}
+
+AR(2) forecast skill decays geometrically. Let $\rho^\ast =
+\max_i|\lambda_i|$ be the dominant modulus of the AR(2) companion
+matrix; then the forecastable variance fraction obeys
+\begin{equation}
+  \kappa_z(h) \;\asymp\; (\rho^\ast)^{2h},
+  \qquad
+  h^\ast \;:=\; \frac{\log(0.05)}{2\log\rho^\ast},
+  \label{eq:effective-memory}
+\end{equation}
+with $h^\ast$ the \emph{effective memory} (where $\kappa_z$ falls to
+$0.05$): $\rho^\ast=0.6\Rightarrow h^\ast\approx3$,
+$\rho^\ast=0.8\Rightarrow h^\ast\approx7$. Two consequences:
+\begin{itemize}[leftmargin=1.6em, itemsep=2pt]
+  \item Choose the block length $T_h\approx2\text{--}3\,h^\ast$ --- long
+        enough to see the decay, short enough that informative horizons
+        are not diluted by null ones.
+  \item \emph{Score per horizon}, reporting $S(h)$ as a curve in $h$
+        rather than a single pooled number; pooling
+        $T_h=50$ averages $\sim5$ informative horizons with $\sim45$
+        null ones. Overlay the ceiling $1-\sqrt{1-R(h)}$ from
+        Proposition~\ref{prop:crps-ceiling} as the theoretical bound.
+\end{itemize}
+
+\subsection{Multivariate scores: energy and variogram}
+\label{subsec:multivariate}
+
+Score the held-out block as a single vector
+$\bm y\in\R^{d}$, $d = n_s\cdot T_h$. The energy score
+\cite{gneiting2007}
+\begin{equation}
+  \mathrm{ES}(F, \bm y)
+    = \E_F \|X - \bm y\|_2 - \tfrac12 \E_F \|X - X'\|_2,
+  \qquad X, X' \overset{\text{iid}}{\sim} F,
+  \label{eq:energy-score}
+\end{equation}
+is the multivariate generalisation of the CRPS ($\mathrm{CRPS}$ is the
+$d=1$ case) and is consistent, but has low power to detect misspecified
+dependence once the marginals are correct. The variogram score of
+order $p$ \cite{scheuerer2015}
+\begin{equation}
+  \mathrm{VS}_p(F, \bm y)
+    = \sum_{i<j} w_{ij}
+      \big( |y_i - y_j|^p - \E_F |X_i - X_j|^p \big)^2
+  \label{eq:variogram-score}
+\end{equation}
+is built from pairwise differences and is the sensitive dependence
+diagnostic. Recommendations, following \cite{scheuerer2015,
+jordan2019}:
+\begin{itemize}[leftmargin=1.6em, itemsep=2pt]
+  \item Use $p=0.5$: the choice $p=2$ is dominated by the largest
+        pairs (a few extreme cells swamp the signal), whereas $p=0.5$
+        is robust under heavy tails.
+  \item Weight $w_{ij}$ by inverse space--time separation, e.g.\
+        $w_{ij} = (1 + \alpha\|s_i-s_j\|^2 + \beta(t_i-t_j)^2)^{-1}$,
+        to downweight uninformative far pairs.
+  \item Compute via the unbiased $U$-statistic estimators in the
+        \texttt{scoringRules} package (\texttt{vs\_sample},
+        \texttt{es\_sample}, \texttt{crps\_sample}) \cite{jordan2019}
+        rather than a naive plug-in, which is biased.
+  \item For an extremes-focused question, weight the score toward the
+        tail with a threshold-weighted kernel \cite{allen2023}; condition
+        with care, since na\"ively subsetting on the realised event
+        breaks propriety \cite{lerch2017, diks2011}.
+\end{itemize}
+
+\subsection{Marginal standardisation: the PIT transform}
+\label{subsec:pit}
+
+Both \eqref{eq:energy-score} and \eqref{eq:variogram-score} are
+sensitive to marginal scale; without standardisation a few
+high-variance sites dominate and the score conflates marginal fit with
+dependence fit. Apply the probability integral transform (PIT)
+$u_{s,t} = \hat F_{s,t}(y_{s,t})$ cell-by-cell before scoring.
+
+\begin{itemize}[leftmargin=1.6em, itemsep=2pt]
+  \item \textbf{Uniform} margins isolate dependence; recommended as the
+        primary scale, since the scientific question is whether AR(2)
+        improves the joint structure.
+  \item \textbf{Gumbel} margins retain comparable magnitude information
+        across sites with a light enough tail to keep
+        \eqref{eq:variogram-score} finite; a useful secondary check.
+  \item \textbf{Fr\'echet} margins are the native max-stable scale but
+        a poor scoring scale --- the heavy tail lets a single extreme
+        dominate even at $p=0.5$; avoid unless scoring a max-stable
+        model directly.
+\end{itemize}
+
+\begin{lemma}[PIT degeneracy]
+\label{lem:pit-degeneracy}
+If $\hat F_{s,t}$ is taken as the empirical CDF of the same $m$
+posterior predictive draws that are then scored, the PIT-transformed
+draws are the ranks $\{1/m,\dots,1\}$ --- a deterministic set
+independent of the dependence structure, so the score cannot
+discriminate any two methods.
+\end{lemma}
+
+The fix is to define $\hat F_{s,t}$ from a source disjoint from the
+scored sample: either (a) split the predictive draws, using a held-back
+subsample to estimate $\hat F_{s,t}$ and the remainder to score, or
+(b) use a parametric tail surrogate --- fit a GPD or skew-$t$ to the
+upper-tail draws and use that smooth CDF for both the observation and
+the scored draws. Compute $\hat F_{s,t}$ once per
+$(s,t,\text{method})$ and cache it.
+
+\subsection{Design C (recommended): combined holdout + score triple}
+\label{subsec:designC}
+
+Hold out a set of test sites \emph{and} a terminal time block at the
+remaining sites, PIT-transform to uniform margins, and report a
+\emph{triple}:
+\begin{enumerate}[leftmargin=2em, itemsep=0pt]
+  \item $\overline{\mathrm{CRPS}}$ on $(s^*,t)$, $t\le T-T_h$ --- the
+        marginal-calibration control (Proposition~\ref{prop:avg-crps});
+  \item per-horizon energy score on training sites over
+        $t>T-T_h$ --- the temporal-coupling test;
+  \item per-horizon variogram score $\mathrm{VS}_{0.5}$ on
+        $(s^*,t>T-T_h)$ --- space-and-time dependence.
+\end{enumerate}
+The attribution that has power: if $\overline{\mathrm{CRPS}}$ is equal
+across methods but $\mathrm{VS}_{0.5}$ differs, the difference is
+\emph{purely dependence}. Because the level is white
+(Corollary~\ref{cor:sim-truth-zero}), the only score in the triple
+that can reward the true ($\tau,w$) structure is one applied to
+$|Y|^p$ or to volatility-sensitive functionals; a
+$\mathrm{VS}_{p}$ with $p\approx1$ on the levels, or any score on
+$Y^2$, is the route to the $\tau$-AR(2) signal
+(Corollary~\ref{cor:tau-volatility}).
+
+\subsection{Detectability and reporting}
+\label{subsec:detectability}
+
+Let $\Delta = S_{\text{no-AR}} - S_{\text{AR}}$ be the paired score
+difference, averaged over $N$ holdout blocks. Its standard error
+scales as $\mathrm{SE}(\Delta)\propto N^{-1/2}$, and the detectability
+index is $\Delta/\mathrm{SE}(\Delta)$. The expected $\Delta$ on the
+CRPS is bounded by the ceiling
+$[1-\sqrt{1-R(h)}]\cdot\mathrm{CRPS}_{\text{no-AR}}$ of
+Proposition~\ref{prop:crps-ceiling}. Practical rule: from a pilot
+estimate of $\SNR$ and $\kappa_z(h)$, compute the ceiling, then choose
+$N$ (via rolling-origin blocks) so that $\mathrm{SE}(\Delta)$ sits a
+few times below it. Report paired differences with bootstrap
+intervals, per horizon, and a score-per-CPU-hour axis --- methods 7
+and 8 are the more expensive.
 
 % ====================================================================
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-We have established that the AR(2) standardisation
-(Definition~\ref{def:standardised}) makes the prior time-$t$ marginal
-of every latent invariant to the autoregressive coefficients
-(Proposition~\ref{prop:invariance}, Proposition~\ref{prop:phi-free}).
-The spatial-only Brier score integrates the predictive kernel
-against precisely this marginal
-(Proposition~\ref{prop:kernel-decomposition}), so the temporal
-coupling vanishes from the loss. Of the four leakage channels through
-which $\phi$ could re-enter via the posterior, three (Channels A--C)
-are damped by likelihood dominance, discrete knot membership, or
-spatial $\phi$-independence; the fourth (Channel D) is closed. The
-cost channel (E) is unbounded above and inflates the predictive
-variance, which Brier penalises directly. The net effect is that
-i.i.d.-time skew-$t$ wins the comparison on this score.
+\begin{itemize}[leftmargin=1.4em, itemsep=2pt]
+  \item The AR(2) standardisation makes the prior time-$t$ marginal of
+        every latent $\phi$-invariant
+        (Propositions~\ref{prop:invariance}, \ref{prop:phi-free}); the
+        spatial-only Brier integrates the kernel against that marginal
+        (Proposition~\ref{prop:kernel-decomposition}), so the temporal
+        coupling marginalises out.
+  \item Even a frozen true $\phi$ cannot dominate: the posterior-pooling
+        benefit is $O(q_t^{-2})$ and never touches the $\phi$-invariant
+        Channel-D floor (Proposition~\ref{prop:frozen-bound},
+        Corollary~\ref{cor:frozen-verdict}).
+  \item AR(2) reaches the \emph{level} of $Y$ through one channel only,
+        $\Cov(\widetilde Y_t,\widetilde Y_{t+h})=\lambda^2\gamma_z(h)$
+        (Proposition~\ref{prop:level-autocov}); the $\tau$-AR(2) is
+        pure stochastic volatility (Corollary~\ref{cor:tau-volatility}).
+        Because the simulation truth sets $\phi_z=(0,0)$, the level is
+        exactly white in time and no level-based score can reward AR(2)
+        for any holdout design (Corollary~\ref{cor:sim-truth-zero});
+        the achievable gain is capped by $\SNR$ with the closed-form
+        CRPS ceiling $1-\sqrt{1-R(h)}$
+        (Proposition~\ref{prop:crps-ceiling}).
+  \item A freely mixing $\phi$ helps the \emph{other} parameters
+        converge by softening a stiff conditional target and acting as
+        a parameter-expansion coordinate
+        (Proposition~\ref{prop:stiff}, Remarks~\ref{rem:param-expansion}--%
+        \ref{rem:two-roles}).
+  \item A misspecified $\phi$ still reduces posterior variance --- the
+        SD plot is robust to a wrong $\phi$
+        (Proposition~\ref{prop:variance-only}) --- but pays in bias;
+        collapse to i.i.d.\ occurs only as $\phi \to 0$
+        (Proposition~\ref{prop:collapse}).
+  \item The observed collapse $\hat\phi \to 0$ is errors-in-variables
+        attenuation (Lemma~\ref{lem:attenuation}): $\phi$-information
+        is monotone increasing in $q_t$
+        (Proposition~\ref{prop:fisher-monotone}), and the simulation
+        truth places the signal in the lowest-$q_t$ latents
+        (Eq.~\eqref{eq:adversarial}).
+\end{itemize}
 
 Future work, in order of priority:
 \begin{enumerate}[leftmargin=2em, itemsep=0pt]
-  \item Implement Design C in
-        \texttt{scores.R} and \texttt{run-settings.R}: extend the MCMC
-        predictive loop in \texttt{rpotspatTS\_arp()} to propagate the
-        AR(2) recursion past the training horizon, and add
-        \texttt{EnergyScore} and \texttt{VariogramScore} alongside
-        \texttt{BrierScore}.
-  \item Re-run settings 9 and 10 with $T_h \in \{3, 5, 10\}$ and
-        report paired score differences between methods (2, 7) and
-        (4, 8).
-  \item Run model selection over AR order $p \in \{0, 1, 2\}$ using
-        DIC/WAIC before fixing the temporal-prior order, so any
-        observed AR(2) advantage cannot be attributed to a
-        coincidentally matched simulation truth.
-  \item Investigate whether channel C activates non-trivially when
-        the data-generating $w$ has small inter-knot separation,
-        i.e.\ when many held-out sites sit near Voronoi boundaries.
+  \item \textbf{Compute the ceiling before re-scoring.} From the true
+        parameters of settings 9--10, evaluate
+        $\SNR=\lambda^2\Var(z)/\Var(\widetilde Y)$ and $\kappa_z(h)$
+        (Definition~\ref{def:snr}); overlay $1-\sqrt{1-R(h)}$ on any
+        per-horizon score curve as the theoretical bound. If the
+        ceiling never exceeds $\mathrm{SE}(\Delta)$, that is itself the
+        publishable result.
+  \item \textbf{Run the four-layer ACF diagnostic}
+        (Appendix~\ref{app:acf-diagnostic}) to confirm where the AR(2)
+        signal is lost --- source latent, membership reindexing,
+        $\lambda$-gating, or the i.i.d.\ spatial noise.
+  \item \textbf{Implement Design C} in \texttt{scores.R} and
+        \texttt{run-settings.R}: a terminal-block holdout, the
+        predictive loop of Remark~\ref{rem:predictive-loop}, PIT
+        standardisation (Section~\ref{subsec:pit}), and
+        \texttt{scoringRules::\{es,vs,crps\}\_sample}.
+  \item \textbf{Score volatility, not just level.} Since the true
+        temporal signal of settings 9--10 lives in $\tau$
+        (Corollary~\ref{cor:tau-volatility}), apply
+        $\mathrm{VS}_{p\approx1}$ or a score on $Y^2$ --- the only
+        route by which the $\tau$-AR(2) structure becomes visible.
+  \item \textbf{Confirm the attenuation:} compute the lag-1
+        autocorrelation of the posterior-mean $\tau^\star$ series and
+        divide by $\gamma_1=0.5$ to recover $a=q/(q+1)$; profile
+        $\log L(\phi)$ on a grid to check for flatness near $0$.
+  \item \textbf{Raise $\mathcal I(\phi)$:} more replicate series
+        (larger $K$ or $T$), a non-centred parameterisation of
+        $\tau^\star$ to break the Gibbs fixed point, a $\phi$-prior not
+        concentrated at $0$, or marginalising the latent series so
+        $\phi$ is informed by $L(\phi)$ directly.
+  \item Run AR-order selection over $p\in\{0,1,2\}$ via DIC/WAIC so any
+        observed advantage is not an artefact of a matched truth.
 \end{enumerate}
 
 % ====================================================================
@@ -569,22 +1410,146 @@ simulate_ar2_standard <- function(nt, n, phi1, phi2,
 \end{lstlisting}
 
 The construction matches Definition~\ref{def:standardised}: the
-marginal variance is fixed at $\gamma_0 = 1$ and the innovation
-variance is derived. Initial states are drawn jointly from the
-stationary bivariate Gaussian via \texttt{draw\_ar2\_initial()},
-removing the need for a burn-in.
+marginal variance is fixed at $\gamma_0 = 1$, the innovation variance
+is derived, and initial states are drawn from the stationary bivariate
+Gaussian via \texttt{draw\_ar2\_initial()}, removing the need for a
+burn-in.
 
 \section{Verification by reverse simulation}
 \label{app:verification}
 
 To confirm the marginal invariance empirically we simulate $n = 1000$
-AR(2) paths under
-$(\phi_1, \phi_2) = (0.6, -0.3)$ via manual recursion and via
-\texttt{stats::filter(\ldots, method = "recursive")}, fit
-\texttt{arima(order = c(2, 0, 0))} to each, and run a residual
-diagnostic. Both fits recover the true coefficients within one
-standard error, and the Ljung--Box and Shapiro--Wilk tests on the
+AR(2) paths under $(\phi_1, \phi_2) = (0.6, -0.3)$ via manual
+recursion and via \texttt{stats::filter(\ldots, method =
+"recursive")}, fit \texttt{arima(order = c(2, 0, 0))} to each, and run
+a residual diagnostic. Both fits recover the true coefficients within
+one standard error, and the Ljung--Box and Shapiro--Wilk tests on the
 residuals are non-significant ($p > 0.4$). Manual recursion and
 filtering produce statistically equivalent AR(2) series.
+
+\section{Four-layer ACF attenuation diagnostic}
+\label{app:acf-diagnostic}
+
+To localise where the AR(2) signal is lost on the path from the latent
+$z$ to the observable $Y$, decompose a method-8 posterior predictive
+trajectory at a held-out site $s^*$ into four layers and compare their
+empirical autocorrelations:
+\begin{description}[leftmargin=2.6em, itemsep=2pt]
+  \item[\textnormal{L1}] $z_{k^\ast,t}$ --- the source latent at a fixed
+        knot; should match the theoretical AR(2) ACF implied by
+        $\hat\phi_z$.
+  \item[\textnormal{L2}] $z_{g(s^*,t),t}$ --- after membership
+        reindexing; attenuation here measures knot-wandering loss.
+  \item[\textnormal{L3}] $\mu_{s^*,t} = x_{s^*,t}^\top\beta +
+        \lambda\,z_{g(s^*,t),t}$ --- after $\lambda$-gating.
+  \item[\textnormal{L4}] $Y_t(s^*)$ --- the full predictive draw, after
+        the i.i.d.-in-$t$ spatial noise; this is where most of the
+        signal is expected to die.
+\end{description}
+
+\begin{lstlisting}
+# Four-layer ACF attenuation diagnostic for one method-8 fit.
+draws <- sample(seq_along(fit.1$lambda), 50)
+k_star <- 1
+for (d in draws) {
+  beta_d   <- fit.1$beta[d, ]
+  lambda_d <- fit.1$lambda[d]
+  z_d      <- fit.1$z[, , d]
+  knots_d  <- fit.1$knots[, , , d]
+
+  L1 <- z_d[k_star, ]
+  L2 <- sapply(seq_len(nt), function(t)
+          z_d[mem(matrix(s.p[sp, ], 1, 2),
+                  matrix(knots_d[, , t], nknots, 2)), t])
+  L3 <- as.numeric(x.p[sp, , ] %*% beta_d) + lambda_d * L2
+  L4 <- L3 + rnorm(nt, 0, sigma_g_t)        # iid spatial noise
+
+  store(acf(L1, plot = FALSE)$acf[2:4],
+        acf(L2, plot = FALSE)$acf[2:4],
+        acf(L3, plot = FALSE)$acf[2:4],
+        acf(L4, plot = FALSE)$acf[2:4])
+}
+# Average across draws; compare L1 to ARMAacf(ar = colMeans(fit.1$phi.z)).
+\end{lstlisting}
+
+If L1 matches the theoretical ACF but L4 is essentially white, the
+signal is lost to the $\lambda$-gating and the spatial noise --- in
+agreement with Proposition~\ref{prop:level-autocov} --- and no
+level-based score can recover it. Use posterior \emph{parameter} draws
+but the stored latent fields $z,\tau,w$ within each draw; resampling
+the latents from their AR(2) prior would report the prior ACF rather
+than the fitted one.
+
+% ====================================================================
+\begin{thebibliography}{9}
+
+\bibitem{liu1999px}
+Liu, J.~S. and Wu, Y.~N. (1999).
+Parameter expansion for data augmentation.
+\emph{Journal of the American Statistical Association}, 94(448),
+1264--1274.
+
+\bibitem{prs2007}
+Papaspiliopoulos, O., Roberts, G.~O., and Sk\"old, M. (2007).
+A general framework for the parametrization of hierarchical models.
+\emph{Statistical Science}, 22(1), 59--73.
+
+\bibitem{yu2011interweaving}
+Yu, Y. and Meng, X.-L. (2011).
+To center or not to center: that is not the question --- an
+ancillarity--sufficiency interweaving strategy (ASIS) for boosting MCMC
+efficiency.
+\emph{Journal of Computational and Graphical Statistics}, 20(3),
+531--570.
+
+\bibitem{gneiting2007}
+Gneiting, T. and Raftery, A.~E. (2007).
+Strictly proper scoring rules, prediction, and estimation.
+\emph{Journal of the American Statistical Association}, 102(477),
+359--378.
+
+\bibitem{scheuerer2015}
+Scheuerer, M. and Hamill, T.~M. (2015).
+Variogram-based proper scoring rules for probabilistic forecasts of
+multivariate quantities.
+\emph{Monthly Weather Review}, 143(4), 1321--1334.
+
+\bibitem{jordan2019}
+Jordan, A., Kr\"uger, F., and Lerch, S. (2019).
+Evaluating probabilistic forecasts with \texttt{scoringRules}.
+\emph{Journal of Statistical Software}, 90(12), 1--37.
+
+\bibitem{lerch2017}
+Lerch, S., Thorarinsdottir, T.~L., Ravazzolo, F., and Gneiting, T.
+(2017).
+Forecaster's dilemma: extreme events and forecast evaluation.
+\emph{Statistical Science}, 32(1), 106--127.
+
+\bibitem{allen2023}
+Allen, S., Ginsbourger, D., and Ziegel, J. (2023).
+Evaluating forecasts for high-impact events using transformed kernel
+scores.
+\emph{SIAM/ASA Journal on Uncertainty Quantification}, 11(3),
+906--940.
+
+\bibitem{diks2011}
+Diks, C., Panchenko, V., and van Dijk, D. (2011).
+Likelihood-based scoring rules for comparing density forecasts in
+tails.
+\emph{Journal of Econometrics}, 163(2), 215--230.
+
+\bibitem{huser2022}
+Huser, R. and Wadsworth, J.~L. (2022).
+Advances in statistical modeling of spatial extremes.
+\emph{WIREs Computational Statistics}, 14(1), e1537.
+
+\bibitem{reich2014}
+Reich, B.~J., Shaby, B.~A., and Cooley, D. (2014).
+A hierarchical model for serially dependent extremes: a study of heat
+waves in the western US.
+\emph{Journal of Agricultural, Biological, and Environmental
+Statistics}, 19(1), 119--135.
+
+\end{thebibliography}
 
 \end{document}

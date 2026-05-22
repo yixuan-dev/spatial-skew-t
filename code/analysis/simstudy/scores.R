@@ -2,9 +2,10 @@
 # scores.R - Stage 1 of the simstudy post-fit pipeline.
 #
 # Loads fits from <results_dir>/<setting>-<method>-<dataset>[-K<mrts_k>].RData,
-# computes Brier / Quantile scores against the held-out test set in the
-# loaded simdata, captures parameter quantile intervals + elapsed_sec,
-# and writes a single .RData cache to:
+# computes per-cell Brier / Quantile scores plus the multivariate energy
+# and variogram scores against the held-out test set in the loaded
+# simdata, captures parameter quantile intervals + elapsed_sec, and
+# writes a single .RData cache to:
 #
 #   output/results/scores<setting><suffix>.RData
 #
@@ -44,6 +45,13 @@ if (length(script_arg) > 0L) {
 
 source("./mrts_cov_helpers.R")
 source("../../R/auxfunctions.R")
+
+# Energy / variogram scores are computed with the unbiased U-statistic
+# estimators in scoringRules (see ar2_rethink.tex Sec. 7.4).
+if (!requireNamespace("scoringRules", quietly = TRUE)) {
+  stop("scores.R requires the 'scoringRules' package (install.packages(\"scoringRules\")).",
+       call. = FALSE)
+}
 
 # ---- CLI parsing -----------------------------------------------------
 cli_args <- commandArgs(trailingOnly = TRUE)
@@ -155,6 +163,10 @@ nks   <- length(mrts_ks)
 probs     <- c(0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 0.995)
 intervals <- c(0.01, 0.025, 0.05, 0.1, 0.9, 0.95, 0.975, 0.99)
 
+# Variogram-score order. p = 0.5 is robust under heavy tails and is not
+# dominated by the largest pairs the way p = 2 is (ar2_rethink.tex Sec. 7.4).
+vs_p <- 0.5
+
 dn_score <- list(
   quantile = as.character(probs),
   dataset  = as.character(datasets),
@@ -181,14 +193,50 @@ nu        <- array(NA_real_, dim = c(length(intervals), nsets, nmeth, nks), dimn
 gamma     <- array(NA_real_, dim = c(length(intervals), nsets, nmeth, nks), dimnames = dn_param)
 lambda    <- array(NA_real_, dim = c(length(intervals), nsets, nmeth, nks), dimnames = dn_param)
 
-elapsed_sec <- array(NA_real_, dim = c(nsets, nmeth, nks),
-                     dimnames = list(dataset = as.character(datasets),
-                                     method  = as.character(methods),
-                                     mrts_k  = as.character(mrts_ks)))
+dn_blk <- list(dataset = as.character(datasets),
+               method  = as.character(methods),
+               mrts_k  = as.character(mrts_ks))
+
+elapsed_sec  <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
+
+# Multivariate (spatial) proper scores: one number per (dataset, method,
+# mrts_k), the held-out test sites scored jointly per time then averaged.
+energy.score <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
+vario.score  <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
 
 skew.methods <- c(2L, 4L, 7L, 8L)
 
 obs <- c(rep(TRUE, nrow(y) - ntest), rep(FALSE, ntest))
+
+# ---- multivariate (spatial) scores -----------------------------------
+# Brier / Quantile above are per-cell marginal scores and cannot see
+# spatial dependence. The energy score (the multivariate CRPS) and the
+# variogram score do: treat the vector of held-out test sites at one time
+# as a single multivariate observation, score it against the predictive
+# sample, then average over time. See ar2_rethink.tex Sec. 7.4.
+multivar_scores <- function(yp, validate, p = vs_p) {
+  # yp: iters x np x nt predictive sample; validate: np x nt truth.
+  iters <- dim(yp)[1]
+  nt    <- dim(yp)[3]
+  es <- rep(NA_real_, nt)
+  vs <- rep(NA_real_, nt)
+  for (t in seq_len(nt)) {
+    yt   <- validate[, t]
+    keep <- is.finite(yt)
+    if (sum(keep) < 1L) next
+    mat  <- matrix(yp[, , t], nrow = iters)   # iters x np
+    dat  <- t(mat[, keep, drop = FALSE])      # np_keep x iters
+    es[t] <- tryCatch(
+      scoringRules::es_sample(y = yt[keep], dat = dat),
+      error = function(e) NA_real_)
+    if (sum(keep) >= 2L) {                    # variogram needs >= 2 sites
+      vs[t] <- tryCatch(
+        scoringRules::vs_sample(y = yt[keep], dat = dat, p = p),
+        error = function(e) NA_real_)
+    }
+  }
+  list(energy = mean(es, na.rm = TRUE), vario = mean(vs, na.rm = TRUE))
+}
 
 # ---- score loop ------------------------------------------------------
 save_checkpoint <- function() {
@@ -196,11 +244,11 @@ save_checkpoint <- function() {
   # `results_dir`) so loading the cache in tables.R does not shadow
   # tables.R's local `results_dir = "output/results"` variable.
   fits_dir <- results_dir
-  save(quant.score, brier.score,
+  save(quant.score, brier.score, energy.score, vario.score,
        beta.0, beta.1, beta.2,
        tau.alpha, tau.beta, rho, nu, gamma, lambda,
        elapsed_sec,
-       probs, intervals, mrts_ks, datasets, methods, setting,
+       probs, intervals, vs_p, mrts_ks, datasets, methods, setting,
        data_path, data_suffix, fits_dir,
        file = out_file)
 }
@@ -233,6 +281,9 @@ for (di in seq_along(datasets)) {
       if (!is.null(fit$yp)) {
         brier.score[, di, mi, ki] <- BrierScore(fit$yp, thresholds, validate)
         quant.score[, di, mi, ki] <- QuantScore(fit$yp, probs, validate)
+        ms <- multivar_scores(fit$yp, validate)
+        energy.score[di, mi, ki] <- ms$energy
+        vario.score[di, mi, ki]  <- ms$vario
       }
 
       if (!is.null(fit$beta) && ncol(fit$beta) >= 3L) {

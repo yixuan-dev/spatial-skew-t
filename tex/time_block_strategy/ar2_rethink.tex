@@ -1,0 +1,809 @@
+\documentclass[11pt]{article}
+
+% ============================================================
+%  Research Technical Note
+%  Topic: time_block_strategy
+%  AR(2) temporal pooling in a spatial skew-t model:
+%  diagnosis of a null result and a time-block holdout redesign.
+% ============================================================
+
+% ---- Packages ----
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+}
+
+% ---- Theorem environments ----
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+% ---- Notation shortcuts ----
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\renewcommand{\Pr}{\mathbb{P}}
+\newcommand{\Norm}{\mathcal{N}}
+\newcommand{\indicator}{\mathbf{1}}
+\newcommand{\given}{\,\vert\,}
+\newcommand{\spradius}{\rho_{\!*}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% ---- Listings setup for R code ----
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  showstringspaces=false,
+  language=R,
+  commentstyle=\color{gray},
+  keywordstyle=\color{blue!60!black},
+  stringstyle=\color{green!50!black},
+  frame=single,
+  framerule=0.3pt
+}
+
+% ---- Title block ----
+\title{
+  A Time-Block Holdout Strategy for Evaluating AR(2)
+  Temporal Pooling in a Spatial Skew-$t$ Model\\[4pt]
+  \large Research Technical Note: \texttt{time\_block\_strategy}
+}
+\author{Spatial Skew-$t$ Simulation Study}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\begin{abstract}
+A simulation study fits a spatial skew-$t$ model with and without
+AR(2) temporal structure on three latent knot-level processes
+(precision $\tau$, skewness $z$, and knot location $w$), and scores
+predictions with the Brier score. The AR(2) variants fail to dominate
+their independent-in-time counterparts, and in one setting score
+strictly worse. This note formalizes why: the Brier score is a strictly
+proper score for the \emph{marginal} exceedance probability, while the
+existing holdout removes spatial \emph{sites} and retains all time
+points. Under that design the AR(2) prior and the i.i.d.\ prior induce
+the same marginal predictive distribution at an unobserved site, so a
+marginal score cannot separate them and the simpler model wins the
+bias--variance trade-off. We prove that the conditional $h$-step AR(2)
+forecast converges geometrically to the stationary marginal at rate
+governed by the companion-matrix spectral radius, define an effective
+memory horizon, and use it to design a time-block holdout that
+forecasts forward from the posterior of the seam state. We give the
+forecasting algorithm, the latent-scale coupling of $\tau$ and $z$, and
+a lead-time scoring protocol based on multivariate proper scores. The
+result is an evaluation framework under which AR(2) temporal pooling can
+genuinely be tested rather than structurally nullified.
+\end{abstract}
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+
+A spatial skew-$t$ model for extreme environmental fields can be
+extended with temporal dependence by placing autoregressive priors on
+its latent knot-level processes. The natural question is whether this
+temporal pooling improves predictive performance for extremes. A
+simulation study addressed this by fitting eight method variants ---
+including two that activate AR(2) structure on all three latent
+processes --- and scoring held-out predictions with the Brier score
+across a grid of high threshold quantiles.
+
+The outcome was a null result. The AR(2) variants did not dominate the
+independent-in-time skew-$t$ and $t$ variants; in the setting with five
+knots the AR(2) model scored \emph{worse} than its own non-temporal
+sibling at every threshold, with relative Brier inflation reaching
+$1.16$ in the far upper tail. Taken at face value this suggests
+temporal pooling is unhelpful. We argue instead that the result is an
+artifact of the \emph{interaction between the scoring rule and the
+holdout design}, and that the experiment as constructed cannot answer
+the question it was built to ask.
+
+This note has three goals. First, in Section~\ref{sec:setup} we
+formalize the model, the AR(2) latent processes, and the family of
+scoring rules. Second, in Section~\ref{sec:derivations} we prove that a
+marginal score under a spatial-only holdout is structurally blind to
+temporal dependence, and we quantify the AR(2) memory horizon through
+the companion-matrix spectral radius. Third, in
+Section~\ref{sec:redesign} we derive a corrected time-block holdout:
+its forecasting algorithm, the seam-state conditioning that preserves
+the temporal signal, the latent-scale transform order, and a
+lead-time scoring protocol. Section~\ref{sec:conclusion} states the
+expected outcome and open issues.
+
+% ============================================================
+\section{Model Setup and Definitions}
+\label{sec:setup}
+
+\subsection{The spatial skew-$t$ observation model}
+
+Let $\mathcal{S} \subset \R^2$ be a study region and let
+$t \in \{1,\dots,n_t\}$ index time. Observations are made at sites
+$s \in \mathcal{S}$ and times $t$.
+
+\begin{definition}[Observation model]
+\label{def:obs}
+For site $s$ and time $t$,
+\begin{equation}
+  y(s,t)
+  = x(s,t)^\top \beta
+  + \lambda\, z_{\,g(s,t),\,t}
+  + \varepsilon(s,t),
+  \label{eq:obs}
+\end{equation}
+where $x(s,t)\in\R^p$ are covariates with coefficient vector
+$\beta\in\R^p$; $\lambda$ is a skewness loading;
+$\varepsilon(\cdot,t)$ is a mean-zero spatial Gaussian field with
+$\Cov\{\varepsilon(s,t),\varepsilon(s',t)\}
+= C(s,s')\,\tau_{\,g(s,t),\,t}^{-1}$;
+and $C$ is a correlation function with range $\rho$, smoothness $\nu$,
+and geometric-anisotropy parameter $\gamma$.
+\end{definition}
+
+The model carries $K$ spatial \emph{knots}. For each knot
+$k \in \{1,\dots,K\}$ and time $t$ there are three latent quantities:
+a precision $\tau_{k,t}>0$, a skewness term $z_{k,t}\ge 0$, and a knot
+location $w_{k,t}\in\R^2$. The function $g(s,t)$ returns the index of
+the knot nearest to $s$ at time $t$, i.e.\ the Voronoi membership
+\begin{equation}
+  g(s,t) = \argmin_{k\in\{1,\dots,K\}}
+            \big\| s - w_{k,t} \big\|.
+  \label{eq:membership}
+\end{equation}
+
+\begin{assumption}[Conditional independence of the spatial nugget]
+\label{ass:iid-space}
+The spatial field $\varepsilon(\cdot,t)$ in \eqref{eq:obs} is drawn
+independently across $t$. All cross-time dependence in $y$ is therefore
+transmitted exclusively through the latent processes
+$\{\tau_{k,t}, z_{k,t}, w_{k,t}\}$.
+\end{assumption}
+
+Assumption~\ref{ass:iid-space} is a property of the data-generating
+mechanism, not a modelling choice; it localizes the entire temporal
+signal in the latent processes and is the hinge of every argument that
+follows.
+
+\subsection{Latent AR(2) processes on the Gaussian scale}
+
+Each latent process is generated on a standardized Gaussian scale and
+then mapped to its target marginal by a copula transform. Write
+$X_t$ generically for any of the latent Gaussian processes
+$\tau^\star_{k,\cdot}$, $z^\star_{k,\cdot}$, or $w^\star_{k,\cdot}$.
+
+\begin{definition}[AR(2) latent process]
+\label{def:ar2}
+The latent Gaussian process obeys
+\begin{equation}
+  X_t = \phi_1 X_{t-1} + \phi_2 X_{t-2} + \xi_t,
+  \qquad \xi_t \overset{\text{iid}}{\sim} \Norm(0,\sigma^2),
+  \label{eq:ar2}
+\end{equation}
+with coefficients $\phi=(\phi_1,\phi_2)$ and innovation variance
+$\sigma^2$.
+\end{definition}
+
+\begin{definition}[Stationarity triangle]
+\label{def:stationary}
+The recursion \eqref{eq:ar2} is stationary if and only if
+\begin{equation}
+  |\phi_2| < 1,
+  \qquad \phi_1 + \phi_2 < 1,
+  \qquad \phi_2 - \phi_1 < 1.
+  \label{eq:triangle}
+\end{equation}
+\end{definition}
+
+We normalize each latent process to unit marginal variance,
+$\gamma_0 \coloneqq \Var(X_t) = 1$. The Yule--Walker relations then fix
+the lag-one and lag-two autocovariances and the innovation variance:
+\begin{equation}
+  \gamma_1 = \frac{\phi_1}{1-\phi_2},
+  \qquad
+  \gamma_2 = \phi_1\gamma_1 + \phi_2\gamma_0,
+  \qquad
+  \sigma^2 = \gamma_0 - \phi_1\gamma_1 - \phi_2\gamma_2.
+  \label{eq:yw}
+\end{equation}
+
+\begin{definition}[Companion form]
+\label{def:companion}
+Stacking $\bm{X}_t = (X_t, X_{t-1})^\top$, the recursion
+\eqref{eq:ar2} becomes the first-order vector system
+\begin{equation}
+  \bm{X}_t = F\,\bm{X}_{t-1} + \bm{e}_t,
+  \qquad
+  F = \begin{pmatrix} \phi_1 & \phi_2 \\ 1 & 0 \end{pmatrix},
+  \qquad
+  \bm{e}_t = \begin{pmatrix} \xi_t \\ 0 \end{pmatrix},
+  \label{eq:companion}
+\end{equation}
+with innovation covariance $Q = \operatorname{diag}(\sigma^2, 0)$.
+Stationarity \eqref{eq:triangle} is equivalent to the spectral radius
+condition $\spradius \coloneqq \rho(F) < 1$, where $\rho(F)$ is the
+modulus of the largest eigenvalue of $F$.
+\end{definition}
+
+\begin{definition}[Stationary state distribution]
+\label{def:statedist}
+The stationary distribution of the companion state is
+$\bm{X}_t \sim \Norm(\bm{0}, \Sigma)$, where $\Sigma$ solves the
+discrete Lyapunov equation
+\begin{equation}
+  \Sigma = F\,\Sigma\,F^\top + Q,
+  \qquad
+  \Sigma =
+  \begin{pmatrix} \gamma_0 & \gamma_1 \\ \gamma_1 & \gamma_0 \end{pmatrix}
+  =
+  \begin{pmatrix} 1 & \gamma_1 \\ \gamma_1 & 1 \end{pmatrix}.
+  \label{eq:lyapunov}
+\end{equation}
+\end{definition}
+
+Initializing a simulated path by drawing $(X_1,X_2)$ from
+$\Norm(\bm 0,\Sigma)$ yields an \emph{exactly} stationary series with no
+burn-in. This is the construction used by the study's generator: a
+manual AR($p$) recursion with an exact stationary initial state.
+
+\subsection{Copula transforms to observable scale}
+
+The latent Gaussian processes are mapped to their target marginals by
+monotone copula transforms, applied \emph{after} the AR(2) recursion:
+\begin{align}
+  \tau_{k,t}   &= G^{-1}_{\alpha,\beta}\!\big(\Phi(\tau^\star_{k,t})\big),
+  \label{eq:tau-transform}\\
+  z_{k,t}      &= H^{-1}_{\sigma_z}\!\big(\Phi(z^\star_{k,t})\big),
+  \qquad \sigma_z = \tau_{k,t}^{-1/2},
+  \label{eq:z-transform}\\
+  w_{k,t}      &= \Psi^{-1}\!\big(\Phi(w^\star_{k,t})\big),
+  \label{eq:w-transform}
+\end{align}
+where $\Phi$ is the standard normal CDF, $G^{-1}_{\alpha,\beta}$ is a
+gamma quantile function, $H^{-1}_{\sigma_z}$ is a half-normal quantile
+function with scale $\sigma_z$, and $\Psi^{-1}$ is a scaled inverse-probit
+map onto the spatial domain. Equation~\eqref{eq:z-transform} records a
+structural coupling: the skewness scale $\sigma_z$ is itself a function
+of the precision $\tau_{k,t}$.
+
+\subsection{Scoring rules}
+\label{sec:scores}
+
+Let $F$ denote a predictive distribution and $y$ the realized outcome.
+
+\begin{definition}[Brier score]
+\label{def:brier}
+For threshold $c$, with predicted exceedance probability
+$\hat p(s,t;c) = \Pr_F\{Y(s,t) > c\}$ and indicator
+$\indicator\{y(s,t)>c\}$, the Brier score is the cell-averaged
+quadratic loss
+\begin{equation}
+  \mathrm{BS}(c)
+  = \frac{1}{|\mathcal{V}|}
+    \sum_{(s,t)\in\mathcal{V}}
+    \big(\indicator\{y(s,t)>c\} - \hat p(s,t;c)\big)^2,
+  \label{eq:brier}
+\end{equation}
+where $\mathcal{V}$ is the set of held-out $(s,t)$ cells.
+\end{definition}
+
+\begin{definition}[Energy score]
+\label{def:energy}
+For a vector outcome $\bm y \in \R^d$ and predictive $F$ on $\R^d$,
+\begin{equation}
+  \mathrm{ES}(F,\bm y)
+  = \E_F \|\bm X - \bm y\|
+  - \tfrac12\, \E_F \|\bm X - \bm X'\|,
+  \label{eq:energy}
+\end{equation}
+where $\bm X,\bm X' \overset{\text{iid}}{\sim} F$. The energy score is a
+strictly proper score for the \emph{joint} law of $\bm y$. Its
+univariate case $d=1$ is the continuous ranked probability score
+(CRPS).
+\end{definition}
+
+\begin{definition}[Variogram score of order $p$]
+\label{def:variogram}
+For $\bm y \in \R^d$ and weights $w_{ij}\ge 0$,
+\begin{equation}
+  \mathrm{VS}_p(F,\bm y)
+  = \sum_{i=1}^d \sum_{j=1}^d
+    w_{ij}
+    \Big(
+      |y_i - y_j|^p - \E_F |X_i - X_j|^p
+    \Big)^2 .
+  \label{eq:variogram}
+\end{equation}
+Indexing $i,j$ by time lag makes $\mathrm{VS}_p$ sensitive to the
+autocorrelation structure of the predictive.
+\end{definition}
+
+% ============================================================
+\section{Why a Marginal Score Cannot See Temporal Structure}
+\label{sec:derivations}
+
+This section establishes the diagnosis. The argument has three steps:
+the Brier score depends on the predictive only through marginals
+(Proposition~\ref{prop:brier-marginal}); a spatial-only holdout makes
+the AR(2) and i.i.d.\ models share those marginals
+(Proposition~\ref{prop:collapse}); and the AR(2) advantage that
+\emph{does} exist lives in a forecast horizon that the holdout never
+exercises (Propositions~\ref{prop:forecast}--\ref{prop:horizon}).
+
+\subsection{The Brier score is a marginal functional}
+
+\begin{proposition}[Brier insensitivity to dependence]
+\label{prop:brier-marginal}
+The Brier score \eqref{eq:brier} depends on the predictive
+distribution $F$ only through the collection of univariate marginal
+exceedance probabilities $\{\hat p(s,t;c) : (s,t)\in\mathcal{V}\}$.
+Consequently, if two predictive models $F_A$ and $F_B$ induce identical
+marginals at every held-out cell --- $\hat p_A(s,t;c) = \hat p_B(s,t;c)$
+for all $(s,t)\in\mathcal{V}$ and all $c$ --- then they receive
+identical Brier scores, regardless of any difference in their
+dependence structure.
+\end{proposition}
+
+\begin{proof}
+Each summand of \eqref{eq:brier} is a function of the pair
+$\big(\indicator\{y(s,t)>c\},\,\hat p(s,t;c)\big)$. The indicator is a
+property of the data, not of $F$. The only term through which $F$
+enters is the scalar $\hat p(s,t;c) = \Pr_F\{Y(s,t)>c\}$, which is a
+functional of the univariate marginal of $F$ at cell $(s,t)$. The sum
+contains no term coupling two distinct cells. Hence $\mathrm{BS}(c)$ is
+a function of the marginals alone, and any two predictives agreeing on
+all marginals produce the same value. \qed
+\end{proof}
+
+\begin{remark}
+\label{rem:proper}
+Proposition~\ref{prop:brier-marginal} is not a defect of the Brier
+score; it is its design. The Brier score is a strictly proper score for
+a \emph{marginal} binary event. Cross-cell dependence is simply outside
+the quantity it was built to assess. The energy and variogram scores of
+Definitions~\ref{def:energy}--\ref{def:variogram} are the proper scores
+that \emph{do} interrogate dependence.
+\end{remark}
+
+\subsection{Spatial-only holdout collapses the comparison}
+
+Consider the holdout used by the study: a subset of spatial sites
+$\mathcal{S}_{\text{val}}$ is withheld, while \emph{every} time point is
+observed at the training sites. Prediction targets are the cells
+$\{(s,t): s\in\mathcal{S}_{\text{val}},\ t = 1,\dots,n_t\}$.
+
+\begin{proposition}[Structural collapse under spatial-only holdout]
+\label{prop:collapse}
+Under Assumption~\ref{ass:iid-space} and a spatial-only holdout, the
+predictive marginal at an unobserved site $s^\star$ and time $t$ is
+\begin{equation}
+  \Pr\{Y(s^\star,t) > c\}
+  = \E_{\,\tau,z,w}\!\left[
+      \Pr\big\{ Y(s^\star,t) > c \,\big|\, \tau_{\cdot,t}, z_{\cdot,t},
+                w_{\cdot,t} \big\}
+    \right],
+  \label{eq:marginal-pred}
+\end{equation}
+where the expectation is over the time-$t$ \emph{marginal} law of the
+latent processes. The AR(2) prior and the i.i.d.\ prior, when both are
+normalized to the same stationary marginal $\Norm(0,1)$ on the latent
+scale, induce the same law for $(\tau_{\cdot,t}, z_{\cdot,t},
+w_{\cdot,t})$ at each fixed $t$, hence the same marginal
+\eqref{eq:marginal-pred}, hence --- by
+Proposition~\ref{prop:brier-marginal} --- the same Brier score in
+expectation.
+\end{proposition}
+
+\begin{proof}
+By Assumption~\ref{ass:iid-space} the spatial nugget at time $t$ is
+independent of all other times, so conditioning on the time-$t$ latent
+slice $(\tau_{\cdot,t}, z_{\cdot,t}, w_{\cdot,t})$ renders
+$Y(s^\star,t)$ independent of every other time. The exceedance
+probability at cell $(s^\star,t)$ therefore depends on the latent
+processes only through their time-$t$ values, giving
+\eqref{eq:marginal-pred}.
+
+The AR(2) prior of Definition~\ref{def:ar2} and an i.i.d.\ prior differ
+only in the \emph{joint} law across $t$; both are constructed with the
+same unit-variance stationary marginal $X_t \sim \Norm(0,1)$ on the
+latent scale (the normalization \eqref{eq:yw}). The copula transforms
+\eqref{eq:tau-transform}--\eqref{eq:w-transform} are applied
+marginally and time-pointwise, so equal latent marginals yield equal
+marginals for $(\tau_{\cdot,t},z_{\cdot,t},w_{\cdot,t})$. The
+right-hand side of \eqref{eq:marginal-pred} is thus identical for the
+two priors. Proposition~\ref{prop:brier-marginal} converts the equal
+marginals into equal Brier scores. \qed
+\end{proof}
+
+\begin{remark}
+\label{rem:bias-variance}
+Proposition~\ref{prop:collapse} explains the empirical observation. If
+the AR(2) and i.i.d.\ models are scored on a quantity for which they
+are exchangeable, the comparison reduces to a bias--variance contest.
+The AR(2) model carries six extra parameters --- a pair
+$(\phi_1,\phi_2)$ for each of $\tau$, $z$, $w$ --- whose posterior
+uncertainty inflates the predictive variance without changing the
+scored marginal. The simpler model therefore wins, and the AR(2)
+penalty grows in the upper tail where estimation variance is largest.
+This is a property of the experiment, not of temporal pooling.
+\end{remark}
+
+\subsection{Where the AR(2) advantage actually lives}
+
+The AR(2) advantage is a statement about \emph{conditional} forecasts.
+We make it precise.
+
+\begin{proposition}[Conditional $h$-step forecast]
+\label{prop:forecast}
+Let $T_o$ be the last observed time and $\bm X_{T_o}$ the companion
+state \eqref{eq:companion}. For a stationary AR(2),
+\begin{equation}
+  \E[\bm X_{T_o+h} \given \bm X_{T_o}] = F^h\,\bm X_{T_o},
+  \qquad
+  \Var[\bm X_{T_o+h} \given \bm X_{T_o}]
+    = \Sigma_h \coloneqq \sum_{j=0}^{h-1} F^j Q\,(F^j)^\top .
+  \label{eq:hstep}
+\end{equation}
+As $h\to\infty$, $F^h \to \bm 0$ and $\Sigma_h \to \Sigma$, the
+stationary covariance of Definition~\ref{def:statedist}.
+\end{proposition}
+
+\begin{proof}
+Iterating \eqref{eq:companion} forward $h$ steps gives
+$\bm X_{T_o+h} = F^h \bm X_{T_o}
+  + \sum_{j=0}^{h-1} F^j \bm e_{T_o+h-j}$.
+The innovations $\bm e_{\,\cdot}$ are mean-zero and independent of
+$\bm X_{T_o}$, which yields the conditional mean and variance in
+\eqref{eq:hstep}. Stationarity gives $\spradius = \rho(F) < 1$
+(Definition~\ref{def:companion}), so $F^h \to \bm 0$ geometrically;
+the partial sum $\Sigma_h$ is monotone increasing in the positive
+semidefinite order and converges to the solution $\Sigma$ of the
+Lyapunov equation \eqref{eq:lyapunov}. \qed
+\end{proof}
+
+\begin{corollary}[The stationary distribution is the infinite-horizon limit]
+\label{cor:stationary-limit}
+Drawing the forecast origin from the stationary distribution
+$\Norm(\bm 0,\Sigma)$ is equivalent to the limit $h\to\infty$ of
+\eqref{eq:hstep}. It discards the conditioning information in
+$\bm X_{T_o}$ and reproduces, for every $h$, the i.i.d.\ model's
+marginal predictive.
+\end{corollary}
+
+\begin{proof}
+Setting the mean term $F^h\bm X_{T_o}$ to zero and the variance to
+$\Sigma$ in \eqref{eq:hstep} is exactly the result of replacing
+$\bm X_{T_o}$ by a draw from $\Norm(\bm 0,\Sigma)$ and recursing: the
+forecast law becomes $\Norm(\bm 0,\Sigma)$ for all $h$, independent of
+$h$. That is the time-$t$ stationary marginal, which by
+Proposition~\ref{prop:collapse} is the i.i.d.\ predictive. \qed
+\end{proof}
+
+Corollary~\ref{cor:stationary-limit} is the central implementation
+warning: initializing a forecast from the stationary distribution
+\emph{is} the act of erasing the AR(2) signal. The forecast must
+instead be conditioned on the posterior of the seam state $\bm X_{T_o}$.
+
+\begin{proposition}[Effective memory horizon]
+\label{prop:horizon}
+The discrepancy between the conditional forecast \eqref{eq:hstep} and
+the stationary marginal decays geometrically:
+\begin{equation}
+  \big\| \E[\bm X_{T_o+h}\given \bm X_{T_o}] \big\|
+    \le \|F^h\|\,\|\bm X_{T_o}\|
+    = O\!\big(\spradius^{\,h}\big),
+  \qquad
+  \|\Sigma - \Sigma_h\| = O\!\big(\spradius^{\,2h}\big).
+  \label{eq:decay}
+\end{equation}
+Hence for a tolerance $\epsilon>0$ there is an effective memory horizon
+\begin{equation}
+  h^\star(\epsilon)
+  = \left\lceil \frac{\log\epsilon}{\log\spradius} \right\rceil,
+  \label{eq:hstar}
+\end{equation}
+beyond which the AR(2) and i.i.d.\ predictives are indistinguishable to
+within $\epsilon$.
+\end{proposition}
+
+\begin{proof}
+Since $\spradius<1$, the spectral radius formula gives
+$\|F^h\| = O(\spradius^{\,h})$ up to a polynomial factor absorbed into
+the constant; the mean bound in \eqref{eq:decay} follows. For the
+variance, $\Sigma - \Sigma_h = \sum_{j\ge h} F^j Q (F^j)^\top$, whose
+norm is bounded by a geometric tail of ratio $\spradius^{\,2}$, giving
+$O(\spradius^{\,2h})$. Setting the mean bound equal to $\epsilon$ and
+solving for $h$ yields \eqref{eq:hstar}. \qed
+\end{proof}
+
+\begin{remark}
+\label{rem:horizon-numbers}
+Proposition~\ref{prop:horizon} converts a modelling intuition into a
+design parameter. For coefficients of the order
+$\phi=(0.6,-0.3)$ the spectral radius is moderate and $h^\star$ is a
+single-digit number of steps. A holdout that scores predictions only
+beyond $h^\star$ measures nothing but the stationary marginal; a
+holdout that never forecasts past $T_o$ at all --- the spatial-only
+design --- exercises the conditional forecast for exactly zero steps.
+Either way the AR(2) signal is invisible by construction.
+\end{remark}
+
+% ============================================================
+\section{A Time-Block Holdout That Exercises Temporal Pooling}
+\label{sec:redesign}
+
+The diagnosis dictates the cure: hold out \emph{time blocks} and
+forecast forward from the posterior of the seam state, scoring with a
+rule that credits joint structure and resolving the result by lead
+time.
+
+\subsection{Holdout geometry}
+
+\begin{definition}[Time-block holdout]
+\label{def:blocks}
+Choose $B$ non-overlapping blocks indexed $b=1,\dots,B$, each of length
+$H$ with $H \lesssim h^\star$ from \eqref{eq:hstar} (a practical range
+is $H\in[5,15]$). Block $b$ has seam time $T_o^{(b)}$ and prediction
+targets $\{(s,t): s\in\mathcal{S},\ t = T_o^{(b)}+1,\dots,T_o^{(b)}+H\}$.
+Blocks are spread across the record so adjacent blocks are
+approximately independent.
+\end{definition}
+
+Choosing $H$ near $h^\star$ keeps every scored lead time inside the
+window where the conditional forecast still differs from the stationary
+marginal (Proposition~\ref{prop:horizon}).
+
+\subsection{Forecasting algorithm}
+
+The forecast must satisfy three requirements derived above:
+(i) condition on the posterior of the seam state, not the stationary
+distribution (Corollary~\ref{cor:stationary-limit});
+(ii) propagate full parameter \emph{and} state uncertainty by iterating
+over posterior draws; and
+(iii) recurse on the latent Gaussian scale, applying the copula
+transforms \eqref{eq:tau-transform}--\eqref{eq:w-transform} only after
+the recursion.
+
+\begin{algorithm}[h]
+\caption{Posterior predictive forecast over a held-out time block}
+\label{alg:forecast}
+\begin{algorithmic}[1]
+\State \textbf{Input:} MCMC draws $m=1,\dots,M$; seam time $T_o$;
+        horizon $H$; held-out sites $\mathcal{S}_{\text{val}}$.
+\State Set a single RNG seed \emph{once}, outside all loops.
+\For{each draw $m = 1,\dots,M$}
+  \For{each latent process $X \in \{\tau^\star, z^\star, w^\star\}$
+        and knot $k$}
+    \State Extract seam state
+           $\big(X^{(m)}_{k,T_o-1},\, X^{(m)}_{k,T_o}\big)$
+           directly from draw $m$'s imputed latent trajectory.
+    \For{$h = 1,\dots,H$}
+      \State $X^{(m)}_{k,T_o+h} \gets
+              \phi_1^{(m)} X^{(m)}_{k,T_o+h-1}
+            + \phi_2^{(m)} X^{(m)}_{k,T_o+h-2}
+            + \sigma^{(m)}\,\xi$,
+            \quad $\xi\sim\Norm(0,1)$.
+    \EndFor
+  \EndFor
+  \For{$h = 1,\dots,H$}
+    \State $\tau^{(m)}_{\cdot,T_o+h} \gets
+            G^{-1}_{\alpha^{(m)},\beta^{(m)}}
+            \!\big(\Phi(\tau^{\star(m)}_{\cdot,T_o+h})\big)$.
+    \State $z^{(m)}_{\cdot,T_o+h} \gets
+            H^{-1}_{\sigma_z}\!\big(\Phi(z^{\star(m)}_{\cdot,T_o+h})\big)$,
+            \quad $\sigma_z = (\tau^{(m)}_{\cdot,T_o+h})^{-1/2}$.
+    \State $w^{(m)}_{\cdot,T_o+h} \gets
+            \Psi^{-1}\!\big(\Phi(w^{\star(m)}_{\cdot,T_o+h})\big)$;
+            recompute membership $g$ by \eqref{eq:membership}.
+    \For{each $s \in \mathcal{S}_{\text{val}}$}
+      \State $\mu \gets x(s,T_o+h)^\top\beta^{(m)}
+              + \lambda^{(m)} z^{(m)}_{g(s,T_o+h),T_o+h}$.
+      \State Draw $y^{\star(m)}(s,T_o+h)$ from the spatial Gaussian
+              field with mean $\mu$ and precision
+              $\tau^{(m)}_{g(s,T_o+h),T_o+h}$.
+    \EndFor
+  \EndFor
+\EndFor
+\State \textbf{Output:} predictive sample
+        $\{y^{\star(m)}(s,T_o+h)\}_{m,s,h}$.
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposition}[Coherence of Algorithm~\ref{alg:forecast}]
+\label{prop:coherence}
+Algorithm~\ref{alg:forecast} produces draws from the posterior
+predictive distribution of the time block, with both parameter
+uncertainty and seam-state uncertainty preserved, and with the
+$\tau$--$z$ coupling \eqref{eq:z-transform} respected.
+\end{proposition}
+
+\begin{proof}
+For each $m$, the tuple
+$\big(\phi^{(m)}, \sigma^{(m)}, \bm X^{(m)}_{T_o},
+       \beta^{(m)}, \lambda^{(m)}, \alpha^{(m)}, \beta^{(m)},
+       \rho^{(m)}, \nu^{(m)}, \gamma^{(m)}\big)$
+is a single coherent sample from the joint posterior: the latent state
+$\bm X^{(m)}_{T_o}$ is an imputed quantity of draw $m$, not a fresh
+draw, so by Proposition~\ref{prop:forecast} the recursion forecasts
+from the correct conditional law and, by
+Corollary~\ref{cor:stationary-limit}, does not collapse to the
+stationary marginal. Averaging the predictive over $m=1,\dots,M$
+integrates the posterior; no plug-in of posterior means occurs, so
+parameter uncertainty is retained. The $\tau$--$z$ coupling is enforced
+in line 12: the half-normal scale $\sigma_z$ is evaluated at draw $m$'s
+own forecasted $\tau^{(m)}_{\cdot,T_o+h}$, so $\tau$ and $z$ are
+transformed jointly within the draw rather than from independent
+marginals. The AR innovations of $\tau^\star$ and $z^\star$ are a priori
+independent (Definition~\ref{def:ar2}), so no further cross-process
+innovation term is required; the posterior coupling is transmitted
+entirely through the shared seam state and shared parameters. \qed
+\end{proof}
+
+\begin{remark}[Implementation pitfalls]
+\label{rem:pitfalls}
+Four failure modes void Proposition~\ref{prop:coherence} in practice.
+(a) \emph{Seam from the stationary distribution} --- redrawing
+$\bm X_{T_o}$ from $\Norm(\bm 0,\Sigma)$ instead of extracting it from
+draw $m$; by Corollary~\ref{cor:stationary-limit} this erases the
+signal.
+(b) \emph{Plug-in means} --- forecasting from posterior means of
+$\phi$ and $\bm X_{T_o}$; this collapses uncertainty and under-disperses
+the predictive.
+(c) \emph{Reseeding inside the loop} --- any \texttt{set.seed} call
+within the $m$- or $h$-loop breaks path coherence; the seed is set once,
+outside.
+(d) \emph{Non-stationary draws} --- posterior tail draws of $\phi$ may
+exit the triangle \eqref{eq:triangle}, making the recursion explode;
+either reparameterize to partial autocorrelations or reject such draws
+before forecasting.
+A further numerical hazard is Voronoi membership flipping: small drift
+in the forecasted $w_{k,t}$ can move a site across a knot boundary and
+discontinuously change $\mu$. Averaging the predictive over many draws
+softens the partition; reporting a fixed-membership ablation
+($g(s,t)\equiv g(s,T_o)$) alongside the full result isolates the AR(2)
+signal in $\tau$ and $z$ from partition noise.
+\end{remark}
+
+\subsection{Lead-time scoring protocol}
+
+The energy and variogram scores of
+Definitions~\ref{def:energy}--\ref{def:variogram} are multivariate:
+each returns one number for an entire block vector and cannot be split
+by lead time. A lead-time curve therefore requires a \emph{univariate}
+proper score evaluated separately at each $h$.
+
+\begin{definition}[Lead-time score curve]
+\label{def:leadcurve}
+Let $S\big(h; b, s\big)$ be a univariate proper score (e.g.\ CRPS, or
+the Brier score restricted to lead $h$) for the prediction at site $s$,
+lead time $h$, in block $b$. The lead-time curve is
+\begin{equation}
+  \bar S(h)
+  = \frac{1}{B\,|\mathcal{S}_{\text{val}}|}
+    \sum_{b=1}^{B}
+    \sum_{s\in\mathcal{S}_{\text{val}}}
+    S\big(h; b, s\big),
+  \qquad h = 1,\dots,H,
+  \label{eq:leadcurve}
+\end{equation}
+with a standard error at each $h$ estimated from the dispersion of the
+$B$ per-block means.
+\end{definition}
+
+The evaluation reports two complementary objects.
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Lead-time curve.} Plot $\bar S(h)$ from
+        \eqref{eq:leadcurve} for the AR(2) model and the i.i.d.\
+        baseline on common axes, with error bands. By
+        Proposition~\ref{prop:horizon} the AR(2) curve should lie below
+        the baseline at small $h$ and converge to it near
+        $h^\star$. The crossing point is the headline quantity.
+  \item \textbf{Joint-structure summary.} Report the energy score
+        \eqref{eq:energy} and variogram score \eqref{eq:variogram}
+        computed over the per-site length-$H$ time vector, averaged
+        over blocks and sites --- one number per model that credits the
+        temporal dependence the lead-time curve resolves.
+\end{enumerate}
+
+\begin{remark}[Verification checks]
+\label{rem:checks}
+Three diagnostics confirm the forecast loop is correct.
+(1) With $H=0$, re-scoring time $T_o$ must give AR(2) and i.i.d.\ the
+same predictive --- any difference is a seam-indexing bug.
+(2) A draw with $\phi=\bm 0$ must collapse immediately to the marginal;
+residual AR-like behaviour indicates double-counted state.
+(3) A long horizon $H\gg h^\star$ with stationary $\phi$ must reproduce
+the $\Norm(0,1)$ latent marginal across draws, validating the
+innovation-variance normalization \eqref{eq:yw}.
+\end{remark}
+
+% ============================================================
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+The null result --- AR(2) temporal pooling failing to beat an
+i.i.d.\ baseline on the Brier score --- is fully explained by
+Propositions~\ref{prop:brier-marginal} and \ref{prop:collapse}: a
+marginal score under a spatial-only holdout makes the two models
+exchangeable, so the comparison degenerates to a bias--variance contest
+that the lower-dimensional model wins. The finding is a property of the
+experimental design, not evidence against temporal pooling.
+
+The corrected framework of Section~\ref{sec:redesign} removes the
+structural blindness. By holding out time blocks of length $H\lesssim
+h^\star$, forecasting from the posterior of the seam state
+(Algorithm~\ref{alg:forecast}, Proposition~\ref{prop:coherence}), and
+resolving performance by lead time \eqref{eq:leadcurve}, the evaluation
+exercises precisely the conditional forecast in which the AR(2)
+advantage resides (Proposition~\ref{prop:forecast}). The expected
+signature of a genuine effect is a lead-time curve on which AR(2) beats
+the i.i.d.\ baseline at short horizons and converges to it near
+$h^\star$ (Proposition~\ref{prop:horizon}).
+
+Open items for the next iteration:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Block-length calibration.} Estimate $\spradius$ from
+        the posterior of $\phi$ and set $H$ from \eqref{eq:hstar} per
+        setting rather than by a fixed rule.
+  \item \textbf{Partition uncertainty.} Compare the soft-membership
+        predictive against the fixed-membership ablation of
+        Remark~\ref{rem:pitfalls}; report both so the AR(2) signal in
+        $\tau,z$ is separated from Voronoi flipping noise.
+  \item \textbf{Score sensitivity.} Contrast the lead-time CRPS curve
+        with the energy and variogram summaries to confirm the
+        conclusions are not an artifact of a single scoring rule.
+  \item \textbf{Forecasting deployment.} Beyond block holdout, evaluate
+        genuine forward forecasting from the end of the record, the
+        setting in which temporal pooling is of direct operational
+        value.
+\end{itemize}
+
+% ============================================================
+\begin{thebibliography}{9}
+
+\bibitem{gneiting2007}
+T.~Gneiting and A.~E.~Raftery,
+\emph{Strictly Proper Scoring Rules, Prediction, and Estimation},
+Journal of the American Statistical Association, 102(477):359--378, 2007.
+
+\bibitem{scoringrules}
+A.~Jordan, F.~Kr\"uger, and S.~Lerch,
+\emph{Evaluating Probabilistic Forecasts with \texttt{scoringRules}},
+Journal of Statistical Software, 90(12):1--37, 2019.
+
+\bibitem{brockwell}
+P.~J.~Brockwell and R.~A.~Davis,
+\emph{Time Series: Theory and Methods}, 2nd ed.,
+Springer, New York, 1991.
+
+\bibitem{scheuerer2015}
+M.~Scheuerer and T.~M.~Hamill,
+\emph{Variogram-Based Proper Scoring Rules for Probabilistic Forecasts
+of Multivariate Quantities},
+Monthly Weather Review, 143(4):1321--1334, 2015.
+
+\end{thebibliography}
+
+\end{document}

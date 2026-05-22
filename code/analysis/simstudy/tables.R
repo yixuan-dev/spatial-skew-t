@@ -8,26 +8,26 @@
 # Mirrors code/analysis/simstudy_prop/tables-prop.R, with prop_k -> mrts_k.
 # Supersedes the analyze-side bits of results.R / mrts_helpfulness.R.
 #
+# Plotting moved to Stage 3 (plots.R), which consumes the simresults
+# artifact written here. This script produces tables only and has no
+# graphics output.
+#
 # Usage:
 #   Rscript tables.R --setting=<id>
 #                    [--data=<path>]
-#                    [--no-plots]
 #
 # Examples:
 #   Rscript tables.R --setting=4
 #   Rscript tables.R --setting=1 --data=simdata_def.RData
-#   Rscript tables.R --setting=4 --no-plots
 #
 # Outputs (suffix = "" for simdata.RData, "_def" for simdata_def.RData, ...):
 #   output/tables/score_long<setting><suffix>.csv
 #   output/tables/score_mean<setting><suffix>.csv
 #   output/tables/score_rel_gauss<setting><suffix>.csv
+#   output/tables/multivar_score<setting><suffix>.csv
 #   output/tables/best_method_per_K<setting><suffix>.csv
 #   output/tables/lambda_coverage<setting><suffix>.csv
 #   output/results/simresults<setting><suffix>.RData
-#   output/plots/{bs,qs}_rel_gauss_by_quantile-set<setting><suffix>-K<k>.pdf
-#   output/plots/{bs,qs}_mean_vs_K-set<setting><suffix>-q<qq>.pdf
-#   output/plots/lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf
 #########################################################################
 
 rm(list = ls())
@@ -45,8 +45,6 @@ source("./mrts_cov_helpers.R")
 cli_args <- commandArgs(trailingOnly = TRUE)
 parsed <- extract_leading_flags(cli_args, c("data", "setting"))
 flags <- parsed$values
-no_plots <- any(parsed$args == "--no-plots") ||
-            any(cli_args == "--no-plots")
 
 if (is.null(flags$setting) || !nzchar(flags$setting)) {
   stop("tables.R: --setting=<id> is required.", call. = FALSE)
@@ -65,8 +63,7 @@ data_suffix <- if (!is.null(flags$data) && nzchar(flags$data)) {
 
 results_dir <- "output/results"
 tables_dir  <- "output/tables"
-plots_dir   <- "output/plots"
-for (d in c(results_dir, tables_dir, plots_dir)) {
+for (d in c(results_dir, tables_dir)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -82,29 +79,23 @@ if (!file.exists(scores_file)) {
   ), call. = FALSE)
 }
 load(scores_file)
-# Provides: quant.score, brier.score, beta.0/1/2, tau.alpha, tau.beta,
-#           rho, nu, gamma, lambda, elapsed_sec, probs, intervals,
+# Provides: quant.score, brier.score, energy.score, vario.score,
+#           beta.0/1/2, tau.alpha, tau.beta, rho, nu, gamma, lambda,
+#           elapsed_sec, probs, intervals, vs_p,
 #           mrts_ks, datasets, methods, setting,
 #           data_path, data_suffix, results_dir   (provenance)
+# energy.score / vario.score / vs_p are absent in caches written by an
+# older scores.R; the multivariate-score block below is guarded for that.
 
 cat(sprintf(
-  "tables: setting=%d cache=%s suffix='%s' plots=%s\n",
+  "tables: setting=%d cache=%s suffix='%s'\n",
   setting_id, scores_file,
-  if (nzchar(data_suffix)) data_suffix else "<none>",
-  if (no_plots) "off" else "on"
+  if (nzchar(data_suffix)) data_suffix else "<none>"
 ))
 
 n_probs   <- length(probs)
-n_sets    <- length(datasets)
 n_methods <- length(methods)
 n_ks      <- length(mrts_ks)
-
-method_catalog <- get_simstudy_method_catalog(include_maxstable = TRUE)
-method_label_for <- function(m) {
-  row <- method_catalog[method_catalog$method_id == m, , drop = FALSE]
-  if (nrow(row) == 1L) sprintf("%d: %s", m, row$label[1]) else as.character(m)
-}
-method_label <- vapply(methods, method_label_for, character(1))
 
 # ---- mean / median scores ------------------------------------------
 mean_apply <- function(a) apply(a, c(1, 3, 4), mean,   na.rm = TRUE)
@@ -197,6 +188,47 @@ write.csv(
   row.names = FALSE
 )
 
+# ---- multivar_score: energy + variogram, aggregated over datasets ----
+# energy.score / vario.score are [dataset, method, mrts_k]. Average and
+# median over datasets per (method, mrts_k), and form the relative ratio
+# vs method 1 (Gaussian), matching the score_rel_gauss convention.
+has_multivar <- exists("energy.score") && exists("vario.score")
+if (has_multivar) {
+  mv_summary <- function(arr, score) {
+    a_mean <- apply(arr, c(2, 3), mean,   na.rm = TRUE)   # method x mrts_k
+    a_med  <- apply(arr, c(2, 3), median, na.rm = TRUE)
+    rel_of <- function(m) {
+      if (!"1" %in% rownames(m)) return(m * NA_real_)
+      sweep(m, 2, m["1", ], "/")
+    }
+    out <- expand.grid(method = methods, mrts_k = mrts_ks,
+                       KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+    out$score      <- score
+    out$mean       <- as.vector(a_mean)
+    out$median     <- as.vector(a_med)
+    out$rel_mean   <- as.vector(rel_of(a_mean))
+    out$rel_median <- as.vector(rel_of(a_med))
+    out[, c("score", "method", "mrts_k", "mean", "median",
+            "rel_mean", "rel_median")]
+  }
+  multivar_table <- rbind(
+    mv_summary(energy.score, "energy"),
+    mv_summary(vario.score,  "variogram")
+  )
+} else {
+  multivar_table <- data.frame(
+    score = character(0), method = integer(0), mrts_k = integer(0),
+    mean = numeric(0), median = numeric(0),
+    rel_mean = numeric(0), rel_median = numeric(0)
+  )
+  cat("  (no energy/variogram scores in cache; multivar table is empty)\n")
+}
+write.csv(
+  multivar_table,
+  file.path(tables_dir, sprintf("multivar_score%d%s.csv", setting_id, data_suffix)),
+  row.names = FALSE
+)
+
 # ---- best_method_per_K: lowest mean per quantile ---------------------
 best_combo <- function(arr_mean, score) {
   out <- data.frame(score = score, quantile = probs,
@@ -264,140 +296,29 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- save aggregated .RData artifact --------------------------------
+# ---- save aggregated .RData artifact (consumed by plots.R) ----------
+# lambda is kept raw for the per-dataset CI figure; energy.score /
+# vario.score are added when present so plots.R can render the
+# multivariate-score figures without re-reading the Stage-1 cache.
 simresults_file <- file.path(
   results_dir,
   sprintf("simresults%d%s.RData", setting_id, data_suffix)
 )
-save(
-  bs_mean, qs_mean, bs_med, qs_med,
-  bs_rel_mean, qs_rel_mean, bs_rel_med, qs_rel_med,
-  score_long_table, score_table, rel_table, best_table, cov_table,
-  probs, mrts_ks, methods, datasets, intervals, setting,
-  data_suffix,
-  file = simresults_file
+simresults_objs <- c(
+  "bs_mean", "qs_mean", "bs_med", "qs_med",
+  "bs_rel_mean", "qs_rel_mean", "bs_rel_med", "qs_rel_med",
+  "score_long_table", "score_table", "rel_table", "multivar_table",
+  "best_table", "cov_table", "lambda",
+  "probs", "mrts_ks", "methods", "datasets", "intervals", "setting",
+  "data_suffix"
 )
-
-# ---- plots (default-on; --no-plots to skip) -------------------------
-if (!no_plots) {
-  set_tag <- sprintf("set%d%s", setting_id, data_suffix)
-  # One entry per Morris method id 1..8 (palette[methods[j]], not palette[j]).
-  mlty <- c(1, 1, 3, 3, 5, 6, 2, 4)
-  mpch <- c(21, 22, 23, 24, 25, 4, 8, 9)
-  mcol <- c(
-    "gray30", "firebrick4", "dodgerblue4", "firebrick1", "dodgerblue1", "darkgreen",
-    "purple4", "darkorange2"
-  )
-  mbg  <- c(
-    "gray70", "firebrick2", "dodgerblue2", "firebrick1", "dodgerblue1", "lightgreen",
-    "plum", "moccasin"
-  )
-
-  # (1) relative score vs quantile, lines per method, one PDF per mrts_k
-  plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
-    for (ki in seq_along(mrts_ks)) {
-      pdf_file <- file.path(plots_dir,
-        sprintf("%s_rel_gauss_by_quantile-%s-K%d.pdf",
-                file_prefix, set_tag, mrts_ks[ki]))
-      pdf(pdf_file, width = 7, height = 5)
-      mat <- arr_rel[, , ki]
-      ymin <- min(mat, 1, na.rm = TRUE)
-      ymax <- max(mat, 1, na.rm = TRUE)
-      m1 <- methods[1]
-      plot(probs, mat[, 1], type = "o", ylim = c(ymin, ymax),
-           pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
-           xlab = "Threshold quantile",
-           ylab = sprintf("Relative %s score (vs. Gaussian)", score_lab),
-           main = sprintf("Setting %d%s, mrts_k = %d",
-                          setting_id, data_suffix, mrts_ks[ki]))
-      abline(h = 1, lty = 2, col = "gray60")
-      if (n_methods >= 2) {
-        for (j in 2:n_methods) {
-          mj <- methods[j]
-          lines(probs, mat[, j], lty = mlty[mj], col = mcol[mj])
-          points(probs, mat[, j], pch = mpch[mj], col = mcol[mj], bg = mbg[mj])
-        }
-      }
-      legend("topleft", legend = method_label,
-             lty = mlty[methods], pch = mpch[methods],
-             col = mcol[methods], pt.bg = mbg[methods],
-             cex = 0.7, bty = "n")
-      dev.off()
-    }
-  }
-  plot_rel_vs_quantile(bs_rel_mean, "Brier",    "bs")
-  plot_rel_vs_quantile(qs_rel_mean, "Quantile", "qs")
-
-  # (2) mean score vs mrts_k for selected quantiles, lines per method.
-  # Only meaningful when there is more than one mrts_k; skip otherwise.
-  if (n_ks >= 2) {
-    selected_q_idx <- c(1, 6, 9, 10)             # 0.90, 0.95, 0.98, 0.99
-    selected_q_idx <- selected_q_idx[selected_q_idx <= n_probs]
-    plot_mean_vs_K <- function(arr_mean, score_lab, file_prefix) {
-      for (qi in selected_q_idx) {
-        pdf_file <- file.path(plots_dir,
-          sprintf("%s_mean_vs_K-%s-q%03d.pdf",
-                  file_prefix, set_tag, round(probs[qi] * 1000)))
-        pdf(pdf_file, width = 7, height = 5)
-        mat <- matrix(arr_mean[qi, , , drop = FALSE],
-                      nrow = n_methods, ncol = n_ks)
-        ymin <- min(mat, na.rm = TRUE)
-        ymax <- max(mat, na.rm = TRUE)
-        m1 <- methods[1]
-        plot(mrts_ks, mat[1, ], type = "o", ylim = c(ymin, ymax),
-             pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
-             xlab = "MRTS basis rank K",
-             ylab = sprintf("Mean %s score", score_lab),
-             main = sprintf("Setting %d%s, q = %.3f",
-                            setting_id, data_suffix, probs[qi]))
-        if (n_methods >= 2) {
-          for (j in 2:n_methods) {
-            mj <- methods[j]
-            lines(mrts_ks, mat[j, ], lty = mlty[mj], col = mcol[mj])
-            points(mrts_ks, mat[j, ], pch = mpch[mj], col = mcol[mj], bg = mbg[mj])
-          }
-        }
-        legend("topright", legend = method_label,
-               lty = mlty[methods], pch = mpch[methods],
-               col = mcol[methods], pt.bg = mbg[methods],
-               cex = 0.7, bty = "n")
-        dev.off()
-      }
-    }
-    plot_mean_vs_K(bs_mean, "Brier",    "bs")
-    plot_mean_vs_K(qs_mean, "Quantile", "qs")
-  } else {
-    cat("  (skipping mean-vs-K plots: only ", n_ks, " mrts_k value)\n", sep = "")
-  }
-
-  # (3) lambda 95% CI vs dataset, one PDF per (skew method, mrts_k)
-  if (length(ci_lo_idx) == 1L && length(ci_hi_idx) == 1L) {
-    for (m in skew_methods) {
-      mi <- match(m, methods)
-      for (ki in seq_along(mrts_ks)) {
-        pdf_file <- file.path(plots_dir,
-          sprintf("lambda_ci_vs_dataset-%s-method%d-K%d.pdf",
-                  set_tag, m, mrts_ks[ki]))
-        pdf(pdf_file, width = 8, height = 5)
-        lo <- lambda[ci_lo_idx, , mi, ki]
-        hi <- lambda[ci_hi_idx, , mi, ki]
-        if (all(is.na(c(lo, hi)))) { dev.off(); file.remove(pdf_file); next }
-        plot(NA, xlim = c(1, n_sets),
-             ylim = range(c(lo, hi, lambda_true), na.rm = TRUE),
-             xlab = "dataset", ylab = expression(lambda),
-             main = sprintf("95%% CI for lambda - method %d, mrts_k = %d",
-                            m, mrts_ks[ki]))
-        abline(h = lambda_true, col = "red", lty = 2)
-        segments(seq_len(n_sets), lo, seq_len(n_sets), hi,
-                 col = ifelse(lo <= lambda_true & hi >= lambda_true,
-                              "black", "orange"))
-        points(seq_len(n_sets), (lo + hi) / 2, pch = 19, cex = 0.4)
-        dev.off()
-      }
-    }
-  }
+if (has_multivar) {
+  simresults_objs <- c(simresults_objs, "energy.score", "vario.score")
 }
+save(list = simresults_objs, file = simresults_file)
 
 cat("\nWrote tables to ", tables_dir, "\n", sep = "")
-if (!no_plots) cat("Wrote plots  to ", plots_dir,  "\n", sep = "")
 cat("Saved analysis objects to ", simresults_file, "\n", sep = "")
+cat("Next: Rscript plots.R --setting=", setting_id,
+    if (nzchar(data_suffix)) sprintf(" --data=%s", flags$data) else "",
+    " for the figures\n", sep = "")

@@ -13,7 +13,8 @@
 - `run-prop.R`：執行 prop backend 的 simstudy-style 模擬（直接以這支腳本作為 CLI 入口）
 - `run-prop-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
 - `scores-prop.R`：Stage 1，從 `fits<suffix>/` 計算 Brier / Quantile 分數，存到 `scores<setting>-prop<suffix>.RData`
-- `tables-prop.R`：Stage 2，讀 `scores<setting>-prop<suffix>.RData`，產出 CSV 表格 + 預設 PDF
+- `tables-prop.R`：Stage 2，讀 `scores<setting>-prop<suffix>.RData`，產出 CSV 表格 + `simresults<setting>-prop<suffix>.RData` 彙整物件
+- `plots-prop.R`：Stage 3，讀 `simresults<setting>-prop<suffix>.RData`，產出 `output/plots/` 下的 PDF 圖
 - `prop_load.R`：載入 `../../R/prop` backend 與 simstudy 資料
 - `prop_simstudy_helpers.R`：CLI / 檔名 / seed / method catalog helper
 - `settings_prop.csv`：prop 專用的批次 manifest
@@ -52,16 +53,18 @@ Rscript run-prop.R --data=simdata_def.RData --setting=1 1 1 1 1 5
 - `output/tables/`：比較表（含 `mrts_brier_long.csv`、`mrts_brier_summary.csv`）
 - `output/plots/`：後續比較圖
 
-## Post-fit 分析 pipeline (`scores-prop.R` + `tables-prop.R`)
+## Post-fit 分析 pipeline (`scores-prop.R` → `tables-prop.R` → `plots-prop.R`)
 
-擬合完成後，分數計算與表格產出是兩個獨立步驟：
+擬合完成後，分數計算、表格產出、繪圖是三個獨立步驟，可分別重跑：
 
 ```
 Rscript scores-prop.R --setting=4                       # Stage 1：算分數，存 .RData
 Rscript tables-prop.R --setting=4                       # Stage 2：讀 .RData，輸出表格
+Rscript plots-prop.R  --setting=4                       # Stage 3：讀彙整物件，輸出 PDF
 
 Rscript scores-prop.R --setting=1 --data=simdata_def.RData
 Rscript tables-prop.R --setting=1 --data=simdata_def.RData
+Rscript plots-prop.R  --setting=1 --data=simdata_def.RData
 ```
 
 Stage 1（`scores-prop.R`）讀 `fits<suffix>/<setting>-<method>-<dataset>-p<K>.RData` 中的 `fit.1`，使用 `../../R/prop/auxfunctions.R` 的 `BrierScore` / `QuantScore`，輸出單一 `.RData` 快取：
@@ -75,7 +78,10 @@ Stage 2（`tables-prop.R`）從 Stage 1 快取彙整：
 - `output/tables/score_rel_gauss<setting>-prop<suffix>.csv`（相對 Gaussian）
 - `output/tables/best_method_per_K<setting>-prop<suffix>.csv`
 - `output/tables/lambda_coverage<setting>-prop<suffix>.csv`
-- `output/results/simresults<setting>-prop<suffix>.RData`
-- 預設另出 `output/plots/` 下的 PDF（`--no-plots` 可關閉）
+- `output/results/simresults<setting>-prop<suffix>.RData`（彙整物件，供 Stage 3 使用；內含 `lambda` 原始陣列）
+
+Stage 3（`plots-prop.R`）讀 Stage 2 的 `simresults<setting>-prop<suffix>.RData`，
+輸出 `output/plots/` 下的 PDF 圖（relative-score-by-quantile、mean-vs-K、
+lambda 95% CI）。
 
 更完整的選項說明請看 [run-prop.md](run-prop.md) 的「Post-fit pipeline」節。

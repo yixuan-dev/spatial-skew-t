@@ -89,7 +89,7 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 - `output/tables/`
   - tables-prop.R 產出的 CSV
 - `output/plots/`
-  - tables-prop.R 預設產出的 PDF（`--no-plots` 可關閉）
+  - plots-prop.R 產出的 PDF
 
 ## Windows PowerShell 範例
 
@@ -109,18 +109,22 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 
 ## Post-fit pipeline
 
-擬合完成後，分數計算與表格產出分成兩步驟：
+擬合完成後，分數計算、表格產出、繪圖分成三步驟，可分別重跑：
 
 ```powershell
 # Stage 1: 從 fits/ 讀取，計算 Brier / Quantile 分數，存到 scores<setting>-prop<suffix>.RData
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\scores-prop.R" --setting=4
 
-# Stage 2: 讀 scores<setting>-prop<suffix>.RData，產出 CSV 表格 + 預設 PDF
+# Stage 2: 讀 scores<setting>-prop<suffix>.RData，產出 CSV 表格 + simresults 彙整物件
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\tables-prop.R" --setting=4
+
+# Stage 3: 讀 simresults<setting>-prop<suffix>.RData，產出 output/plots/ 下的 PDF
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\plots-prop.R" --setting=4
 
 # Deformed-covariance 範例（同一個 CLI，加上 --data=...）
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\scores-prop.R" --setting=1 --data=simdata_def.RData
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\tables-prop.R" --setting=1 --data=simdata_def.RData
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\plots-prop.R" --setting=1 --data=simdata_def.RData
 ```
 
 `scores-prop.R` 重要選項：
@@ -139,7 +143,10 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 - `output/tables/best_method_per_K<setting>-prop<suffix>.csv`
 - `output/tables/lambda_coverage<setting>-prop<suffix>.csv`
 - `output/results/simresults<setting>-prop<suffix>.RData`
-- `output/plots/` 下的 PDF（`--no-plots` 可關閉）
+
+`plots-prop.R` 讀 `tables-prop.R` 寫出的 `simresults<setting>-prop<suffix>.RData`，
+產出 `output/plots/` 下的 PDF（relative-score-by-quantile、mean-vs-K、
+lambda 95% CI）。
 
 例如：
 
