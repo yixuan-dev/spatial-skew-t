@@ -1,126 +1,137 @@
 rm(list = ls())
 
+# =====================================================================
+# Relative-Brier plot (method 2..5, baseline vs +MRTS), side by side.
+#
+# Reads pre-computed Brier scores from
+#   <simstudy>/scores<setting>_<K>mrts.RData
+# instead of re-running BrierScore on the fit objects. This avoids the
+# data-alignment hazard that previously appeared when simdata.RData
+# was regenerated after the fits/scores were cached.
+#
+#   * CLI override:        Rscript plot_relative_brier.R --setting=5 --k=15
+#   * Env-var override:    SIMSTUDY_MRTS_PLOT_K=10 Rscript ...
+#
+# Required caches per (setting, K):
+#   scores<setting>_0mrts.RData    (baseline, gives left panel + Gaussian ref)
+#   scores<setting>_<K>mrts.RData  (MRTS K cache, gives right panel)
+# =====================================================================
+DEFAULT_MRTS_K     <- 20L
+DEFAULT_SETTING_ID <- 4L
+DEFAULT_SCORES_DIR <- "."   # relative to <simstudy>/
+
 script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
 if (length(script_arg) > 0) {
-    script_path <- normalizePath(sub("^--file=", "", script_arg[1]), winslash = "/", mustWork = FALSE)
+    script_path <- normalizePath(sub("^--file=", "", script_arg[1]),
+                                 winslash = "/", mustWork = FALSE)
     script_dir <- dirname(script_path)
-    if (dir.exists(script_dir)) {
-        setwd(script_dir)
-    }
+    if (dir.exists(script_dir)) setwd(script_dir)
 }
 
-simstudy_dir <- normalizePath(file.path("..", ".."), winslash = "/", mustWork = TRUE)
+# ---- CLI flag parsing (--key=value) ---------------------------------
+cli_flags <- list()
+for (arg in commandArgs(trailingOnly = TRUE)) {
+    m <- regmatches(arg, regexec("^--([^=]+)=(.*)$", arg))[[1]]
+    if (length(m) == 3L) cli_flags[[m[2]]] <- m[3]
+}
+get_cli <- function(key) {
+    v <- cli_flags[[key]]
+    if (is.null(v)) "" else trimws(v)
+}
+
+simstudy_dir <- normalizePath(file.path("..", ".."),
+                              winslash = "/", mustWork = TRUE)
 setwd(simstudy_dir)
 
-source("../../R/auxfunctions.R")
-load("simdata.RData")
-
-parse_index_expr <- function(expr_str, arg_name) {
-    expr <- trimws(expr_str)
-    if (!nzchar(expr)) {
-        stop(sprintf("%s cannot be empty", arg_name), call. = FALSE)
+parse_pos_int <- function(raw, src) {
+    val <- suppressWarnings(as.integer(raw))
+    if (!is.finite(val) || is.na(val) || val < 1L || val != as.numeric(raw)) {
+        stop(sprintf("%s must be a single positive integer (got '%s')",
+                     src, raw), call. = FALSE)
     }
-    if (grepl("^\\(.*\\)$", expr)) {
-        expr <- paste0("c", expr)
-    }
-
-    values <- tryCatch(
-        eval(parse(text = expr), envir = baseenv()),
-        error = function(e) {
-            stop(sprintf("Invalid %s expression '%s'", arg_name, expr_str), call. = FALSE)
-        }
-    )
-
-    if (!is.numeric(values) || length(values) == 0) {
-        stop(sprintf("%s must evaluate to a non-empty numeric vector", arg_name), call. = FALSE)
-    }
-
-    values_int <- as.integer(values)
-    if (any(is.na(values_int)) || any(values_int != values)) {
-        stop(sprintf("%s must contain integers only", arg_name), call. = FALSE)
-    }
-
-    sort(unique(values_int))
+    val
 }
 
-build_result_file <- function(results_dir, setting_id, method_id, dataset_id, mrts_k = NA_integer_) {
-    tag <- if (is.na(mrts_k)) "" else paste0("-K", as.integer(mrts_k))
-    file.path(results_dir, sprintf("%d-%d-%d%s.RData", as.integer(setting_id), as.integer(method_id), as.integer(dataset_id), tag))
+# ---- resolve setting / k / scores_dir -------------------------------
+setting_raw <- get_cli("setting")
+if (!nzchar(setting_raw)) {
+    setting_raw <- Sys.getenv("SIMSTUDY_MRTS_PLOT_SETTING",
+                              unset = as.character(DEFAULT_SETTING_ID))
+}
+setting_id <- parse_pos_int(setting_raw, "setting")
+
+k_raw <- get_cli("k")
+k_src <- "--k"
+if (!nzchar(k_raw)) {
+    k_raw <- trimws(Sys.getenv("SIMSTUDY_MRTS_PLOT_K", unset = ""))
+    k_src <- "SIMSTUDY_MRTS_PLOT_K"
+}
+mrts_k_active <- if (nzchar(k_raw)) parse_pos_int(k_raw, k_src) else DEFAULT_MRTS_K
+
+scores_dir <- get_cli("scores-dir")
+if (!nzchar(scores_dir)) scores_dir <- DEFAULT_SCORES_DIR
+if (!dir.exists(scores_dir)) {
+    stop(sprintf("Scores dir not found: %s", scores_dir), call. = FALSE)
 }
 
-extract_fit <- function(result_file) {
-    if (!file.exists(result_file)) {
-        return(NULL)
-    }
+cat(sprintf("Setting = %d   MRTS k = %d   scores_dir = %s\n",
+            setting_id, mrts_k_active, scores_dir))
 
+# ---- load scores cache ----------------------------------------------
+load_scores_cache <- function(setting_id, mrts_k, scores_dir) {
+    fname <- sprintf("scores%d_%dmrts.RData", setting_id, mrts_k)
+    fpath <- file.path(scores_dir, fname)
+    if (!file.exists(fpath)) {
+        stop(sprintf("Scores cache not found: %s", fpath), call. = FALSE)
+    }
     e <- new.env(parent = emptyenv())
-    load(result_file, envir = e)
-
-    if (exists("fit.1", envir = e, inherits = FALSE)) {
-        return(get("fit.1", envir = e, inherits = FALSE))
+    load(fpath, envir = e)
+    needed <- c("brier.score", "probs", "methods", "datasets")
+    miss <- setdiff(needed, ls(e))
+    if (length(miss) > 0L) {
+        stop(sprintf("Cache %s missing objects: %s",
+                     fpath, paste(miss, collapse = ", ")), call. = FALSE)
     }
-    if (exists("fit", envir = e, inherits = FALSE)) {
-        return(get("fit", envir = e, inherits = FALSE))
-    }
-
-    NULL
-}
-
-compute_brier <- function(pred, thresholds, validate) {
-    score <- tryCatch(
-        BrierScore(pred, thresholds, validate),
-        error = function(e) NULL
+    list(
+        file        = fpath,
+        brier.score = e$brier.score,
+        probs       = e$probs,
+        methods     = e$methods,
+        datasets    = e$datasets,
+        mrts_k      = if (exists("mrts_k", envir = e)) e$mrts_k else mrts_k,
+        setting     = if (exists("setting", envir = e)) e$setting else setting_id
     )
-
-    if (is.null(score)) {
-        score <- tryCatch(
-            BrierScore(pred, thresholds, validate, trans = TRUE),
-            error = function(e) NULL
-        )
-    }
-
-    if (is.null(score)) {
-        return(rep(NA_real_, length(thresholds)))
-    }
-
-    as.numeric(score)
 }
 
-resolve_plot_k <- function(method_ids, default_k = 20L) {
-    k_override_raw <- trimws(Sys.getenv("SIMSTUDY_MRTS_PLOT_K", unset = ""))
-    if (nzchar(k_override_raw)) {
-        k_override <- parse_index_expr(k_override_raw, "SIMSTUDY_MRTS_PLOT_K")
-        if (length(k_override) != 1 || k_override[1] < 1) {
-            stop("SIMSTUDY_MRTS_PLOT_K must be a single positive integer", call. = FALSE)
-        }
-        return(setNames(rep(as.integer(k_override[1]), length(method_ids)), as.character(method_ids)))
-    }
+cache_base <- load_scores_cache(setting_id, 0L, scores_dir)
+cache_mrts <- load_scores_cache(setting_id, mrts_k_active, scores_dir)
+cat(sprintf("Loaded: %s\n", cache_base$file))
+cat(sprintf("Loaded: %s\n", cache_mrts$file))
 
-    setNames(rep(as.integer(default_k), length(method_ids)), as.character(method_ids))
+# ---- pick target quantiles (subset of cache probs, fuzzy match) -----
+target_probs <- c(seq(0.90, 0.99, by = 0.01), 0.995)
+match_probs <- function(targets, cache_probs, tol = 1e-8) {
+    vapply(targets, function(t) {
+        idx <- which(abs(cache_probs - t) < tol)
+        if (length(idx) == 0L) NA_integer_ else idx[1]
+    }, integer(1))
+}
+prob_idx      <- match_probs(target_probs, cache_base$probs)
+prob_idx_mrts <- match_probs(target_probs, cache_mrts$probs)
+if (any(is.na(prob_idx))) {
+    miss <- target_probs[is.na(prob_idx)]
+    stop(sprintf("Cache %s missing probs: %s",
+                 cache_base$file, paste(miss, collapse = ", ")),
+         call. = FALSE)
+}
+if (any(is.na(prob_idx_mrts))) {
+    miss <- target_probs[is.na(prob_idx_mrts)]
+    stop(sprintf("Cache %s missing probs: %s",
+                 cache_mrts$file, paste(miss, collapse = ", ")),
+         call. = FALSE)
 }
 
-setting_id <- suppressWarnings(as.integer(Sys.getenv("SIMSTUDY_MRTS_PLOT_SETTING", unset = "4")))
-if (!is.finite(setting_id) || is.na(setting_id) || setting_id < 1 || setting_id > dim(y)[4]) {
-    stop(sprintf("SIMSTUDY_MRTS_PLOT_SETTING must be in 1..%d", dim(y)[4]), call. = FALSE)
-}
-
-results_dir <- trimws(Sys.getenv("SIMSTUDY_MRTS_RESULTS_DIR", unset = "results"))
-if (!dir.exists(results_dir)) {
-    stop(sprintf("Results directory not found: %s", results_dir), call. = FALSE)
-}
-
-datasets_raw <- trimws(Sys.getenv("SIMSTUDY_MRTS_DATASETS", unset = ""))
-dataset_ids <- if (nzchar(datasets_raw)) {
-    ids <- parse_index_expr(datasets_raw, "SIMSTUDY_MRTS_DATASETS")
-    ids[ids >= 1 & ids <= dim(y)[3]]
-} else {
-    seq_len(dim(y)[3])
-}
-if (length(dataset_ids) == 0) {
-    stop("No valid dataset ids selected", call. = FALSE)
-}
-
-target_probs <- c(seq(0, 0.9, by = 0.1), 0.95, 0.98, 0.995)
+# ---- methods 2..5 (and method 1 as Gaussian reference) --------------
 method_ids <- 2:5
 method_label_map <- c(
     "2" = "Skew-t, K=1",
@@ -128,161 +139,133 @@ method_label_map <- c(
     "4" = "Skew-t, K=5",
     "5" = "t, K=5, q(0.80)"
 )
-mrts_k_by_method <- resolve_plot_k(method_ids = method_ids, default_k = 20L)
 
-obs <- c(rep(TRUE, nrow(y) - ntest), rep(FALSE, ntest))
+verify_methods <- function(cache, needed) {
+    miss <- setdiff(needed, cache$methods)
+    if (length(miss) > 0L) {
+        stop(sprintf("Cache %s missing methods: %s",
+                     cache$file, paste(miss, collapse = ", ")), call. = FALSE)
+    }
+}
+verify_methods(cache_base, c(1L, method_ids))
+verify_methods(cache_mrts, method_ids)
 
-model_specs <- rbind(
-    data.frame(panel = "method 2-5", method_id = method_ids, mrts_k = NA_integer_, stringsAsFactors = FALSE),
-    data.frame(panel = "method 2-5 + mrts", method_id = method_ids, mrts_k = as.integer(mrts_k_by_method[as.character(method_ids)]), stringsAsFactors = FALSE)
+m_idx_base <- match(c(1L, method_ids), cache_base$methods)
+m_idx_mrts <- match(method_ids,         cache_mrts$methods)
+
+# ---- mean over datasets, then ratio vs Gaussian baseline ------------
+# cache$brier.score dim = [probs, datasets, methods]
+mean_bs_base <- apply(cache_base$brier.score[prob_idx, , m_idx_base, drop = FALSE],
+                      c(1, 3), mean, na.rm = TRUE)
+mean_bs_mrts <- apply(cache_mrts$brier.score[prob_idx_mrts, , m_idx_mrts, drop = FALSE],
+                      c(1, 3), mean, na.rm = TRUE)
+# mean_bs_base columns: 1=method 1, 2..5 = method_ids
+mean_ref <- mean_bs_base[, 1]
+mean_baseline_models <- mean_bs_base[, -1, drop = FALSE]   # methods 2..5 (no MRTS)
+mean_mrts_models     <- mean_bs_mrts                       # methods 2..5 (+ MRTS)
+
+relative_baseline <- sweep(mean_baseline_models, 1, mean_ref, FUN = "/")
+relative_mrts     <- sweep(mean_mrts_models,     1, mean_ref, FUN = "/")
+relative_baseline[!is.finite(relative_baseline)] <- NA_real_
+relative_mrts[!is.finite(relative_mrts)]         <- NA_real_
+
+log_baseline <- suppressWarnings(log(relative_baseline))
+log_mrts     <- suppressWarnings(log(relative_mrts))
+log_baseline[!is.finite(log_baseline)] <- NA_real_
+log_mrts[!is.finite(log_mrts)]         <- NA_real_
+
+nonpos_count <- sum(
+    (is.finite(relative_baseline) & relative_baseline <= 0) |
+    (is.finite(relative_mrts) & relative_mrts <= 0),
+    na.rm = TRUE
 )
 
-n_probs <- length(target_probs)
-n_models <- nrow(model_specs)
-n_datasets <- length(dataset_ids)
-
-brier_arr <- array(NA_real_, dim = c(n_probs, n_datasets, n_models))
-ref_arr <- array(NA_real_, dim = c(n_probs, n_datasets))
-
-missing_rows <- list()
-missing_id <- 1L
-
-for (jj in seq_along(dataset_ids)) {
-    dataset_id <- dataset_ids[jj]
-    thresholds <- quantile(y[, , dataset_id, setting_id], probs = target_probs, na.rm = TRUE, names = FALSE)
-    validate <- y[!obs, , dataset_id, setting_id]
-
-    ref_file <- build_result_file(results_dir, setting_id, method_id = 1L, dataset_id = dataset_id, mrts_k = NA_integer_)
-    ref_fit <- extract_fit(ref_file)
-    if (is.null(ref_fit) || is.null(ref_fit$yp)) {
-        missing_rows[[missing_id]] <- data.frame(
-            dataset = dataset_id,
-            method_id = 1L,
-            mrts_k = NA_integer_,
-            result_file = ref_file,
-            stringsAsFactors = FALSE
+# ---- assemble long-format plot data ---------------------------------
+panel_mrts_label <- sprintf("method 2-5 + mrts (K=%d)", mrts_k_active)
+make_panel_rows <- function(rel, log_rel, panel_name, mrts_k) {
+    out <- list()
+    for (j in seq_along(method_ids)) {
+        m <- method_ids[j]
+        method_label <- unname(method_label_map[as.character(m)])
+        label <- if (is.na(mrts_k)) method_label else
+            sprintf("%s + mrts(k=%d)", method_label, mrts_k)
+        out[[j]] <- data.frame(
+            quantile           = target_probs,
+            relative_brier     = rel[, j],
+            log_relative_brier = log_rel[, j],
+            panel              = panel_name,
+            method_id          = m,
+            mrts_k             = mrts_k,
+            line_label         = label,
+            stringsAsFactors   = FALSE
         )
-        missing_id <- missing_id + 1L
-    } else {
-        ref_arr[, jj] <- compute_brier(ref_fit$yp, thresholds, validate)
     }
-
-    for (ii in seq_len(n_models)) {
-        spec <- model_specs[ii, , drop = FALSE]
-        result_file <- build_result_file(
-            results_dir = results_dir,
-            setting_id = setting_id,
-            method_id = spec$method_id[1],
-            dataset_id = dataset_id,
-            mrts_k = spec$mrts_k[1]
-        )
-        fit_obj <- extract_fit(result_file)
-
-        if (is.null(fit_obj) || is.null(fit_obj$yp)) {
-            missing_rows[[missing_id]] <- data.frame(
-                dataset = dataset_id,
-                method_id = spec$method_id[1],
-                mrts_k = spec$mrts_k[1],
-                result_file = result_file,
-                stringsAsFactors = FALSE
-            )
-            missing_id <- missing_id + 1L
-            next
-        }
-
-        brier_arr[, jj, ii] <- compute_brier(fit_obj$yp, thresholds, validate)
-    }
+    do.call(rbind, out)
 }
+plot_df <- rbind(
+    make_panel_rows(relative_baseline, log_baseline,
+                    "method 2-5", NA_integer_),
+    make_panel_rows(relative_mrts, log_mrts,
+                    panel_mrts_label, mrts_k_active)
+)
+plot_df$panel <- factor(plot_df$panel,
+                        levels = c("method 2-5", panel_mrts_label))
 
-mean_ref <- apply(ref_arr, 1, mean, na.rm = TRUE)
-mean_model <- apply(brier_arr, c(1, 3), mean, na.rm = TRUE)
-relative_model <- sweep(mean_model, 1, mean_ref, FUN = "/")
-relative_model[!is.finite(relative_model)] <- NA_real_
-
-log_relative_model <- suppressWarnings(log(relative_model))
-log_relative_model[!is.finite(log_relative_model)] <- NA_real_
-nonpositive_rbs_count <- sum(is.finite(relative_model) & relative_model <= 0, na.rm = TRUE)
-
-plot_rows <- list()
-row_id <- 1L
-for (ii in seq_len(n_models)) {
-    spec <- model_specs[ii, , drop = FALSE]
-    method_label <- unname(method_label_map[as.character(spec$method_id[1])])
-    if (is.na(method_label) || !nzchar(method_label)) {
-        method_label <- sprintf("method %d", spec$method_id[1])
-    }
-
-    label <- if (is.na(spec$mrts_k[1])) {
-        method_label
-    } else {
-        sprintf("%s + mrts(k=%d)", method_label, spec$mrts_k[1])
-    }
-
-    plot_rows[[row_id]] <- data.frame(
-        quantile = target_probs,
-        relative_brier = relative_model[, ii],
-        log_relative_brier = log_relative_model[, ii],
-        panel = spec$panel[1],
-        method_id = spec$method_id[1],
-        mrts_k = spec$mrts_k[1],
-        line_label = label,
-        stringsAsFactors = FALSE
-    )
-    row_id <- row_id + 1L
-}
-
-plot_df <- do.call(rbind, plot_rows)
-plot_df$panel <- factor(plot_df$panel, levels = c("method 2-5", "method 2-5 + mrts"))
-
+# ---- outputs --------------------------------------------------------
 output_dir <- file.path("comparison_mrts", "plot")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-data_out <- file.path(output_dir, sprintf("setting%d_relative_brier_plot_data.csv", setting_id))
+data_out <- file.path(output_dir,
+    sprintf("setting%d_relative_brier_plot_data-K%d.csv",
+            setting_id, mrts_k_active))
 write.csv(plot_df, data_out, row.names = FALSE)
 
-missing_df <- if (length(missing_rows) > 0) do.call(rbind, missing_rows) else data.frame()
-missing_out <- file.path(output_dir, sprintf("setting%d_relative_brier_plot_missing_files.csv", setting_id))
-write.csv(missing_df, missing_out, row.names = FALSE)
+plot_file <- file.path(output_dir,
+    sprintf("setting%d_relative_brier_method2to5_vs_mrts-K%d.png",
+            setting_id, mrts_k_active))
 
-plot_file <- file.path(output_dir, sprintf("setting%d_relative_brier_method2to5_vs_mrts.png", setting_id))
+# Shared palette with code/analysis/simstudy/plots.R: indexed by method id 1..8.
+mlty <- c(1, 1, 3, 3, 5, 6, 2, 4)
+mpch <- c(21, 22, 23, 24, 25, 4, 8, 9)
+mcol <- c("gray30", "firebrick4", "dodgerblue4", "firebrick1",
+          "dodgerblue1", "darkgreen", "purple4", "darkorange2")
+mbg  <- c("gray70", "firebrick2", "dodgerblue2", "firebrick1",
+          "dodgerblue1", "lightgreen", "plum", "moccasin")
 
-method_colors <- c(
-    "2" = "#D55E00",
-    "3" = "#0072B2",
-    "4" = "#009E73",
-    "5" = "#CC79A7"
-)
-method_pch <- c("2" = 16, "3" = 17, "4" = 15, "5" = 18)
+png(filename = plot_file, width = 2600, height = 1300, res = 220)
+par(mfrow = c(1, 2), mar = c(5.2, 6.2, 3.8, 1.5), oma = c(0, 0, 2, 0))
 
-png(filename = plot_file, width = 1800, height = 2200, res = 220)
-par(mfrow = c(2, 1), mar = c(5.2, 6.2, 3.8, 1.5), oma = c(0, 0, 2, 0))
+y_all <- plot_df$log_relative_brier[is.finite(plot_df$log_relative_brier)]
+if (length(y_all) == 0) y_all <- c(0)
+y_lim <- range(c(y_all, 0), na.rm = TRUE)
+y_pad <- 0.05 * diff(y_lim)
+if (!is.finite(y_pad) || y_pad == 0) y_pad <- 0.05
+y_lim <- c(y_lim[1] - y_pad, y_lim[2] + y_pad)
+
+axis_at <- target_probs
+axis_show <- c(seq(0.90, 0.99, by = 0.01), 0.995)
+axis_labels <- ifelse(axis_at %in% axis_show,
+                      format(axis_at, trim = TRUE, scientific = FALSE), "")
 
 for (panel_name in levels(plot_df$panel)) {
     panel_df <- plot_df[plot_df$panel == panel_name, , drop = FALSE]
-    panel_df <- panel_df[order(panel_df$method_id, panel_df$quantile), , drop = FALSE]
+    panel_df <- panel_df[order(panel_df$method_id, panel_df$quantile), ,
+                         drop = FALSE]
 
-    y_vals <- panel_df$log_relative_brier[is.finite(panel_df$log_relative_brier)]
-    if (length(y_vals) == 0) {
-        y_vals <- c(0)
-    }
-    y_lim <- range(c(y_vals, 0), na.rm = TRUE)
-    y_pad <- 0.05 * diff(y_lim)
-    if (!is.finite(y_pad) || y_pad == 0) {
-        y_pad <- 0.05
-    }
-    y_lim <- c(y_lim[1] - y_pad, y_lim[2] + y_pad)
-
-    first_method <- sort(unique(panel_df$method_id))[1]
+    all_methods <- sort(unique(panel_df$method_id))
+    first_method <- all_methods[1]
     first_df <- panel_df[panel_df$method_id == first_method, , drop = FALSE]
 
     plot(
         x = first_df$quantile,
         y = first_df$log_relative_brier,
         type = "o",
-        col = method_colors[as.character(first_method)],
-        pch = method_pch[as.character(first_method)],
-        lwd = 2,
-        cex = 1.1,
+        pch  = mpch[first_method],
+        lty  = mlty[first_method],
+        col  = mcol[first_method],
+        bg   = mbg[first_method],
+        lwd  = 2,
+        cex  = 1.1,
         ylim = y_lim,
         xaxt = "n",
         xlab = "Threshold quantile",
@@ -290,54 +273,46 @@ for (panel_name in levels(plot_df$panel)) {
         main = panel_name
     )
 
-    axis(1, at = target_probs, labels = format(target_probs, trim = TRUE, scientific = FALSE), cex.axis = 0.9)
-    abline(h = 0, lty = 2, col = "gray40")
+    axis(1, at = axis_at, labels = axis_labels, cex.axis = 0.9, las = 2)
+    abline(h = 0, lty = 2, col = "gray60")
 
-    all_methods <- sort(unique(panel_df$method_id))
     if (length(all_methods) > 1) {
-        for (method_id in all_methods[-1]) {
-            method_df <- panel_df[panel_df$method_id == method_id, , drop = FALSE]
-            lines(
-                x = method_df$quantile,
-                y = method_df$log_relative_brier,
-                type = "o",
-                col = method_colors[as.character(method_id)],
-                pch = method_pch[as.character(method_id)],
-                lwd = 2,
-                cex = 1.1
-            )
+        for (mid in all_methods[-1]) {
+            method_df <- panel_df[panel_df$method_id == mid, , drop = FALSE]
+            lines(x = method_df$quantile,
+                  y = method_df$log_relative_brier,
+                  lty = mlty[mid], col = mcol[mid], lwd = 2)
+            points(x = method_df$quantile,
+                   y = method_df$log_relative_brier,
+                   pch = mpch[mid], col = mcol[mid], bg = mbg[mid], cex = 1.1)
         }
     }
 
-    legend_df <- panel_df[!duplicated(panel_df$line_label), c("line_label", "method_id"), drop = FALSE]
+    legend_df <- panel_df[!duplicated(panel_df$line_label),
+                          c("line_label", "method_id"), drop = FALSE]
     legend_df <- legend_df[order(legend_df$method_id), , drop = FALSE]
 
-    legend(
-        "topright",
-        legend = legend_df$line_label,
-        col = method_colors[as.character(legend_df$method_id)],
-        pch = method_pch[as.character(legend_df$method_id)],
-        lty = 1,
-        lwd = 2,
-        bty = "n",
-        cex = 0.95
-    )
+    legend("topleft",
+           legend = legend_df$line_label,
+           col    = mcol[legend_df$method_id],
+           pt.bg  = mbg[legend_df$method_id],
+           pch    = mpch[legend_df$method_id],
+           lty    = mlty[legend_df$method_id],
+           lwd    = 2,
+           bty    = "n",
+           cex    = 0.85)
 }
 
-mtext(sprintf("Setting %d: log(Relative Brier Score) Profiles", setting_id), outer = TRUE, cex = 1.3, font = 2)
+mtext(sprintf("Setting %d (MRTS K=%d): log(Relative Brier Score) Profiles",
+              setting_id, mrts_k_active),
+      outer = TRUE, cex = 1.3, font = 2)
 dev.off()
 
-cat("Plot saved:\n")
-cat("- ", plot_file, "\n", sep = "")
-cat("Data saved:\n")
-cat("- ", data_out, "\n", sep = "")
-cat("Missing-file log:\n")
-cat("- ", missing_out, "\n", sep = "")
-if (nonpositive_rbs_count > 0) {
-    cat(sprintf("Warning: %d non-positive RBS values encountered; log(RBS) set to NA for those points.\n", nonpositive_rbs_count))
+cat("Plot saved:\n  - ", plot_file, "\n", sep = "")
+cat("Data saved:\n  - ", data_out, "\n", sep = "")
+cat(sprintf("Datasets used (baseline cache): %d\n", length(cache_base$datasets)))
+cat(sprintf("Datasets used (MRTS cache):     %d\n", length(cache_mrts$datasets)))
+if (nonpos_count > 0) {
+    cat(sprintf("Warning: %d non-positive relative-Brier values; log set to NA.\n",
+                nonpos_count))
 }
-cat("MRTS k by method:\n")
-for (method_id in method_ids) {
-    cat(sprintf("- method %d: k=%d\n", method_id, as.integer(mrts_k_by_method[as.character(method_id)])))
-}
-cat(sprintf("Datasets used: %d\n", length(dataset_ids)))

@@ -1,3 +1,0 @@
-"analysis_id","method_id","method_key","family","label","mrts_k","output_tag","baseline_analysis","baseline_method_id","baseline_method_key","baseline_label","analysis_slot"
-1,1,"1","gaussian","Gaussian, no MRTS",NA,NA,1,1,"1","Gaussian, no MRTS",1
-7,1,"1+mrts10","gaussian","Gaussian, MRTS k=10",10,"mrts10",1,1,"1","Gaussian, no MRTS",2

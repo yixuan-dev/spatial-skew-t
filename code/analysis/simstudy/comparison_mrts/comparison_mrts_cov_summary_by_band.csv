@@ -1,4 +1,0 @@
-"family","mrts_k","quantile_band","n_pairs","n_settings","n_improved_brier","win_rate_brier","mean_delta_brier","mean_improve_brier_pct","n_improved_quant","win_rate_quant","mean_delta_quant","mean_improve_quant_pct"
-"gaussian",10,"bulk",6,1,3,0.5,-1.25198954545455e-05,0.104669417107333,6,1,-5.89125388221756e-05,0.00369368008352679
-"gaussian",10,"other",2,1,1,0.5,6.67717272727223e-06,-0.0155123591999489,1,0.5,-1.77509298049938e-05,0.00225333174829474
-"gaussian",10,"tail",3,1,1,0.333333333333333,-4.45062727272728e-06,0.171806671024958,3,1,-7.82743971698326e-05,0.0325686171130537

@@ -576,8 +576,82 @@ window where the conditional forecast still differs from the stationary
 marginal (Proposition~\ref{prop:horizon}).
 
 \subsection{Forecasting algorithm}
+\label{sec:forecast-pipeline}
 
-The forecast must satisfy three requirements derived above:
+\paragraph{Forecast pipeline at a glance.}
+For each held-out block $b$ with seam $T_o = T_o^{(b)}$ and horizon
+$H$, the predictive draw $\hat y^{(m)}(s,\,T_o+h)$ at lead $h$ is
+built in \emph{five} stages, once per MCMC sample $m=1,\dots,M$.
+
+\begin{enumerate}[label=\textbf{(\arabic*)},leftmargin=2.4em,
+                  itemsep=3pt,topsep=2pt]
+  \item \emph{Fit on the contiguous prefix.} The training data
+        $y(\cdot,\,t\le T_o)$ feeds the MCMC, which returns
+        $M$ joint posterior draws $\theta^{(m)}$ together with imputed
+        observable latent trajectories
+        $\tau^{(m)}_{k,\cdot},\,z^{(m)}_{k,\cdot},\,w^{(m)}_{k,\cdot}$
+        for every $t \le T_o$. All sites are observed; the holdout
+        is purely temporal.
+  \item \emph{Seam state on the Gaussian scale.} The two columns of
+        draw $m$'s trajectory at $t \in \{T_o-1,\,T_o\}$ are mapped
+        \emph{back} to the latent scale by the forward copula
+        transforms,
+        \begin{equation*}
+          \tau^{\star(m)}_{k,t}
+            = \Phi^{-1}\!\big(G_{\alpha^{(m)}/2,\,\beta^{(m)}/2}(\tau^{(m)}_{k,t})\big),
+          \qquad
+          z^{\star(m)}_{k,t}
+            = \Phi^{-1}\!\big(H_{\sigma_z}(z^{(m)}_{k,t})\big),
+          \quad \sigma_z = (\tau^{(m)}_{k,t})^{-1/2}.
+        \end{equation*}
+        The state is taken from draw $m$'s own imputed trajectory,
+        \emph{never} from the stationary law $\Norm(\bm 0, \Sigma)$
+        -- Corollary~\ref{cor:stationary-limit} is precisely the
+        warning against the latter.
+  \item \emph{AR(2) recursion for $h = 1,\dots,H$.} On the Gaussian
+        scale, with innovation variance fixed by Yule--Walker
+        \eqref{eq:yw} so the marginal variance stays $1$,
+        \begin{equation*}
+          X^{\star(m)}_{k,T_o+h}
+          = \phi^{(m)}_1 X^{\star(m)}_{k,T_o+h-1}
+          + \phi^{(m)}_2 X^{\star(m)}_{k,T_o+h-2}
+          + \sigma^{(m)}\,\xi,
+          \quad \xi \sim \Norm(0,1),
+        \end{equation*}
+        applied independently to $\tau^\star$ and $z^\star$ with
+        their own $\phi^{(m)}$. The i.i.d.\ baseline replaces this
+        step by $X^{\star(m)}_{k,T_o+h} \overset{\text{iid}}{\sim}
+        \Norm(0,1)$ at every lead -- the infinite-horizon limit
+        (Corollary~\ref{cor:stationary-limit}).
+  \item \emph{Inverse copula back to observables.} Apply
+        \eqref{eq:tau-transform}--\eqref{eq:w-transform} to the
+        forecasted latent slice; the $\tau$--$z$ coupling
+        \eqref{eq:z-transform} is enforced \emph{within} draw $m$,
+        i.e.\ the half-normal scale $\sigma_z$ uses the same draw's
+        forecasted $\tau$, not an independent marginal.
+  \item \emph{Spatial draw.} For each lead $h$ (time
+        $t = T_o + h$),
+        \begin{equation*}
+          \hat y^{(m)}(s,t)
+          = x(s,t)^\top\beta^{(m)}
+          + \lambda^{(m)} z^{(m)}_{g(s,t),\,t}
+          + \varepsilon^{(m)}(s,t),
+          \qquad
+          \varepsilon^{(m)}(\cdot,t) \sim
+            \Norm\!\Big(\bm 0,\,(\tau^{(m)}_{g(s,t),\,t})^{-1} C^{(m)}\Big),
+        \end{equation*}
+        with $C^{(m)}$ the spatial correlation matrix at
+        $(\rho^{(m)},\nu^{(m)},\gamma^{(m)})$.
+\end{enumerate}
+Averaging $\hat y^{(m)}$ over $m=1,\dots,M$ integrates parameter
+\emph{and} seam-state uncertainty jointly
+(Proposition~\ref{prop:coherence}); the per-block output is the
+predictive array of shape $M \times n_s \times H$. The full
+pseudocode is Algorithm~\ref{alg:forecast}.
+
+\paragraph{Non-negotiable design choices.}
+The five stages above encode three constraints derived earlier and
+not negotiable in any reimplementation:
 (i) condition on the posterior of the seam state, not the stationary
 distribution (Corollary~\ref{cor:stationary-limit});
 (ii) propagate full parameter \emph{and} state uncertainty by iterating
@@ -778,6 +852,173 @@ Open items for the next iteration:
         genuine forward forecasting from the end of the record, the
         setting in which temporal pooling is of direct operational
         value.
+\end{itemize}
+
+% ============================================================
+\section{Implementation Audit Log}
+\label{sec:audit}
+
+This section records the implementation defects encountered while
+operationalizing Section~\ref{sec:redesign} into runnable code, the
+root cause of each, the patch applied, and the diagnostic of
+Remark~\ref{rem:checks} that did or should have caught it.
+
+\subsection{Incident A1: dimension drop in \texttt{fit\$tau} when $K=1$}
+\label{sec:audit-dim}
+
+\paragraph{Symptom.}
+\texttt{forecast\_block} halted with ``\texttt{incorrect number of
+dimensions}'' at the seam-state slice
+\texttt{tau\_traj[m, , seam\_cols]}.
+
+\paragraph{Root cause.}
+The MCMC backend returns the latent trajectory via
+\texttt{tau = keepers.tau[return.iters, , ]} without
+\texttt{drop = FALSE}. With \texttt{nknots = 1} the singleton knot
+axis is silently dropped, so \texttt{fit\$tau} arrives as a 2-D
+matrix $[M, T_o]$ rather than the documented 3-D array
+$[M, K, T_o]$, and every index expression written for the 3-D shape
+breaks.
+
+\paragraph{Fix.}
+Restore the knot axis at the top of \texttt{forecast\_block}: if
+\texttt{length(dim(tau\_traj)) == 2}, wrap to
+\texttt{array(tau\_traj, dim = c(M, 1, T\_o))}. Extract the seam
+slice with \texttt{drop = FALSE} and reshape via
+\texttt{matrix(\dots, K, 2L)} so the $K = 1$ case yields a
+$K \times 2$ matrix (not a vector) when passed to
+\texttt{ar2\_recurse}, whose body indexes \texttt{seam\_state[, j]}.
+
+\paragraph{Verification.}
+The $H = 0$ parity diagnostic of Remark~\ref{rem:checks}~(1) is
+designed to expose exactly this class of seam-indexing bug: a
+non-zero AR(2) versus i.i.d.\ score split at lead $0$ is the
+signature.
+
+\subsection{Incident A2: $z \equiv 0$ under \texttt{temporal}/\texttt{ar2} updates}
+\label{sec:audit-zinit}
+
+\paragraph{Symptom.}
+Every cell of the AR(2) method's predictive sample $\hat y$ was
+\texttt{NaN} -- $M \cdot n_s \cdot H \cdot B$ entries, zero
+finite values -- and the NaN avalanche tripped
+\texttt{checkNumeric} inside
+\texttt{scoringRules::crps\_sample}. The i.i.d.\ method (which
+uses a closed-form Gibbs update for $z$, bypassing the copula) was
+unaffected, which is what isolated the failure to the AR(2) branch.
+
+\paragraph{Root cause.}
+The half-normal copula transform applied to the latent skewness
+process is
+\begin{equation*}
+  z^\star_{k,t} = \Phi^{-1}\!\big(H_{\sigma_z}(z_{k,t})\big),
+  \qquad
+  H_{\sigma_z}(0) = 0
+  \;\Longrightarrow\;
+  \Phi^{-1}(0) = -\infty .
+\end{equation*}
+The backend default \texttt{z.init = 0} therefore feeds
+$z^\star = -\infty$ to the very first iteration of
+\texttt{updateZTS\_AR2}. The Metropolis log-ratio then evaluates the
+Gaussian transition kernel
+\texttt{ar2\_conditional\_log\_density} at $-\infty$, where its
+exponent reduces to $\infty - \infty = \mathrm{NaN}$. The acceptance
+step is guarded by \texttt{if (!is.na(R))} in
+\texttt{update\_params\_ar2.R}, which silently \emph{skips} every
+proposal when $R$ is \texttt{NaN} -- so the chain never leaves
+$z \equiv 0$ and $\phi_z \equiv \bm 0$ for any iteration, while
+$\lambda$ becomes unidentified ($\lambda \cdot z = 0$ regardless of
+$\lambda$) and its posterior wanders over $[-47, 38]$ despite the
+true $\lambda = 3$.
+
+In \texttt{forecast\_block} the seam state is then
+$z^\star_{T_o} = -\infty$, and the AR(2) recursion produces
+\begin{equation*}
+  \phi_{z,1}\cdot(-\infty) + \phi_{z,2}\cdot(-\infty)
+  = 0\cdot(-\infty) = \mathrm{NaN}
+\end{equation*}
+because $\phi_z = \bm 0$ exactly; the \texttt{NaN} cascades through
+the inverse copula and the spatial draw into every cell of
+$\hat y$.
+
+\paragraph{Fix.}
+Pass \texttt{z.init = 0.01} explicitly to \texttt{mcmc()} in
+\texttt{run-settings.R}. The first iteration's \texttt{hn.cop} then
+evaluates finitely, the MH ratio is real-valued, the chain mixes,
+and the imputed $z$, $\phi_z$, and $\lambda$ trajectories become
+non-degenerate.
+
+\paragraph{Backend follow-up.}
+The silent acceptance guard is the deeper defect: a \texttt{NaN}
+log-ratio is not a probabilistic rejection but a numerical failure,
+and conflating the two suppresses the diagnostic signal that
+matters most. A defensive patch in \texttt{updateZTS\_AR2} should
+either count \texttt{NaN} as a rejection \emph{with} a
+\texttt{warning("MH ratio NaN; chain may be stuck")}, or refuse
+\texttt{z.init <= 0} when \texttt{temporalz = TRUE} -- so the user
+sees the failure rather than absorbing it.
+
+\paragraph{Verification.}
+The $\phi = \bm 0$ collapse diagnostic of
+Remark~\ref{rem:checks}~(2) is the canonical check, but only if the
+imputed $z$ trajectory is inspected \emph{before} forecasting:
+\texttt{range(fit\$z)} stuck at $[0,0]$ is the signature, and
+\texttt{Var(fit\$lambda)} of order $10^2$ alongside truth $\lambda
+= 3$ is the corroborating tell. Both can be checked in one line per
+fit and added to the post-fit health screen of
+Remark~\ref{rem:checks}.
+
+\subsection{Incident A3: \texttt{parLapply} missing \texttt{tasks} export}
+\label{sec:audit-psock}
+
+\paragraph{Symptom.}
+The driver halted with ``\texttt{object 'tasks' not found}'' inside
+the PSOCK workers whenever \texttt{workers > 1}; the single-worker
+branch ran cleanly with the same input.
+
+\paragraph{Root cause.}
+The \texttt{parLapply} body references \texttt{tasks\$method[i]} and
+\texttt{tasks\$dataset[i]}, but \texttt{tasks} was missing from the
+\texttt{clusterExport} call. PSOCK workers serialize the function
+with its closure, but free-name lookups on the worker happen against
+the worker's global environment, not the closure -- so the symbol
+is unbound there. The single-worker branch evaluates the body in
+the script's own environment, which masks the bug entirely.
+
+\paragraph{Fix.}
+Add \texttt{"tasks"} to the \texttt{clusterExport} list. Every free
+name the worker body references must be either passed as a
+function argument or exported explicitly.
+
+\paragraph{Verification.}
+A two-worker, two-task smoke run before scaling out exposes this
+class of bug in seconds; serial-only verification cannot.
+
+\subsection{Lessons}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Silent acceptance is the worst kind of failure.} A
+        Metropolis update that returns \texttt{NaN} must either fail
+        loudly or count as a rejection \emph{with} a warning, but
+        never be hidden by an \texttt{is.na} gate; Incident A2 was
+        undetectable at the fit stage and produced a structurally
+        well-formed output array.
+  \item \textbf{Singleton dimensions are platform-specific landmines.}
+        R drops them by default; passing \texttt{drop = FALSE} or
+        restoring the axis explicitly is the only portable way to
+        write $K$-agnostic forecast code (Incident A1).
+  \item \textbf{Test the parallel path on a small grid.} PSOCK
+        scoping bugs are invisible in serial mode (Incident A3); a
+        two-worker, two-task run before fanning out is the cheapest
+        possible insurance.
+  \item \textbf{Augment Remark~\ref{rem:checks} with a pre-forecast
+        fit audit.} Confirm
+        $\Var(\mathrm{fit\$z}) > 0$,
+        $\Var(\mathrm{fit\$phi.z}) > 0$, and
+        $\mathrm{range}(\mathrm{fit\$lambda})$ concentrated near the
+        prior mode \emph{before} invoking \texttt{forecast\_block}.
+        A zero-variance $z$ trajectory is a sufficient (and very
+        cheap) diagnostic for Incident A2.
 \end{itemize}
 
 % ============================================================

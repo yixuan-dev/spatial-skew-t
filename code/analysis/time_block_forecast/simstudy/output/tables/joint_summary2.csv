@@ -1,0 +1,3 @@
+"method","label","energy_mean","vario_mean","elapsed_sec_mean","h_star","crossing_lead"
+1,"Skew-t, K=1, i.i.d. in time",11.2581175571182,171.694907771658,5064.428,3,NA
+2,"Skew-t, K=1, AR(2) temporal (tau,z,w)",29.8410486938453,815.390070929666,10652.604,3,1

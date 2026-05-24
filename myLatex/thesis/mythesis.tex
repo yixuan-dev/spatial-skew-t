@@ -348,6 +348,8 @@ Here $q(0.80)$ denotes the empirical $80$th percentile of the simulated response
 
 Two additional simulation experiments are conducted for the extensions in this thesis.  First, to evaluate the AR(2) time-varying coefficient structure, data are generated with temporal dependence in the latent $\tau$, $\bw$, and $\bz$ processes.  The experiment uses $n=100$ sites and $T=30$ time points, with $90$ sites used for training and $10$ sites withheld for prediction.  We repeat the experiment $20$ times and compare three temporal structures: no time series, AR(1), and AR(2).  Each fitted model uses a \skewt marginal distribution with $K=5$ knots and no thresholding, and the MCMC is run for $5000$ iterations with $2500$ burn-in iterations.
 
+A complementary AR(2) experiment embeds the temporal mechanism directly into the benchmark simulation, so that the AR(2) analysis model can be tested against data with a known autoregressive structure.  Two further data-generating settings are added.  Both produce one-knot \skewt data ($K=1$, $\lambda=3$) on the same $n_s=144$ sites and $n_t=50$ time points as the benchmark, but the latent $\tau$, $\bw$, and $z$ processes now evolve through a fixed AR(2) recursion \eref{eq:ar2-w}--\eref{eq:ar2-sigma} whose coefficients are held constant across time.  Setting~9 uses a strongly dependent coefficient pair $(\phi_1, \phi_2) = (0.80, -0.35)$, and Setting~10 a weakly dependent pair $(\phi_1, \phi_2) = (0.12, -0.05)$; both pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  For each setting, $50$ data sets are simulated and split into $100$ training and $44$ validation sites.  Each data set is fit by seven analysis methods: the five baseline models listed above, together with two AR(2)-augmented \skewt models---one with $K=1$ knot and one with $K=5$ knots---whose time-varying coefficients follow the AR(2) prior \eref{eq:ar2-w}--\eref{eq:ar2-sigma}.  Because the data are themselves generated with AR(2) dependence, this comparison gives the temporal extension its most favorable test.
+
 Second, to evaluate the MRTS covariate extension, we augment the original five models with multi-resolution thin-plate spline basis functions \parencite{tzeng_resolution_2018}.  These basis functions are added to the regression component in order to capture nonstationary spatial structure that may not be fully represented by a stationary \Matern covariance.  We focus on simulation settings 4 and 5: setting 4 is a one-knot \skewt data-generating process with $\lambda=3$, and setting 5 is a five-knot partitioned \skewt data-generating process with $\lambda=3$.  For setting 4, each original model is compared with versions using $10$, $15$, and $20$ MRTS covariates.  For setting 5, each original model is compared with a version using $15$ MRTS covariates.  Each setting uses $50$ simulated data sets, and each MCMC chain is run for $20000$ iterations with $10000$ burn-in iterations.
 
 \subsection{Cross validation}
@@ -361,6 +363,33 @@ For the extension experiments, we also record MAPE and quantile scores.  The qua
 \subsection{Results}
 
 The benchmark simulation supports the main conclusion of \textcite{morris_space-time_2017}: when the fitted model matches the data-generating mechanism, it tends to improve predictive performance, and when the data are non-Gaussian the \skewt models generally improve over a Gaussian model.  Thresholded models are not uniformly better in the simulation setting, which is expected because most simulated data are generated directly from the full \skewt model rather than from a censored tail model.  The simulation therefore confirms that the \skewt framework provides flexibility for asymmetric and heavy-tailed data while remaining competitive with Gaussian methods when the data are light-tailed and symmetric.
+
+Figure~\ref{fig:bs-rel-ar2-fixed} examines the AR(2) extension directly.  All seven analysis methods are fitted to the two fixed-AR(2) data-generating settings, and for each method the Brier score is plotted relative to the Gaussian model across upper-tail threshold quantiles.  A value below the dashed reference line at $1$ means the method predicts exceedances better than the Gaussian baseline at that quantile, and a value above it means worse.
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{../img/bs_rel_gauss_by_quantile-set9-K0.pdf}
+  \caption{Setting~9: strong AR(2) dependence, $(\phi_1, \phi_2) = (0.80, -0.35)$.}
+  \label{fig:bs-rel-set9}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{../img/bs_rel_gauss_by_quantile-set10-K0.pdf}
+  \caption{Setting~10: weak AR(2) dependence, $(\phi_1, \phi_2) = (0.12, -0.05)$.}
+  \label{fig:bs-rel-set10}
+\end{subfigure}
+\caption{Relative Brier score (versus the Gaussian model) by threshold quantile for the seven analysis methods fitted to the fixed-AR(2) data-generating settings.  Values below the dashed reference line at $1$ indicate better exceedance prediction than the Gaussian baseline; values above it indicate worse.}
+\label{fig:bs-rel-ar2-fixed}
+\end{figure}
+
+Under strong serial dependence (Setting~9, Figure~\ref{fig:bs-rel-set9}), every \skewt and symmetric-$t$ method except the five-knot thresholded $t$-model improves on the Gaussian baseline, with relative Brier scores between roughly $0.94$ and $0.98$.  The one-knot \skewt model, which matches the $K=1$ data-generating truth, is the best method, with a relative score near $0.95$.  Critically, adding the AR(2) temporal structure does not help: the one-knot AR(2) \skewt curve sits essentially on top of---and slightly above---the one-knot non-temporal \skewt curve, and the five-knot AR(2) model tracks its non-temporal counterpart.  The five-knot thresholded $t$-model is the only method worse than Gaussian, and its relative score degrades sharply at the $0.99$ quantile.
+
+Under weak serial dependence (Setting~10, Figure~\ref{fig:bs-rel-set10}) the pattern shifts.  The five-knot \skewt and five-knot thresholded $t$ models are now clearly best, with relative Brier scores mostly between about $0.88$ and $0.94$, while the one-knot models---including the one-knot AR(2) model---are essentially indistinguishable from the Gaussian baseline.  Once again the AR(2) and non-temporal curves nearly coincide at each knot count.  Far-tail estimates are noisy: at the $0.995$ quantile several methods rise above $1$ because few observations exceed such extreme thresholds.
+
+Two messages emerge.  First, on data that are explicitly generated with AR(2) dependence---the most favorable possible setting for the temporal extension---fitting an AR(2) analysis model yields no measurable Brier-score gain over the corresponding non-temporal \skewt model at any quantile.  Predictive accuracy is governed by the marginal and spatial flexibility of the model, namely the \skewt margin and the number of knots, rather than by the autoregressive order of the latent coefficients.  Second, the preferred knot count depends on the dependence regime: strong temporal dependence favors the parsimonious one-knot model that matches the generating truth, whereas weak dependence favors the richer five-knot partition.  This reinforces the conclusion that the AR(2) structure should be treated as a candidate option rather than a default improvement.
 
 To integrate the proposed extensions in one comparison framework, we summarize AR(2) and MRTS evidence together.  For AR(2), Table~\ref{tab:sim-ar2-missing-location} reports selected quantitative results from the detailed missing-at-location experiments in \texttt{ar2\_extend\_detail\_doc.md}.  Across scenarios, AR(2) sometimes improves mid-tail Brier scores (for example BS90/BS95 in stronger-dependence settings), but AR(1) or no-time-series can still be preferable for runtime or at specific tail levels.  This reinforces that temporal flexibility does not imply uniform predictive dominance.
 

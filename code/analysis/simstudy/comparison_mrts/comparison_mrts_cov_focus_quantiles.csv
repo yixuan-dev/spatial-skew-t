@@ -1,4 +1,0 @@
-"family","mrts_k","quantile","quantile_band","n_settings","n_improved_brier","win_rate_brier","mean_improve_brier_pct","n_improved_quant","win_rate_quant","mean_improve_quant_pct"
-"gaussian",10,0.95,"bulk",1,1,1,0.226639747699998,1,1,0.00386809580431791
-"gaussian",10,0.98,"tail",1,0,0,-0.0586054577618321,1,1,0.0141993222593616
-"gaussian",10,0.99,"tail",1,0,0,-0.0129268324092753,1,1,0.000123897073939554

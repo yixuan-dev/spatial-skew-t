@@ -113,6 +113,12 @@ run_method <- function(method_id, dataset_id) {
     x.block <- x[, blk$test_times, , drop = FALSE]
 
     # fit on the prefix; every site observed, so no s.pred / x.pred.
+    # z.init = 0 (the backend default) is fatal for the temporal/AR(2) z
+    # update: hn.cop(0, sig) = qnorm(phn(0, sig)) = -Inf, the MH ratio R
+    # becomes NaN, and the `if (!is.na(R))` guard in updateZTS_AR2
+    # silently rejects every proposal -- z and phi.z stay stuck at 0,
+    # producing all-NaN forecasts. A small positive initial value lets
+    # hn.cop evaluate finitely on the very first iteration.
     fit <- mcmc(
       y = y.train, x = x.train, s = s,
       method = "t", skew = isTRUE(spec$skew[1]),
@@ -126,6 +132,7 @@ run_method <- function(method_id, dataset_id) {
       ar2_w = isTRUE(spec$ar2[1]),
       ar2_tau = isTRUE(spec$ar2[1]),
       ar2_z = isTRUE(spec$ar2[1]),
+      z.init = 0.01,
       rho.upper = 15, nu.upper = 10
     )
 
@@ -191,7 +198,7 @@ if (workers_use > 1) {
   })
   parallel::clusterExport(cl, c(
     "setting", "iters", "burn", "update", "thin", "results_dir",
-    "catalog", "blocks", "block_H", "block_seams", "run_method"
+    "catalog", "blocks", "block_H", "block_seams", "run_method", "tasks"
   ), envir = environment())
   parallel::parLapply(cl, seq_len(nrow(tasks)), function(i) {
     run_method(tasks$method[i], tasks$dataset[i])
