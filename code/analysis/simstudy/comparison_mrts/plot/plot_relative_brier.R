@@ -157,10 +157,26 @@ method_label_map <- c(
     "5" = "t, K=5, q(0.80)"
 )
 # Data-generating process label per setting id (for figure title).
-dgp_label_map <- c(
-    "4" = "Skew-t (K=1, λ=3)",
-    "5" = "Skew-t (K=5, λ=3)"
+# Stored as bquote() language objects so math symbols (lambda, italic t)
+# render through mtext / title.
+dgp_label_map <- list(
+    "1"  = bquote("Gaussian"),
+    "2"  = bquote(italic(t) * " (K=1)"),
+    "3"  = bquote(italic(t) * " (K=5)"),
+    "4"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3)"),
+    "5"  = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3)"),
+    "6"  = bquote("Max-stable, Reich and Shaby"),
+    "7"  = bquote("Transformed Skew-" * italic(t) * ", T=q(0.80)"),
+    "8"  = bquote("Max-stable, Brown-Resnick"),
+    "9"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
+                    phi[1] * "=0.8, " * phi[2] * "=-0.35"),
+    "10" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
+                    phi[1] * "=0.12, " * phi[2] * "=-0.05")
 )
+dgp_expr <- function(setting_id) {
+    expr <- dgp_label_map[[as.character(setting_id)]]
+    if (is.null(expr)) bquote("setting" ~ .(setting_id)) else expr
+}
 
 verify_methods <- function(cache, needed) {
     miss <- setdiff(needed, cache$methods)
@@ -360,11 +376,7 @@ for (panel_name in levels(plot_df$panel)) {
     )
 }
 
-dgp_label <- dgp_label_map[as.character(setting_id)]
-if (is.na(dgp_label)) {
-    dgp_label <- sprintf("setting %d", setting_id)
-}
-mtext(sprintf("Data: %s", dgp_label),
+mtext(bquote("Data: " ~ .(dgp_expr(setting_id))),
     outer = TRUE, cex = 1.3, font = 2, line = 0.7
 )
 dev.off()

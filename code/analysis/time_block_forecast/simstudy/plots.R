@@ -76,6 +76,34 @@ method_label <- vapply(methods, function(m) {
 H <- block_H
 set_tag <- sprintf("set%d%s", setting_id, data_suffix)
 
+# Data-generating process label per setting id (for figure titles).
+# Stored as bquote() language objects so math symbols render through
+# plot() main / mtext().
+dgp_label_map <- list(
+  "1"  = bquote("Gaussian"),
+  "2"  = bquote(italic(t) * " (K=1)"),
+  "3"  = bquote(italic(t) * " (K=5)"),
+  "4"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3)"),
+  "5"  = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3)"),
+  "6"  = bquote("Max-stable, Reich and Shaby"),
+  "7"  = bquote("Transformed Skew-" * italic(t) * ", T=q(0.80)"),
+  "8"  = bquote("Max-stable, Brown-Resnick"),
+  "9"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
+                  phi[1] * "=0.8, " * phi[2] * "=-0.35"),
+  "10" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
+                  phi[1] * "=0.12, " * phi[2] * "=-0.05")
+)
+# dgp_title(): expression built from setting_id + data_suffix,
+# optionally suffixed by an extra `bquote(...)` snippet for context.
+dgp_title <- function(suffix_expr = NULL) {
+  base <- dgp_label_map[[as.character(setting_id)]]
+  if (is.null(base)) base <- bquote(paste("setting ", .(setting_id)))
+  if (nzchar(data_suffix)) {
+    base <- bquote(.(base) ~ .(paste0("[", data_suffix, "]")))
+  }
+  if (is.null(suffix_expr)) base else bquote(.(base) * ", " * .(suffix_expr))
+}
+
 cat(sprintf("plots: setting=%d cache=%s -> %s\n",
   setting_id, simresults_file, plots_dir))
 
@@ -108,10 +136,13 @@ plot_curve <- function(score_name, ylab) {
 
   # y-range must span the full +/- 1 SE band, not just the means.
   ylim <- range(c(ct$mean - ct$se, ct$mean + ct$se, ct$mean), na.rm = TRUE)
+  title_expr <- bquote("Lead-time curve - " ~ .(dgp_title()))
+  if (is.finite(h_star)) {
+    title_expr <- bquote(.(title_expr) * .(sprintf("  (h* = %d)", h_star)))
+  }
   plot(NA, xlim = c(1, H), ylim = ylim,
     xlab = "Lead time h", ylab = ylab,
-    main = sprintf("Lead-time curve - setting %d%s%s", setting_id, data_suffix,
-      if (is.finite(h_star)) sprintf("  (h* = %d)", h_star) else ""))
+    main = title_expr)
 
   # memory-horizon reference: where AR(2) and i.i.d. should converge.
   if (is.finite(h_star) && h_star >= 1 && h_star <= H) {

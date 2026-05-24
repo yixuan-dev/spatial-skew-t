@@ -101,6 +101,35 @@ skew_methods <- intersect(c(2L, 4L), methods)
 
 # ---- figures ---------------------------------------------------------
 set_tag <- sprintf("set%d%s", setting_id, data_suffix)
+
+# Data-generating process label per setting id (for figure titles).
+# Stored as bquote() language objects so math symbols render through
+# plot() main / mtext().
+dgp_label_map <- list(
+  "1"  = bquote("Gaussian"),
+  "2"  = bquote(italic(t) * " (K=1)"),
+  "3"  = bquote(italic(t) * " (K=5)"),
+  "4"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3)"),
+  "5"  = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3)"),
+  "6"  = bquote("Max-stable, Reich and Shaby"),
+  "7"  = bquote("Transformed Skew-" * italic(t) * ", T=q(0.80)"),
+  "8"  = bquote("Max-stable, Brown-Resnick"),
+  "9"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
+                  phi[1] * "=0.8, " * phi[2] * "=-0.35"),
+  "10" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
+                  phi[1] * "=0.12, " * phi[2] * "=-0.05")
+)
+# dgp_title(): expression built from setting_id + data_suffix,
+# optionally suffixed by an extra `bquote(...)` snippet for context.
+dgp_title <- function(suffix_expr = NULL) {
+  base <- dgp_label_map[[as.character(setting_id)]]
+  if (is.null(base)) base <- bquote(paste("setting ", .(setting_id)))
+  if (nzchar(data_suffix)) {
+    base <- bquote(.(base) ~ .(paste0("[", data_suffix, "]")))
+  }
+  if (is.null(suffix_expr)) base else bquote(.(base) * ", " * .(suffix_expr))
+}
+
 mlty <- c(1, 1, 3, 3, 5)
 mpch <- c(21, 22, 23, 24, 25)
 mcol <- c("gray30", "firebrick4", "dodgerblue4", "firebrick1", "dodgerblue1")
@@ -120,8 +149,7 @@ plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
          pch = mpch[1], lty = mlty[1], col = mcol[1], bg = mbg[1],
          xlab = "Threshold quantile",
          ylab = sprintf("Relative %s score (vs. Gaussian)", score_lab),
-         main = sprintf("Setting %d%s, prop_k = %d",
-                        setting_id, data_suffix, prop_ks[ki]))
+         main = dgp_title(bquote(prop_k == .(prop_ks[ki]))))
     abline(h = 1, lty = 2, col = "gray60")
     for (j in 2:n_methods) {
       lines(probs, mat[, j], lty = mlty[j], col = mcol[j])
@@ -154,8 +182,7 @@ if (n_ks >= 2) {
            pch = mpch[1], lty = mlty[1], col = mcol[1], bg = mbg[1],
            xlab = "prop basis rank K",
            ylab = sprintf("Mean %s score", score_lab),
-           main = sprintf("Setting %d%s, q = %.3f",
-                          setting_id, data_suffix, probs[qi]))
+           main = dgp_title(bquote(q == .(sprintf("%.3f", probs[qi])))))
       for (j in 2:n_methods) {
         lines(prop_ks, mat[j, ], lty = mlty[j], col = mcol[j])
         points(prop_ks, mat[j, ], pch = mpch[j], col = mcol[j], bg = mbg[j])
