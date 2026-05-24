@@ -155,9 +155,9 @@
 \section*{摘要}
 \addcontentsline{toc}{section}{摘要}
 
-USA EPA 的目的之一，利用 AQS 校正 CMAQ 的預測值，因為 CMAQ 的尾部預測較差。Morris 用 skew-t process 及 matern covariance modeling guassian noise term 來校正 CMAQ 的預測值。 Morris 還在建模上設計有 time-varing coefficients with AR(1) structure, censoring to the tail, partition 的開關讓使用者更有彈性去建模。我的論文的目的在於將 time-varing coefficients expand to AR(2) structure, and incorporate multiple resolution thin-plate splines basis functions as covariates to improve modeling non-stationarity spatial dependence. 給予使用者更多的彈性去見模，並且提升模型的預測能力。
+為提升美國環境保護署 (US EPA) 對地面臭氧高值的監測能力，\textcite{morris_space-time_2017} 提出以時空 \skewt 過程為基礎的階層式貝氏模型，利用 AQS 監測站資料校正 CMAQ 化學傳輸模式在尾端的預測偏差。該模型結合 \Matern 協方差結構、空間隨機分割、上尾門檻檢查，以及 AR(1) 形式的時變參數，同時刻劃空間非定態性與時間相依性。本論文在此基礎上提出兩項延伸：其一，將時變參數的 AR(1) 先驗推廣為穩態 AR(2) 先驗，並透過 Yule--Walker 關係維持單位邊際變異數，使模型在保有原 \skewt 邊際結構的條件下捕捉更長距離的時間相依；其二，將多重解析度薄板樣條 (MRTS) 基底函數納入迴歸成分，以彌補定態 \Matern 協方差難以表現的非定態空間結構。模擬研究與美國臭氧資料分析皆顯示，所提兩項延伸在部分上尾分位下可獲得較原 Morris 模型更低之 Brier 分數，惟其優勢非全面性，而視資料生成機制及目標尾端水準而定。本文因此建議將 AR(2) 與 MRTS 兩種設定納入候選模型集合，並以樣本外預測分數作為最終選模依據。
 
-\textbf{關鍵字}：
+\textbf{關鍵字}：時空 \skewt 過程、AR(2) 時變參數、多重解析度薄板樣條、隨機分割、階層式貝氏模型、臭氧預測
 
 
 %% 空白頁
@@ -173,9 +173,9 @@ USA EPA 的目的之一，利用 AQS 校正 CMAQ 的預測值，因為 CMAQ 的�
 \section*{Abstract}
 \addcontentsline{toc}{section}{Abstract}
 
-To more accurately calibrate CMAQ by the ozone site data, Morris develope partition, threshold, AR(1) time-varying coefficients based on spatial skew-t process. To let model more scalable, we extend the time-varying coefficients to AR(2) structure. And incorporate the multiple thin-plate spline basis functions as covariates to capture the non-staionary spatial dependence. We find that in some level of exceedance, the model with the AR(2) time varying coefficients or the mrts covariates have a lower brier score than the Morris model. Give user more choice in model selection.
+To improve the calibration of Community Multiscale Air Quality (CMAQ) model output by ground-level ozone monitoring data, \textcite{morris_space-time_2017} developed a hierarchical Bayesian framework based on a spatio-temporal \skewt process, combining a \Matern covariance, a random spatial partition, upper-tail censoring, and AR(1) time-varying coefficients to characterize non-stationary spatial dependence and temporal persistence.  This thesis extends that framework in two directions.  First, the AR(1) prior on the time-varying latent parameters is generalized to a stationary AR(2) prior, with Yule--Walker constraints used to preserve unit marginal variance and hence the spatial \skewt marginal structure at every time point.  Second, multi-resolution thin-plate spline (MRTS) basis functions are incorporated into the regression component to capture non-stationary spatial structure that the stationary \Matern covariance cannot represent.  Simulation studies and an analysis of U.S.\ ozone observations show that both extensions can achieve lower Brier scores than the original Morris model at selected upper-tail exceedance levels, although neither extension dominates uniformly across data-generating mechanisms or target quantiles.  The proposed extensions therefore enlarge the candidate model class and should be selected among using held-out predictive scores rather than treated as default replacements for the AR(1) baseline.
 
-\textbf{Keywords}: 
+\textbf{Keywords}: spatio-temporal \skewt process; AR(2) time-varying coefficients; multi-resolution thin-plate splines; random partition; hierarchical Bayesian modeling; ozone prediction
 
 
 
@@ -391,7 +391,7 @@ Under weak serial dependence (Setting~10, Figure~\ref{fig:bs-rel-set10}) the pat
 
 Two messages emerge.  First, on data that are explicitly generated with AR(2) dependence---the most favorable possible setting for the temporal extension---fitting an AR(2) analysis model yields no measurable Brier-score gain over the corresponding non-temporal \skewt model at any quantile.  Predictive accuracy is governed by the marginal and spatial flexibility of the model, namely the \skewt margin and the number of knots, rather than by the autoregressive order of the latent coefficients.  Second, the preferred knot count depends on the dependence regime: strong temporal dependence favors the parsimonious one-knot model that matches the generating truth, whereas weak dependence favors the richer five-knot partition.  This reinforces the conclusion that the AR(2) structure should be treated as a candidate option rather than a default improvement.
 
-To integrate the proposed extensions in one comparison framework, we summarize AR(2) and MRTS evidence together.  For AR(2), Table~\ref{tab:sim-ar2-missing-location} reports selected quantitative results from the detailed missing-at-location experiments in \texttt{ar2\_extend\_detail\_doc.md}.  Across scenarios, AR(2) sometimes improves mid-tail Brier scores (for example BS90/BS95 in stronger-dependence settings), but AR(1) or no-time-series can still be preferable for runtime or at specific tail levels.  This reinforces that temporal flexibility does not imply uniform predictive dominance.
+A complementary set of missing-at-location experiments places the AR(2), AR(1), and no-time-series specifications against a range of dependence regimes; the resulting Brier scores at the $0.90$, $0.95$, and $0.99$ exceedance levels are collected in Table~\ref{tab:sim-ar2-missing-location}.  AR(2) improves mid-tail Brier scores in some scenarios -- most visibly when one or more of the latent autoregressive coefficients is large -- but AR(1) or the no-time-series baseline remains preferable in other scenarios or at specific tail levels, and the gains over AR(1) are typically smaller than the gap between any time-series model and the no-time-series baseline in runtime.  Temporal flexibility therefore does not translate into uniform predictive dominance.
 
 \begin{table}[htbp]
 \centering
@@ -406,11 +406,46 @@ All small $\phi$ & 0.0267/0.0267/0.0266 & 0.0178/0.0178/0.0179 & 0.0059/0.0060/0
 Big $\phi_{\tau}$, others small & 0.0388/0.0390/0.0389 & 0.0181/0.0182/0.0182 & 0.0045/0.0044/0.0043 & 135.17/134.59/102.93 \\
 \bottomrule
 \end{tabular}
-\caption{Selected AR(2) simulation results under missing-at-location settings.  Values are moved from \texttt{ar2\_extend\_detail\_doc.md}; lower values indicate better performance.}
+\caption{Selected AR(2) simulation results under missing-at-location settings; lower values indicate better predictive performance.}
 \label{tab:sim-ar2-missing-location}
 \end{table}
 
-For MRTS, the simulation evidence is more pattern-based than scenario-wise dominant: in setting 4 and setting 5, adding MRTS covariates can improve some upper-tail Brier or quantile scores, but the gains are not stable across all model families and quantile levels.  Increasing the number of MRTS covariates also increases computation time, especially when $K_{\text{MRTS}}=20$.  Table~\ref{tab:sim-integrated-extensions} places AR(2) and MRTS side-by-side as proposed extensions in a common decision summary.
+The MRTS evidence is qualitatively similar: in settings~4 and~5, augmenting the regression component with MRTS basis functions can improve selected upper-tail Brier or quantile scores, but the gains are not stable across model families or quantile levels, and computation time grows visibly with $K_{\text{MRTS}}$, most clearly at $K_{\text{MRTS}}=20$.
+
+Figures~\ref{fig:bs-rel-set4-mrts} and~\ref{fig:bs-rel-set5-mrts} make this explicit by comparing methods 2--5 (\skewt and symmetric-$t$ with $K=1$ or $K=5$ knots) at high threshold quantiles ($0.90 \le q \le 0.995$), with each figure showing two side-by-side panels: the left panel is the no-MRTS baseline and the right panel adds an MRTS basis of rank $K_{\text{MRTS}}$.  All scores are normalized by the Gaussian baseline (method~1) computed without MRTS, so values below the dashed reference line at $1$ indicate better exceedance prediction than the Gaussian baseline.  Setting~4 (\skewt with $K=1$ knot, $\lambda=3$) is shown for $K_{\text{MRTS}} \in \{10,15,20\}$ in Figure~\ref{fig:bs-rel-set4-mrts}, and setting~5 (\skewt with $K=5$ knots, $\lambda=3$) is shown for $K_{\text{MRTS}}=15$ in Figure~\ref{fig:bs-rel-set5-mrts}.
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[t]{0.95\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K10.png}
+  \caption{$K_{\text{MRTS}}=10$.}
+  \label{fig:bs-rel-set4-K10}
+\end{subfigure}\\[0.5ex]
+\begin{subfigure}[t]{0.95\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K15.png}
+  \caption{$K_{\text{MRTS}}=15$.}
+  \label{fig:bs-rel-set4-K15}
+\end{subfigure}\\[0.5ex]
+\begin{subfigure}[t]{0.95\textwidth}
+  \centering
+  \includegraphics[width=\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K20.png}
+  \caption{$K_{\text{MRTS}}=20$.}
+  \label{fig:bs-rel-set4-K20}
+\end{subfigure}
+\caption{Setting~4 (data-generating process: \skewt with $K=1$ knot, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline at threshold quantiles $0.90 \le q \le 0.995$.  Each row shows the baseline (left) and the same methods with an MRTS basis of the indicated rank added (right).  The matching method (\skewt with $K=1$, method~2) is best at every quantile, the over-specified five-knot threshold-$t$ method (method~5) is worse than Gaussian, and the right panels are nearly indistinguishable from the left panels across all three values of $K_{\text{MRTS}}$.}
+\label{fig:bs-rel-set4-mrts}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{../img/setting5_relative_brier_method2to5_vs_mrts-K15.png}
+\caption{Setting~5 (data-generating process: \skewt with $K=5$ knots, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline; left panel is the no-MRTS baseline, right panel adds an MRTS basis of rank $K_{\text{MRTS}}=15$.  The matching five-knot \skewt method (method~4) is decisively the best across all quantiles, with relative Brier scores between roughly $0.84$ and $0.92$.  All four methods improve on the Gaussian baseline, in contrast with setting~4 where the over-specified method~5 was worse than Gaussian.  The right panel mirrors the left panel closely, indicating that the MRTS basis adds little beyond what the spatial \skewt structure already captures.}
+\label{fig:bs-rel-set5-mrts}
+\end{figure}
+
+Two consistent patterns emerge.  First, the data-generating knot count is the dominant axis: in setting~4 the one-knot \skewt method (method~2) is best at every quantile, and in setting~5 the five-knot \skewt method (method~4) is best at every quantile.  Mis-specifying $K$ on the under-side (fitting $K=1$ to a $K=5$ truth, as method~2 does in setting~5) gives only marginal gains over Gaussian, whereas mis-specifying $K$ on the over-side (fitting $K=5$ to a $K=1$ truth, as method~4 does in setting~4) is competitive but not optimal.  Second, the MRTS basis is essentially flat across the configurations studied here: for both settings and for every $K_{\text{MRTS}} \in \{10,15,20\}$, the right (with-MRTS) panel reproduces the left (without-MRTS) panel almost exactly.  The MRTS basis therefore does not change the within-setting ranking, and its modest cost at $K_{\text{MRTS}}=20$ is not repaid by tail-score improvement under these data-generating processes.  Table~\ref{tab:sim-integrated-extensions} places AR(2) and MRTS side-by-side as proposed extensions in a common decision summary.
 
 \begin{table}[htbp]
 \centering
@@ -427,17 +462,26 @@ MRTS covariates & Benchmark simulation settings 4--5 with additional multi-resol
 \label{tab:sim-integrated-extensions}
 \end{table}
 
-Overall, the simulation study indicates that both extensions expand the usable model class, but neither extension uniformly dominates the Morris baseline.  The AR(2) structure provides temporal flexibility, and MRTS covariates enrich spatial nonstationarity representation; however, their empirical benefits depend on data-generating conditions and target exceedance levels.  Therefore, in the ozone analysis, AR(2) and MRTS should be treated as candidate options to be selected by held-out predictive scores.
+Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the Morris baseline.  The AR(2) prior provides temporal flexibility and the MRTS covariates enrich the spatial regression component, yet their empirical benefits depend on the data-generating mechanism and on the target exceedance level.  In the ozone analysis that follows, AR(2) and MRTS specifications are therefore treated as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) Morris model.
 
-\textbf{Recommended additional experiments to strengthen logical completeness:}
-
-\textbf{(1) Add a full AR(2) vs AR(1) vs NoTS experiment under the exact benchmark simulation design ($n_s=144$, $n_t=50$, same train/test split as Morris), so temporal-structure comparisons are directly comparable with the baseline five-model benchmark.}
-
-\textbf{(2) Add a factorial AR(2)$\times$MRTS experiment (e.g., AR(2) with $K_{\text{MRTS}}=0,10,15,20$) to test whether temporal flexibility and nonstationary covariates are complementary or redundant.  This is currently missing, so the thesis cannot yet quantify interaction effects between the two proposed extensions.}
-
-\textbf{(3) Add replicated uncertainty summaries (mean $\pm$ SD or median with interval) for all MRTS comparisons at each exceedance/quantile level, matching the AR(2) detailed tables, to improve comparability and statistical interpretability.}
-
-\textbf{(4) Add sensitivity analysis for MCMC budget (short vs long chains) and report score stability per unit time, so computational cost comparisons between AR(2), AR(1), NoTS, and MRTS variants are on a fair basis.}
+% --------------------------------------------------------------
+% Author note (not for inclusion in final thesis):
+% Recommended additional experiments to strengthen logical completeness:
+%   (1) Full AR(2) vs AR(1) vs NoTS experiment under the exact benchmark
+%       simulation design (n_s=144, n_t=50, same train/test split as Morris),
+%       so temporal-structure comparisons are directly comparable with the
+%       baseline five-model benchmark.
+%   (2) Factorial AR(2) x MRTS experiment (e.g., AR(2) with K_MRTS=0,10,15,20)
+%       to test whether temporal flexibility and nonstationary covariates are
+%       complementary or redundant; currently the thesis cannot quantify
+%       interaction effects between the two proposed extensions.
+%   (3) Replicated uncertainty summaries (mean +/- SD or median with interval)
+%       for all MRTS comparisons at each exceedance/quantile level, matching
+%       the AR(2) detailed tables.
+%   (4) Sensitivity analysis for MCMC budget (short vs long chains) and score
+%       stability per unit time, so computational-cost comparisons between
+%       AR(2), AR(1), NoTS, and MRTS variants are on a fair basis.
+% --------------------------------------------------------------
 
 \section{Ozone data analysis}
 
@@ -457,7 +501,7 @@ Each MCMC chain is run for $30000$ iterations with $25000$ burn-in iterations.  
 
 \subsection{Results}
 
-The real-data results support the use of a broader model class than the original baseline alone.  In the enlarged ozone comparison, the top two models for Brier and quantile scores at the upper-tail levels include AR(2) and MRTS variants.  Tables~\ref{tab:ozone-top2-brier} and~\ref{tab:ozone-top2-quantile} summarize the leading models in the primary 400-site training and 400-site validation comparison.  At the 0.90 Brier threshold, the best model is an MRTS \skewt specification and the runner-up is the corresponding Morris \skewt specification, with nearly indistinguishable scores.  At higher thresholds, the leading model changes across score levels: AR2 models lead the Brier comparisons at 0.95 and 0.995 and the quantile-score comparisons at 0.98, 0.99, and 0.995, whereas Morris \skewt or symmetric-$t$ specifications remain strongest at some intermediate extreme thresholds.
+The real-data results support enlarging the candidate model class beyond the Morris baseline.  Tables~\ref{tab:ozone-top2-brier} and~\ref{tab:ozone-top2-quantile} list the top two models, by Brier score and by quantile score respectively, in the primary 400-train/400-validation comparison.  AR(2) and MRTS variants appear repeatedly among the leading specifications: at the $0.90$ Brier level the best model is an MRTS \skewt specification, only marginally ahead of the corresponding Morris specification; AR(2) models lead the Brier comparisons at $0.95$ and $0.995$ and the quantile-score comparisons at $0.98$, $0.99$, and $0.995$.  At intermediate exceedance levels, however, Morris \skewt or symmetric-$t$ specifications remain strongest, so no single proposed extension dominates the entire tail.
 
 \begin{table}[htbp]
 \centering
@@ -495,7 +539,7 @@ Level & Rank 1 model & Score & Rank 2 model & Score \\
 \label{tab:ozone-top2-quantile}
 \end{table}
 
-The ranking is not concentrated on a single universal model.  Across Brier scores, the strongest settings typically combine CMAQ, a time-series component, moderate to high thresholds, and a small to moderate number of knots.  Across quantile scores, AR(2) settings appear frequently among the best-ranked models, especially for $q(0.95)$ and above.  MRTS settings are more selective: they improve some tail exceedance scores, but they are not uniformly preferred across all scores or quantile levels.
+The ranking does not concentrate on a single universally optimal specification.  Among the Brier-score leaders, the strongest settings typically combine CMAQ, a time-series component, a moderate-to-high censoring threshold, and a small-to-moderate number of knots.  Among the quantile-score leaders, AR(2) specifications appear frequently, particularly at $q(0.95)$ and above.  MRTS specifications are more selective: they improve certain tail exceedance scores but are not uniformly preferred across all score types or quantile levels.
 
 
 \begin{table}[htbp]
@@ -535,26 +579,29 @@ Level & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
 \label{tab:ozone-top4-quantile-200-200}
 \end{table}
 
-The small-sample stability check gives a similar but not identical conclusion.  The primary 400/400 split uses empirical thresholds 73.25, 79.75, 88.50, 94.75, and 100.52 for the 0.90, 0.95, 0.98, 0.99, and 0.995 Brier comparisons, respectively.  Under this split, the top setting numbers across these thresholds are 204, 111, 58, 68, and 124.  When the experiment is repeated with 300 training sites and 100 validation sites, the leading settings become 204, 70, 204, 117, and 15; with 200 training sites and 200 validation sites, they become 54, 117, 215, 58, and 29.  Thus, the same broad model families remain competitive, but the exact best setting changes across thresholds and sample splits.  This instability is expected because extreme-ozone validation uses relatively few exceedances, especially at the 0.99 and 0.995 levels.  Consequently, the real-data analysis should not be read as identifying a single universally optimal tuning setting, but as evidence that AR(2) and MRTS versions are useful additions to the candidate pool when the target is held-out tail prediction.
+To gauge how stable these rankings are to the train/validation split, we repeat the comparison at two smaller training sizes.  In the primary 400/400 split the empirical Brier thresholds at $0.90$, $0.95$, $0.98$, $0.99$, and $0.995$ are $73.25$, $79.75$, $88.50$, $94.75$, and $100.52$~ppb, and the top settings at these levels are numbered $204$, $111$, $58$, $68$, and $124$ in the candidate list.  When the split is changed to 300 training and 100 validation sites, the corresponding leaders become $204$, $70$, $204$, $117$, and $15$; with 200 training and 200 validation sites they become $54$, $117$, $215$, $58$, and $29$.  The same broad model families (Morris \skewt, AR(2), and MRTS variants) remain competitive across all three splits, but the exact best-ranked setting shifts with the split and the exceedance level.  Such instability is expected: at the $0.99$ and $0.995$ levels only a handful of validation observations exceed the threshold, so the ranking is sensitive to which sites happen to fall in the held-out set.  The real-data analysis therefore should not be read as identifying a single universally optimal specification, but as evidence that AR(2) and MRTS variants are valuable additions to the candidate pool when the inferential target is held-out tail prediction.
 
-Overall, the real-data analysis provides stronger practical motivation for the proposed extensions than the simulation study alone.  The AR(2) extension gives additional temporal flexibility and appears in the leading models for several tail quantile scores.  The MRTS extension gives a way to enrich the spatial regression component and can improve selected exceedance scores.  Therefore, the final modeling recommendation is not to replace the Morris model by a single proposed specification, but to include AR(2) and MRTS versions in the candidate pool and select among them using held-out Brier and quantile scores.
+Overall, the real-data analysis provides a stronger practical motivation for the proposed extensions than the simulation study alone.  AR(2) yields additional temporal flexibility and appears among the leading models for several upper-tail quantile scores; MRTS enriches the spatial regression component and improves selected exceedance scores.  The final modelling recommendation, accordingly, is not to replace the Morris baseline by a single proposed specification, but to include AR(2) and MRTS variants in the candidate pool and to select among them using held-out Brier and quantile scores on the application of interest.
 
 \section{MERRA-2 data analysis}
-This preliminary analysis is conducted on MERRA-2 hourly surface-temperature data to assess whether temporal extensions provide practical predictive gains in a controlled medium-size setting.  We use $100$ spatial locations and $100$ hourly time points, with longitude and latitude retained for each site.
+
+To complement the ozone case study with a controlled medium-size benchmark, we conduct a preliminary analysis on hourly surface-temperature output from the MERRA-2 reanalysis.  The objective is to assess whether the AR(2) temporal extension yields measurable predictive gains in a regime where the data are smoother and less tail-dominated than ground-level ozone.  The data comprise $n_s = 100$ spatial locations observed at $n_t = 100$ consecutive hourly time points, with longitude and latitude retained for each site.
 
 \subsection{Data preprocessing and model setup}
 
-We randomly split the sites into training and testing sets using seed $123$, with $70\%$ of sites used for model fitting and $30\%$ reserved for validation.  The regression design is specified as
+We randomly split the sites into training and validation subsets using seed $123$, allocating $70\%$ of the sites to model fitting and the remaining $30\%$ to held-out evaluation.  The regression design uses an intercept and a first-order spatial trend,
+\begin{align}
+  \bX_t(\bs) = [1,\; s_1,\; s_2]^\top,
+\end{align}
+where $s_1$ and $s_2$ are the longitude and latitude of site $\bs$.  Because the covariates are not standardized in this experiment, we set \texttt{nu.upper = 10} so that the smoothness parameter $\nu$ of the \Matern covariance cannot drift into the numerically unstable large-$\nu$ regime during MCMC.
 
-so each time point has an intercept and first-order spatial trend terms.  Because the covariates are not standardized in this experiment, we set \texttt{nu.upper = 10} to stabilize posterior exploration and avoid unstable large-$\nu$ behavior during MCMC.
-
-All three temporal specifications are fitted under the same core configuration (\skewt margin, \Matern covariance, $K=5$ knots, and no censoring threshold) to isolate the effect of temporal structure.  Following the real-data experiment setup, each chain is run for $20000$ iterations with $10000$ burn-in iterations, yielding $10000$ retained posterior draws per model.
+To isolate the effect of temporal structure, the three temporal specifications -- no time series, AR(1), and AR(2) -- share the same core configuration: a \skewt margin, a \Matern covariance, $K=5$ knots, and no censoring threshold.  Each chain is run for $20\,000$ iterations with the first $10\,000$ discarded as burn-in, yielding $10\,000$ retained posterior draws per model.
 
 \subsection{Results}
 
-Table~\ref{tab:merra2-temporal-compare} summarizes quantile-score (QS) and Brier-score (BS) comparisons for no-temporal, AR(1), and AR(2) specifications.  The table shows a clear but subtle trade-off: the no-temporal model performs slightly better on the QS metrics and achieves the smallest BS at the most extreme level ($0.99$), whereas AR(2) attains the best BS at the $0.90$ and $0.95$ levels.  Because the numerical differences are very small, none of the three temporal structures dominates uniformly; instead, the preferred model depends on whether one emphasizes bulk accuracy, mid-tail exceedances, or the far tail.
+Table~\ref{tab:merra2-temporal-compare} reports quantile-score (QS) and Brier-score (BS) comparisons across the three temporal specifications.  The differences are small in absolute terms but qualitatively informative: the no-time-series model performs marginally better on the QS metrics and attains the lowest BS at the most extreme exceedance level ($0.99$), whereas AR(2) attains the best BS at the $0.90$ and $0.95$ levels.  None of the three specifications therefore dominates uniformly; the preferred model depends on whether one targets bulk predictive accuracy, mid-tail exceedance probabilities, or the far tail.
 
-The additional summary metrics reinforce this interpretation.  MAPE is slightly lower for AR(2) ($0.01058699$), with AR(1) close behind, while the no-temporal model is somewhat worse on this bulk-accuracy measure.  The $95\%$ predictive-interval coverage is also nearly identical across models (approximately $0.912$--$0.916$), which suggests that temporal dependence changes predictive sharpness more than calibration.  These modest gains come at a cost: computation time rises from about $777.26$ seconds for no-temporal to $1041.65$ seconds for AR(1) and $1075.83$ seconds for AR(2).  Taken together, the results indicate that AR(2) is a reasonable option when slightly better mid-tail behavior is desired, but the improvement is incremental rather than decisive.
+The remaining summary metrics reinforce this reading.  MAPE is slightly lower for AR(2) ($0.0106$), with AR(1) close behind, while the no-time-series model is somewhat worse on this bulk-accuracy measure.  The $95\%$ predictive-interval coverage is nearly identical across the three models ($0.912$--$0.916$), suggesting that temporal dependence affects predictive sharpness more than calibration.  These modest gains come at a non-trivial computational cost: total fitting time rises from $777.3$ seconds for the no-time-series model to $1041.7$ seconds for AR(1) and $1075.8$ seconds for AR(2).  Taken together, the MERRA-2 results suggest that AR(2) is a defensible option when slightly better mid-tail behavior is desired, but the improvement is incremental rather than decisive -- consistent with the picture obtained from the simulation study.
 
 \begin{table}[htbp]
 \centering
