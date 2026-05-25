@@ -67,7 +67,7 @@ Rscript tables-prop.R --setting=1 --data=simdata_def.RData
 Rscript plots-prop.R  --setting=1 --data=simdata_def.RData
 ```
 
-Stage 1（`scores-prop.R`）讀 `fits<suffix>/<setting>-<method>-<dataset>-p<K>.RData` 中的 `fit.1`，使用 `../../R/prop/auxfunctions.R` 的 `BrierScore` / `QuantScore`，輸出單一 `.RData` 快取：
+Stage 1（`scores-prop.R`）讀 `fits<suffix>/<setting>-<method>-<dataset>-p<K>.RData` 中的 `fit.1`，使用 `../../R/ar2/auxfunctions.R` 的 `BrierScore` / `QuantScore`，輸出單一 `.RData` 快取：
 
 - `output/results/scores<setting>-prop<suffix>.RData`：4 維分數陣列 `[probs, dataset, method, prop_k]` + 參數區間 + `elapsed_sec`
 

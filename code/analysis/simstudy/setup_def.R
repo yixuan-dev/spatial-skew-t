@@ -14,10 +14,10 @@ rm(list = ls())
 library(fields)
 library(SpatialTools)
 
-# Source prop/auxfunctions.R which now exposes:
+# Source ar2/auxfunctions.R which now exposes:
 #   CorFxDef()   - geometric-anisotropy exponential
 #   rpotspatTS() - accepts cov.type = "deformed", theta, ratio
-source("../../R/prop/auxfunctions.R")
+source("../../R/ar2/auxfunctions.R")
 
 # Pure-R override of mem() to avoid the Rcpp build of g.Rcpp.
 # When nknots = 1 every site simply maps to knot 1, but keep the

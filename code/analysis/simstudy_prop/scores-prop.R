@@ -42,7 +42,7 @@ if (length(script_arg) > 0L) {
 }
 
 source("./prop_simstudy_helpers.R")
-source("../../R/prop/auxfunctions.R")
+source("../../R/ar2/auxfunctions.R")
 
 # ---- CLI parsing -----------------------------------------------------
 cli_args <- commandArgs(trailingOnly = TRUE)

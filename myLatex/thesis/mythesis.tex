@@ -412,29 +412,12 @@ Big $\phi_{\tau}$, others small & 0.0388/0.0390/0.0389 & 0.0181/0.0182/0.0182 & 
 
 The MRTS evidence is qualitatively similar: in settings~4 and~5, augmenting the regression component with MRTS basis functions can improve selected upper-tail Brier or quantile scores, but the gains are not stable across model families or quantile levels, and computation time grows visibly with $K_{\text{MRTS}}$, most clearly at $K_{\text{MRTS}}=20$.
 
-Figures~\ref{fig:bs-rel-set4-mrts} and~\ref{fig:bs-rel-set5-mrts} make this explicit by comparing methods 2--5 (\skewt and symmetric-$t$ with $K=1$ or $K=5$ knots) at high threshold quantiles ($0.90 \le q \le 0.995$), with each figure showing two side-by-side panels: the left panel is the no-MRTS baseline and the right panel adds an MRTS basis of rank $K_{\text{MRTS}}$.  All scores are normalized by the Gaussian baseline (method~1) computed without MRTS, so values below the dashed reference line at $1$ indicate better exceedance prediction than the Gaussian baseline.  Setting~4 (\skewt with $K=1$ knot, $\lambda=3$) is shown for $K_{\text{MRTS}} \in \{10,15,20\}$ in Figure~\ref{fig:bs-rel-set4-mrts}, and setting~5 (\skewt with $K=5$ knots, $\lambda=3$) is shown for $K_{\text{MRTS}}=15$ in Figure~\ref{fig:bs-rel-set5-mrts}.
+Figures~\ref{fig:bs-rel-set4-mrts} and~\ref{fig:bs-rel-set5-mrts} make this explicit by comparing methods 2--5 (\skewt and symmetric-$t$ with $K=1$ or $K=5$ knots) at high threshold quantiles ($0.90 \le q \le 0.995$), with each figure showing two side-by-side panels: the left panel is the no-MRTS baseline and the right panel adds an MRTS basis of rank $K_{\text{MRTS}}=15$.  All scores are normalized by the Gaussian baseline (method~1) computed without MRTS, so values below the dashed reference line at $1$ indicate better exceedance prediction than the Gaussian baseline.  Setting~4 (\skewt with $K=1$ knot, $\lambda=3$) is shown in Figure~\ref{fig:bs-rel-set4-mrts}, and setting~5 (\skewt with $K=5$ knots, $\lambda=3$) in Figure~\ref{fig:bs-rel-set5-mrts}.
 
 \begin{figure}[htbp]
 \centering
-\begin{subfigure}[t]{0.95\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K10.png}
-  \caption{$K_{\text{MRTS}}=10$.}
-  \label{fig:bs-rel-set4-K10}
-\end{subfigure}\\[0.5ex]
-\begin{subfigure}[t]{0.95\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K15.png}
-  \caption{$K_{\text{MRTS}}=15$.}
-  \label{fig:bs-rel-set4-K15}
-\end{subfigure}\\[0.5ex]
-\begin{subfigure}[t]{0.95\textwidth}
-  \centering
-  \includegraphics[width=\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K20.png}
-  \caption{$K_{\text{MRTS}}=20$.}
-  \label{fig:bs-rel-set4-K20}
-\end{subfigure}
-\caption{Setting~4 (data-generating process: \skewt with $K=1$ knot, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline at threshold quantiles $0.90 \le q \le 0.995$.  Each row shows the baseline (left) and the same methods with an MRTS basis of the indicated rank added (right).  The matching method (\skewt with $K=1$, method~2) is best at every quantile, the over-specified five-knot threshold-$t$ method (method~5) is worse than Gaussian, and the right panels are nearly indistinguishable from the left panels across all three values of $K_{\text{MRTS}}$.}
+\includegraphics[width=0.95\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K15.png}
+\caption{Setting~4 (data-generating process: \skewt with $K=1$ knot, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline at threshold quantiles $0.90 \le q \le 0.995$, with $K_{\text{MRTS}}=15$.  The left panel shows the no-MRTS baseline and the right panel shows the same methods with the MRTS basis added.  The matching method (\skewt with $K=1$, method~2) is best at every quantile, the over-specified five-knot threshold-$t$ method (method~5) is worse than Gaussian, and the right panel is nearly indistinguishable from the left.}
 \label{fig:bs-rel-set4-mrts}
 \end{figure}
 
@@ -445,7 +428,7 @@ Figures~\ref{fig:bs-rel-set4-mrts} and~\ref{fig:bs-rel-set5-mrts} make this expl
 \label{fig:bs-rel-set5-mrts}
 \end{figure}
 
-Two consistent patterns emerge.  First, the data-generating knot count is the dominant axis: in setting~4 the one-knot \skewt method (method~2) is best at every quantile, and in setting~5 the five-knot \skewt method (method~4) is best at every quantile.  Mis-specifying $K$ on the under-side (fitting $K=1$ to a $K=5$ truth, as method~2 does in setting~5) gives only marginal gains over Gaussian, whereas mis-specifying $K$ on the over-side (fitting $K=5$ to a $K=1$ truth, as method~4 does in setting~4) is competitive but not optimal.  Second, the MRTS basis is essentially flat across the configurations studied here: for both settings and for every $K_{\text{MRTS}} \in \{10,15,20\}$, the right (with-MRTS) panel reproduces the left (without-MRTS) panel almost exactly.  The MRTS basis therefore does not change the within-setting ranking, and its modest cost at $K_{\text{MRTS}}=20$ is not repaid by tail-score improvement under these data-generating processes.  Table~\ref{tab:sim-integrated-extensions} places AR(2) and MRTS side-by-side as proposed extensions in a common decision summary.
+Two consistent patterns emerge.  First, the data-generating knot count is the dominant axis: in setting~4 the one-knot \skewt method (method~2) is best at every quantile, and in setting~5 the five-knot \skewt method (method~4) is best at every quantile.  Mis-specifying $K$ on the under-side (fitting $K=1$ to a $K=5$ truth, as method~2 does in setting~5) gives only marginal gains over Gaussian, whereas mis-specifying $K$ on the over-side (fitting $K=5$ to a $K=1$ truth, as method~4 does in setting~4) is competitive but not optimal.  Second, the MRTS basis is essentially flat across the configurations studied here: in both settings the right (with-MRTS) panel reproduces the left (without-MRTS) panel almost exactly, and the same pattern was observed at the other ranks examined ($K_{\text{MRTS}}\in\{10,20\}$, results not shown).  The MRTS basis therefore does not change the within-setting ranking, and its added computational cost is not repaid by tail-score improvement under these data-generating processes.  Table~\ref{tab:sim-integrated-extensions} places AR(2) and MRTS side-by-side as proposed extensions in a common decision summary.
 
 \begin{table}[htbp]
 \centering

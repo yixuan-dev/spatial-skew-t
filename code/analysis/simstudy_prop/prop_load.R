@@ -50,9 +50,7 @@ resolve_simstudy_prop_data_path <- function(data_arg = NULL) {
 
 load(file = resolve_simstudy_prop_data())
 
-source_required("../../R/prop/auxfunctions.R")
-source_required("../../R/prop/update_params_cpp.R")
-source_required("../../R/prop/update_params.R")
+source_required("../../R/prop/load_ar2.R")
 source_required("../../R/prop/prop_utils.R")
 source_required("../../R/prop/prop_basis.R")
 source_required("../../R/prop/prop_covariance.R")
