@@ -206,6 +206,20 @@ To improve the calibration of Community Multiscale Air Quality (CMAQ) model outp
 \setcounter{page}{1}                    % 將頁碼重設為 1
 \WatermarkOn                            % 浮水印
 
+Epidemiological studies have linked ambient air quality to morbidity and mortality outcomes for several decades, and have motivated the U.S.\ Environmental Protection Agency (EPA) to set National Ambient Air Quality Standards (NAAQS) for criteria pollutants such as ground-level ozone.  Under the current ozone standard, a monitoring site is in compliance if its three-year average of the annual fourth-highest daily maximum eight-hour concentration does not exceed $75$ parts per billion (ppb).  Compliance is therefore a probabilistic statement about the upper tail of a daily concentration field, and the policy-relevant inferential targets are spatial: predicting exceedance probabilities at unmonitored locations and mapping the geography of high-concentration days.  Because monitoring stations are unevenly distributed in space, these targets cannot be answered from raw station data alone; they require a spatial model that borrows strength across nearby sites while remaining faithful to the heavy-tailed and asymmetric behavior of pollutant concentrations on extreme days.
+
+Off-the-shelf Gaussian spatial models are unsuitable for this purpose for three reasons.  First, fitting a Gaussian process to the entire concentration record forces low and moderate days to dictate the covariance fit, so the implied predictive distribution at the upper tail can be badly biased.  Second, the Gaussian distribution is light-tailed and symmetric, whereas ozone fields are heavy-tailed and right-skewed.  Third, two locations $\bs_1, \bs_2$ generated from a Gaussian process satisfy $\lim_{c \to \infty} \Pr[Y(\bs_2) > c \mid Y(\bs_1) > c] = 0$ whenever $|\mathrm{Cor}(Y(\bs_1), Y(\bs_2))| < 1$, that is, the Gaussian process is asymptotically independent at every positive distance.  Real pollutant fields exhibit the opposite behavior on synoptic-scale extreme days, where the entire eastern United States can sit above its $90$th percentile simultaneously; a model that drives joint exceedance probabilities to zero at high thresholds is structurally incapable of representing that signal.
+
+The classical alternative is to discard the bulk of the record and apply extreme-value theory to the exceedances or block maxima that remain.  This route, based on the generalized Pareto and generalized extreme-value distributions and their spatial generalizations through max-stable processes, has produced a rich methodological literature on threshold-stable spatial models.  Two drawbacks of that route are decisive for the present application.  First, full-likelihood inference for max-stable processes is intractable beyond a handful of sites, so the literature has historically relied on pairwise composite likelihoods or recently developed but still computationally intensive full-likelihood techniques, neither of which scales gracefully to the thousand-plus EPA ozone monitors.  Second, max-stable models are valid only above a sufficiently high threshold, whereas the compliance threshold of $75$~ppb lies near the bulk of the daily distribution at many sites---below the $90$th percentile at hundreds of monitors---so the asymptotic regime that justifies max-stable modeling is not in effect at the policy-relevant level.
+
+\textcite{morris_space-time_2017} proposed a hierarchical Bayesian framework specifically designed to occupy the middle ground these two extremes leave open.  Their model has four ingredients.  (i) A spatial \skewt process replaces the Gaussian assumption, allowing asymmetric, heavy-tailed marginals and---unlike the Gaussian---retaining nontrivial asymptotic dependence between nearby sites.  (ii) A stationary isotropic \Matern covariance with nugget controls the spatial smoothness of the underlying Gaussian factor.  (iii) A daily random spatial partition---induced by a small set of latent knots and a Voronoi assignment---lets the scale and skew latents vary across the domain, breaking the unphysical long-range asymptotic dependence that a single shared skew and scale would otherwise impose.  (iv) Upper-tail censoring fits the model only to observations above a chosen threshold $T$, so low and moderate days no longer distort the tail fit.  The four time-varying latent parameters per knot---the knot location, the skewness latent, and the scale---are made temporally coherent by placing a stationary AR(1) prior on each of them after a probability-integral transform to the standard normal scale; the construction is designed to preserve the marginal \skewt structure at every day while still borrowing strength across days.  The model is fitted by Markov chain Monte Carlo and produces calibrated posterior predictive distributions at unobserved sites.
+
+The Morris framework strikes a deliberate balance between flexibility and tractability, but it does so by accepting two assumptions whose tightness deserves scrutiny.  The first is that the temporal dependence of every latent process is fully described by a single autoregressive lag.  Daily atmospheric variables such as ozone are not memoryless: persistence and weather-driven cycles routinely carry information across multiple lags, and an AR(1) prior is by construction unable to represent the kind of oscillatory autocorrelation that arises when a stationary AR(2) recursion has complex roots.  Extending the temporal prior from AR(1) to a standardized AR(2) with Yule--Walker constraints preserves the unit marginal variance required by the inverse PIT and so retains the spatial \skewt margin at every day, but it adds one additional lag of memory per latent series and admits oscillatory persistence inside its stationarity triangle.  The second is that the spatial covariance is stationary and isotropic.  Over a continental-scale domain such as the conterminous United States, the marginal mean and the spatial scale of dependence can both vary by region; a stationary \Matern covariance forces the regression component to absorb the entire non-stationary signal through covariates that may not be available or expressive enough to do so.  Augmenting the regression with multi-resolution thin-plate spline basis functions \parencite{tzeng_resolution_2018} introduces a flexible, mean-only mechanism for capturing such structure without modifying the covariance.
+
+These two observations motivate the central question of this thesis: \emph{do either or both of these extensions deliver measurable predictive improvement at the upper tail, and, when they do not, what does the structure of the Morris kernel say about why?}  We answer this question on three fronts.  Methodologically, we generalize the AR(1) prior in the Morris hierarchy to a stationary AR(2) prior with the appropriate Yule--Walker normalization (\sref{sec:ar2}), and we integrate MRTS basis functions into the regression component.  Empirically, we conduct simulation studies designed to give each extension its most favorable test---including data-generating settings whose temporal dynamics follow a known AR(2) recursion---and a real-data analysis on EPA ground-level ozone and on a controlled MERRA-2 surface-temperature benchmark.  Theoretically, we trace the route by which the AR(2) prior reaches the held-out Brier score under the Morris kernel and show that the unit-variance standardization, while necessary to preserve the marginal \skewt structure, also dissolves much of the AR-order signal at the held-out test day; this analysis is the subject of the Discussion.  Taken together, the three pieces argue that the AR(2) extension and the MRTS extension should be regarded as additions to the candidate model class rather than as default replacements for the AR(1)-with-stationary-\Matern baseline.
+
+The remainder of the thesis is organized as follows.  \sref{sec:sttskewt} reviews the spatio-temporal \skewt model of \textcite{morris_space-time_2017} that serves as the baseline.  \sref{sec:ar2} develops the AR(2) extension, derives the Yule--Walker innovation variance under the unit-marginal-variance constraint, and gives the stationary joint initialization and the full conditional used in the Gibbs--Metropolis update.  The MRTS extension is described in the subsequent subsection.  The simulation study is reported in the section that follows, evaluating both extensions across data-generating settings, partition cardinalities $K$, and upper-tail Brier and quantile scores.  The ozone data analysis and the MERRA-2 benchmark are reported next.  The thesis closes with a Discussion that gives a mathematical explanation, structured around three propositions, for why the AR(2) extension cannot systematically improve the held-out Brier score under the Morris kernel.
+
 \section{Methodology}
 \subsection{Spatio-temporal skew-t process}\label{sec:sttskewt}
 
@@ -604,6 +618,148 @@ AR(2) & 4.717 & 2.522 & 0.571 & \textbf{0.040} & \textbf{0.016} & 0.009 \\
 
 
 \section{Discussion}
+
+The simulation study and the MERRA-2 analysis of the preceding sections both produced the same qualitative picture: the AR(2) extension is a defensible alternative to the AR(1) baseline but does not systematically improve the Brier score, with relative gains at the level of Monte Carlo noise.  This section records a mathematical explanation for that empirical pattern.  The argument turns on three ingredients: (i) the unit-variance standardization built into \eref{eq:ar2-recursion}--\eref{eq:joint-init} makes the time-$t$ marginal of every latent invariant to $(\phi_1, \phi_2)$; (ii) the predictive density at a held-out site--day depends on the latent field only through its time-$t$ slice; and (iii) the variance of the predictive level decomposes into a $(\phi_1,\phi_2)$-invariant floor and a partial AR-reducible term, the latter further attenuated by the censoring and partition mechanisms.
+
+\medskip\noindent\textbf{Notation.}  Throughout this section we write $\phi := (\phi_1^{(\cdot)}, \phi_2^{(\cdot)})$ generically for the AR(2) coefficients of any latent series and $\btheta$ for the remaining fixed-parameter vector ($\bbeta$, $\lambda$, $\varphi$, $\nu$, $\gamma$, and the partition hyperparameters $a, b$).  Let $\bY^{\mathrm{tr}}$ denote the censored training observations $\{\widetilde Y_t(\bs)\}$ at training sites $\bs$ and $t = 1, \ldots, n_t$.  Let $g(\bs^*, t) \in \{1, \ldots, K\}$ be the partition index of the held-out site $\bs^*$ on day $t$, defined by $\bs^* \in P_{t,\,g(\bs^*, t)}$, and write $g := g(\bs^*, t)$ for short.  Stack the day-$t$ knot-level latents into
+\begin{align}
+  \calL_t \;:=\; \big(z_{t1}, \ldots, z_{tK},\; \sigma^2_{t1}, \ldots, \sigma^2_{tK},\; \bw_{t1}, \ldots, \bw_{tK}\big).
+  \label{eq:Lt-disc}
+\end{align}
+For a threshold $c$ the Brier score at the held-out cell $(\bs^*, t)$ is
+\begin{align}
+  \mathrm{BS}(\bs^*, t; c) \;:=\;
+   E\!\left[\big(\mathbf 1\{Y_t(\bs^*) > c\} - \hat p(\bs^*, t; c)\big)^2\right],
+  \qquad
+  \hat p(\bs^*, t; c) \;:=\; \mathrm{Pr}\!\big(Y_t(\bs^*) > c \mid \bY^{\mathrm{tr}}\big).
+  \label{eq:brier-disc}
+\end{align}
+
+\subsection*{Marginal invariance to $\phi$}
+
+The standardization that fixes $\gamma_0 = \mathrm{Var}(Y_t) = 1$ in \eref{eq:gamma12}--\eref{eq:sigeps}, together with the bivariate stationary initialization \eref{eq:joint-init}, has a consequence that is decisive for the held-out Brier score in \eref{eq:brier-disc}.
+
+\begin{proposition}[Marginal invariance to $\phi$]\label{prop:marginal-invariance}
+Let $\{Y_t\}_{t=1}^{n_t}$ be generated by the standardized AR(2) recursion \eref{eq:ar2-recursion} with innovation variance \eref{eq:sigeps} and stationary initial pair \eref{eq:joint-init}, under the stability condition \eref{eq:stab-triangle}.  Then $Y_t \sim N(0,1)$ for every $t \in \{1, \ldots, n_t\}$, regardless of $(\phi_1, \phi_2)$.
+\end{proposition}
+
+\begin{proof}[Sketch]
+By \eref{eq:joint-init}, $Y_1, Y_2 \sim N(0,1)$.  Suppose inductively that $\mathrm{Var}(Y_{t-1}) = \mathrm{Var}(Y_{t-2}) = 1$ and $\mathrm{Cov}(Y_{t-1}, Y_{t-2}) = \gamma_1$.  Substituting \eref{eq:ar2-recursion} into $\mathrm{Var}(Y_t) = \phi_1^2 + \phi_2^2 + 2\phi_1\phi_2\gamma_1 + \sigma_\epsilon^2$ and using \eref{eq:gamma12}--\eref{eq:sigeps} gives $\mathrm{Var}(Y_t) = 1$.  Means are zero by linearity, and joint normality is preserved by the linear recursion.
+\end{proof}
+
+Because the inverse PIT layer \eref{eq:wstar}--\eref{eq:sigmastar} that maps each $Y_t = w^*_{tki}$, $z^*_{tk}$, or $\sigma^{2*}_{tk}$ back to the working scale is a fixed monotone function of $Y_t$ alone, Proposition~\ref{prop:marginal-invariance} carries over verbatim:
+
+\begin{corollary}[$\phi$-free latent marginal at each $t$]\label{cor:phi-free-latent}
+Under \eref{eq:ar2-recursion}--\eref{eq:joint-init} for the transformed latents $z^*_{tk}, \sigma^{2*}_{tk}, \bw^*_{tk}$, the prior marginal of $\calL_t$ in \eref{eq:Lt-disc} does not depend on $\phi$ for any $t$.  In particular, the AR(1) baseline of \textcite{morris_space-time_2017} and the AR(2) extension of \sref{sec:ar2} share the same prior marginal at every fixed time point.
+\end{corollary}
+
+The AR order is invisible to the one-point marginal; it is identifiable only from \emph{joint} laws across time.
+
+\subsection*{The Brier score sees only the time-$t$ marginal}
+
+The kernel \eref{eq:fullmodel} at a single space--time cell $(\bs^*, t)$ depends on the latents only through $\calL_t$, so the predictive exceedance probability factorizes as
+\begin{align}
+  \hat p(\bs^*, t; c)
+   \;=\; \iint \mathrm{Pr}\!\big(Y_t(\bs^*) > c \,\big|\, \btheta, \calL_t\big)\,
+            \pi\!\big(\calL_t \,\big|\, \btheta, \bY^{\mathrm{tr}}\big)\,
+            \pi\!\big(\btheta \,\big|\, \bY^{\mathrm{tr}}\big)\,
+            \ddd\calL_t \, \ddd\btheta.
+   \label{eq:predictive-disc}
+\end{align}
+Combining \eref{eq:predictive-disc} with Corollary~\ref{cor:phi-free-latent} gives the following structural fact.
+
+\begin{proposition}[$\phi$ enters Brier only through the posterior]\label{prop:phi-route}
+For the kernel \eref{eq:fullmodel} and the latent prior of \sref{sec:ar2}, $\phi$ can influence the held-out Brier score \eref{eq:brier-disc} only through two routes: the posterior $\pi(\btheta \mid \bY^{\mathrm{tr}})$ over the hyperparameters and the conditional $\pi(\calL_t \mid \btheta, \bY^{\mathrm{tr}})$ obtained by temporal pooling.  The prior marginal of $\calL_t$ at the test day is $\phi$-blind.
+\end{proposition}
+
+The first route (posterior on $\btheta$) adds estimation variance proportional to the size of the augmented parameter space; the second route (temporal pooling of $\calL_t$) is the only mechanism by which a richer AR order can \emph{tighten} the predictive.  The AR(2) prior introduces two extra coefficients per latent series and thereby pays a cost on the first route; the question is whether the second route delivers a benefit large enough to overcome it.
+
+\subsection*{Reducible / irreducible decomposition and the variance floor}
+
+Write $p(c) := \mathrm{Pr}(Y_t(\bs^*) > c)$ for the true exceedance probability.  Standard manipulation of \eref{eq:brier-disc} gives the bias--variance decomposition
+\begin{align}
+  E\!\big[\mathrm{BS}(\bs^*, t; c)\big]
+    \;=\; \underbrace{p(c)\,(1 - p(c))}_{\text{irreducible}}
+       \;+\; \underbrace{\big(E[\hat p(\bs^*, t; c)] - p(c)\big)^2 \;+\; \mathrm{Var}\!\big(\hat p(\bs^*, t; c)\big)}_{\text{reducible by the model}}.
+  \label{eq:brier-split-disc}
+\end{align}
+The irreducible term is a property of the data-generating process and is $\phi$-invariant; AR(2) can act only on the reducible term.  When each knot is informed by a sizeable group of training sites the likelihood swamps the prior, both models are unbiased to leading order, and the contest reduces to $\mathrm{Var}(\hat p)$.  A delta-method expansion of $\hat p$ around the predictive mean of $Y_t(\bs^*)$ gives
+\begin{align}
+  \mathrm{Var}\!\big(\hat p(\bs^*, t; c)\big)
+    \;\approx\; \big[f_{Y_t(\bs^*) \mid \bY^{\mathrm{tr}}}(c)\big]^2 \;
+                \mathrm{Var}\!\big(Y_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big),
+  \label{eq:delta-method}
+\end{align}
+where $f_{Y_t(\bs^*) \mid \bY^{\mathrm{tr}}}$ is the predictive density at the held-out cell.  To localize the $\phi$-dependence in \eref{eq:delta-method} we decompose the predictive variance by conditioning.  Define the spatial kriging-residual variance at the held-out site
+\begin{align}
+  \rho^*_{\bs^*, t} \;:=\; \mathrm{Var}\!\big(v_t(\bs^*) \,\big|\, \btheta,\, \bY^{\mathrm{tr}}\big),
+  \label{eq:kriging-resid}
+\end{align}
+which is determined entirely by the Mat\'ern hyperparameters $(\varphi, \nu, \gamma)$ and the spatial configuration of training sites; in particular it does not depend on $\phi$.  Conditional on $(\btheta, \calL_t, \bY^{\mathrm{tr}})$ the kernel \eref{eq:fullmodel} gives
+\begin{align}
+  Y_t(\bs^*) \,\big|\, \btheta, \calL_t, \bY^{\mathrm{tr}}
+   \;\sim\; N\!\Big(\bX_t(\bs^*)^\top\bbeta + \lambda\,\sigma_{tg}\,|z_{tg}| + \sigma_{tg}\,\hat v_t(\bs^*),\;
+                    \sigma^2_{tg}\,\rho^*_{\bs^*, t}\Big),
+  \label{eq:cond-pred}
+\end{align}
+where $\hat v_t(\bs^*) := E[v_t(\bs^*) \mid \btheta, \bY^{\mathrm{tr}}]$ is the kriging mean.  Applying the law of total variance with respect to the posterior on $(\btheta, \calL_t)$ then yields
+\begin{align}
+  \mathrm{Var}\!\big(Y_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big)
+    \;=\; \underbrace{E\!\big[\sigma^2_{tg}\,\rho^*_{\bs^*, t} \,\big|\, \bY^{\mathrm{tr}}\big]}_{\text{Channel D: spatial-noise floor}}
+    \;+\; \underbrace{\mathrm{Var}\!\big(\bX_t(\bs^*)^\top\bbeta + \lambda\,\sigma_{tg}\,|z_{tg}| + \sigma_{tg}\,\hat v_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big)}_{\text{Channels A--B: }z\text{- and }\sigma\text{-pooling}}.
+  \label{eq:var-decomp-disc}
+\end{align}
+
+\begin{proposition}[$\phi$-invariant noise floor]\label{prop:floor}
+For each fixed $\btheta$ the kriging-residual variance $\rho^*_{\bs^*, t}$ in \eref{eq:kriging-resid} is a function of the spatial hyperparameters and the spatial configuration alone, with no dependence on $\phi$.  Consequently, the floor term
+\begin{align}
+  \mathrm{Var}\!\big(Y_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big)
+    \;\ge\; E\!\big[\sigma^2_{tg}\,\rho^*_{\bs^*, t} \,\big|\, \bY^{\mathrm{tr}}\big]
+  \label{eq:floor}
+\end{align}
+can be moved by $\phi$ only through the AR(2) effect on the posterior mean $E[\sigma^2_{tg} \mid \bY^{\mathrm{tr}}]$.
+\end{proposition}
+
+\begin{proof}[Sketch]
+$v_t(\bs^*) \mid \btheta$ is centered Gaussian, independent of $\calL_t$, and i.i.d.\ across $t$.  Its kriging-residual variance \eref{eq:kriging-resid} depends only on the spatial covariance entries and the training configuration; the AR(2) prior on $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ enters \eref{eq:fullmodel} only through $\calL_t$.  The lower bound \eref{eq:floor} then follows by dropping the non-negative second summand in \eref{eq:var-decomp-disc}.
+\end{proof}
+
+The implication of Proposition~\ref{prop:floor} is that, even with a perfectly known $\phi$ that drives $\mathrm{Var}(z_{tg} \mid \bY^{\mathrm{tr}})$ and $\mathrm{Var}(\sigma^2_{tg} \mid \bY^{\mathrm{tr}})$ as low as possible, the predictive variance entering \eref{eq:delta-method} still carries the spatial-noise term in \eref{eq:floor}, which is $\phi$-blind apart from the modulation of $E[\sigma^2_{tg} \mid \bY^{\mathrm{tr}}]$.  In regimes where this floor is the dominant contributor to \eref{eq:var-decomp-disc}---which is the case for both the simulated and the MERRA-2 settings, where the per-knot site count is large and the spatial correlation at $\bs^*$ is moderate---the leverage of AR order on the Brier score is structurally small.
+
+\subsection*{Why the gain in Channels A--B is also small}
+
+Within Channel~A, the AR(2) prior tightens $\pi(z^*_{tg} \mid \bY^{\mathrm{tr}})$ by borrowing strength from $z^*_{(t\pm 1)g}$ and $z^*_{(t\pm 2)g}$.  A Gaussian surrogate calculation on the standardized latent gives the following bound.  Suppose the day-$t$ likelihood contributes effective precision $q$ to $z^*_{tg}$ (so the i.i.d./AR(1)-equivalent posterior variance at $t$ is $(1+q)^{-1}$), and let
+\begin{align}
+  \kappa(\phi) \;:=\; \frac{1 + \phi_1^2 + \phi_2^2}{\sigma_\epsilon^2}
+  \label{eq:kappa-disc}
+\end{align}
+be the AR(2) full-conditional precision read off \eref{eq:ar2-recursion} and \eref{eq:sigeps}.  Then the AR(2) marginal posterior variance $v_t(\phi)$ satisfies
+\begin{align}
+  0 \;\le\; v_t^{\mathrm{iid}} - v_t(\phi)
+    \;\le\; \frac{\kappa(\phi) - 1}{(1 + q)\,(\kappa(\phi) + q)}
+    \;=\; \calO\!\big(q^{-2}\big),
+  \label{eq:frozen-bound-disc}
+\end{align}
+where $v_t^{\mathrm{iid}} := (1 + q)^{-1}$ is the i.i.d.\ posterior variance and $\kappa(\phi) \ge 1$ with equality iff $\phi = 0$.  In the data-rich regime ($q \gg 1$) the AR(2)-induced reduction in $\mathrm{Var}(z^*_{tg} \mid \bY^{\mathrm{tr}})$ scales as $1/q^2$, while the i.i.d./AR(1) variance scales as $1/q$.  The same bound applies to $\sigma^{2*}_{tg}$ along Channel~B with the appropriate effective precision.
+
+The censoring layer that retains only $\widetilde Y_t(\bs) = \max\{Y_t(\bs), T\}$ further attenuates the effective precision feeding $\sigma^{2*}_{tg}$ and $z^*_{tg}$, because below-threshold observations contribute information only through the imputed values; this shrinks the per-day Fisher information for the scale latent in particular, and the bound \eref{eq:frozen-bound-disc} is then tight against an even smaller $q$.
+
+\subsection*{The cost of $\phi$ via the posterior on $\btheta$}
+
+A complementary observation, made quantitative through \eref{eq:brier-split-disc}, is that adding $\big(\phi_1^{(z)}, \phi_2^{(z)}, \phi_1^{(\sigma)}, \phi_2^{(\sigma)}, \phi_1^{(w)}, \phi_2^{(w)}\big)$ to the parameter vector inflates the posterior $\pi(\btheta \mid \bY^{\mathrm{tr}})$.  By the law of total variance,
+\begin{align}
+  \mathrm{Var}\!\big(\hat p(\bs^*, t; c)\big)
+    \;\approx\; E_\phi\!\big[\mathrm{Var}\!\big(\hat p \,\big|\, \phi\big)\big]
+       \;+\; \mathrm{Var}_\phi\!\big(E[\hat p \,|\, \phi]\big).
+  \label{eq:total-var-disc}
+\end{align}
+The AR(2) prior shrinks the first summand through \eref{eq:frozen-bound-disc} (Channels A--B) but introduces the second summand, which is identically zero only when $\phi$ has a point posterior.  When $\phi$ is weakly identified from the data---as is typical for $\phi^{(\sigma)}$ and $\phi^{(w)}$, where the per-day information about a scale parameter or a knot location read through an $\argmin$ is small---the posterior on $\phi$ stays diffuse and the second summand can offset the first.  This is the route by which a model with more flexibility can produce a slightly \emph{worse} Brier score than a more constrained one, and it is consistent with the empirical pattern in \tref{tab:ozone-top4-quantile-200-200} and \tref{tab:merra2-temporal-compare}, where the AR(2) variant beats the AR(1) baseline on some quantiles and loses on others without dominating overall.
+
+\subsection*{What the analysis does and does not say}
+
+Three points are worth emphasizing.  First, Propositions~\ref{prop:marginal-invariance}--\ref{prop:floor} are statements about the held-out \emph{Brier} score at a single threshold; they do not preclude AR(2) gains under scoring rules that probe joint distributions across time (e.g., multi-day energy scores or rules sensitive to volatility clustering), nor do they apply to forecasting tasks in which one or more held-out days are extrapolated beyond the training window.  Second, the variance bound \eref{eq:frozen-bound-disc} is non-asymptotic but expressed in the standardized-latent surrogate; converting it to a calibrated bound on the original-scale predictive requires propagating the inverse PIT \eref{eq:wstar}--\eref{eq:sigmastar}, which only \emph{attenuates} the bound further because the half-normal and inverse-gamma transforms compress the latent variability.  Third, the noise floor \eref{eq:floor} can be eroded by reducing the kriging-residual variance $\rho^*_{\bs^*, t}$---through a more flexible spatial trend or the MRTS enrichment of the regression component---rather than by enriching the temporal prior.  This is consistent with the simulation finding that MRTS variants out-perform AR(2) on bulk quantile scores: the leverage on held-out Brier lives in the spatial regression component, not in the temporal prior.
+
+In summary, the standardization that is required to keep the marginal \skewt structure intact under the AR(2) extension is precisely what dissolves the AR-order signal at the held-out test day, and the residual route through posterior pooling of latents delivers an $\calO(q^{-2})$ improvement on Channels A and B that is bounded below by the $\phi$-invariant spatial-noise floor in \eref{eq:floor}.  The empirical pattern observed in the simulation study and the MERRA-2 benchmark is therefore not an artifact of the MCMC implementation; it is the predicted behavior of the predictive Brier integral under Morris's kernel \eref{eq:fullmodel} combined with the unit-variance AR(2) prior \eref{eq:ar2-recursion}--\eref{eq:joint-init}.
 
 % --------------------------------------------------------------
 %% References
