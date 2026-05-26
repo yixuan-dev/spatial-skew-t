@@ -102,6 +102,65 @@ seam-state uncertainty (Proposition 3). The i.i.d. baseline instead
 draws each latent slice from the `N(0,1)` marginal, reproducing the
 stationary predictive of Corollary 1.
 
+## 預測流程（中文版，對應 `forecast_block()`）
+
+對每一個 held-out block `b`（seam time $T_o$，預測範圍 $H$），每個 MCMC
+後驗 draw $m = 1, \dots, M$ 都會走過下面**五個階段**，最後產出
+`yhat[m, s, h]` 陣列，shape 為 $M \times n_s \times H$。完整英文版見
+`tex/time_block_strategy/ar2_rethink.tex` §4.2「Forecast pipeline at a glance」。
+
+### 階段 1：在 prefix 上擬合
+
+- 用觀察資料 $y(\cdot, t \le T_o)$ 跑一次 MCMC（`run-settings.R` 裡呼叫 `mcmc()`）
+- 得到 $M$ 個後驗 draws：$\theta^{(m)} = (\beta, \lambda, \alpha, \beta_\tau, \rho, \nu, \gamma, \phi_\tau, \phi_z)^{(m)}$
+- 連帶 imputed observable latent 軌跡 $\tau^{(m)}_{k, t}, z^{(m)}_{k, t}$（$t \le T_o$）
+- 144 個 sites 全部都觀察到 — holdout **純粹是時間軸**的
+
+### 階段 2：用 forward copula 把 seam state 還原回 Gaussian scale
+
+- 從每個 draw 自己的軌跡裡，取 $t \in \{T_o - 1, T_o\}$ 那兩欄
+- 轉回 Gaussian 潛在尺度：
+  - $\tau^{\star(m)}_{k, t} = \Phi^{-1}\!\big(G_{\alpha^{(m)}/2,\,\beta^{(m)}/2}(\tau^{(m)}_{k, t})\big)$
+  - $z^{\star(m)}_{k, t} = \Phi^{-1}\!\big(H_{\sigma_z}(z^{(m)}_{k, t})\big),\quad \sigma_z = (\tau^{(m)}_{k, t})^{-1/2}$
+- ⚠️ **不可以**從 stationary distribution $\mathcal{N}(\mathbf{0}, \Sigma)$ 抽 — 那會把 AR(2) 訊號抹掉（Corollary 1）
+
+### 階段 3：AR(2) latent 遞迴（$h = 1, \dots, H$）
+
+- 在 Gaussian scale 上遞迴：
+  - $X^{\star(m)}_{k, T_o + h} = \phi^{(m)}_1 X^{\star(m)}_{k, T_o + h - 1} + \phi^{(m)}_2 X^{\star(m)}_{k, T_o + h - 2} + \sigma^{(m)} \xi,\quad \xi \sim \mathcal{N}(0, 1)$
+- 創新標準差 $\sigma^{(m)}$ 由 **Yule–Walker** 鎖定（讓 marginal variance 維持 1）：
+  - $\gamma_1 = \phi_1 / (1 - \phi_2),\quad \gamma_2 = \phi_1 \gamma_1 + \phi_2,\quad \sigma^2 = 1 - \phi_1 \gamma_1 - \phi_2 \gamma_2$
+- $\tau^\star$ 和 $z^\star$ **各自獨立遞迴**，各自用各自的 $\phi^{(m)}$
+- **i.i.d. baseline（method 1）跳過這步**，直接 $\tau^\star, z^\star \overset{\text{iid}}{\sim} \mathcal{N}(0, 1)$（Corollary 1 的 $h \to \infty$ limit）
+
+### 階段 4：用 inverse copula 轉回 observable scale
+
+- $\tau^{(m)}_{k, T_o + h} = G^{-1}_{\alpha^{(m)}/2,\,\beta^{(m)}/2}\!\big(\Phi(\tau^{\star(m)}_{k, T_o + h})\big)$
+- $z^{(m)}_{k, T_o + h} = H^{-1}_{\sigma_z}\!\big(\Phi(z^{\star(m)}_{k, T_o + h})\big),\quad \sigma_z = (\tau^{(m)}_{k, T_o + h})^{-1/2}$
+- $\tau$–$z$ coupling **在 draw $m$ 內部要保留**：$\sigma_z$ 用同一個 draw 預測出來的 $\tau$，不能用獨立 marginal
+
+### 階段 5：抽空間場
+
+- 對每個 lead $h$（時間 $t = T_o + h$）：
+  - $\hat y^{(m)}(s, t) = x(s, t)^\top \beta^{(m)} + \lambda^{(m)} z^{(m)}_{g(s, t), t} + \varepsilon^{(m)}(s, t)$
+  - $\varepsilon^{(m)}(\cdot, t) \sim \mathcal{N}\!\big(\mathbf{0},\,(\tau^{(m)}_{g(s, t), t})^{-1} C^{(m)}\big)$
+- 實作：先取 Cholesky $L L^\top = C^{(m)}$，再抽 $\varepsilon = L \zeta$，其中 $\zeta \sim \mathcal{N}(0, \tau^{-1} I)$
+- $K = 1$ 時 membership $g(s, t) \equiv 1$，一個 knot 服務所有 144 個 sites
+
+### 輸出與不確定性傳遞
+
+- 每個 block 產出 `yhat` shape `[M, n_s, H]`，配對 truth `y_val` shape `[n_s, H]`
+- **對 $m$ 取平均**自動把 **parameter uncertainty** 與 **seam-state uncertainty** 同時積分掉（Proposition 3）
+- 完全不用 plug-in posterior mean — 所以 predictive 不會 under-disperse
+
+### 5 個 block 之間的關係
+
+- 5 個 seams 設在 $\{50, 80, 110, 140, 170\}$，相鄰間距 30 步 ≫ $H = 15$
+- 不同 block 的 forecast window 不會重疊，seam state **接近獨立**
+- 這個近似獨立就是 lead-time curve 的 cross-block standard error 能成立的關鍵
+  （Definition 9）：$\mathrm{SE}(h) = \frac{1}{\sqrt{B}} \mathrm{sd}_b\{\bar S_b(h)\}$
+- 一個 block 給點估計，五個 block 給**誤差帶** — AR(2) 與 i.i.d. 的差異才有辦法跟 sampling noise 分開
+
 ## Scoring (Section 4.3)
 
 - **Lead-time curve** `S_bar(h)` — univariate proper scores (CRPS, and
