@@ -296,6 +296,19 @@ The first three basis functions $f_1, f_2, f_3$ reproduce the constant and linea
 
 \section{Methodology}
 
+\subsection{Hierarchical model}\label{sec:meth-hier}
+
+We cast the spatial \skewt threshold-exceedance model of \sref{sec:sttskewt} as a Bayesian hierarchical model and fit it by Markov chain Monte Carlo (MCMC).  The data are treated as partially censored observations from the \skewt model: at each MCMC iteration the values below the threshold $T$ are imputed so that parameter estimation can proceed on the completed $\bY$.  Conditional on the partition-level latents $z_{tk}(\bs)$, $\sigma^2_{tk}(\bs)$, and the partition subregions $P_{tk}$, the joint distribution of $\bY$ is multivariate Gaussian.  The partitions are not fixed; the locations of the $K$ knots are treated as unknown and random.  Allowing $K$ itself to be unknown (for example through a Poisson-process prior on the knot count) leads to onerous computing, so we instead treat $K$ as a tuning parameter, fixing it at several values and selecting among them by the held-out scoring rule of \sref{sec:meth-brier}.  The hierarchical model is
+\begin{align}
+  Y_t(\bs) \mid z_t(\bs), \sigma_t^2(\bs), P_{tk}, \Theta
+    &= \bX_t(\bs)^\top \bbeta + \lambda\, \sigma_t(\bs)\, |z_t(\bs)| + \sigma_t(\bs)\, v_t(\bs), \label{eq:hier}\\
+  z_t(\bs)        &= z_{tk}     \text{ if } \bs \in P_{tk}, \nonumber\\
+  \sigma^2_t(\bs) &= \sigma^2_{tk} \text{ if } \bs \in P_{tk}, \nonumber\\
+  \lambda         &\sim N(0, \sigma^2_\lambda), \nonumber\\
+  v_t(\bs) \mid \Theta &\sim \Matern(\bZero, \bSigma), \nonumber
+\end{align}
+where $\Theta = \{\varphi, \nu, \gamma, \lambda, \bbeta\}$, $\bSigma$ is the \Matern covariance matrix of \eref{eq:matern}, and the priors on $\bw^*_{tk}$, $z^*_{tk}$, and $\sigma^{2*}_{tk}$ are given in \eref{eq:ar1-w}--\eref{eq:ar1-sigma}.  The two probes of this thesis modify exactly two ingredients of \eref{eq:hier}: \sref{sec:meth-mrts} augments the regression vector $\bX_t(\bs)$ with multi-resolution thin-plate spline basis functions, and \sref{sec:ar2} replaces the AR(1) priors on $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ with a stationary AR(2) prior; all remaining components of \eref{eq:hier}, including the partition mechanism, the censoring layer, and the Matérn covariance, are inherited unchanged from the Morris baseline.
+
 \subsection{Incorporating MRTS covariates}\label{sec:meth-mrts}
 
 The MRTS basis of \sref{sec:lit-mrts} enters the Morris hierarchy through the regression component, leaving the latent partition and the AR(1) (or AR(2)) priors on $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ untouched.  Because every baseline regression in this thesis already contains an intercept and a first-order spatial trend, the polynomial part of the MRTS basis ($f_1, f_2, f_3$) is omitted from the augmentation to avoid duplication; only the smooth components $f_4, f_5, \ldots$ contribute new spatial information.  Fix the number of additional spline covariates $K_{\mathrm{MRTS}}$ and let
@@ -428,31 +441,35 @@ For the baseline comparison, five Bayesian models are considered:
 \end{enumerate}
 Here $q(0.80)$ denotes the empirical $80$th percentile of the simulated response.  These five models represent the main combinations of tail behavior, thresholding, and spatial partitioning used in the Morris model.
 
-To evaluate the MRTS covariate extension, the five baseline models are each compared against an MRTS-augmented variant in which the regression component is enriched by the basis evaluations $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We focus on simulation settings 4 and 5: setting 4 is a one-knot \skewt data-generating process with $\lambda = 3$, and setting 5 is a five-knot partitioned \skewt data-generating process with $\lambda = 3$.  For setting 4, each baseline model is compared with versions using $K_{\mathrm{MRTS}} \in \{10, 15, 20\}$; for setting 5, each baseline model is compared with a version using $K_{\mathrm{MRTS}} = 15$.  Each setting uses $50$ simulated data sets and the same $100$/$44$ train/validation split as the baseline benchmark, with each MCMC chain run for $20\,000$ iterations with $10\,000$ burn-in iterations.
+To evaluate the MRTS covariate extension, the five baseline models are each compared against an MRTS-augmented variant in which the regression component is enriched by the basis evaluations $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We focus on simulation settings 4 and 5: setting 4 is a one-knot \skewt data-generating process with $\lambda = 3$, and setting 5 is a five-knot partitioned \skewt data-generating process with $\lambda = 3$.  For both settings, each baseline model is compared with a version using $K_{\mathrm{MRTS}} = 15$.  Each setting uses $50$ simulated data sets and the same $100$/$44$ train/validation split as the baseline benchmark, with each MCMC chain run for $20\,000$ iterations with $10\,000$ burn-in iterations.
 
 \subsection{MRTS on the Morris benchmark: results}\label{sec:sim-mrts-results}
 
 The benchmark simulation supports the main conclusion of \textcite{morris_space-time_2017}: when the fitted model matches the data-generating mechanism, it tends to improve predictive performance, and when the data are non-Gaussian the \skewt models generally improve over a Gaussian model.  Thresholded models are not uniformly better in the simulation setting, which is expected because most simulated data are generated directly from the full \skewt model rather than from a censored tail model.  The simulation therefore confirms that the \skewt framework provides flexibility for asymmetric and heavy-tailed data while remaining competitive with Gaussian methods when the data are light-tailed and symmetric.
 
-The MRTS evidence is qualitatively similar to this benchmark picture: in settings 4 and 5, augmenting the regression component with MRTS basis functions can improve selected upper-tail Brier or quantile scores, but the gains are not stable across model families or quantile levels, and computation time grows visibly with $K_{\mathrm{MRTS}}$, most clearly at $K_{\mathrm{MRTS}} = 20$.
+The MRTS evidence is qualitatively similar to this benchmark picture: in settings 4 and 5, augmenting the regression component with MRTS basis functions can improve selected upper-tail Brier or quantile scores, but the gains are not stable across model families or quantile levels.
 
 Figures~\ref{fig:bs-rel-set4-mrts} and~\ref{fig:bs-rel-set5-mrts} make this explicit by comparing methods 2--5 (\skewt and symmetric-$t$ with $K = 1$ or $K = 5$ knots) at high threshold quantiles ($0.90 \le q \le 0.995$), with each figure showing two side-by-side panels: the left panel is the no-MRTS baseline and the right panel adds an MRTS basis of rank $K_{\mathrm{MRTS}} = 15$.  All scores are normalized by the Gaussian baseline (method~1) computed without MRTS, so values below the dashed reference line at $1$ indicate better exceedance prediction than the Gaussian baseline.  Setting~4 (\skewt with $K = 1$ knot, $\lambda = 3$) is shown in Figure~\ref{fig:bs-rel-set4-mrts}, and setting~5 (\skewt with $K = 5$ knots, $\lambda = 3$) in Figure~\ref{fig:bs-rel-set5-mrts}.
 
-\begin{figure}[htbp]
+\begin{figure}[p]
 \centering
-\includegraphics[width=0.95\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K15.png}
-\caption{Setting~4 (data-generating process: \skewt with $K=1$ knot, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline at threshold quantiles $0.90 \le q \le 0.995$, with $K_{\text{MRTS}}=15$.  The left panel shows the no-MRTS baseline and the right panel shows the same methods with the MRTS basis added.  The matching method (\skewt with $K=1$, method~2) is best at every quantile, the over-specified five-knot threshold-$t$ method (method~5) is worse than Gaussian, and the right panel is nearly indistinguishable from the left.}
-\label{fig:bs-rel-set4-mrts}
+\begin{subfigure}{\textwidth}
+  \centering
+  \includegraphics[width=0.95\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K15.png}
+  \caption{Setting~4 (data-generating process: \skewt with $K=1$ knot, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline at threshold quantiles $0.90 \le q \le 0.995$, with $K_{\text{MRTS}}=15$.  The left panel shows the no-MRTS baseline and the right panel shows the same methods with the MRTS basis added.  The matching method (\skewt with $K=1$, method~2) is best at every quantile, the over-specified five-knot threshold-$t$ method (method~5) is worse than Gaussian, and the right panel is nearly indistinguishable from the left.}
+  \label{fig:bs-rel-set4-mrts}
+\end{subfigure}
+\par\medskip
+\begin{subfigure}{\textwidth}
+  \centering
+  \includegraphics[width=0.95\textwidth]{../img/setting5_relative_brier_method2to5_vs_mrts-K15.png}
+  \caption{Setting~5 (data-generating process: \skewt with $K=5$ knots, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline; left panel is the no-MRTS baseline, right panel adds an MRTS basis of rank $K_{\text{MRTS}}=15$.  The matching five-knot \skewt method (method~4) is decisively the best across all quantiles, with relative Brier scores between roughly $0.84$ and $0.92$.  All four methods improve on the Gaussian baseline, in contrast with setting~4 where the over-specified method~5 was worse than Gaussian.  The right panel mirrors the left panel closely, indicating that the MRTS basis adds little beyond what the spatial \skewt structure already captures.}
+  \label{fig:bs-rel-set5-mrts}
+\end{subfigure}
+\caption{Relative Brier scores for the MRTS comparison ($K_{\text{MRTS}}=15$) in settings 4 and~5.}
 \end{figure}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\textwidth]{../img/setting5_relative_brier_method2to5_vs_mrts-K15.png}
-\caption{Setting~5 (data-generating process: \skewt with $K=5$ knots, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline; left panel is the no-MRTS baseline, right panel adds an MRTS basis of rank $K_{\text{MRTS}}=15$.  The matching five-knot \skewt method (method~4) is decisively the best across all quantiles, with relative Brier scores between roughly $0.84$ and $0.92$.  All four methods improve on the Gaussian baseline, in contrast with setting~4 where the over-specified method~5 was worse than Gaussian.  The right panel mirrors the left panel closely, indicating that the MRTS basis adds little beyond what the spatial \skewt structure already captures.}
-\label{fig:bs-rel-set5-mrts}
-\end{figure}
-
-Two consistent patterns emerge.  First, the data-generating knot count is the dominant axis: in setting~4 the one-knot \skewt method (method~2) is best at every quantile, and in setting~5 the five-knot \skewt method (method~4) is best at every quantile.  Mis-specifying $K$ on the under-side (fitting $K = 1$ to a $K = 5$ truth, as method~2 does in setting~5) gives only marginal gains over Gaussian, whereas mis-specifying $K$ on the over-side (fitting $K = 5$ to a $K = 1$ truth, as method~4 does in setting~4) is competitive but not optimal.  Second, the MRTS basis is essentially flat across the configurations studied here: in both settings the right (with-MRTS) panel reproduces the left (without-MRTS) panel almost exactly, and the same pattern was observed at the other ranks examined ($K_{\mathrm{MRTS}} \in \{10, 20\}$, results not shown).  The MRTS basis therefore does not change the within-setting ranking, and its added computational cost is not repaid by tail-score improvement under these data-generating processes.
+Two consistent patterns emerge.  First, the data-generating knot count is the dominant axis: in setting~4 the one-knot \skewt method (method~2) is best at every quantile, and in setting~5 the five-knot \skewt method (method~4) is best at every quantile.  Mis-specifying $K$ on the under-side (fitting $K = 1$ to a $K = 5$ truth, as method~2 does in setting~5) gives only marginal gains over Gaussian, whereas mis-specifying $K$ on the over-side (fitting $K = 5$ to a $K = 1$ truth, as method~4 does in setting~4) is competitive but not optimal.  Second, the MRTS basis is essentially flat across the configurations studied here: in both settings the right (with-MRTS) panel reproduces the left (without-MRTS) panel almost exactly.  The MRTS basis therefore does not change the within-setting ranking, and its added computational cost is not repaid by tail-score improvement under these data-generating processes.
 
 \subsection{AR(2) on AR(2)-generated data: design}\label{sec:sim-ar2-design}
 
@@ -818,7 +835,7 @@ The censoring layer that retains only $\widetilde Y_t(\bs) = \max\{Y_t(\bs), T\}
 
 \subsection*{The cost of $\phi$ via the posterior on $\btheta$}
 
-A complementary observation, made quantitative through \eref{eq:brier-split-disc}, is that adding $\big(\phi_1^{(z)}, \phi_2^{(z)}, \phi_1^{(\sigma)}, \phi_2^{(\sigma)}, \phi_1^{(w)}, \phi_2^{(w)}\big)$ to the parameter vector inflates the posterior $\pi(\btheta \mid \bY^{\mathrm{tr}})$.  By the law of total variance,
+A complementary observation, made quantitative through \eref{eq:brier-split-disc}, is that adding $\phi_1^{(z)}, \phi_2^{(z)}, \phi_1^{(\sigma)}, \phi_2^{(\sigma)}, \phi_1^{(w)}, \phi_2^{(w)}$ to the parameter vector inflates the posterior $\pi(\btheta \mid \bY^{\mathrm{tr}})$.  By the law of total variance,
 \begin{align}
   \mathrm{Var}\!\big(\hat p(\bs^*, t; c)\big)
     \;\approx\; E_\phi\!\big[\mathrm{Var}\!\big(\hat p \,\big|\, \phi\big)\big]

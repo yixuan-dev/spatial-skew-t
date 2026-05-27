@@ -78,7 +78,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                      beta.init = NULL, tau.init = 1,
                      tau.alpha.init = 0.1, tau.beta.init = 0.1,
                      rho.init = 5, nu.init = 0.5, gamma.init = 0.5,
-                     z.init = 0, lambda.init = NULL, knots.init = NULL,
+                     z.init = 1, lambda.init = NULL, knots.init = NULL,
                      phi.tau.init = NULL, phi.w.init = NULL, phi.z.init = NULL,
                      # priors
                      beta.m = 0, beta.s = 20,

@@ -13,6 +13,7 @@
 - `scores.R`：**Stage 1**——從 `results<suffix>/<setting>-<method>-<dataset>[-K<mrts_k>].RData` 計算 per-cell Brier / Quantile 與多變量 energy / variogram 分數，輸出 `output/results/scores<setting><suffix>.RData`（需要 `scoringRules` 套件）
 - `tables.R`：**Stage 2**——讀 Stage 1 快取，輸出 `output/tables/` 下的 CSV 表格 + `output/results/` 下的彙整 `simresults` 物件
 - `plots.R`：**Stage 3**——讀 Stage 2 的 `simresults` 物件，輸出 `output/plots/` 下的 PDF 圖
+- `posterior.R`：**standalone** 後驗摘要工具——從 fits 計算每個純量參數的後驗均值、中位數、SD，輸出 `output/results/posterior<setting><suffix>.RData` 與 `output/tables/posterior_summary<setting><suffix>.csv`
 - `mrts_cov_helpers.R`：CLI / 檔名 / seed / method catalog helper（三個階段共用）
 - `package_load.R`、`ar2_load.R`：Morris backend / AR(2) backend 套件載入
 - `results-mrts-cov.R`：MRTS 共變量覆蓋率分析（與主 pipeline 獨立）
@@ -118,6 +119,8 @@ output/plots/           Stage 3 PDF
 | Stage 2 best (method, K)   | `output/tables/best_method_per_K<setting><suffix>.csv`                                                                 |
 | Stage 2 lambda 95% 覆蓋率  | `output/tables/lambda_coverage<setting><suffix>.csv`                                                                   |
 | Stage 2 aggregated objects | `output/results/simresults<setting><suffix>.RData`                                                                     |
+| posterior 後驗陣列         | `output/results/posterior<setting><suffix>.RData`                                                                      |
+| posterior 摘要表           | `output/tables/posterior_summary<setting><suffix>.csv`                                                                 |
 | Stage 3 plots              | `output/plots/{bs,qs}_*-set<setting><suffix>-K<k>.pdf`、`{es,vs}_mean_vs_K-set<setting><suffix>.pdf`、`lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf` |
 
 ## Post-fit pipeline (`scores.R` → `tables.R` → `plots.R`)
@@ -201,6 +204,47 @@ lambda 95% CI。
 當 `--mrts_k=0`（只有 baseline）這種 `n_ks = 1` 的切片時，Stage 3 會自動跳過
 所有 mean-vs-K 系列圖（含 `{es,vs}_mean_vs_K`，沒有意義），其餘圖照常。讀到
 沒有 energy / variogram 的舊 `simresults` 時，也會自動跳過那兩張圖。
+
+### `posterior.R` — 後驗摘要（Posterior mean / median / SD）
+
+standalone 工具，與 scores.R / tables.R / plots.R pipeline 獨立，不需要先跑 Stage 1–3。
+
+```
+Rscript posterior.R --setting=<id>
+                    [--data=<path>]
+                    [--methods=<spec>]   default 1:8
+                    [--datasets=<spec>]  default = auto-scan from results_dir
+                    [--mrts_k=<spec>]    default = auto-detect from results_dir
+```
+
+- `--setting` 必填
+- `--datasets` 預設從 `results_dir` 自動掃描可用的 dataset ID；`--mrts_k` 同 scores.R 的 auto-detect 邏輯
+- 啟動時印出偵測到的 datasets 範圍與 niter（從第一個成功載入的 fit 的 `length(fit$rho)` 推斷）
+
+提取的參數：
+
+| 參數 | 來源 | 適用方法 |
+|------|------|---------|
+| `beta.0`, `beta.1`, `beta.2` | `fit$beta[, 1:3]` | 全部 |
+| `tau.alpha`, `tau.beta` | `fit$tau.alpha`, `fit$tau.beta` | 全部 |
+| `rho`, `nu`, `gamma` | 同名欄位 | 全部 |
+| `lambda` | `fit$lambda` | skew methods: 2, 4, 7, 8 |
+| `phi1.tau`, `phi2.tau` | `fit$phi.tau[, 1:2]` | AR(2) methods: 7, 8 |
+| `phi1.z`, `phi2.z` | `fit$phi.z[, 1:2]` | AR(2) methods: 7, 8 |
+| `phi1.w`, `phi2.w` | `fit$phi.w[, 1:2]` | AR(2) methods: 7, 8 |
+
+輸出：
+
+- `output/results/posterior<setting><suffix>.RData`：`post_mean`、`post_sd` 具名 list，每個元素是維度 `[n_datasets, n_methods, n_mrts_k]` 的陣列
+- `output/tables/posterior_summary<setting><suffix>.csv`：對 datasets 聚合後的摘要表，欄位為 `setting`, `method`, `mrts_k`, `parameter`, `n_datasets`, `mean_post_mean`, `median_post_mean`, `sd_post_mean`, `mean_post_sd`
+
+範例（setting 9 / 10，只跑 AR(2) 方法）：
+
+```powershell
+$R = "C:\Program Files\R\R-4.5.1\bin\Rscript.exe"
+& $R .\posterior.R --setting=9  --methods="7:8"
+& $R .\posterior.R --setting=10 --methods="7:8"
+```
 
 ### 端到端範例
 
