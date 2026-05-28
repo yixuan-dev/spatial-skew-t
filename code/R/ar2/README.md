@@ -28,7 +28,14 @@ initialised to 1 (positive), so `tau.star` is always finite.
 `knots.star` is the probit transform of spatial coordinates (finite).
 
 **Fix:** Changed the default in the `mcmc()` function signature from
-`z.init = 0` to `z.init = 1`.  Any strictly positive starting value
-keeps `z.star` finite and allows the MH updates for both `z` and
-`phi.z` to function correctly.  `z.init = 1` corresponds roughly to
-the median of a half-normal with `sigma = 1` (the default `tau.init`).
+`z.init = 0` to `z.init = NULL`.  When `NULL`, the initialisation block
+computes the **median of the marginal half-normal**:
+
+```r
+z.init <- 0.6745 / sqrt(tau.init)   # 0.6745 = qnorm(0.75)
+```
+
+This is principled because `hn.cop(median(HN(sigma)), sigma) = qnorm(0.5) = 0`
+exactly, so `z.star` starts at 0 — the centre of the copula space —
+regardless of `tau.init`.  Callers who pass `z.init` explicitly are
+unaffected.

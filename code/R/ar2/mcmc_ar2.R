@@ -78,7 +78,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                      beta.init = NULL, tau.init = 1,
                      tau.alpha.init = 0.1, tau.beta.init = 0.1,
                      rho.init = 5, nu.init = 0.5, gamma.init = 0.5,
-                     z.init = 1, lambda.init = NULL, knots.init = NULL,
+                     z.init = NULL, lambda.init = NULL, knots.init = NULL,
                      phi.tau.init = NULL, phi.w.init = NULL, phi.z.init = NULL,
                      # priors
                      beta.m = 0, beta.s = 20,
@@ -246,8 +246,11 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
 
     # initialize skew random effects
     zg <- matrix(0, ns, nt)
+    if (is.null(z.init)) {
+        z.init <- 0.6745 / sqrt(tau.init)  # median of HN(1/sqrt(tau.init)) → z.star = 0
+    }
     if (length(z.init) == 1 && skew) {
-        cat("\t initializing all z terms to", z.init, "\n")
+        cat("\t initializing all z terms to", round(z.init, 4), "\n")
     }
     z <- matrix(z.init, nknots, nt)
     for (t in 1:nt) {

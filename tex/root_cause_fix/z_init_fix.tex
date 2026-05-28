@@ -1,0 +1,301 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\geometry{margin=1in}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+\newcommand{\HN}{\mathrm{HN}}
+\newcommand{\N}{\mathcal{N}}
+\newcommand{\Phi}{\Phi}
+\newcommand{\phione}{\phi_1}
+\newcommand{\phitwo}{\phi_2}
+\newcommand{\zstar}{z^*}
+\newcommand{\ztstar}{z^*_t}
+\newcommand{\zinit}{z^{(0)}}
+\newcommand{\sig}{\sigma}
+\newcommand{\mh}{\delta}
+
+\title{Root Cause and Fix: Frozen $\phi_1^z$, $\phi_2^z$ in the\\
+       AR(2) Temporal Skew-$t$ Sampler}
+\author{}
+\date{2026-05-27}
+
+\begin{document}
+\maketitle
+
+\section{Background: The Half-Normal Copula Parameterisation}
+
+The spatial skew-$t$ model introduces a latent scale process $z_{k,t} > 0$
+for knot $k \in \{1,\ldots,K\}$ and time $t \in \{1,\ldots,T\}$.
+Conditionally on the precision $\tau_{k,t}$, the marginal prior is
+
+\begin{equation}
+  z_{k,t} \mid \tau_{k,t} \;\sim\; \HN\!\left(\sigma_{k,t}\right),
+  \qquad \sigma_{k,t} = \tau_{k,t}^{-1/2},
+  \label{eq:z_prior}
+\end{equation}
+
+where $\HN(\sigma)$ denotes the half-normal distribution with scale $\sigma$,
+i.e.\ the distribution of $|\epsilon|$ for $\epsilon \sim \N(0,\sigma^2)$,
+with CDF
+\[
+  F_{\HN}(z;\,\sigma) \;=\; 2\,\Phi\!\left(\tfrac{z}{\sigma}\right) - 1,
+  \qquad z \ge 0.
+\]
+
+To impose AR(2) temporal dependence while respecting the positivity
+constraint, the sampler works in the copula-transformed space.
+Define the \emph{half-normal copula map} $h_\sigma : [0,\infty) \to \mathbb{R}$,
+\begin{equation}
+  \zstar_{k,t} \;=\; h_{\sigma_{k,t}}(z_{k,t})
+  \;:=\; \Phi^{-1}\!\bigl(F_{\HN}(z_{k,t};\,\sigma_{k,t})\bigr)
+  \;=\; \Phi^{-1}\!\!\left(2\,\Phi\!\left(\tfrac{z_{k,t}}{\sigma_{k,t}}\right)-1\right),
+  \label{eq:copula}
+\end{equation}
+with inverse
+\[
+  z_{k,t} \;=\; h_{\sigma_{k,t}}^{-1}(\zstar_{k,t})
+  \;=\; \sigma_{k,t}\,\Phi^{-1}\!\!\left(\tfrac{1+\Phi(\zstar_{k,t})}{2}\right).
+\]
+By construction, $\zstar_{k,t} \in \mathbb{R}$ and, under the marginal prior
+\eqref{eq:z_prior}, $\zstar_{k,t} \sim \N(0,1)$.
+
+The temporal prior on $\zstar_{k,\cdot}$ is a stationary AR(2):
+\begin{equation}
+  \zstar_{k,t} \;=\; \phione\,\zstar_{k,t-1} \;+\; \phitwo\,\zstar_{k,t-2}
+  \;+\; \varepsilon_{k,t},
+  \qquad
+  \varepsilon_{k,t} \stackrel{\mathrm{iid}}{\sim} \N(0,\,\sigma_\varepsilon^2),
+  \label{eq:ar2}
+\end{equation}
+where, normalising so that $\gamma_0 := \mathrm{Var}(\zstar_{k,t}) = 1$,
+the Yule--Walker equations give
+\[
+  \gamma_1 = \frac{\phione}{1-\phitwo},
+  \quad
+  \gamma_2 = \phione\gamma_1 + \phitwo,
+  \quad
+  \sigma_\varepsilon^2 = 1 - \phione\gamma_1 - \phitwo\gamma_2.
+\]
+
+\section{The MCMC Update Structure}
+
+At each iteration the sampler executes two linked Metropolis--Hastings
+steps (implemented in \texttt{updateZTS\_AR2} and \texttt{updatePhiAR2TS}).
+
+\subsection*{Step 1 — Update $z_{k,t}$ (equivalently $\zstar_{k,t}$)}
+
+For each $(k,t)$, propose
+\[
+  \zstar_{k,t}^{\mathrm{can}} \;\sim\; \N\!\left(\zstar_{k,t},\,\mh_{k,t}^2\right),
+\]
+transform back via $z_{k,t}^{\mathrm{can}} = h_{\sigma_{k,t}}^{-1}(\zstar_{k,t}^{\mathrm{can}})$,
+and accept with log-ratio
+\begin{align}
+  R_z \;=\;&
+  \log p\!\left(y_{\cdot,t} \mid z^{\mathrm{can}}_{k,t},\,\ldots\right)
+  -\log p\!\left(y_{\cdot,t} \mid z_{k,t},\,\ldots\right) \notag\\
+  &+\;\log f_{\AR}\!\left(\zstar_{k,t}^{\mathrm{can}} \mid \zstar_{k,t-1},\zstar_{k,t-2};\,\phione,\phitwo\right)
+  -\log f_{\AR}\!\left(\zstar_{k,t} \mid \zstar_{k,t-1},\zstar_{k,t-2};\,\phione,\phitwo\right) \notag\\
+  &+\;\text{(forward-looking terms for $t+1$ and $t+2$)},
+  \label{eq:Rz}
+\end{align}
+where $f_{\AR}(\cdot\mid\cdot)$ is the conditional density of \eqref{eq:ar2}.
+
+\subsection*{Step 2 — Update $(\phione,\phitwo)$}
+
+Given the current $\zstar_{k,\cdot}$, the transition log-likelihood is
+\begin{equation}
+  \ell(\phione,\phitwo) \;=\;
+  \sum_{k=1}^{K}\sum_{t=3}^{T}
+  \log \N\!\left(\zstar_{k,t};\;\phione\,\zstar_{k,t-1}+\phitwo\,\zstar_{k,t-2},\;
+  \sigma_\varepsilon^2(\phione,\phitwo)\right).
+  \label{eq:phi_ll}
+\end{equation}
+A Metropolis step proposes $\phione^{\mathrm{can}} \sim \N(\phione,\mh_{\phi_1}^2)$
+and accepts if the candidate lies in the AR(2) stationarity region
+$\mathcal{S} = \{|\phitwo|<1,\;\phione+\phitwo<1,\;\phitwo-\phione<1\}$
+and the log-ratio
+\[
+  R_\phi \;=\;
+  \ell(\phione^{\mathrm{can}},\phitwo) - \ell(\phione,\phitwo)
+  +\log\pi(\phione^{\mathrm{can}}) - \log\pi(\phione)
+\]
+satisfies $\log U < R_\phi$ for $U \sim \mathrm{Uniform}(0,1)$.
+
+\section{The Failure Mode: $\zinit = 0$}
+
+\subsection{Singularity of the Copula Map at the Boundary}
+
+The copula map $h_\sigma$ has a \emph{non-integrable singularity} at $z = 0$:
+\begin{equation}
+  \lim_{z\to 0^+} h_\sigma(z)
+  \;=\; \Phi^{-1}\!\bigl(2\,\Phi(0) - 1\bigr)
+  \;=\; \Phi^{-1}(0)
+  \;=\; -\infty.
+  \label{eq:singularity}
+\end{equation}
+Consequently, initialising $z_{k,t}^{(0)} = 0$ for all $k,t$ yields
+\[
+  \zstar_{k,t}^{(0)} \;=\; h_{\sigma_{k,t}}(0) \;=\; -\infty
+  \qquad \forall\, k,\, t.
+\]
+
+\subsection{Cascading Failure in Step 1}
+
+With $\zstar_{k,t}^{(0)} = -\infty$, the proposal for $z_{k,t}$ at the
+first iteration draws
+\[
+  \zstar_{k,t}^{\mathrm{can}} \;\sim\; \N(-\infty,\,\mh_{k,t}^2) \equiv \mathrm{NaN}.
+\]
+Because $\mathrm{NaN}$ propagates through $h_\sigma^{-1}$ and all
+downstream arithmetic, the log-ratio \eqref{eq:Rz} evaluates to
+$R_z = \mathrm{NaN}$.  The guard
+\[
+  \texttt{if (!is.na}(R_z)\texttt{)}\;\{\;\text{accept}\;\}
+\]
+is therefore \emph{never triggered}, and $z_{k,t}$ remains at $0$
+\textbf{for every subsequent iteration}.
+
+\begin{proposition}
+  If $z_{k,t}^{(0)} = 0$ for all $k,t$, then
+  $z_{k,t}^{(m)} = 0$ for all iterations $m \ge 1$
+  under the update rule of \texttt{updateZTS\_AR2}.
+\end{proposition}
+
+\subsection{Propagation to the $\phi$ Update (Step 2)}
+
+Since $z_{k,t}^{(m)} = 0$ for all $m$, the copula-transformed chain
+satisfies $\zstar_{k,t}^{(m)} = -\infty$ for all $m$.
+The transition log-likelihood \eqref{eq:phi_ll} at the current state
+therefore evaluates to
+\[
+  \ell(\phione,\phitwo) \;=\;
+  \sum_{k,t} \log\N(-\infty;\;\phione\cdot(-\infty)+\phitwo\cdot(-\infty),\;\sigma_\varepsilon^2)
+  \;=\; -\infty.
+\]
+For any candidate $\phione^{\mathrm{can}}$ in the stationarity region
+$\mathcal{S}$, the candidate log-likelihood likewise involves terms of
+the form $-\infty - (-\infty)$, which is indeterminate:
+\[
+  \ell(\phione^{\mathrm{can}},\phitwo) - \ell(\phione,\phitwo)
+  \;=\; (-\infty) - (-\infty)
+  \;=\; \mathrm{NaN}.
+\]
+Hence $R_\phi = \mathrm{NaN}$ for every proposal, and the acceptance
+guard is never satisfied.
+
+\begin{proposition}
+  If $z_{k,t}^{(0)} = 0$ for all $k,t$, then $\phione^{(m)} = \phione^{(0)} = 0$
+  and $\phitwo^{(m)} = \phitwo^{(0)} = 0$ for all $m \ge 1$.  The AR(2)
+  coefficient chain is permanently frozen at its initial value.
+\end{proposition}
+
+\begin{remark}
+  The failure is specific to the copula-space updater.  The $\tau$
+  update (\texttt{updateTauTS\_AR2}) uses a gamma copula whose argument
+  is $\tau^{(0)} = 1 > 0$, giving a finite $\tau^*$.  The knot update
+  (\texttt{updateKnotsTS\_AR2}) uses a probit transform of spatial
+  coordinates, which are also bounded away from the boundary.  Neither
+  is affected.
+\end{remark}
+
+\section{The Fix: Principled Initialisation at the Marginal Median}
+
+\subsection{Choice of $\zinit$}
+
+Any $\zinit > 0$ breaks the singularity \eqref{eq:singularity}.  The
+most natural choice is the \emph{median} of the marginal prior
+\eqref{eq:z_prior}, which satisfies
+\[
+  F_{\HN}\!\left(\zinit;\,\sigma\right) = \tfrac{1}{2}
+  \;\;\Longleftrightarrow\;\;
+  2\,\Phi\!\left(\tfrac{\zinit}{\sigma}\right)-1 = \tfrac{1}{2}
+  \;\;\Longleftrightarrow\;\;
+  \zinit = \sigma\,\Phi^{-1}\!\!\left(\tfrac{3}{4}\right).
+\]
+Writing $q_{3/4} := \Phi^{-1}(3/4) \approx 0.6745$, this gives
+\begin{equation}
+  \zinit \;=\; \frac{q_{3/4}}{\sqrt{\tau_{\mathrm{init}}}},
+  \qquad q_{3/4} \approx 0.6745.
+  \label{eq:z_init_fix}
+\end{equation}
+
+\subsection{Why the Median is the Right Anchor}
+
+The copula map evaluated at $\zinit$ from \eqref{eq:z_init_fix} yields
+
+\begin{equation}
+  h_\sigma(\zinit)
+  \;=\; \Phi^{-1}\!\bigl(F_{\HN}(\zinit;\,\sigma)\bigr)
+  \;=\; \Phi^{-1}\!\!\left(\tfrac{1}{2}\right)
+  \;=\; 0,
+  \label{eq:zstar_at_median}
+\end{equation}
+
+\emph{regardless of $\sigma$ (equivalently, of $\tau_{\mathrm{init}}$)}.
+The chain therefore starts at the centre of the $\zstar$ space,
+minimising asymmetry in the initial MH proposals for both $z$ and $\phi$.
+
+\subsection{Scale Invariance}
+
+The result \eqref{eq:zstar_at_median} holds for every value of
+$\tau_{\mathrm{init}}$:
+
+\begin{center}
+\begin{tabular}{cccc}
+\hline
+$\tau_{\mathrm{init}}$ & $\sigma = \tau_{\mathrm{init}}^{-1/2}$ &
+$\zinit = q_{3/4}\,\sigma$ & $\zstar^{(0)} = h_\sigma(\zinit)$ \\
+\hline
+0.1  & 3.162 & 2.133 & 0 \\
+1    & 1.000 & 0.6745 & 0 \\
+4    & 0.500 & 0.337  & 0 \\
+16   & 0.250 & 0.168  & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+By contrast, the previous default $\zinit = 1$ gives
+$\zstar^{(0)} = h_\sigma(1) \approx 0.47$ when $\tau_{\mathrm{init}} = 1$,
+and $\zstar^{(0)} \approx 1.69$ when $\tau_{\mathrm{init}} = 4$ —
+increasingly far from the centre as the scale deviates from 1.
+
+\subsection{Implementation}
+
+In \texttt{code/R/ar2/mcmc\_ar2.R}, the function signature changes from
+\[
+  \texttt{z.init = 0} \;\longrightarrow\; \texttt{z.init = NULL},
+\]
+and the initialisation block computes
+\begin{lstlisting}[language=R, basicstyle=\ttfamily\small]
+if (is.null(z.init)) {
+    z.init <- 0.6745 / sqrt(tau.init)   # median of HN(1/sqrt(tau.init))
+}
+z <- matrix(z.init, nknots, nt)
+\end{lstlisting}
+Callers who supply \texttt{z.init} explicitly are unaffected.
+
+\section{Observed Symptom in the Simulation Study}
+
+In simulation settings 9 and 10 (skew-$t$, $K=1$ and $K=5$,
+AR(2) temporal; analysis methods 7 and 8), the posterior summary CSV files
+showed
+\[
+  \hat{\phi}_1^z = \hat{\phi}_2^z = 0,
+  \qquad
+  \widehat{\mathrm{SD}}_{\mathrm{post}}(\phi_1^z)
+  = \widehat{\mathrm{SD}}_{\mathrm{post}}(\phi_2^z) = 0,
+\]
+across all 10 datasets, confirming that every post-burn draw was exactly
+equal to the initialisation value.  Concurrently,
+$\hat{\phi}_1^\tau, \hat{\phi}_2^\tau$ were correctly estimated
+(settings 9: $\hat\phi_1^\tau \approx 0.88$, truth $\phi_1 = 0.80$),
+consistent with the diagnosis in Section~3.
+
+\end{document}
