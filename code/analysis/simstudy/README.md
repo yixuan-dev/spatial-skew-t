@@ -56,6 +56,8 @@ Rscript plots.R  --setting=1 --data=simdata_def.RData
 | 8       | Brown-Resnick                                                           |
 | 9       | Skew-t, K = 1, fixed AR(2), stronger serial dependence: φ=(0.80, -0.35) |
 | 10      | Skew-t, K = 1, fixed AR(2), weaker serial dependence: φ=(0.12, -0.05)   |
+| 11      | Skew-t, K = 5, fixed AR(2), stronger serial dependence: φ=(0.80, -0.35) |
+| 12      | Skew-t, K = 5, fixed AR(2), weaker serial dependence: φ=(0.12, -0.05)   |
 
 setting 4 / 5 是文件最常用的 skew-t 目標。`simdata_def.RData`（deformed
 covariance）只有 setting 1–3，傳 `--setting=4` 會直接報「setting must be in 1..3」。
@@ -256,13 +258,19 @@ $R = "C:\Program Files\R\R-4.5.1\bin\Rscript.exe"
 & $R .\tables.R --setting=4
 & $R .\plots.R  --setting=4
 
-# AR(2) 固定係數新設定（setting 9 / 10）+ AR(2) 分析法 7／8 smoke test
-& $R .\run-settings.R --setting=9 "1" 1 2 "(7,8)"
+# AR(2) 固定係數新設定（setting 9–12）+ AR(2) 分析法 7／8 smoke test
+& $R .\run-settings.R --setting=9  "1" 1 2 "(7,8)"
 & $R .\run-settings.R --setting=10 "1" 1 2 "(7,8)"
+& $R .\run-settings.R --setting=11 "1" 1 2 "(7,8)"
+& $R .\run-settings.R --setting=12 "1" 1 2 "(7,8)"
 & $R .\scores.R --setting=9  --methods="(7,8)" --datasets="1" --mrts_k=0
 & $R .\scores.R --setting=10 --methods="(7,8)" --datasets="1" --mrts_k=0
+& $R .\scores.R --setting=11 --methods="(7,8)" --datasets="1" --mrts_k=0
+& $R .\scores.R --setting=12 --methods="(7,8)" --datasets="1" --mrts_k=0
 & $R .\tables.R --setting=9
 & $R .\tables.R --setting=10
+& $R .\tables.R --setting=11
+& $R .\tables.R --setting=12
 
 # Deformed-covariance dataset，3 個 setting
 foreach ($s in 1..3) {

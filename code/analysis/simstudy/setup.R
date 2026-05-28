@@ -16,6 +16,8 @@
 #   8 - Brown-Resnick with range = 1, smooth = 0.5
 #   9 - skew t-1 with fixed AR(2), stronger time dependence: phi1 = 0.80, phi2 = -0.35
 #  10 - skew t-1 with fixed AR(2), weaker time dependence: phi1 = 0.12, phi2 = -0.05
+#  11 - skew t-5 with fixed AR(2), stronger time dependence: phi1 = 0.80, phi2 = -0.35
+#  12 - skew t-5 with fixed AR(2), weaker time dependence:   phi1 = 0.12, phi2 = -0.05
 #
 # analysis methods:
 #  1 - Gaussian
@@ -50,7 +52,7 @@ beta.t <- c(10, 0, 0)
 nu.t <- 0.5
 gamma.t <- 0.9
 dist.t <- c("gaussian", "t", "t", "t", "t")
-nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 5)
+nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 1, 5, 5)
 rho.t <- c(1, 1, 1, 1, 1)
 lambda.t <- c(0, 0, 0, 3, 3)
 tau.alpha.t <- 6
@@ -64,7 +66,7 @@ knots.gev <- expand.grid(knots.x, knots.x)
 ns <- nrow(s)
 nt <- 50
 nsets <- 50
-nsettings <- 10
+nsettings <- 12
 ntest <- 44
 
 x <- array(1, c(ns, nt, 3))
@@ -75,8 +77,10 @@ for (t in 1:nt) {
 
 build_fixed_phi_pair <- function(setting) {
   pair <- switch(as.character(setting),
-    "9" = c(0.80, -0.35),
+    "9"  = c(0.80, -0.35),
     "10" = c(0.12, -0.05),
+    "11" = c(0.80, -0.35),
+    "12" = c(0.12, -0.05),
     stop(sprintf("No fixed AR(2) phi pair configured for setting %s", setting))
   )
 
@@ -156,7 +160,7 @@ for (setting in 1:nsettings) {
     z.t[[setting]] <- z.t.setting
     knots.t[[setting]] <- knots.t.setting
     print(setting)
-  } else if (setting == 9 || setting == 10) {
+  } else if (setting == 9 || setting == 10 || setting == 11 || setting == 12) {
     phi.fixed <- build_fixed_phi_pair(setting)
     phi.path[[setting]] <- list(
       type = "fixed",
