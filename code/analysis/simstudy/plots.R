@@ -126,7 +126,13 @@ dgp_label_map <- list(
   "11" = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3), AR(2): " *
     phi[1] * "=0.8, " * phi[2] * "=-0.35"),
   "12" = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3), AR(2): " *
-    phi[1] * "=0.12, " * phi[2] * "=-0.05")
+    phi[1] * "=0.12, " * phi[2] * "=-0.05"),
+  "13" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2) on " *
+    italic(z) * " only: " * phi[1] * "=0.8, " * phi[2] * "=-0.35"),
+  "14" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2) on " *
+    tau * " only: " * phi[1] * "=0.8, " * phi[2] * "=-0.35"),
+  "15" = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3), AR(2) on " *
+    italic(w) * " only: " * phi[1] * "=0.8, " * phi[2] * "=-0.35")
 )
 # dgp_title(): expression built from setting_id + data_suffix,
 # optionally suffixed by an extra `bquote(...)` snippet for context.

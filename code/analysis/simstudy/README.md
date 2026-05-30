@@ -58,6 +58,9 @@ Rscript plots.R  --setting=1 --data=simdata_def.RData
 | 10      | Skew-t, K = 1, fixed AR(2), weaker serial dependence: φ=(0.12, -0.05)   |
 | 11      | Skew-t, K = 5, fixed AR(2), stronger serial dependence: φ=(0.80, -0.35) |
 | 12      | Skew-t, K = 5, fixed AR(2), weaker serial dependence: φ=(0.12, -0.05)   |
+| 13      | Skew-t, K = 1, AR(2) on z only: φ_z=(0.80, -0.35), φ_τ=φ_w=0 (pure level channel) |
+| 14      | Skew-t, K = 1, AR(2) on τ only: φ_τ=(0.80, -0.35), φ_z=φ_w=0 (pure volatility channel) |
+| 15      | Skew-t, K = 5, AR(2) on w only: φ_w=(0.80, -0.35), φ_z=φ_τ=0 (pure knot-mixing channel) |
 
 setting 4 / 5 是文件最常用的 skew-t 目標。`simdata_def.RData`（deformed
 covariance）只有 setting 1–3，傳 `--setting=4` 會直接報「setting must be in 1..3」。

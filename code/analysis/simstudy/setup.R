@@ -18,6 +18,9 @@
 #  10 - skew t-1 with fixed AR(2), weaker time dependence: phi1 = 0.12, phi2 = -0.05
 #  11 - skew t-5 with fixed AR(2), stronger time dependence: phi1 = 0.80, phi2 = -0.35
 #  12 - skew t-5 with fixed AR(2), weaker time dependence:   phi1 = 0.12, phi2 = -0.05
+#  13 - skew t-1, AR(2) on z only (phi_z = (0.80, -0.35), phi_tau = phi_w = 0): pure level channel
+#  14 - skew t-1, AR(2) on tau only (phi_tau = (0.80, -0.35), phi_z = phi_w = 0): pure volatility channel
+#  15 - skew t-5, AR(2) on w only  (phi_w  = (0.80, -0.35), phi_z = phi_tau = 0): pure knot-mixing channel (K=5 needed)
 #
 # analysis methods:
 #  1 - Gaussian
@@ -52,7 +55,7 @@ beta.t <- c(10, 0, 0)
 nu.t <- 0.5
 gamma.t <- 0.9
 dist.t <- c("gaussian", "t", "t", "t", "t")
-nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 1, 5, 5)
+nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 1, 5, 5, 1, 1, 5)
 rho.t <- c(1, 1, 1, 1, 1)
 lambda.t <- c(0, 0, 0, 3, 3)
 tau.alpha.t <- 6
@@ -66,7 +69,7 @@ knots.gev <- expand.grid(knots.x, knots.x)
 ns <- nrow(s)
 nt <- 50
 nsets <- 50
-nsettings <- 12
+nsettings <- 15
 ntest <- 44
 
 x <- array(1, c(ns, nt, 3))
@@ -75,23 +78,33 @@ for (t in 1:nt) {
   x[, t, 3] <- s[, 2]
 }
 
-build_fixed_phi_pair <- function(setting) {
-  pair <- switch(as.character(setting),
-    "9"  = c(0.80, -0.35),
-    "10" = c(0.12, -0.05),
-    "11" = c(0.80, -0.35),
-    "12" = c(0.12, -0.05),
-    stop(sprintf("No fixed AR(2) phi pair configured for setting %s", setting))
+build_phi_triple <- function(setting) {
+  phi_strong <- c(0.80, -0.35)
+  phi_weak   <- c(0.12, -0.05)
+  phi_zero   <- c(0, 0)
+
+  triple <- switch(as.character(setting),
+    "9"  = list(phi.z = phi_strong, phi.tau = phi_strong, phi.w = phi_strong),
+    "10" = list(phi.z = phi_weak,   phi.tau = phi_weak,   phi.w = phi_weak),
+    "11" = list(phi.z = phi_strong, phi.tau = phi_strong, phi.w = phi_strong),
+    "12" = list(phi.z = phi_weak,   phi.tau = phi_weak,   phi.w = phi_weak),
+    "13" = list(phi.z = phi_strong, phi.tau = phi_zero,   phi.w = phi_zero),
+    "14" = list(phi.z = phi_zero,   phi.tau = phi_strong, phi.w = phi_zero),
+    "15" = list(phi.z = phi_zero,   phi.tau = phi_zero,   phi.w = phi_strong),
+    stop(sprintf("No phi triple configured for setting %s", setting))
   )
 
-  if (!check_ar2_stability(pair[1], pair[2])) {
-    stop(sprintf(
-      "Non-stationary AR(2) coefficients for setting %s: phi1=%.3f, phi2=%.3f",
-      setting, pair[1], pair[2]
-    ))
+  for (nm in names(triple)) {
+    p <- triple[[nm]]
+    if (any(p != 0) && !check_ar2_stability(p[1], p[2])) {
+      stop(sprintf(
+        "Non-stationary AR(2) in %s for setting %s: phi1=%.3f, phi2=%.3f",
+        nm, setting, p[1], p[2]
+      ))
+    }
   }
 
-  pair
+  triple
 }
 
 # Storage for datasets
@@ -160,13 +173,13 @@ for (setting in 1:nsettings) {
     z.t[[setting]] <- z.t.setting
     knots.t[[setting]] <- knots.t.setting
     print(setting)
-  } else if (setting == 9 || setting == 10 || setting == 11 || setting == 12) {
-    phi.fixed <- build_fixed_phi_pair(setting)
+  } else if (setting >= 9) {
+    phi.triple <- build_phi_triple(setting)
     phi.path[[setting]] <- list(
-      type = "fixed",
-      phi1 = rep(phi.fixed[1], nt),
-      phi2 = rep(phi.fixed[2], nt),
-      phi_pair = phi.fixed
+      type = "channel-specific",
+      phi.z   = phi.triple$phi.z,
+      phi.tau = phi.triple$phi.tau,
+      phi.w   = phi.triple$phi.w
     )
     nknots <- nknots.t[setting]
     tau.t.setting <- array(NA, dim = c(nknots, nt, nsets))
@@ -178,7 +191,7 @@ for (setting in 1:nsettings) {
         nt = nt, x = x, s = s, beta = beta.t, gamma = gamma.t, nu = nu.t,
         rho = rho.t[4], lambda = lambda.t[4], tau.alpha = tau.alpha.t,
         tau.beta = tau.beta.t, nknots = nknots, dist = dist.t[4],
-        phi.z = phi.fixed, phi.w = phi.fixed, phi.tau = phi.fixed
+        phi.z = phi.triple$phi.z, phi.w = phi.triple$phi.w, phi.tau = phi.triple$phi.tau
       )
       y[, , set, setting] <- data$y
       tau.t.setting[, , set] <- data$tau
