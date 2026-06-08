@@ -13,7 +13,7 @@
 # Usage:
 #   Rscript posterior.R --setting=<id>
 #                       [--data=<path>]
-#                       [--methods=<spec>]   default 1:8
+#                       [--methods=<spec>]   default 1:10
 #                       [--datasets=<spec>]  default = auto-scan from results_dir
 #                       [--mrts_k=<spec>]    default = auto-detect from results_dir
 #
@@ -65,10 +65,10 @@ setting <- as.integer(setting_ids)
 # ---- methods -------------------------------------------------------------
 methods <- if (!is.null(flags$methods) && nzchar(flags$methods)) {
   m <- parse_index_expr(flags$methods, "methods")
-  if (any(m < 1L | m > 8L)) stop("methods must be in 1..8", call. = FALSE)
+  if (any(m < 1L | m > 10L)) stop("methods must be in 1..10", call. = FALSE)
   sort(unique(as.integer(m)))
 } else {
-  1:8
+  1:10
 }
 
 # ---- mrts_k (same auto-detect as scores.R) -------------------------------
@@ -138,8 +138,9 @@ cat(sprintf(
 ))
 
 # ---- parameter registry --------------------------------------------------
-skew_methods <- c(2L, 4L, 7L, 8L)
+skew_methods <- c(2L, 4L, 7L, 8L, 9L, 10L)
 ar2_methods  <- c(7L, 8L)
+ar1_methods  <- c(9L, 10L)
 
 params <- list(
   list(name = "beta.0",    extract = function(fit) fit$beta[, 1],    applies = NULL),
@@ -151,11 +152,11 @@ params <- list(
   list(name = "nu",        extract = function(fit) fit$nu,           applies = NULL),
   list(name = "gamma",     extract = function(fit) fit$gamma,        applies = NULL),
   list(name = "lambda",    extract = function(fit) fit$lambda,       applies = skew_methods),
-  list(name = "phi1.tau",  extract = function(fit) fit$phi.tau[, 1], applies = ar2_methods),
+  list(name = "phi1.tau",  extract = function(fit) fit$phi.tau[, 1], applies = c(ar2_methods, ar1_methods)),
   list(name = "phi2.tau",  extract = function(fit) fit$phi.tau[, 2], applies = ar2_methods),
-  list(name = "phi1.z",    extract = function(fit) fit$phi.z[, 1],   applies = ar2_methods),
+  list(name = "phi1.z",    extract = function(fit) fit$phi.z[, 1],   applies = c(ar2_methods, ar1_methods)),
   list(name = "phi2.z",    extract = function(fit) fit$phi.z[, 2],   applies = ar2_methods),
-  list(name = "phi1.w",    extract = function(fit) fit$phi.w[, 1],   applies = ar2_methods),
+  list(name = "phi1.w",    extract = function(fit) fit$phi.w[, 1],   applies = c(ar2_methods, ar1_methods)),
   list(name = "phi2.w",    extract = function(fit) fit$phi.w[, 2],   applies = ar2_methods)
 )
 param_names <- vapply(params, `[[`, character(1), "name")

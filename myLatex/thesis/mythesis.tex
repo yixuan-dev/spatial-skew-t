@@ -220,12 +220,12 @@ The classical alternative is to discard the bulk of the record and apply extreme
 
 This thesis treats the Morris framework as the prototype for that broader class of models and asks where in its four-ingredient structure the remaining room for improving upper-tail prediction actually lives.  Two extension axes pull in opposite directions on the hierarchy: on the temporal axis, the AR(1) prior on each PIT-transformed latent is generalized to a standardized AR(2) prior whose Yule--Walker normalization preserves the unit marginal variance and hence the spatial \skewt margin at every day; on the spatial axis, the regression component is augmented with multi-resolution thin-plate spline basis functions \parencite{tzeng_resolution_2018} that capture non-stationary mean structure beyond the reach of a stationary covariance.  Both probes are evaluated against the same Morris baseline on simulated data, on EPA ground-level ozone, and on a controlled MERRA-2 surface-temperature benchmark, using held-out Brier and quantile scores.  The contrast yields a directional answer with a methodological asymmetry: the MRTS extension reduces the upper-tail Brier score at selected exceedance levels, while the AR(2) extension does not systematically improve over AR(1).  The negative AR(2) finding is the more methodologically informative result; the Discussion traces it to a structural feature of the Morris kernel that generalizes to any standardized AR($p$) extension of a hierarchical extreme-value model with PIT-preserved margins, and the transferable conclusion is that the leverage on held-out upper-tail prediction in this class of models lives in the spatial regression component rather than in the temporal prior.
 
-The remainder of the thesis is organized as follows.  The Literature review covers the two pieces of prior work the thesis builds on: \sref{sec:sttskewt} summarizes the Morris baseline and \sref{sec:lit-mrts} introduces the MRTS basis.  The Methodology states the two extensions in a common notation (\sref{sec:meth-mrts}, \sref{sec:ar2}) and defines the Brier and quantile scoring rules used throughout (\sref{sec:meth-brier}).  The Simulation study reports two design--results pairs: \sref{sec:sim-mrts-design}--\sref{sec:sim-mrts-results} compare the MRTS variant against the Morris baseline on the Morris benchmark, and \sref{sec:sim-ar2-design}--\sref{sec:sim-ar2-results} compare the AR(2) variant against the AR(1) baseline on data with known AR(2) dependence.  The Data analysis section then validates both probes on real data: \sref{sec:data-ozone} runs the full candidate model class on EPA ground-level ozone, and \sref{sec:data-merra2} runs the temporal probe on a MERRA-2 surface-temperature benchmark.  The thesis closes with a Discussion that gives the mathematical explanation, structured around three propositions, for why the AR(2) extension cannot systematically improve the held-out Brier score in this class of models.
+The remainder of the thesis is organized as follows.  The Methodology presents the Morris baseline (\sref{sec:sttskewt}), the AR(2) and MRTS extensions (\sref{sec:ar2}, \sref{sec:meth-mrts}), and the Bayesian hierarchical formulation used for inference (\sref{sec:meth-hier}).  The Simulation study states the shared design and cross-validation protocol (\sref{sec:sim-design}, \sref{sec:sim-scoring}), then reports results for the AR(2) comparison (\sref{sec:sim-ar2-results}) and the MRTS comparison (\sref{sec:sim-mrts-results}).  The Data analysis section then validates both probes on real data: \sref{sec:data-ozone} runs the full candidate model class on EPA ground-level ozone, and \sref{sec:data-merra2} runs the temporal probe on a MERRA-2 surface-temperature benchmark.  The thesis closes with a Discussion that gives the mathematical explanation, structured around three propositions, for why the AR(2) extension cannot systematically improve the held-out Brier score in this class of models.
 
-\section{Literature review}
+\section{Methodology}
 \subsection{The spatio-temporal skew-$t$ model}\label{sec:sttskewt}
 
-The thesis treats the spatio-temporal \skewt model of \textcite{morris_space-time_2017} as the object of investigation.  We summarize that baseline here so that the two probe extensions developed in the Methodology section---one on the temporal axis (AR(2)) and one on the spatial-mean axis (MRTS)---can be stated against a common notation.
+The thesis treats the spatio-temporal \skewt model of \textcite{morris_space-time_2017} as the object of investigation.  We summarize that baseline here so that the two probe extensions developed below---one on the temporal axis (AR(2)) and one on the spatial-mean axis (MRTS)---can be stated against a common notation.
 
 Let $Y_t(\bs)$ denote the response at spatial location $\bs \in \calD \subset \calR^2$ on day $t \in \{1, \ldots, n_t\}$.  Following \textcite{morris_space-time_2017}, we model
 \begin{align}
@@ -259,74 +259,7 @@ where $\Phi$ is the standard normal distribution function, $\mathrm{HN}$ is the 
 \end{align}
 with $|\phi_w|, |\phi_z|, |\phi_\sigma| < 1$, and initial values $\bw^*_{1k} \sim N_2(\bZero, \bI_2)$, $z^*_{1k} \sim N(0, 1)$, $\sigma^{2*}_{1k} \sim N(0, 1)$.  Transforming back through \eref{eq:wstar}--\eref{eq:sigmastar} gives $\bw_{tk} \sim \mathrm{Unif}(\calD)$, $z_{tk} \sim \mathrm{HN}(0, 1)$, and $\sigma^2_{tk} \sim \mathrm{IG}(a/2, b/2)$ at every $t$, so that the spatial \skewt structure of \eref{eq:fullmodel} is preserved at each day.  The complete hierarchical model is fitted via MCMC with Gibbs and Metropolis--Hastings steps, with predictions at unobserved sites obtained by Bayesian kriging on the multivariate normal full conditional of $\bY_t$.
 
-This \skewt baseline---partitioned, censored, and AR(1)-correlated in time---defines the reference specification against which the two exploratory probes of this thesis are evaluated.  The temporal probe extends the AR(1) prior on the PIT-transformed latents and is developed methodologically in \sref{sec:ar2}; the spatial probe rests on the multi-resolution thin-plate spline basis introduced in the next subsection.
-
-\subsection{Multi-resolution thin-plate splines basis functions}\label{sec:lit-mrts}
-
-Multi-resolution thin-plate spline (MRTS) basis functions provide a smoothness-ordered basis on a two-dimensional spatial domain whose first three components reproduce the constant and linear spatial trend and whose remaining components encode progressively finer-scale spatial structure.  The thesis uses this basis to enrich the regression component of the spatial \skewt model with non-stationary mean structure that the stationary \Matern correlation \eref{eq:matern} cannot represent.
-
-According to \textcite{tzeng_resolution_2018}, the multi-resolution spline basis function $f_k(\bs)$ is defined as follows.  Fix $d$ control points $\bc_i = (x_{i1}, x_{i2})^\top \in \calR^2$ for $i = 1, \ldots, d$, and let
-\begin{equation}
-  \bX \;=\;
-  \begin{pmatrix}
-    1 & x_{11} & x_{12} \\
-    \vdots & \vdots & \vdots \\
-    1 & x_{d1} & x_{d2}
-  \end{pmatrix}
-  \label{eq:mrts-X}
-\end{equation}
-be the $d \times 3$ design matrix at the control points.  Then
-\begin{equation}
-  f_k(\bs) \;=\;
-  \begin{cases}
-    1, & k = 1, \\
-    x_{k-1}, & k = 2, 3, \\
-    \lambda_{k-3}^{-1} \big\{\bphi(\bs) \;-\; \bPhi\,\bX(\bX^\top \bX)^{-1}\,\bx \big\}^\top \bv_{k-3}, & k = 4, \ldots, d,
-  \end{cases}
-  \label{eq:mrts-basis}
-\end{equation}
-where $\bx = (1, \bs^\top)^\top = (1, x_1, x_2)^\top$, $\bphi(\bs) = (\phi_1(\bs), \ldots, \phi_d(\bs))^\top$ with
-\begin{equation}
-  \phi_i(\bs) \;=\; \frac{1}{8\pi}\,\|\bs - \bc_i\|^2 \, \log\!\big(\|\bs - \bc_i\|\big), \qquad i = 1, \ldots, d,
-  \label{eq:tps-kernel}
-\end{equation}
-$\bPhi$ is the $d \times d$ matrix with $(i,j)$-th element $\phi_j(\bc_i)$, $\bv_k$ is the $k$-th column of $\bV$, and $\bV\,\mathrm{diag}(\lambda_1, \ldots, \lambda_d)\,\bV^\top$ is the eigendecomposition of $\bQ\,\bPhi\,\bQ$ with $\lambda_1 \ge \cdots \ge \lambda_d$ and $\bQ = \bI - \bX(\bX^\top \bX)^{-1} \bX^\top$.  In this context $\bc_1, \ldots, \bc_d$ are referred to as control points.  The selection of control points influences the smoothness and complexity of the resulting spline functions, and directly determines their local versus global behavior: placing control points densely in regions of interest enhances feature capture in those areas, so the same construction can be used both for globally smooth enrichment and for locally adaptive corrections.
-
-The first three basis functions $f_1, f_2, f_3$ reproduce the constant and linear spatial trend; the remaining functions $f_4, \ldots, f_d$ are smoothness-ordered through the eigenvalues $\lambda_1 \ge \cdots \ge \lambda_{d-3}$, with $f_4$ carrying the largest-scale residual spatial structure and $f_d$ the finest.  Whenever the baseline regression $\bX_t(\bs)^\top \bbeta$ in \eref{eq:fullmodel} already contains an intercept and a first-order spatial trend---as it does in every experiment of this thesis---only the smooth components $f_4(\bs), f_5(\bs), \ldots$ contribute new spatial information.  The exact augmentation used inside the spatial \skewt model is given in \sref{sec:meth-mrts}.
-
-\section{Methodology}
-
-\subsection{Hierarchical model}\label{sec:meth-hier}
-
-We cast the spatial \skewt threshold-exceedance model of \sref{sec:sttskewt} as a Bayesian hierarchical model and fit it by Markov chain Monte Carlo (MCMC).  The data are treated as partially censored observations from the \skewt model: at each MCMC iteration the values below the threshold $T$ are imputed so that parameter estimation can proceed on the completed $\bY$.  Conditional on the partition-level latents $z_{tk}(\bs)$, $\sigma^2_{tk}(\bs)$, and the partition subregions $P_{tk}$, the joint distribution of $\bY$ is multivariate Gaussian.  The partitions are not fixed; the locations of the $K$ knots are treated as unknown and random.  Allowing $K$ itself to be unknown (for example through a Poisson-process prior on the knot count) leads to onerous computing, so we instead treat $K$ as a tuning parameter, fixing it at several values and selecting among them by the held-out scoring rule of \sref{sec:meth-brier}.  The hierarchical model is
-\begin{align}
-  Y_t(\bs) \mid z_t(\bs), \sigma_t^2(\bs), P_{tk}, \Theta
-    &= \bX_t(\bs)^\top \bbeta + \lambda\, \sigma_t(\bs)\, |z_t(\bs)| + \sigma_t(\bs)\, v_t(\bs), \label{eq:hier}\\
-  z_t(\bs)        &= z_{tk}     \text{ if } \bs \in P_{tk}, \nonumber\\
-  \sigma^2_t(\bs) &= \sigma^2_{tk} \text{ if } \bs \in P_{tk}, \nonumber\\
-  \lambda         &\sim N(0, \sigma^2_\lambda), \nonumber\\
-  v_t(\bs) \mid \Theta &\sim \Matern(\bZero, \bSigma), \nonumber
-\end{align}
-where $\Theta = \{\varphi, \nu, \gamma, \lambda, \bbeta\}$, $\bSigma$ is the \Matern covariance matrix of \eref{eq:matern}, and the priors on $\bw^*_{tk}$, $z^*_{tk}$, and $\sigma^{2*}_{tk}$ are given in \eref{eq:ar1-w}--\eref{eq:ar1-sigma}.  The two probes of this thesis modify exactly two ingredients of \eref{eq:hier}: \sref{sec:meth-mrts} augments the regression vector $\bX_t(\bs)$ with multi-resolution thin-plate spline basis functions, and \sref{sec:ar2} replaces the AR(1) priors on $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ with a stationary AR(2) prior; all remaining components of \eref{eq:hier}, including the partition mechanism, the censoring layer, and the Matérn covariance, are inherited unchanged from the Morris baseline.
-
-\subsection{Incorporating MRTS covariates}\label{sec:meth-mrts}
-
-The MRTS basis of \sref{sec:lit-mrts} enters the Morris hierarchy through the regression component, leaving the latent partition and the AR(1) (or AR(2)) priors on $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ untouched.  Because every baseline regression in this thesis already contains an intercept and a first-order spatial trend, the polynomial part of the MRTS basis ($f_1, f_2, f_3$) is omitted from the augmentation to avoid duplication; only the smooth components $f_4, f_5, \ldots$ contribute new spatial information.  Fix the number of additional spline covariates $K_{\mathrm{MRTS}}$ and let
-\begin{align}
-  \bff(\bs) \;=\; \big(f_4(\bs),\, f_5(\bs),\, \ldots,\, f_{K_{\mathrm{MRTS}}+3}(\bs)\big)^\top
-  \label{eq:mrts-f}
-\end{align}
-collect the next $K_{\mathrm{MRTS}}$ smooth basis evaluations defined in \eref{eq:mrts-basis}.  Replace the day-$t$ covariate vector $\bX_t(\bs)$ in \eref{eq:fullmodel} with the augmented vector
-\begin{align}
-  \bX^*_t(\bs) \;=\; \big[\bX_t(\bs)^\top,\; \bff(\bs)^\top\big]^\top,
-  \label{eq:mrts-augmented}
-\end{align}
-and the regression coefficient $\bbeta$ with the matching augmented vector $\bbeta^* = (\bbeta^\top, \balpha^\top)^\top$, where $\balpha \in \calR^{K_{\mathrm{MRTS}}}$ holds the MRTS coefficients.  The kernel \eref{eq:fullmodel} then reads
-\begin{align}
-  Y_t(\bs) \;=\; \bX^*_t(\bs)^\top \bbeta^* \;+\; \lambda\, \sigma_t(\bs)\, |z_t(\bs)| \;+\; \sigma_t(\bs)\, v_t(\bs),
-  \label{eq:fullmodel-mrts}
-\end{align}
-which is identical to the Morris specification \eref{eq:fullmodel} on all components other than the mean.  Setting $\balpha = \bZero$ recovers the unenriched Morris regression, so the MRTS extension nests the baseline and adds $K_{\mathrm{MRTS}}$ additional regression coefficients.  The basis evaluations $f_k(\bs)$ are precomputed once from \eref{eq:tps-kernel}--\eref{eq:mrts-basis} using a fixed grid of control points and treated as known covariates inside the MCMC; the \texttt{autoFRK} R package \parencite{tzeng_resolution_2018} supplies these evaluations.  Because the MRTS extension only changes the mean component, the censoring layer $\widetilde{Y}_t(\bs) = \max\{Y_t(\bs), T\}$ and the inverse-PIT transforms \eref{eq:wstar}--\eref{eq:sigmastar} that drive the latent hierarchy carry over verbatim.  The number of additional spline covariates $K_{\mathrm{MRTS}}$ is the practical tuning parameter: \sref{sec:sim-mrts-design} compares the choices $K_{\mathrm{MRTS}} \in \{10, 15, 20\}$ on the Morris benchmark.
+This \skewt baseline---partitioned, censored, and AR(1)-correlated in time---defines the reference specification against which the two exploratory probes of this thesis are evaluated.  The temporal probe in \sref{sec:ar2} replaces the AR(1) prior on the PIT-transformed latents; the spatial probe in \sref{sec:meth-mrts} augments the regression component with multi-resolution thin-plate spline basis functions.
 
 \subsection{Extension to AR(2) time-varying coefficients}\label{sec:ar2}
 
@@ -412,24 +345,76 @@ The AR(2) prior \eref{eq:ar2-recursion} together with the stationary initial con
 \end{align}
 where each pair $(\phi^{(\cdot)}_1, \phi^{(\cdot)}_2)$ lies inside the stationarity triangle \eref{eq:stab-triangle}, the innovation variances are obtained from \eref{eq:gamma12}--\eref{eq:sigeps}, and the initial pairs $(\bw^*_{1k}, \bw^*_{2k})$, $(z^*_{1k}, z^*_{2k})$, $(\sigma^{2*}_{1k}, \sigma^{2*}_{2k})$ follow the bivariate Gaussian \eref{eq:joint-init} component-wise.  After inverse transformation through \eref{eq:wstar}--\eref{eq:sigmastar}, the back-transformed parameters $\bw_{tk}, z_{tk}, \sigma^2_{tk}$ retain the same marginal distributions as in the AR(1) baseline, so that the spatial \skewt model \eref{eq:fullmodel} is preserved at every $t$.  Setting $\phi^{(\cdot)}_2 = 0$ in \eref{eq:ar2-w}--\eref{eq:ar2-sigma} recovers the Morris AR(1) specification, so the AR(2) extension nests the original time-series model and adds one additional autoregressive coefficient per latent process.
 
-\subsection{Predictive criterion: the Brier score}\label{sec:meth-brier}
+\subsection{Incorporating MRTS covariates}\label{sec:meth-mrts}
 
-Because the inferential target of this thesis is the probability of upper-tail exceedances at unmonitored sites, the primary scoring rule used throughout the simulation study and the data analysis is the Brier score \parencite{gneiting_strictly_2007}.  The Brier score is a strictly proper score for binary events---predicting $\Pr(Y > L)$ correctly minimizes the expected score in any direction other than the truth---which makes it the appropriate metric when the goal is the calibrated estimation of exceedance probabilities at policy-relevant thresholds.  For an exceedance level $L$, the Brier score is
+Multi-resolution thin-plate spline (MRTS) basis functions provide a smoothness-ordered basis on a two-dimensional spatial domain whose first three components reproduce the constant and linear spatial trend and whose remaining components encode progressively finer-scale spatial structure.  The thesis uses this basis to enrich the regression component of the spatial \skewt model with non-stationary mean structure that the stationary \Matern correlation \eref{eq:matern} cannot represent.
+
+According to \textcite{tzeng_resolution_2018}, the multi-resolution spline basis function $f_k(\bs)$ is defined as follows.  Fix $d$ control points $\bc_i = (x_{i1}, x_{i2})^\top \in \calR^2$ for $i = 1, \ldots, d$, and let
+\begin{equation}
+  \bX \;=\;
+  \begin{pmatrix}
+    1 & x_{11} & x_{12} \\
+    \vdots & \vdots & \vdots \\
+    1 & x_{d1} & x_{d2}
+  \end{pmatrix}
+  \label{eq:mrts-X}
+\end{equation}
+be the $d \times 3$ design matrix at the control points.  Then
+\begin{equation}
+  f_k(\bs) \;=\;
+  \begin{cases}
+    1, & k = 1, \\
+    x_{k-1}, & k = 2, 3, \\
+    \lambda_{k-3}^{-1} \big\{\bphi(\bs) \;-\; \bPhi\,\bX(\bX^\top \bX)^{-1}\,\bx \big\}^\top \bv_{k-3}, & k = 4, \ldots, d,
+  \end{cases}
+  \label{eq:mrts-basis}
+\end{equation}
+where $\bx = (1, \bs^\top)^\top = (1, x_1, x_2)^\top$, $\bphi(\bs) = (\phi_1(\bs), \ldots, \phi_d(\bs))^\top$ with
+\begin{equation}
+  \phi_i(\bs) \;=\; \frac{1}{8\pi}\,\|\bs - \bc_i\|^2 \, \log\!\big(\|\bs - \bc_i\|\big), \qquad i = 1, \ldots, d,
+  \label{eq:tps-kernel}
+\end{equation}
+$\bPhi$ is the $d \times d$ matrix with $(i,j)$-th element $\phi_j(\bc_i)$, $\bv_k$ is the $k$-th column of $\bV$, and $\bV\,\mathrm{diag}(\lambda_1, \ldots, \lambda_d)\,\bV^\top$ is the eigendecomposition of $\bQ\,\bPhi\,\bQ$ with $\lambda_1 \ge \cdots \ge \lambda_d$ and $\bQ = \bI - \bX(\bX^\top \bX)^{-1} \bX^\top$.  In this context $\bc_1, \ldots, \bc_d$ are referred to as control points.  The selection of control points influences the smoothness and complexity of the resulting spline functions, and directly determines their local versus global behavior: placing control points densely in regions of interest enhances feature capture in those areas, so the same construction can be used both for globally smooth enrichment and for locally adaptive corrections.
+
+The first three basis functions $f_1, f_2, f_3$ reproduce the constant and linear spatial trend; the remaining functions $f_4, \ldots, f_d$ are smoothness-ordered through the eigenvalues $\lambda_1 \ge \cdots \ge \lambda_{d-3}$, with $f_4$ carrying the largest-scale residual spatial structure and $f_d$ the finest.  Whenever the baseline regression $\bX_t(\bs)^\top \bbeta$ in \eref{eq:fullmodel} already contains an intercept and a first-order spatial trend---as it does in every experiment of this thesis---only the smooth components $f_4(\bs), f_5(\bs), \ldots$ contribute new spatial information.
+
+The MRTS basis enters the Morris hierarchy through the regression component, leaving the latent partition and the AR(1) (or AR(2)) priors on $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ untouched.  Because every baseline regression in this thesis already contains an intercept and a first-order spatial trend, the polynomial part of the MRTS basis ($f_1, f_2, f_3$) is omitted from the augmentation to avoid duplication; only the smooth components $f_4, f_5, \ldots$ contribute new spatial information.  Fix the number of additional spline covariates $K_{\mathrm{MRTS}}$ and let
 \begin{align}
-  \mathrm{BS}(L) \;=\; \big\{\, I(y > L) \;-\; \widehat{P}(Y > L) \,\big\}^2,
-  \label{eq:brier-score}
+  \bff(\bs) \;=\; \big(f_4(\bs),\, f_5(\bs),\, \ldots,\, f_{K_{\mathrm{MRTS}}+3}(\bs)\big)^\top
+  \label{eq:mrts-f}
 \end{align}
-where $y$ is the held-out observation and $\widehat{P}(Y > L)$ is the posterior predictive probability of exceeding $L$.  The score is averaged over all held-out sites and time points, and lower values indicate better exceedance prediction.
+collect the next $K_{\mathrm{MRTS}}$ smooth basis evaluations defined in \eref{eq:mrts-basis}.  Replace the day-$t$ covariate vector $\bX_t(\bs)$ in \eref{eq:fullmodel} with the augmented vector
+\begin{align}
+  \bX^*_t(\bs) \;=\; \big[\bX_t(\bs)^\top,\; \bff(\bs)^\top\big]^\top,
+  \label{eq:mrts-augmented}
+\end{align}
+and the regression coefficient $\bbeta$ with the matching augmented vector $\bbeta^* = (\bbeta^\top, \balpha^\top)^\top$, where $\balpha \in \calR^{K_{\mathrm{MRTS}}}$ holds the MRTS coefficients.  The kernel \eref{eq:fullmodel} then reads
+\begin{align}
+  Y_t(\bs) \;=\; \bX^*_t(\bs)^\top \bbeta^* \;+\; \lambda\, \sigma_t(\bs)\, |z_t(\bs)| \;+\; \sigma_t(\bs)\, v_t(\bs),
+  \label{eq:fullmodel-mrts}
+\end{align}
+which is identical to the Morris specification \eref{eq:fullmodel} on all components other than the mean.  Setting $\balpha = \bZero$ recovers the unenriched Morris regression, so the MRTS extension nests the baseline and adds $K_{\mathrm{MRTS}}$ additional regression coefficients.  The basis evaluations $f_k(\bs)$ are precomputed once from \eref{eq:tps-kernel}--\eref{eq:mrts-basis} using a fixed grid of control points and treated as known covariates inside the MCMC; the \texttt{autoFRK} R package \parencite{tzeng_resolution_2018} supplies these evaluations.  Because the MRTS extension only changes the mean component, the censoring layer $\widetilde{Y}_t(\bs) = \max\{Y_t(\bs), T\}$ and the inverse-PIT transforms \eref{eq:wstar}--\eref{eq:sigmastar} that drive the latent hierarchy carry over verbatim.  The number of additional spline covariates $K_{\mathrm{MRTS}}$ is the practical tuning parameter: \sref{sec:sim-design} compares the choices $K_{\mathrm{MRTS}} \in \{10, 15, 20\}$ on the Morris benchmark.
 
-For complementary diagnostic purposes the experiments also report the quantile score at level $\alpha$ \parencite{gneiting_strictly_2007}, which evaluates the accuracy of the posterior predictive $\alpha$-quantile and is likewise smaller when prediction is better.  The reported exceedance and quantile levels are concentrated in the upper tail of the marginal response distribution: $q(0.90)$, $q(0.95)$, $q(0.98)$, $q(0.99)$, and---in selected MRTS comparisons---$q(0.995)$.  With the scoring rule fixed, the Simulation study that follows can be read as a controlled experiment that asks which of the two probe extensions actually moves these scores.
+\subsection{Bayesian hierarchical model}\label{sec:meth-hier}
+
+We cast the spatial \skewt threshold-exceedance model of \sref{sec:sttskewt}, together with the extensions in \sref{sec:ar2} and \sref{sec:meth-mrts}, as a Bayesian hierarchical model and fit it by Markov chain Monte Carlo (MCMC).  The data are treated as partially censored observations from the \skewt model: at each MCMC iteration the values below the threshold $T$ are imputed so that parameter estimation can proceed on the completed $\bY$.  Conditional on the partition-level latents $z_{tk}(\bs)$, $\sigma^2_{tk}(\bs)$, and the partition subregions $P_{tk}$, the joint distribution of $\bY$ is multivariate Gaussian.  The partitions are not fixed; the locations of the $K$ knots are treated as unknown and random.  Allowing $K$ itself to be unknown (for example through a Poisson-process prior on the knot count) leads to onerous computing, so we instead treat $K$ as a tuning parameter, fixing it at several values and selecting among them by held-out Brier and quantile scores on validation data (see \sref{sec:sim-scoring} and the Real data analysis section).  The hierarchical model is
+\begin{align}
+  Y_t(\bs) \mid z_t(\bs), \sigma_t^2(\bs), P_{tk}, \Theta
+    &= \bX_t(\bs)^\top \bbeta + \lambda\, \sigma_t(\bs)\, |z_t(\bs)| + \sigma_t(\bs)\, v_t(\bs), \label{eq:hier}\\
+  z_t(\bs)        &= z_{tk}     \text{ if } \bs \in P_{tk}, \nonumber\\
+  \sigma^2_t(\bs) &= \sigma^2_{tk} \text{ if } \bs \in P_{tk}, \nonumber\\
+  \lambda         &\sim N(0, \sigma^2_\lambda), \nonumber\\
+  v_t(\bs) \mid \Theta &\sim \Matern(\bZero, \bSigma), \nonumber
+\end{align}
+where $\Theta = \{\varphi, \nu, \gamma, \lambda, \bbeta\}$, $\bSigma$ is the \Matern covariance matrix of \eref{eq:matern}, and the priors on $\bw^*_{tk}$, $z^*_{tk}$, and $\sigma^{2*}_{tk}$ are given in \eref{eq:ar1-w}--\eref{eq:ar1-sigma} for the Morris baseline or in \eref{eq:ar2-w}--\eref{eq:ar2-sigma} under the AR(2) extension.  When the MRTS covariates are included, the mean in \eref{eq:hier} is replaced by $\bX^*_t(\bs)^\top \bbeta^*$ as in \eref{eq:fullmodel-mrts}; all other components of the hierarchy, including the partition mechanism, the censoring layer, and the Mat\'ern covariance, are inherited unchanged from the Morris baseline.  Predictions at unobserved sites are obtained by Bayesian kriging on the multivariate normal full conditional of $\bY_t$.
 
 \section{Simulation study}
 
-The simulation study is the empirical half of the exploratory comparison: it is designed to localize whether and where the two probe extensions reduce the upper-tail Brier score relative to the space-time \skewt threshold model of \textcite{morris_space-time_2017}, and---by construction of the data-generating settings---to give each probe its most favorable test.  The section reports two experiments in two design--results pairs.  \sref{sec:sim-mrts-design}--\sref{sec:sim-mrts-results} compare MRTS-augmented analysis models against the Morris baseline on the Morris benchmark, and \sref{sec:sim-ar2-design}--\sref{sec:sim-ar2-results} compare AR(2)-augmented analysis models against the AR(1) baseline on data with known AR(2) dependence.  Both experiments score predictions with the held-out Brier and quantile scores defined in \sref{sec:meth-brier}.
+The simulation study is the empirical half of the exploratory comparison: it is designed to localize whether and where the two probe extensions reduce the upper-tail Brier score relative to the space-time \skewt threshold model of \textcite{morris_space-time_2017}, and---by construction of the data-generating settings---to give each probe its most favorable test.  \sref{sec:sim-design} and \sref{sec:sim-scoring} describe the shared simulation protocol and evaluation criteria; \sref{sec:sim-ar2-results} reports the temporal probe first, then \sref{sec:sim-mrts-results} the spatial probe on the Morris benchmark.
 
-\subsection{MRTS on the Morris benchmark: design}\label{sec:sim-mrts-design}
+\subsection{Design}\label{sec:sim-design}
 
-The benchmark simulation follows the structure of \textcite{morris_space-time_2017}: observations are generated at $n_s = 144$ spatial sites, sampled uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ independent time points.  The mean structure is constant in the data generation, $\bX^\top \bbeta = 10$, while the fitted models include an intercept and first-order spatial trend.  The main data-generating settings include Gaussian data, \skewt data with one knot, \skewt data with five knots, a max-stable setting, and a Brown--Resnick max-stable setting.  For each setting, $50$ simulated data sets are generated, with $100$ sites used for training and $44$ sites withheld for validation on each data set.
+The benchmark simulation follows the structure of \textcite{morris_space-time_2017}.  Observations are generated at $n_s = 144$ spatial sites, sampled uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ independent time points.  The mean structure is constant in the data generation, $\bX^\top \bbeta = 10$, while the fitted models include an intercept and first-order spatial trend.  The main data-generating settings include Gaussian data, \skewt data with one knot, \skewt data with five knots, a max-stable setting, and a Brown--Resnick max-stable setting.  For each setting, $M = 50$ simulated data sets are generated.
 
 For the baseline comparison, five Bayesian models are considered:
 \begin{enumerate}[leftmargin=3em]
@@ -441,43 +426,26 @@ For the baseline comparison, five Bayesian models are considered:
 \end{enumerate}
 Here $q(0.80)$ denotes the empirical $80$th percentile of the simulated response.  These five models represent the main combinations of tail behavior, thresholding, and spatial partitioning used in the Morris model.
 
-To evaluate the MRTS covariate extension, the five baseline models are each compared against an MRTS-augmented variant in which the regression component is enriched by the basis evaluations $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We focus on simulation settings 4 and 5: setting 4 is a one-knot \skewt data-generating process with $\lambda = 3$, and setting 5 is a five-knot partitioned \skewt data-generating process with $\lambda = 3$.  For both settings, each baseline model is compared with a version using $K_{\mathrm{MRTS}} = 15$.  Each setting uses $50$ simulated data sets and the same $100$/$44$ train/validation split as the baseline benchmark, with each MCMC chain run for $20\,000$ iterations with $10\,000$ burn-in iterations.
-
-\subsection{MRTS on the Morris benchmark: results}\label{sec:sim-mrts-results}
-
-The benchmark simulation supports the main conclusion of \textcite{morris_space-time_2017}: when the fitted model matches the data-generating mechanism, it tends to improve predictive performance, and when the data are non-Gaussian the \skewt models generally improve over a Gaussian model.  Thresholded models are not uniformly better in the simulation setting, which is expected because most simulated data are generated directly from the full \skewt model rather than from a censored tail model.  The simulation therefore confirms that the \skewt framework provides flexibility for asymmetric and heavy-tailed data while remaining competitive with Gaussian methods when the data are light-tailed and symmetric.
-
-The MRTS evidence is qualitatively similar to this benchmark picture: in settings 4 and 5, augmenting the regression component with MRTS basis functions can improve selected upper-tail Brier or quantile scores, but the gains are not stable across model families or quantile levels.
-
-Figures~\ref{fig:bs-rel-set4-mrts} and~\ref{fig:bs-rel-set5-mrts} make this explicit by comparing methods 2--5 (\skewt and symmetric-$t$ with $K = 1$ or $K = 5$ knots) at high threshold quantiles ($0.90 \le q \le 0.995$), with each figure showing two side-by-side panels: the left panel is the no-MRTS baseline and the right panel adds an MRTS basis of rank $K_{\mathrm{MRTS}} = 15$.  All scores are normalized by the Gaussian baseline (method~1) computed without MRTS, so values below the dashed reference line at $1$ indicate better exceedance prediction than the Gaussian baseline.  Setting~4 (\skewt with $K = 1$ knot, $\lambda = 3$) is shown in Figure~\ref{fig:bs-rel-set4-mrts}, and setting~5 (\skewt with $K = 5$ knots, $\lambda = 3$) in Figure~\ref{fig:bs-rel-set5-mrts}.
-
-\begin{figure}[p]
-\centering
-\begin{subfigure}{\textwidth}
-  \centering
-  \includegraphics[width=0.95\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K15.png}
-  \caption{Setting~4 (data-generating process: \skewt with $K=1$ knot, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline at threshold quantiles $0.90 \le q \le 0.995$, with $K_{\text{MRTS}}=15$.  The left panel shows the no-MRTS baseline and the right panel shows the same methods with the MRTS basis added.  The matching method (\skewt with $K=1$, method~2) is best at every quantile, the over-specified five-knot threshold-$t$ method (method~5) is worse than Gaussian, and the right panel is nearly indistinguishable from the left.}
-  \label{fig:bs-rel-set4-mrts}
-\end{subfigure}
-\par\medskip
-\begin{subfigure}{\textwidth}
-  \centering
-  \includegraphics[width=0.95\textwidth]{../img/setting5_relative_brier_method2to5_vs_mrts-K15.png}
-  \caption{Setting~5 (data-generating process: \skewt with $K=5$ knots, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline; left panel is the no-MRTS baseline, right panel adds an MRTS basis of rank $K_{\text{MRTS}}=15$.  The matching five-knot \skewt method (method~4) is decisively the best across all quantiles, with relative Brier scores between roughly $0.84$ and $0.92$.  All four methods improve on the Gaussian baseline, in contrast with setting~4 where the over-specified method~5 was worse than Gaussian.  The right panel mirrors the left panel closely, indicating that the MRTS basis adds little beyond what the spatial \skewt structure already captures.}
-  \label{fig:bs-rel-set5-mrts}
-\end{subfigure}
-\caption{Relative Brier scores for the MRTS comparison ($K_{\text{MRTS}}=15$) in settings 4 and~5.}
-\end{figure}
-
-Two consistent patterns emerge.  First, the data-generating knot count is the dominant axis: in setting~4 the one-knot \skewt method (method~2) is best at every quantile, and in setting~5 the five-knot \skewt method (method~4) is best at every quantile.  Mis-specifying $K$ on the under-side (fitting $K = 1$ to a $K = 5$ truth, as method~2 does in setting~5) gives only marginal gains over Gaussian, whereas mis-specifying $K$ on the over-side (fitting $K = 5$ to a $K = 1$ truth, as method~4 does in setting~4) is competitive but not optimal.  Second, the MRTS basis is essentially flat across the configurations studied here: in both settings the right (with-MRTS) panel reproduces the left (without-MRTS) panel almost exactly.  The MRTS basis therefore does not change the within-setting ranking, and its added computational cost is not repaid by tail-score improvement under these data-generating processes.
-
-\subsection{AR(2) on AR(2)-generated data: design}\label{sec:sim-ar2-design}
+\paragraph{AR(2) comparison.}\label{sec:sim-ar2-design}
 
 The AR(2) extension is evaluated in two experiments, each designed to give the temporal probe its most favorable test.
 
-The first is a missing-at-location experiment with temporal dependence built into the latent $\tau$, $\bw$, and $\bz$ processes.  The setup reuses the Morris benchmark of \sref{sec:sim-mrts-design}: $n_s = 144$ sites on $[0, 10] \times [0, 10]$ observed over $n_t = 50$ time points, with $100$ sites used for training and $44$ sites withheld for prediction, and $50$ repetitions.  Three temporal structures are compared on each repetition: no time series, AR(1), and AR(2).  Each fitted model uses a \skewt marginal distribution with $K = 5$ knots and no thresholding, and the MCMC is run for $5\,000$ iterations with $2\,500$ burn-in iterations.
+The first is a missing-at-location experiment with temporal dependence built into the latent $\tau$, $\bw$, and $\bz$ processes.  The setup reuses the Morris benchmark above: $n_s = 144$ sites on $[0, 10] \times [0, 10]$ observed over $n_t = 50$ time points, with $100$ sites used for training and $44$ sites withheld for prediction, and $50$ repetitions.  Three temporal structures are compared on each repetition: no time series, AR(1), and AR(2).  Each fitted model uses a \skewt marginal distribution with $K = 5$ knots and no thresholding, and the MCMC is run for $5\,000$ iterations with $2\,500$ burn-in iterations.
 
-The second is a fixed-AR(2) experiment that embeds the temporal mechanism directly into the Morris benchmark of \sref{sec:sim-mrts-design}, so the AR(2) analysis model can be tested against data with a known autoregressive structure on the same $n_s = 144$ sites and $n_t = 50$ time points.  Two further data-generating settings are added.  Both produce one-knot \skewt data ($K = 1$, $\lambda = 3$), but the latent $\tau$, $\bw$, and $z$ processes evolve through a fixed AR(2) recursion \eref{eq:ar2-w}--\eref{eq:ar2-sigma} whose coefficients are held constant across time.  Setting~9 uses a strongly dependent coefficient pair $(\phi_1, \phi_2) = (0.80, -0.35)$, and Setting~10 a weakly dependent pair $(\phi_1, \phi_2) = (0.12, -0.05)$; both pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  For each setting, $50$ data sets are simulated and split into $100$ training and $44$ validation sites.  Each data set is fit by seven analysis methods: the five baseline models listed in \sref{sec:sim-mrts-design}, together with two AR(2)-augmented \skewt models---one with $K = 1$ knot and one with $K = 5$ knots---whose time-varying coefficients follow the AR(2) prior \eref{eq:ar2-w}--\eref{eq:ar2-sigma}.  Because the data are themselves generated with AR(2) dependence, this comparison gives the temporal extension its most favorable test.
+The second is a fixed-AR(2) experiment that embeds the temporal mechanism directly into the Morris benchmark, so the AR(2) analysis model can be tested against data with a known autoregressive structure on the same $n_s = 144$ sites and $n_t = 50$ time points.  Two further data-generating settings are added.  Both produce one-knot \skewt data ($K = 1$, $\lambda = 3$), but the latent $\tau$, $\bw$, and $z$ processes evolve through a fixed AR(2) recursion \eref{eq:ar2-w}--\eref{eq:ar2-sigma} whose coefficients are held constant across time.  Setting~9 uses a strongly dependent coefficient pair $(\phi_1, \phi_2) = (0.80, -0.35)$, and Setting~10 a weakly dependent pair $(\phi_1, \phi_2) = (0.12, -0.05)$; both pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  For each setting, $50$ data sets are simulated and split into $100$ training and $44$ validation sites.  Each data set is fit by seven analysis methods: the five baseline models listed above, together with two AR(2)-augmented \skewt models---one with $K = 1$ knot and one with $K = 5$ knots---whose time-varying coefficients follow the AR(2) prior \eref{eq:ar2-w}--\eref{eq:ar2-sigma}.  Because the data are themselves generated with AR(2) dependence, this comparison gives the temporal extension its most favorable test.
+
+\paragraph{MRTS comparison.}\label{sec:sim-mrts-design}
+
+To evaluate the MRTS covariate extension, the five baseline models are each compared against an MRTS-augmented variant in which the regression component is enriched by the basis evaluations $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We focus on simulation settings 4 and 5: setting 4 is a one-knot \skewt data-generating process with $\lambda = 3$, and setting 5 is a five-knot partitioned \skewt data-generating process with $\lambda = 3$.  For both settings, each baseline model is compared with a version using $K_{\mathrm{MRTS}} = 15$.  Each setting uses $50$ simulated data sets and the same train/validation split as the benchmark ($100$ training sites and $44$ withheld sites per replicate), with each MCMC chain run for $20\,000$ iterations with $10\,000$ burn-in iterations.
+
+\subsection{Cross validation}\label{sec:sim-scoring}
+
+Models are compared using cross validation, with $100$ sites used as training sites to fit each specification and $44$ sites withheld for evaluating predictions on each replicate.  Because one of the primary goals of this model is to predict exceedances over a high level, we use Brier scores to compare the models \parencite{gneiting_strictly_2007}.  For an exceedance level $L$, the Brier score is
+\begin{align}
+  \mathrm{BS}(L) \;=\; \big\{\, I(y > L) \;-\; \widehat{P}(Y > L) \,\big\}^2,
+  \label{eq:brier-score}
+\end{align}
+where $y$ is the held-out observation, $I(y > L)$ is the exceedance indicator, and $\widehat{P}(Y > L)$ is the posterior predictive probability of exceeding $L$.  We average the Brier scores over all test sites and days; lower values indicate better exceedance prediction.  For complementary diagnostic purposes the experiments also report the quantile score at level $\alpha$ \parencite{gneiting_strictly_2007}, which evaluates the accuracy of the posterior predictive $\alpha$-quantile and is likewise smaller when prediction is better.  The reported exceedance and quantile levels are concentrated in the upper tail of the marginal response distribution: $q(0.90)$, $q(0.95)$, $q(0.98)$, $q(0.99)$, and---in selected MRTS comparisons---$q(0.995)$.
 
 \subsection{AR(2) on AR(2)-generated data: results}\label{sec:sim-ar2-results}
 
@@ -527,7 +495,35 @@ Big $\phi_{\tau}$, others small & 0.0388/0.0390/0.0389 & 0.0181/0.0182/0.0182 & 
 \label{tab:sim-ar2-missing-location}
 \end{table}
 
-Table~\ref{tab:sim-integrated-extensions} juxtaposes the AR(2) and MRTS probes in a common decision summary, recording the empirical pattern and the practical implication for each.
+\subsection{MRTS on the Morris benchmark: results}\label{sec:sim-mrts-results}
+
+The benchmark simulation supports the main conclusion of \textcite{morris_space-time_2017}: when the fitted model matches the data-generating mechanism, it tends to improve predictive performance, and when the data are non-Gaussian the \skewt models generally improve over a Gaussian model.  Thresholded models are not uniformly better in the simulation setting, which is expected because most simulated data are generated directly from the full \skewt model rather than from a censored tail model.  The simulation therefore confirms that the \skewt framework provides flexibility for asymmetric and heavy-tailed data while remaining competitive with Gaussian methods when the data are light-tailed and symmetric.
+
+The MRTS evidence is qualitatively similar to this benchmark picture: in settings 4 and 5, augmenting the regression component with MRTS basis functions can improve selected upper-tail Brier or quantile scores, but the gains are not stable across model families or quantile levels.
+
+Figures~\ref{fig:bs-rel-set4-mrts} and~\ref{fig:bs-rel-set5-mrts} make this explicit by comparing methods 2--5 (\skewt and symmetric-$t$ with $K = 1$ or $K = 5$ knots) at high threshold quantiles ($0.90 \le q \le 0.995$), with each figure showing two side-by-side panels: the left panel is the no-MRTS baseline and the right panel adds an MRTS basis of rank $K_{\mathrm{MRTS}} = 15$.  All scores are normalized by the Gaussian baseline (method~1) computed without MRTS, so values below the dashed reference line at $1$ indicate better exceedance prediction than the Gaussian baseline.  Setting~4 (\skewt with $K = 1$ knot, $\lambda = 3$) is shown in Figure~\ref{fig:bs-rel-set4-mrts}, and setting~5 (\skewt with $K = 5$ knots, $\lambda = 3$) in Figure~\ref{fig:bs-rel-set5-mrts}.
+
+\begin{figure}[p]
+\centering
+\begin{subfigure}{\textwidth}
+  \centering
+  \includegraphics[width=0.95\textwidth]{../img/setting4_relative_brier_method2to5_vs_mrts-K15.png}
+  \caption{Setting~4 (data-generating process: \skewt with $K=1$ knot, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline at threshold quantiles $0.90 \le q \le 0.995$, with $K_{\text{MRTS}}=15$.  The left panel shows the no-MRTS baseline and the right panel shows the same methods with the MRTS basis added.  The matching method (\skewt with $K=1$, method~2) is best at every quantile, the over-specified five-knot threshold-$t$ method (method~5) is worse than Gaussian, and the right panel is nearly indistinguishable from the left.}
+  \label{fig:bs-rel-set4-mrts}
+\end{subfigure}
+\par\medskip
+\begin{subfigure}{\textwidth}
+  \centering
+  \includegraphics[width=0.95\textwidth]{../img/setting5_relative_brier_method2to5_vs_mrts-K15.png}
+  \caption{Setting~5 (data-generating process: \skewt with $K=5$ knots, $\lambda=3$).  Relative Brier scores of methods 2--5 versus the Gaussian baseline; left panel is the no-MRTS baseline, right panel adds an MRTS basis of rank $K_{\text{MRTS}}=15$.  The matching five-knot \skewt method (method~4) is decisively the best across all quantiles, with relative Brier scores between roughly $0.84$ and $0.92$.  All four methods improve on the Gaussian baseline, in contrast with setting~4 where the over-specified method~5 was worse than Gaussian.  The right panel mirrors the left panel closely, indicating that the MRTS basis adds little beyond what the spatial \skewt structure already captures.}
+  \label{fig:bs-rel-set5-mrts}
+\end{subfigure}
+\caption{Relative Brier scores for the MRTS comparison ($K_{\text{MRTS}}=15$) in settings 4 and~5.}
+\end{figure}
+
+Two consistent patterns emerge.  First, the data-generating knot count is the dominant axis: in setting~4 the one-knot \skewt method (method~2) is best at every quantile, and in setting~5 the five-knot \skewt method (method~4) is best at every quantile.  Mis-specifying $K$ on the under-side (fitting $K = 1$ to a $K = 5$ truth, as method~2 does in setting~5) gives only marginal gains over Gaussian, whereas mis-specifying $K$ on the over-side (fitting $K = 5$ to a $K = 1$ truth, as method~4 does in setting~4) is competitive but not optimal.  Second, the MRTS basis is essentially flat across the configurations studied here: in both settings the right (with-MRTS) panel reproduces the left (without-MRTS) panel almost exactly.  The MRTS basis therefore does not change the within-setting ranking, and its added computational cost is not repaid by tail-score improvement under these data-generating processes.
+
+Table~\ref{tab:sim-integrated-extensions} summarizes both probes in a common decision summary, recording the empirical pattern and the practical implication for each.
 
 \begin{table}[htbp]
 \centering
@@ -567,7 +563,7 @@ Overall, the simulation study indicates that both extensions enlarge the usable 
 
 \section{Real data analysis}
 
-The two case studies in this section apply the model comparison framework to real data with structurally different temporal regimes.  The primary application is daily ground-level ozone (\sref{sec:data-ozone}), the dataset for which the Morris baseline was originally designed.  As a controlled medium-size complement (\sref{sec:data-merra2}), we run the temporal probe on hourly MERRA-2 surface-temperature output, a regime that is smoother and less tail-dominated than ozone.  Both case studies score posterior predictive distributions on held-out sites using the Brier and quantile scores defined in \sref{sec:meth-brier}.
+The two case studies in this section apply the model comparison framework to real data with structurally different temporal regimes.  The primary application is daily ground-level ozone (\sref{sec:data-ozone}), the dataset for which the Morris baseline was originally designed.  As a controlled medium-size complement (\sref{sec:data-merra2}), we run the temporal probe on hourly MERRA-2 surface-temperature output, a regime that is smoother and less tail-dominated than ozone.  Both case studies score posterior predictive distributions on held-out sites using the Brier and quantile scores defined in \sref{sec:sim-scoring}.
 
 \subsection{EPA ground-level ozone}\label{sec:data-ozone}
 

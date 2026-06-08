@@ -1,0 +1,9 @@
+"method_id","method_key","label","runner","method","skew","thresh_all","thresh_quant","nknots","use_exponential_fallback","temporaltau","temporalz","temporalw","ar2_tau","ar2_z","ar2_w","mrts_k","output_tag","plan_id"
+1,"1+mrts3","Gaussian + MRTS(3)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,3,"mrts3",1
+1,"1+mrts5","Gaussian + MRTS(5)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,5,"mrts5",2
+1,"1+mrts8","Gaussian + MRTS(8)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,8,"mrts8",3
+1,"1+mrts10","Gaussian + MRTS(10)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,10,"mrts10",4
+1,"1+mrts12","Gaussian + MRTS(12)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,12,"mrts12",5
+1,"1+mrts15","Gaussian + MRTS(15)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,15,"mrts15",6
+1,"1+mrts20","Gaussian + MRTS(20)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,20,"mrts20",7
+1,"1+mrts25","Gaussian + MRTS(25)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,25,"mrts25",8

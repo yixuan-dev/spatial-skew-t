@@ -188,40 +188,77 @@ write.csv(
   row.names = FALSE
 )
 
+# ---- score_rel_k0: relative to each method's OWN no-MRTS (K=0) baseline ----
+# Isolates the MRTS effect within a method: r_m(K) = score_m(K) / score_m(0),
+# so every method passes through 1 at K=0. Unlike rel_to_gauss (divide by
+# method 1, sweep over quantile+mrts_k), this divides by the K=0 column
+# (sweep over quantile+method). Needs no Gaussian reference.
+rel_to_k0 <- function(arr) {                    # arr: [quantile, method, mrts_k]
+  if (!"0" %in% dimnames(arr)$mrts_k) {
+    return(array(NA_real_, dim = dim(arr), dimnames = dimnames(arr)))
+  }
+  k0 <- arr[, , "0"]                            # [quantile, method]
+  sweep(arr, c(1, 2), k0, "/")
+}
+bs_rel_k0_mean <- rel_to_k0(bs_mean)
+qs_rel_k0_mean <- rel_to_k0(qs_mean)
+bs_rel_k0_med  <- rel_to_k0(bs_med)
+qs_rel_k0_med  <- rel_to_k0(qs_med)
+
+rel_k0_table <- rbind(
+  rel_long(bs_rel_k0_mean, bs_rel_k0_med, "brier"),
+  rel_long(qs_rel_k0_mean, qs_rel_k0_med, "quant")
+)
+write.csv(
+  rel_k0_table[, c("score", "method", "mrts_k", "quantile", "rel_mean", "rel_median")],
+  file.path(tables_dir, sprintf("score_rel_k0%d%s.csv", setting_id, data_suffix)),
+  row.names = FALSE
+)
+
 # ---- multivar_score: energy + variogram, aggregated over datasets ----
 # energy.score / vario.score are [dataset, method, mrts_k]. Average and
 # median over datasets per (method, mrts_k), and form the relative ratio
 # vs method 1 (Gaussian), matching the score_rel_gauss convention.
-has_multivar <- exists("energy.score") && exists("vario.score")
-if (has_multivar) {
-  mv_summary <- function(arr, score) {
-    a_mean <- apply(arr, c(2, 3), mean,   na.rm = TRUE)   # method x mrts_k
-    a_med  <- apply(arr, c(2, 3), median, na.rm = TRUE)
-    rel_of <- function(m) {
-      if (!"1" %in% rownames(m)) return(m * NA_real_)
-      sweep(m, 2, m["1", ], "/")
-    }
-    out <- expand.grid(method = methods, mrts_k = mrts_ks,
-                       KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
-    out$score      <- score
-    out$mean       <- as.vector(a_mean)
-    out$median     <- as.vector(a_med)
-    out$rel_mean   <- as.vector(rel_of(a_mean))
-    out$rel_median <- as.vector(rel_of(a_med))
-    out[, c("score", "method", "mrts_k", "mean", "median",
-            "rel_mean", "rel_median")]
+has_multivar  <- exists("energy.score") && exists("vario.score")
+has_pred_rmse <- exists("pred.rmse")
+has_recovery  <- exists("recovery.rmse")
+mv_summary <- function(arr, score) {
+  a_mean <- apply(arr, c(2, 3), mean,   na.rm = TRUE)   # method x mrts_k
+  a_med  <- apply(arr, c(2, 3), median, na.rm = TRUE)
+  rel_of <- function(m) {
+    if (!"1" %in% rownames(m)) return(m * NA_real_)
+    sweep(m, 2, m["1", ], "/")
   }
-  multivar_table <- rbind(
-    mv_summary(energy.score, "energy"),
-    mv_summary(vario.score,  "variogram")
-  )
+  out <- expand.grid(method = methods, mrts_k = mrts_ks,
+                     KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+  out$score      <- score
+  out$mean       <- as.vector(a_mean)
+  out$median     <- as.vector(a_med)
+  out$rel_mean   <- as.vector(rel_of(a_mean))
+  out$rel_median <- as.vector(rel_of(a_med))
+  out[, c("score", "method", "mrts_k", "mean", "median",
+          "rel_mean", "rel_median")]
+}
+mv_parts <- list()
+if (has_multivar) {
+  mv_parts <- c(mv_parts, list(mv_summary(energy.score, "energy"),
+                               mv_summary(vario.score,  "variogram")))
+}
+if (has_pred_rmse) {                                     # point-prediction RMSE
+  mv_parts <- c(mv_parts, list(mv_summary(pred.rmse, "pred_rmse")))
+}
+if (has_recovery) {                                      # mean-surface recovery
+  mv_parts <- c(mv_parts, list(mv_summary(recovery.rmse, "recovery_rmse")))
+}
+if (length(mv_parts) > 0) {
+  multivar_table <- do.call(rbind, mv_parts)
 } else {
   multivar_table <- data.frame(
     score = character(0), method = integer(0), mrts_k = integer(0),
     mean = numeric(0), median = numeric(0),
     rel_mean = numeric(0), rel_median = numeric(0)
   )
-  cat("  (no energy/variogram scores in cache; multivar table is empty)\n")
+  cat("  (no energy/variogram/pred-rmse scores in cache; multivar table empty)\n")
 }
 write.csv(
   multivar_table,
@@ -307,13 +344,20 @@ simresults_file <- file.path(
 simresults_objs <- c(
   "bs_mean", "qs_mean", "bs_med", "qs_med",
   "bs_rel_mean", "qs_rel_mean", "bs_rel_med", "qs_rel_med",
-  "score_long_table", "score_table", "rel_table", "multivar_table",
+  "bs_rel_k0_mean", "qs_rel_k0_mean", "bs_rel_k0_med", "qs_rel_k0_med",
+  "score_long_table", "score_table", "rel_table", "rel_k0_table", "multivar_table",
   "best_table", "cov_table", "lambda",
   "probs", "mrts_ks", "methods", "datasets", "intervals", "setting",
   "data_suffix"
 )
 if (has_multivar) {
   simresults_objs <- c(simresults_objs, "energy.score", "vario.score")
+}
+if (has_pred_rmse) {
+  simresults_objs <- c(simresults_objs, "pred.rmse")
+}
+if (has_recovery) {
+  simresults_objs <- c(simresults_objs, "recovery.rmse")
 }
 save(list = simresults_objs, file = simresults_file)
 

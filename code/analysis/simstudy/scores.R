@@ -96,7 +96,7 @@ if (!dir.exists(results_dir)) {
 # ---- methods / datasets / mrts_k -------------------------------------
 methods <- if (!is.null(flags$methods) && nzchar(flags$methods)) {
   m <- parse_index_expr(flags$methods, "methods")
-  if (any(m < 1L | m > 8L)) stop("methods must be in 1..8", call. = FALSE)
+  if (any(m < 1L | m > 10L)) stop("methods must be in 1..10", call. = FALSE)
   sort(unique(as.integer(m)))
 } else {
   1:5
@@ -211,9 +211,42 @@ elapsed_sec  <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
 energy.score <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
 vario.score  <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
 
+# Point-prediction RMSE: posterior predictive mean vs held-out y, averaged
+# over test sites and times. One number per (dataset, method, mrts_k), like
+# the multivariate scores. Noise-dominated and largely insensitive to MRTS
+# -- the predictive complement to the mean-recovery RMSE (computed elsewhere
+# against the *true* mean). Together they separate "MRTS estimates the mean"
+# from "MRTS helps prediction".
+pred.rmse <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
+
+# Mean-surface recovery RMSE (an empirical RMISE): how well the fitted
+# REGRESSION mean mu_hat(s) = X(s)'beta_hat + MRTS(s)'beta_hat (posterior mean
+# of beta) recovers the TRUE regression mean mu(s) at the held-out sites. Uses
+# fit$beta + mrts_meta (already loaded for the other scores -- no extra I/O);
+# isolates the mean-estimation channel that MRTS modifies. Simulation-only.
+recovery.rmse <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
+
 skew.methods <- c(2L, 4L, 7L, 8L)
 
 obs <- c(rep(TRUE, nrow(y) - ntest), rep(FALSE, ntest))
+
+# True regression mean at the test sites, for recovery.rmse. Only defined for
+# the simulation data (real data has no known truth). nonsta carries a saved
+# cosine-bump surface; the standard/deformed sims are intercept-only.
+Xtest_rec <- cbind(1, s[!obs, 1], s[!obs, 2])
+compute_recovery <- grepl("^simdata", basename(data_path))
+is_nonsta_truth  <- exists("f.basis")
+true_mean_rec <- function(set) {
+  if (is_nonsta_truth) {
+    g <- if (settings.nonsta$surf_type[setting] == "invariant") {
+      as.vector(f.basis %*% surf.coef.invariant)
+    } else {
+      as.vector(f.basis %*% colMeans(W.varying[[set]]))
+    }
+    return(10 + g[!obs])
+  }
+  as.vector(Xtest_rec %*% c(10, 0, 0))   # setup.R: beta.t = c(10, 0, 0)
+}
 
 # ---- multivariate (spatial) scores -----------------------------------
 # Brier / Quantile above are per-cell marginal scores and cannot see
@@ -256,7 +289,8 @@ save_checkpoint <- function() {
   # `results_dir`) so loading the cache in tables.R does not shadow
   # tables.R's local `results_dir = "output/results"` variable.
   fits_dir <- results_dir
-  save(quant.score, brier.score, energy.score, vario.score,
+  save(quant.score, brier.score, energy.score, vario.score, pred.rmse,
+       recovery.rmse,
        beta.0, beta.1, beta.2,
        tau.alpha, tau.beta, rho, nu, gamma, lambda,
        elapsed_sec,
@@ -296,12 +330,25 @@ for (di in seq_along(datasets)) {
         ms <- multivar_scores(fit$yp, validate)
         energy.score[di, mi, ki] <- ms$energy
         vario.score[di, mi, ki]  <- ms$vario
+        ppmean <- apply(fit$yp, c(2, 3), mean)   # np x nt predictive mean
+        pred.rmse[di, mi, ki] <- sqrt(mean((ppmean - validate)^2, na.rm = TRUE))
       }
 
       if (!is.null(fit$beta) && ncol(fit$beta) >= 3L) {
         beta.0[, di, mi, ki] <- quantile(fit$beta[, 1], probs = intervals, na.rm = TRUE)
         beta.1[, di, mi, ki] <- quantile(fit$beta[, 2], probs = intervals, na.rm = TRUE)
         beta.2[, di, mi, ki] <- quantile(fit$beta[, 3], probs = intervals, na.rm = TRUE)
+
+        if (compute_recovery) {
+          b <- colMeans(fit$beta)
+          fitsurf <- if (!is.null(env$mrts_meta)) {
+            Xtest_rec %*% b[1:3] + env$mrts_meta$pred[, 1, ] %*% b[4:length(b)]
+          } else {
+            Xtest_rec %*% b[1:3]
+          }
+          recovery.rmse[di, mi, ki] <-
+            sqrt(mean((as.vector(fitsurf) - true_mean_rec(set))^2))
+        }
       }
       if (!is.null(fit$tau.alpha))
         tau.alpha[, di, mi, ki] <- quantile(fit$tau.alpha, probs = intervals, na.rm = TRUE)

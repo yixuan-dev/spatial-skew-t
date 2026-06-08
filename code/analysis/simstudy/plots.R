@@ -94,15 +94,23 @@ method_label_for <- function(m) {
   row <- method_catalog[method_catalog$method_id == m, , drop = FALSE]
   if (nrow(row) == 1L) sprintf("%d: %s", m, row$label[1]) else as.character(m)
 }
-method_label <- vapply(methods, method_label_for, character(1))
+# Every legend in this script is a per-method legend on plots where each line
+# is the method augmented with MRTS covariates (K on the x-axis, or a fixed
+# K > 0 per file), so append the qualifier to all method labels.
+method_label <- paste0(
+  vapply(methods, method_label_for, character(1)),
+  " + mrts covariates"
+)
 
 has_multivar <- exists("energy.score") && exists("vario.score")
+has_pred_rmse <- exists("pred.rmse")
+has_recovery <- exists("recovery.rmse")
 
 # lambda CI bookkeeping (mirrors tables.R's lambda_coverage block)
 ci_lo_idx <- which(abs(intervals - 0.025) < 1e-12)
 ci_hi_idx <- which(abs(intervals - 0.975) < 1e-12)
 lambda_true <- 3
-skew_methods <- intersect(c(2L, 4L), methods)
+skew_methods <- intersect(c(2L, 4L, 7L, 8L, 9L, 10L), methods)
 
 # ---- figures ---------------------------------------------------------
 set_tag <- sprintf("set%d%s", setting_id, data_suffix)
@@ -134,32 +142,69 @@ dgp_label_map <- list(
   "15" = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3), AR(2) on " *
     italic(w) * " only: " * phi[1] * "=0.8, " * phi[2] * "=-0.35")
 )
+# The non-stationary-mean sim (simdata_nonsta.RData -> suffix "_nonsta") has
+# its own DGP per setting; without this its settings would be mislabelled
+# with the simdata catalog (e.g. setting 1 -> "Gaussian").
+dgp_label_map_nonsta <- list(
+  "1" = bquote("Skew-" * italic(t) * ", 1 Knot: non-stationary mean (static basis)"),
+  "2" = bquote("Skew-" * italic(t) * ", 1 Knot: non-stationary mean (dynamic basis)")
+)
+# The deformed-covariance sim (simdata_def.RData -> suffix "_def") is all
+# Skew-t (K=1, lambda=3) with a deformed covariance per setting (see
+# setup_def.R); without this its settings inherit the simdata catalog
+# (1 -> "Gaussian"), which is wrong.
+dgp_label_map_def <- list(
+  "1" = bquote("Skew-" * italic(t) * ", 1 Knot: isotropic (stationary baseline)"),
+  "2" = bquote("Skew-" * italic(t) * ", 1 Knot: geometric anisotropy (" * theta * "=" * pi * "/4, r=0.5)"),
+  "3" = bquote("Skew-" * italic(t) * ", 1 Knot: geometric anisotropy (" * theta * "=" * pi * "/6, r=0.25)"),
+  "4" = bquote("Skew-" * italic(t) * ", 1 Knot: non-stationary cov. (axial deformation)"),
+  "5" = bquote("Skew-" * italic(t) * ", 1 Knot: non-stationary cov. (sine deformation)"),
+  "6" = bquote("Skew-" * italic(t) * ", 1 Knot: non-stationary cov. (composed deformation)")
+)
+
 # dgp_title(): expression built from setting_id + data_suffix,
 # optionally suffixed by an extra `bquote(...)` snippet for context.
 dgp_title <- function(suffix_expr = NULL) {
-  base <- dgp_label_map[[as.character(setting_id)]]
-  if (is.null(base)) base <- bquote(paste("setting ", .(setting_id)))
-  if (nzchar(data_suffix)) {
-    base <- bquote(.(base) ~ .(paste0("[", data_suffix, "]")))
+  if (identical(data_suffix, "_nonsta")) {
+    base <- dgp_label_map_nonsta[[as.character(setting_id)]]
+    if (is.null(base)) base <- bquote(paste("nonsta setting ", .(setting_id)))
+  } else if (identical(data_suffix, "_def")) {
+    base <- dgp_label_map_def[[as.character(setting_id)]]
+    if (is.null(base)) base <- bquote(paste("deformed setting ", .(setting_id)))
+  } else {
+    base <- dgp_label_map[[as.character(setting_id)]]
+    if (is.null(base)) base <- bquote(paste("setting ", .(setting_id)))
+    if (nzchar(data_suffix)) {
+      base <- bquote(.(base) ~ .(paste0("[", data_suffix, "]")))
+    }
   }
   if (is.null(suffix_expr)) base else bquote(.(base) * ", " * .(suffix_expr))
 }
 
-# One entry per Morris method id 1..8 (palette[methods[j]], not palette[j]).
-mlty <- c(1, 1, 3, 3, 5, 6, 2, 4)
-mpch <- c(21, 22, 23, 24, 25, 4, 8, 9)
+# One entry per Morris method id 1..10 (palette[methods[j]], not palette[j]).
+# Systematic encoding: colour = family (Skew-t red / Sym-t blue),
+# lty = knots (K=1 solid / K=5 dotted), pch = base vs temporal (baseline
+# filled square; AR(2) "+"; AR(1) "x" -- open marks so the baseline square
+# underneath is not obscured). methods 1 (Gaussian) / 6 (max-stable) are
+# outside the family x K scheme; 6 uses a filled diamond so "x" is free for
+# AR(1).
+mlty <- c(1, 1, 1, 3, 3, 6, 1, 3, 1, 3)
+mpch <- c(21, 22, 22, 22, 22, 23, 3, 3, 4, 4)
 mcol <- c(
-  "gray30", "firebrick4", "dodgerblue4", "firebrick1", "dodgerblue1", "darkgreen",
-  "purple4", "darkorange2"
+  "gray30", "firebrick4", "dodgerblue4", "firebrick4", "dodgerblue4",
+  "darkgreen", "firebrick4", "firebrick4", "firebrick4", "firebrick4"
 )
 mbg <- c(
-  "gray70", "firebrick2", "dodgerblue2", "firebrick1", "dodgerblue1", "lightgreen",
-  "plum", "moccasin"
+  "gray70", "firebrick2", "dodgerblue2", "firebrick2", "dodgerblue2",
+  "lightgreen", "firebrick2", "firebrick2", "firebrick2", "firebrick2"
 )
 
 # (1) relative score vs quantile, lines per method, one PDF per mrts_k
 plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
   for (ki in seq_along(mrts_ks)) {
+    # Force 2-D so the n_methods == 1 slice does not drop to a vector.
+    mat <- matrix(arr_rel[, , ki], nrow = n_probs, ncol = n_methods)
+    if (all(is.na(mat))) next # e.g. no Gaussian (method 1) -> rel undefined
     pdf_file <- file.path(
       plots_dir,
       sprintf(
@@ -168,7 +213,6 @@ plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
       )
     )
     pdf(pdf_file, width = 7, height = 5)
-    mat <- arr_rel[, , ki]
     ymin <- min(mat, 1, na.rm = TRUE)
     ymax <- max(mat, 1, na.rm = TRUE)
     m1 <- methods[1]
@@ -223,8 +267,8 @@ if (n_ks >= 2) {
       plot(mrts_ks, mat[1, ],
         type = "o", ylim = c(ymin, ymax),
         pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
-        xlab = "MRTS basis rank K",
-        ylab = sprintf("Mean %s score", score_lab),
+        xlab = "Number of MRTS basis functions",
+        ylab = sprintf("%s score", score_lab),
         main = dgp_title(bquote(q == .(sprintf("%.3f", probs[qi]))))
       )
       if (n_methods >= 2) {
@@ -245,14 +289,63 @@ if (n_ks >= 2) {
   }
   plot_mean_vs_K(bs_mean, "Brier", "bs")
   plot_mean_vs_K(qs_mean, "Quantile", "qs")
+
+  # (2b) score relative to each method's OWN no-MRTS (K=0) baseline, vs K,
+  # lines per method, one PDF per quantile. Every curve passes through 1 at
+  # K=0; below 1 means MRTS at rank K improves that method. Isolates the
+  # within-method MRTS effect -- it does NOT compare methods in absolute
+  # terms (use bs_mean_vs_K for the between-method ranking).
+  plot_rel_k0_vs_K <- function(arr_rel, score_lab, file_prefix) {
+    for (qi in selected_q_idx) {
+      pdf_file <- file.path(
+        plots_dir,
+        sprintf(
+          "%s_rel_k0_vs_K-%s-q%03d.pdf",
+          file_prefix, set_tag, round(probs[qi] * 1000)
+        )
+      )
+      pdf(pdf_file, width = 7, height = 5)
+      mat <- matrix(arr_rel[qi, , , drop = FALSE],
+        nrow = n_methods, ncol = n_ks
+      )
+      ymin <- min(mat, 1, na.rm = TRUE)
+      ymax <- max(mat, 1, na.rm = TRUE)
+      m1 <- methods[1]
+      plot(mrts_ks, mat[1, ],
+        type = "o", ylim = c(ymin, ymax),
+        pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
+        xlab = "Number of MRTS basis functions",
+        ylab = sprintf("%s score relative to K=0", score_lab),
+        main = dgp_title(bquote(q == .(sprintf("%.3f", probs[qi]))))
+      )
+      abline(h = 1, lty = 2, col = "gray60")
+      if (n_methods >= 2) {
+        for (j in 2:n_methods) {
+          mj <- methods[j]
+          lines(mrts_ks, mat[j, ], lty = mlty[mj], col = mcol[mj])
+          points(mrts_ks, mat[j, ], pch = mpch[mj], col = mcol[mj], bg = mbg[mj])
+        }
+      }
+      legend("topright",
+        legend = method_label,
+        lty = mlty[methods], pch = mpch[methods],
+        col = mcol[methods], pt.bg = mbg[methods],
+        cex = 0.7, bty = "n"
+      )
+      dev.off()
+    }
+  }
+  plot_rel_k0_vs_K(bs_rel_k0_mean, "Brier", "bs")
+  plot_rel_k0_vs_K(qs_rel_k0_mean, "Quantile", "qs")
 } else {
   cat("  (skipping mean-vs-K plots: only ", n_ks, " mrts_k value)\n", sep = "")
 }
 
 # (3) energy / variogram score vs mrts_k, lines per method.
 # One number per (method, mrts_k), so this only varies along K.
-if (has_multivar && n_ks >= 2) {
-  plot_multivar_vs_K <- function(arr, score_lab, file_prefix) {
+if ((has_multivar || has_pred_rmse || has_recovery) && n_ks >= 2) {
+  plot_multivar_vs_K <- function(arr, score_lab, file_prefix,
+                                 ylab = sprintf("Mean %s score", score_lab)) {
     mat <- apply(arr, c(2, 3), mean, na.rm = TRUE) # method x mrts_k
     if (all(is.na(mat))) {
       return(invisible(NULL))
@@ -268,8 +361,8 @@ if (has_multivar && n_ks >= 2) {
     plot(mrts_ks, mat[1, ],
       type = "o", ylim = c(ymin, ymax),
       pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
-      xlab = "MRTS basis rank K",
-      ylab = sprintf("Mean %s score", score_lab),
+      xlab = "Number of MRTS basis functions",
+      ylab = ylab,
       main = dgp_title()
     )
     if (n_methods >= 2) {
@@ -287,10 +380,24 @@ if (has_multivar && n_ks >= 2) {
     )
     dev.off()
   }
-  plot_multivar_vs_K(energy.score, "energy", "es")
-  plot_multivar_vs_K(vario.score, "variogram", "vs")
-} else if (!has_multivar) {
-  cat("  (skipping energy/variogram plots: no multivariate scores)\n")
+  if (has_multivar) {
+    plot_multivar_vs_K(energy.score, "energy", "es")
+    plot_multivar_vs_K(vario.score, "variogram", "vs")
+  }
+  if (has_pred_rmse) {
+    # point-prediction RMSE (vs observed y); not a "score", no "Mean" prefix
+    plot_multivar_vs_K(pred.rmse, "predictive RMSE", "pr",
+      ylab = "Predictive RMSE"
+    )
+  }
+  if (has_recovery) {
+    # mean-surface recovery RMSE (vs true mean); the mean-estimation channel
+    plot_multivar_vs_K(recovery.rmse, "recovery RMSE", "mr",
+      ylab = "Mean-surface recovery RMSE  (test sites)"
+    )
+  }
+} else if (!has_multivar && !has_pred_rmse && !has_recovery) {
+  cat("  (skipping energy/variogram/pred-rmse/recovery plots: no such scores)\n")
 }
 
 # (4) lambda 95% CI vs dataset, one PDF per (skew method, mrts_k)

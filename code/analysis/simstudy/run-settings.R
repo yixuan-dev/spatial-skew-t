@@ -39,7 +39,7 @@ thin <- 1
 #   - --data and --setting (if provided) must be leading flags (any order, before positionals).
 #   - --data defaults to ./simdata.RData; results dir is derived from the file basename
 #     ("simdata" -> results, "simdata_def" -> results_def, etc.).
-#   - methods remains numeric in 1..8.
+#   - methods remains numeric in 1..10.
 #   - mrts_k is optional and, when provided, replaces selected methods 1..5 with MRTS-augmented variants.
 # Examples:
 #   methods="1:6"
@@ -58,8 +58,8 @@ parse_dataset_spec <- function(dataset_str) {
 
 parse_methods_spec <- function(methods_str) {
     method_ids <- parse_index_expr(methods_str, "methods")
-    if (any(method_ids < 1 | method_ids > 8)) {
-        stop("methods must be integers in 1..8", call. = FALSE)
+    if (any(method_ids < 1 | method_ids > 10)) {
+        stop("methods must be integers in 1..10", call. = FALSE)
     }
     sort(unique(as.integer(method_ids)))
 }

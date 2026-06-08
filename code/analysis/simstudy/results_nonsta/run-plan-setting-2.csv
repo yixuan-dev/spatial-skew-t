@@ -1,0 +1,9 @@
+"method_id","method_key","label","runner","method","skew","thresh_all","thresh_quant","nknots","use_exponential_fallback","temporaltau","temporalz","temporalw","ar2_tau","ar2_z","ar2_w","mrts_k","output_tag","plan_id"
+2,"2+mrts3","Skew-t, K=1 + MRTS(3)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,3,"mrts3",1
+2,"2+mrts5","Skew-t, K=1 + MRTS(5)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,5,"mrts5",2
+2,"2+mrts8","Skew-t, K=1 + MRTS(8)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,8,"mrts8",3
+2,"2+mrts10","Skew-t, K=1 + MRTS(10)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,10,"mrts10",4
+2,"2+mrts12","Skew-t, K=1 + MRTS(12)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,12,"mrts12",5
+2,"2+mrts15","Skew-t, K=1 + MRTS(15)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,15,"mrts15",6
+2,"2+mrts20","Skew-t, K=1 + MRTS(20)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,20,"mrts20",7
+2,"2+mrts25","Skew-t, K=1 + MRTS(25)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,25,"mrts25",8

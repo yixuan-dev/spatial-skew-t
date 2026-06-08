@@ -9,8 +9,10 @@
 ## 主要腳本
 
 - `setup.R`、`setup_def.R`：產生 `simdata.RData`、`simdata_def.RData`
-- `run-settings.R`：擬合 driver；method 1–8，可選 MRTS basis K（細節見 [run-settings.md](run-settings.md)）
-- `scores.R`：**Stage 1**——從 `results<suffix>/<setting>-<method>-<dataset>[-K<mrts_k>].RData` 計算 per-cell Brier / Quantile 與多變量 energy / variogram 分數，輸出 `output/results/scores<setting><suffix>.RData`（需要 `scoringRules` 套件）
+- `run-settings.R`：擬合 driver；method 1–10，可選 MRTS basis K（細節見 [run-settings.md](run-settings.md)）
+- `launch-ar1-methods.ps1`：批次跑 methods 9／10 × settings 9–15 × datasets 1:10（見下方）
+- `launch-postfit-settings.ps1`：依序對 settings 9–15 跑 scores → tables → plots → posterior
+- `scores.R`：**Stage 1**——從 `results<suffix>/<setting>-<method>-<dataset>[-K<mrts_k>].RData` 計算 per-cell Brier / Quantile、多變量 energy / variogram 分數，與點預測 `pred.rmse`，輸出 `output/results/scores<setting><suffix>.RData`（需要 `scoringRules` 套件）
 - `tables.R`：**Stage 2**——讀 Stage 1 快取，輸出 `output/tables/` 下的 CSV 表格 + `output/results/` 下的彙整 `simresults` 物件
 - `plots.R`：**Stage 3**——讀 Stage 2 的 `simresults` 物件，輸出 `output/plots/` 下的 PDF 圖
 - `posterior.R`：**standalone** 後驗摘要工具——從 fits 計算每個純量參數的後驗均值、中位數、SD，輸出 `output/results/posterior<setting><suffix>.RData` 與 `output/tables/posterior_summary<setting><suffix>.csv`
@@ -62,8 +64,11 @@ Rscript plots.R  --setting=1 --data=simdata_def.RData
 | 14      | Skew-t, K = 1, AR(2) on τ only: φ_τ=(0.80, -0.35), φ_z=φ_w=0 (pure volatility channel) |
 | 15      | Skew-t, K = 5, AR(2) on w only: φ_w=(0.80, -0.35), φ_z=φ_τ=0 (pure knot-mixing channel) |
 
-setting 4 / 5 是文件最常用的 skew-t 目標。`simdata_def.RData`（deformed
-covariance）只有 setting 1–3，傳 `--setting=4` 會直接報「setting must be in 1..3」。
+setting 4 / 5 是文件最常用的 skew-t 目標。
+
+`simdata_def.RData`（deformed covariance）現有 setting 1–6（3 個線性變形 + 3 個非線性變形）。
+完整的實驗設計、D 函數定義、物件結構與 prop model 預期效果見
+[non_stationary/def_settings_design.md](non_stationary/def_settings_design.md)。
 
 ## Method catalog（分析方法，對應 `--methods=<spec>`）
 
@@ -77,6 +82,8 @@ Morris baseline 的 method 1–8：
 - 6: Max-stable, threshold q(0.80)
 - 7: Skew-t, K = 1 + AR(2) temporal (τ, z, knots：`temporaltau/z/w=TRUE`, `ar2_tau/z/w=TRUE`)
 - 8: Skew-t, K = 5 + AR(2) temporal (同上三組 φ)
+- 9: Skew-t, K = 1 + AR(1) temporal (`temporaltau/z/w=TRUE`, `ar2_tau/z/w=FALSE`)
+- 10: Skew-t, K = 5 + AR(1) temporal (同上三組 φ)
 
 `scores.R` 預設 `--methods=1:5`（method 6 max-stable 因為 fit 物件結構不同，
 通常另外處理；`--methods=1:8` 仍可加進來，缺少的參數欄位會被填成 NA）。
@@ -126,7 +133,8 @@ output/plots/           Stage 3 PDF
 | Stage 2 aggregated objects | `output/results/simresults<setting><suffix>.RData`                                                                     |
 | posterior 後驗陣列         | `output/results/posterior<setting><suffix>.RData`                                                                      |
 | posterior 摘要表           | `output/tables/posterior_summary<setting><suffix>.csv`                                                                 |
-| Stage 3 plots              | `output/plots/{bs,qs}_*-set<setting><suffix>-K<k>.pdf`、`{es,vs}_mean_vs_K-set<setting><suffix>.pdf`、`lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf` |
+| Stage 3 plots              | `output/plots/{bs,qs}_*-set<setting><suffix>-K<k>.pdf`、`{bs,qs}_mean_vs_K-set<setting><suffix>-q<qqq>.pdf`、`{bs,qs}_rel_k0_vs_K-set<setting><suffix>-q<qqq>.pdf`、`{es,vs,pr}_mean_vs_K-set<setting><suffix>.pdf`、`lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf` |
+| recovery RMSE plot         | `output/plots/mr_mean_vs_K-set<setting><suffix>.pdf`（scores.R→tables.R→plots.R）                                       |
 
 ## Post-fit pipeline (`scores.R` → `tables.R` → `plots.R`)
 
@@ -151,6 +159,7 @@ Rscript scores.R --setting=<id>
 ```
 quant.score, brier.score        [length(probs), n_datasets, n_methods, n_mrts_k]
 energy.score, vario.score        [n_datasets, n_methods, n_mrts_k]
+pred.rmse, recovery.rmse         [n_datasets, n_methods, n_mrts_k]
 beta.0/1/2, tau.alpha, tau.beta,
 rho, nu, gamma, lambda           [length(intervals), n_datasets, n_methods, n_mrts_k]
 elapsed_sec                      [n_datasets, n_methods, n_mrts_k]
@@ -180,6 +189,13 @@ MCMC draws，所以評分前會先把 iteration 軸等距抽稀到至多 `es_max
 （預設 1000）個 draws——分數本來就是 Monte Carlo 估計，1e3 個 draws 已足夠。
 要更精準的估計就調高它（成本平方成長）。
 
+`pred.rmse` 是**點預測 RMSE**：對 held-out 測站取後驗預測均值（`fit$yp`
+對迭代平均），與觀測 `y` 比，對全測站全時間取 RMSE，每個
+`(dataset, method, mrts_k)` 一個數字（與 energy/variogram 同結構）。它被雜訊
+主導、對 MRTS 鈍——是「MRTS 有沒有提升預測」的對照，和同樣在 `scores.R` 計算的
+`recovery.rmse`（對**真均值**評分，看得到 MRTS 的均值優勢）成一組對比。
+詳見「三個度量通道」。
+
 ### Stage 2: `tables.R`
 
 ```
@@ -188,8 +204,8 @@ Rscript tables.R --setting=<id> [--data=<path>]
 
 讀 Stage 1 cache，輸出：
 
-- 6 份 CSV（見上面表格；含 `multivar_score` 的 energy / variogram 彙整，
-  附 rel-vs-Gaussian 比值）
+- 6 份 CSV（見上面表格；`multivar_score` 含 energy / variogram 與點預測
+  `pred_rmse` 的彙整，附 rel-vs-Gaussian 比值）
 - 1 份 `simresults<setting><suffix>.RData`（彙整物件，供 Stage 3 使用；
   有 energy / variogram 時連同 `energy.score` / `vario.score` 一併存入）
 
@@ -275,6 +291,19 @@ $R = "C:\Program Files\R\R-4.5.1\bin\Rscript.exe"
 & $R .\tables.R --setting=11
 & $R .\tables.R --setting=12
 
+# AR(1) temporal methods 9／10：settings 9–15，datasets 1:10（140 fits total）
+cd D:\Github\spatial-skew-t\code\analysis\simstudy
+.\launch-ar1-methods.ps1 -Workers 4
+# Resume after interruption (skip completed settings):
+.\launch-ar1-methods.ps1 -Workers 4 -SkipExisting
+# Preview commands only:
+.\launch-ar1-methods.ps1 -DryRun
+
+# Post-fit pipeline: settings 9–15, methods 1:5 + 7:10, datasets 1:10
+.\launch-postfit-settings.ps1
+.\launch-postfit-settings.ps1 -Settings 9..15 -Methods "c(1:5,7:10)" -Datasets "1:10" -MrtsK "0"
+.\launch-postfit-settings.ps1 -SkipExisting
+
 # Deformed-covariance dataset，3 個 setting
 foreach ($s in 1..3) {
   & $R .\scores.R --setting=$s --data=simdata_def.RData
@@ -286,6 +315,63 @@ foreach ($s in 1..3) {
 & $R .\scores.R --setting=4 --mrts_k=0
 & $R .\tables.R --setting=4
 ```
+
+## 三個度量通道：exceedance / 點預測 / 均值估計
+
+MRTS 共變量加在**均值**項，效果可拆成三個互補通道，各有專屬度量、圖檔與
+2 字母命名前綴：
+
+| 通道 | 度量 | 比對對象 | 對 MRTS 敏感 | 來源 | 圖檔前綴 |
+| ---- | ---- | -------- | ------------ | ---- | -------- |
+| 超標預測 | Brier / quantile score | 觀測是否超標 | 幾乎不 | `scores.R` | `bs` / `qs` |
+| 點預測   | predictive RMSE | 觀測 `y`（全測站全時間） | 否（雜訊主導） | `scores.R`（`pred.rmse`） | `pr` |
+| 均值估計 | recovery RMSE (RMISE) | **真**均值 `μ(s)` | 是（有均值結構時） | `scores.R`（`recovery.rmse`） | `mr` |
+
+`pr` 與 `mr` 都沒有 quantile 維（每個 `(method, K)` 一個數字），檔名比照
+`es`/`vs`：`{pr,mr}_mean_vs_K-set<setting><suffix>.pdf`，圖上每個 method 一條線。
+
+### predictive RMSE（`pr`，在 `scores.R` 計算）
+
+對 held-out 測站取後驗預測均值（`fit$yp` 對迭代平均），與觀測 `y` 比，對全
+測站全時間取 RMSE：
+
+```
+pred.rmse[d, m, k] = sqrt( mean_{site, time} ( mean_iter(yp) - y_obs )^2 )
+```
+
+被不可約雜訊主導 → 對 MRTS 鈍，和 Brier 一樣是「MRTS 沒提升預測」的對照。
+流經 `tables.R`（進 `multivar_score` CSV，score 名 `pred_rmse`）→ `plots.R`
+（畫 `pr_mean_vs_K-set<setting><suffix>.pdf`）。
+
+### recovery RMSE（`mr`，在 `scores.R` 計算）
+
+`scores.R` 在載入每個 fit 算其他指標的**同一次**，順手用 β 的後驗平均重建
+**迴歸均值面** `μ̂(s) = X(s)'β̂ + MRTS(s)'β̂_mrts`（取 `colMeans(fit$beta)` 與
+`mrts_meta$pred`，**不需 `yp`、不重載檔**），與**真**迴歸均值比、對測站取 RMSE：
+
+```
+recovery.rmse[d, m, k] = sqrt( mean_site ( μ̂(s_i) - μ(s_i) )^2 )
+```
+
+真均值來源（僅在 `^simdata` 開頭的模擬資料計算，真實資料無真均值 → 跳過）：
+
+- `simdata_nonsta.RData`：`μ(s) = 10 + g(s)`，`g` 由存下的 cosine-bump 基底
+  重建（時間固定 = 固定係數；時間變動 = 時間平均權重）
+- `simdata.RData` / `simdata_def.RData`：`μ(s) = X(s)'β_true`，
+  `β_true = c(10,0,0)`（intercept-only，見 `setup.R`）→ 平面；RMSE 隨 K **上升**
+  代表 MRTS 在擬合假結構
+
+它刻意**排除** skew 項與空間 GP，單獨隔離 MRTS 作用的均值通道——所以**只有
+它看得到 MRTS 的均值優勢**，而 Brier / predictive RMSE 被 GP 內插與雜訊掩蓋、
+看不到。本質是 RMISE（root mean integrated squared error）的經驗版
+（cf. Ruppert 2002；Tzeng & Huang 2018）。流經 `tables.R`（進 `multivar_score`
+CSV，score 名 `recovery_rmse`，含 mean/median）→ `plots.R`（畫
+`mr_mean_vs_K-set<setting><suffix>.pdf`，與 es/vs/pr 同 multivar 風格、methods 疊線）。
+
+> 三者合起來把「**MRTS 估得準**（`mr` 下降）」與「**MRTS 預測有用**
+> （`bs`/`qs`/`pr` 幾乎不動）」拆開：在有均值結構的 nonsta set1，`mr` 暴跌而
+> `bs`/`pr` 持平；在 knot 型的 set5，三者皆平（`mr` 甚至微升），顯示無均值
+> 結構可吃。
 
 ## 與 `simstudy_prop/` 的對應
 

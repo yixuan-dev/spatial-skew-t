@@ -210,6 +210,18 @@ CorFxDef <- function(s, gamma, rho, theta = 0, ratio = 1) {
   return(cor)
 }
 
+# Non-stationary exponential covariance via nonlinear deformation (Sampson &
+# Guttorp 1992).  f_coords is the ns x 2 matrix of pre-computed F-space
+# coordinates D(s); covariance is exponential in F-space distances.
+CorFxNL <- function(f_coords, gamma, rho) {
+  ns <- nrow(f_coords)
+  if (rho < 1e-6) return(diag(1, nrow = ns))
+  d   <- as.matrix(stats::dist(f_coords))
+  cor <- gamma * exp(-d / rho)
+  diag(cor) <- 1
+  return(cor)
+}
+
 eig.inv <- function(Q, inv = TRUE, logdet = TRUE, mtx.sqrt = TRUE, thresh = 1e-7) {
   cor.inv <- NULL
   logdet.prec <- NULL
@@ -394,8 +406,9 @@ makeZTS <- function(nt, nknots, tau, phi) {
 rpotspatTS <- function(nt, x, s, beta, gamma, nu, rho, phi.z, phi.w,
                        phi.tau, lambda, tau.alpha, tau.beta, nknots,
                        dist,
-                       cov.type = c("matern", "deformed"),
-                       theta = 0, ratio = 1) {
+                       cov.type = c("matern", "deformed", "nl_deformed"),
+                       theta = 0, ratio = 1,
+                       f_coords = NULL) {
   cov.type <- match.arg(cov.type)
   p <- dim(x)[3]
   ns <- nrow(s)
@@ -417,6 +430,9 @@ rpotspatTS <- function(nt, x, s, beta, gamma, nu, rho, phi.z, phi.w,
 
   C <- if (cov.type == "deformed") {
     CorFxDef(s = s, gamma = gamma, rho = rho, theta = theta, ratio = ratio)
+  } else if (cov.type == "nl_deformed") {
+    if (is.null(f_coords)) stop("f_coords must be provided when cov.type = 'nl_deformed'")
+    CorFxNL(f_coords = f_coords, gamma = gamma, rho = rho)
   } else {
     CorFx(d = d, gamma = gamma, rho = rho, nu = nu)
   }

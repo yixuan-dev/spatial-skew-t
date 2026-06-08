@@ -3,7 +3,7 @@
 此腳本可執行任意 data setting 的複現實驗，支援：
 
 - `datasets` 向量輸入，例如 `1:5`、`20:28`
-- `methods` 向量輸入，例如 `1:8`、`(2,3,8)`
+- `methods` 向量輸入，例如 `1:10`、`(2,3,9)`
 - methods 1–5 的平行執行（PSOCK）
 - method 6（max-stable）以 `ms_threads` 控制 C++ threads
 - 以額外參數 `mrts_k` 將 methods 1–5 切換為指定 MRTS basis 個數的版本
@@ -25,7 +25,7 @@
 - `datasets`：dataset 向量表達式（範圍 1..50）
 - `workers`：methods 1–5 的平行 worker 數
 - `ms_threads`：method 6 的執行緒數
-- `methods`：method 向量表達式（範圍 1..8）
+- `methods`：method 向量表達式（範圍 1..10）
 - `mrts_k`：MRTS basis 個數，可為單一整數或向量；只會套用到 method 1–5
 
 ### `--data` 輸出目錄規則
@@ -53,6 +53,8 @@ PowerShell 建議用字串傳入，避免 shell 先行解讀。
 - 6: Max-stable, threshold q(0.80)
 - 7: Skew-t, K=1 + temporal AR(2) (`temporaltau/z/w=TRUE`, `ar2_tau/z/w=TRUE`)
 - 8: Skew-t, K=5 + temporal AR(2) (同上三組 φ)
+- 9: Skew-t, K=1 + temporal AR(1) (`temporaltau/z/w=TRUE`, `ar2_tau/z/w=FALSE`)
+- 10: Skew-t, K=5 + temporal AR(1) (同上三組 φ)
 
 ## MRTS 擴增規則
 
@@ -112,7 +114,7 @@ MRTS 擴增版本輸出：
 ## Windows PowerShell 範例
 
 ```powershell
-& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "1:8"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "1:10"
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "(1,4,6)" "15"
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=5 "1:5" 4 2 "(1,3,5)" "c(5,10,15)"
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --data=.\simdata_def.RData --setting=5 "1:5" 4 2 "(7,8)"
@@ -120,6 +122,10 @@ MRTS 擴增版本輸出：
 # Fixed-phi AR(2) settings + methods 7／8 AR(2) (pilot)
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=9 "1" 1 2 "(7,8)"
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=10 "1" 1 2 "(7,8)"
+
+# AR(1) temporal methods 9／10 (pilot)
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=9 "1" 1 2 "(9,10)"
+& "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\run-settings.R" --setting=10 "1" 1 2 "(9,10)"
 ```
 
 ## 平行策略說明
