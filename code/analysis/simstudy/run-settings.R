@@ -20,7 +20,7 @@ if (length(script_arg) > 0) {
 }
 
 source("./ar2_load.R", chdir = TRUE)
-source("./mrts_cov_helpers.R", chdir = TRUE)
+source("./helpers.R", chdir = TRUE)
 
 # -----------------------------
 # User controls
@@ -561,7 +561,7 @@ if (workers_use > 1) {
     parallel::clusterEvalQ(cl, {
         setwd(wd)
         source("./ar2_load.R", chdir = TRUE)
-        source("./mrts_cov_helpers.R", chdir = TRUE)
+        source("./helpers.R", chdir = TRUE)
         NULL
     })
     # ar2_load.R begins with rm(list = ls()), which wipes anything we exported

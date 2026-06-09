@@ -15,10 +15,12 @@
 #   Rscript plots-prop.R --setting=4
 #   Rscript plots-prop.R --setting=1 --data=simdata_def.RData
 #
-# Outputs (suffix = "" for simdata.RData, "_def" for simdata_def.RData, ...):
-#   output/plots/{bs,qs}_rel_gauss_by_quantile-set<setting><suffix>-K<k>.pdf
-#   output/plots/{bs,qs}_mean_vs_K-set<setting><suffix>-q<qq>.pdf
-#   output/plots/lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf
+# Outputs: each figure lives in output/plots/<type>/, and <type> is also the
+#  filename prefix (brier_score, quantile_score, lambda_ci).
+#  (suffix = "" for simdata.RData, "_def" for simdata_def.RData, ...):
+#   <type>/<type>_rel_gauss_by_quantile-set<setting><suffix>-K<k>.pdf   (brier_score, quantile_score)
+#   <type>/<type>_mean_vs_K-set<setting><suffix>-q<qq>.pdf              (brier_score, quantile_score)
+#   lambda_ci/lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf
 #########################################################################
 
 rm(list = ls())
@@ -55,6 +57,17 @@ results_dir <- "output/results"
 plots_dir   <- "output/plots"
 if (!dir.exists(plots_dir)) {
   dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
+}
+
+# Route each figure into a descriptive output/plots/<type>/ folder. The plot
+# type is also the filename prefix, so file and folder share one descriptive
+# name. Mirrors code/analysis/simstudy/plots.R.
+plot_pdf_path <- function(type, filename) {
+  sub_dir <- file.path(plots_dir, type)
+  if (!dir.exists(sub_dir)) {
+    dir.create(sub_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+  file.path(sub_dir, filename)
 }
 
 # ---- load the Stage-2 artifact ---------------------------------------
@@ -138,7 +151,7 @@ mbg  <- c("gray70", "firebrick2", "dodgerblue2", "firebrick1", "dodgerblue1")
 # (1) relative score vs quantile, lines per method, one PDF per prop_k
 plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
   for (ki in seq_along(prop_ks)) {
-    pdf_file <- file.path(plots_dir,
+    pdf_file <- plot_pdf_path(file_prefix,
       sprintf("%s_rel_gauss_by_quantile-%s-K%d.pdf",
               file_prefix, set_tag, prop_ks[ki]))
     pdf(pdf_file, width = 7, height = 5)
@@ -160,8 +173,8 @@ plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
     dev.off()
   }
 }
-plot_rel_vs_quantile(bs_rel_mean, "Brier",    "bs")
-plot_rel_vs_quantile(qs_rel_mean, "Quantile", "qs")
+plot_rel_vs_quantile(bs_rel_mean, "Brier",    "brier_score")
+plot_rel_vs_quantile(qs_rel_mean, "Quantile", "quantile_score")
 
 # (2) mean score vs prop_k for selected quantiles, lines per method.
 # Only meaningful when there is more than one prop_k; skip otherwise.
@@ -170,7 +183,7 @@ if (n_ks >= 2) {
   selected_q_idx <- selected_q_idx[selected_q_idx <= n_probs]
   plot_mean_vs_K <- function(arr_mean, score_lab, file_prefix) {
     for (qi in selected_q_idx) {
-      pdf_file <- file.path(plots_dir,
+      pdf_file <- plot_pdf_path(file_prefix,
         sprintf("%s_mean_vs_K-%s-q%03d.pdf",
                 file_prefix, set_tag, round(probs[qi] * 1000)))
       pdf(pdf_file, width = 7, height = 5)
@@ -181,8 +194,9 @@ if (n_ks >= 2) {
       plot(prop_ks, mat[1, ], type = "o", ylim = c(ymin, ymax),
            pch = mpch[1], lty = mlty[1], col = mcol[1], bg = mbg[1],
            xlab = "prop basis rank K",
-           ylab = sprintf("Mean %s score", score_lab),
-           main = dgp_title(bquote(q == .(sprintf("%.3f", probs[qi])))))
+           ylab = bquote(.(sprintf("Mean %s score", score_lab)) * "," ~
+                           q == .(sprintf("%.3f", probs[qi]))),
+           main = dgp_title())
       for (j in 2:n_methods) {
         lines(prop_ks, mat[j, ], lty = mlty[j], col = mcol[j])
         points(prop_ks, mat[j, ], pch = mpch[j], col = mcol[j], bg = mbg[j])
@@ -192,8 +206,8 @@ if (n_ks >= 2) {
       dev.off()
     }
   }
-  plot_mean_vs_K(bs_mean, "Brier",    "bs")
-  plot_mean_vs_K(qs_mean, "Quantile", "qs")
+  plot_mean_vs_K(bs_mean, "Brier",    "brier_score")
+  plot_mean_vs_K(qs_mean, "Quantile", "quantile_score")
 } else {
   cat("  (skipping mean-vs-K plots: only ", n_ks, " prop_k value)\n", sep = "")
 }
@@ -203,7 +217,7 @@ if (length(ci_lo_idx) == 1L && length(ci_hi_idx) == 1L) {
   for (m in skew_methods) {
     mi <- match(m, methods)
     for (ki in seq_along(prop_ks)) {
-      pdf_file <- file.path(plots_dir,
+      pdf_file <- plot_pdf_path("lambda_ci",
         sprintf("lambda_ci_vs_dataset-%s-method%d-K%d.pdf",
                 set_tag, m, prop_ks[ki]))
       pdf(pdf_file, width = 8, height = 5)

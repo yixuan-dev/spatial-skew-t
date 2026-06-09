@@ -31,7 +31,7 @@ if (length(script_arg) > 0L) {
   if (dir.exists(dirname(script_path))) setwd(dirname(script_path))
 }
 
-source("./mrts_cov_helpers.R")
+source("./helpers.R")
 
 # ---- CLI parsing ---------------------------------------------------------
 cli_args <- commandArgs(trailingOnly = TRUE)

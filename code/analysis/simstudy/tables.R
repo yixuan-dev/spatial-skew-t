@@ -39,7 +39,7 @@ if (length(script_arg) > 0L) {
   if (dir.exists(dirname(script_path))) setwd(dirname(script_path))
 }
 
-source("./mrts_cov_helpers.R")
+source("./helpers.R")
 
 # ---- CLI parsing -----------------------------------------------------
 cli_args <- commandArgs(trailingOnly = TRUE)
@@ -188,33 +188,6 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- score_rel_k0: relative to each method's OWN no-MRTS (K=0) baseline ----
-# Isolates the MRTS effect within a method: r_m(K) = score_m(K) / score_m(0),
-# so every method passes through 1 at K=0. Unlike rel_to_gauss (divide by
-# method 1, sweep over quantile+mrts_k), this divides by the K=0 column
-# (sweep over quantile+method). Needs no Gaussian reference.
-rel_to_k0 <- function(arr) {                    # arr: [quantile, method, mrts_k]
-  if (!"0" %in% dimnames(arr)$mrts_k) {
-    return(array(NA_real_, dim = dim(arr), dimnames = dimnames(arr)))
-  }
-  k0 <- arr[, , "0"]                            # [quantile, method]
-  sweep(arr, c(1, 2), k0, "/")
-}
-bs_rel_k0_mean <- rel_to_k0(bs_mean)
-qs_rel_k0_mean <- rel_to_k0(qs_mean)
-bs_rel_k0_med  <- rel_to_k0(bs_med)
-qs_rel_k0_med  <- rel_to_k0(qs_med)
-
-rel_k0_table <- rbind(
-  rel_long(bs_rel_k0_mean, bs_rel_k0_med, "brier"),
-  rel_long(qs_rel_k0_mean, qs_rel_k0_med, "quant")
-)
-write.csv(
-  rel_k0_table[, c("score", "method", "mrts_k", "quantile", "rel_mean", "rel_median")],
-  file.path(tables_dir, sprintf("score_rel_k0%d%s.csv", setting_id, data_suffix)),
-  row.names = FALSE
-)
-
 # ---- multivar_score: energy + variogram, aggregated over datasets ----
 # energy.score / vario.score are [dataset, method, mrts_k]. Average and
 # median over datasets per (method, mrts_k), and form the relative ratio
@@ -344,8 +317,7 @@ simresults_file <- file.path(
 simresults_objs <- c(
   "bs_mean", "qs_mean", "bs_med", "qs_med",
   "bs_rel_mean", "qs_rel_mean", "bs_rel_med", "qs_rel_med",
-  "bs_rel_k0_mean", "qs_rel_k0_mean", "bs_rel_k0_med", "qs_rel_k0_med",
-  "score_long_table", "score_table", "rel_table", "rel_k0_table", "multivar_table",
+  "score_long_table", "score_table", "rel_table", "multivar_table",
   "best_table", "cov_table", "lambda",
   "probs", "mrts_ks", "methods", "datasets", "intervals", "setting",
   "data_suffix"

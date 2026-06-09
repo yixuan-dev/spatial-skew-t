@@ -2,7 +2,7 @@
 # time_block_helpers.R - shared CLI / filename / seed / catalog helpers
 # for the time-block forecast simulation study.
 #
-# Mirrors code/analysis/simstudy/mrts_cov_helpers.R, with the MRTS-basis
+# Mirrors code/analysis/simstudy/helpers.R, with the MRTS-basis
 # axis replaced by the time-block axis. The generic CLI / path helpers are
 # copied verbatim so the two studies parse arguments identically.
 #########################################################################

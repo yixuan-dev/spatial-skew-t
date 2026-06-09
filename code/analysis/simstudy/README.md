@@ -16,7 +16,7 @@
 - `tables.R`：**Stage 2**——讀 Stage 1 快取，輸出 `output/tables/` 下的 CSV 表格 + `output/results/` 下的彙整 `simresults` 物件
 - `plots.R`：**Stage 3**——讀 Stage 2 的 `simresults` 物件，輸出 `output/plots/` 下的 PDF 圖
 - `posterior.R`：**standalone** 後驗摘要工具——從 fits 計算每個純量參數的後驗均值、中位數、SD，輸出 `output/results/posterior<setting><suffix>.RData` 與 `output/tables/posterior_summary<setting><suffix>.csv`
-- `mrts_cov_helpers.R`：CLI / 檔名 / seed / method catalog helper（三個階段共用）
+- `helpers.R`：CLI / 檔名 / seed / method catalog helper（三個階段共用）
 - `package_load.R`、`ar2_load.R`：Morris backend / AR(2) backend 套件載入
 - `results-mrts-cov.R`：MRTS 共變量覆蓋率分析（與主 pipeline 獨立）
 - `timeseriesplots.R`：時間序列預測診斷圖
@@ -99,7 +99,7 @@ results_def/            fits 來源（deformed-covariance 資料的 fits）
 
 output/results/         Stage 1 / Stage 2 cache
 output/tables/          Stage 2 CSV
-output/plots/           Stage 3 PDF
+output/plots/<type>/    Stage 3 PDF（依 plot type 分子資料夾：brier_score / quantile_score / energy_score / variogram_score / predictive_rmse / recovery_rmse / lambda_ci）
 ```
 
 依 `--data` 推導：
@@ -133,8 +133,8 @@ output/plots/           Stage 3 PDF
 | Stage 2 aggregated objects | `output/results/simresults<setting><suffix>.RData`                                                                     |
 | posterior 後驗陣列         | `output/results/posterior<setting><suffix>.RData`                                                                      |
 | posterior 摘要表           | `output/tables/posterior_summary<setting><suffix>.csv`                                                                 |
-| Stage 3 plots              | `output/plots/{bs,qs}_*-set<setting><suffix>-K<k>.pdf`、`{bs,qs}_mean_vs_K-set<setting><suffix>-q<qqq>.pdf`、`{bs,qs}_rel_k0_vs_K-set<setting><suffix>-q<qqq>.pdf`、`{es,vs,pr}_mean_vs_K-set<setting><suffix>.pdf`、`lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf` |
-| recovery RMSE plot         | `output/plots/mr_mean_vs_K-set<setting><suffix>.pdf`（scores.R→tables.R→plots.R）                                       |
+| Stage 3 plots              | 依 plot type 分子資料夾 `output/plots/<type>/`，檔名前綴 = 資料夾名（descriptive）：`<type>/<type>_rel_gauss_by_quantile-set<setting><suffix>-K<k>.pdf`、`<type>/<type>_mean_vs_K-set<setting><suffix>-q<qqq>.pdf`（type=brier_score、quantile_score）、`<type>/<type>_mean_vs_K-set<setting><suffix>.pdf`（type=energy_score、variogram_score、predictive_rmse）、`lambda_ci/lambda_ci_vs_dataset-set<setting><suffix>-method<m>-K<k>.pdf` |
+| recovery RMSE plot         | `output/plots/recovery_rmse/recovery_rmse_mean_vs_K-set<setting><suffix>.pdf`（scores.R→tables.R→plots.R）              |
 
 ## Post-fit pipeline (`scores.R` → `tables.R` → `plots.R`)
 
@@ -223,7 +223,7 @@ PDF 圖：relative-score-by-quantile、mean-vs-K、energy / variogram mean-vs-K�
 lambda 95% CI。
 
 當 `--mrts_k=0`（只有 baseline）這種 `n_ks = 1` 的切片時，Stage 3 會自動跳過
-所有 mean-vs-K 系列圖（含 `{es,vs}_mean_vs_K`，沒有意義），其餘圖照常。讀到
+所有 mean-vs-K 系列圖（含 `{energy_score,variogram_score}_mean_vs_K`，沒有意義），其餘圖照常。讀到
 沒有 energy / variogram 的舊 `simresults` 時，也會自動跳過那兩張圖。
 
 ### `posterior.R` — 後驗摘要（Posterior mean / median / SD）
@@ -328,7 +328,7 @@ MRTS 共變量加在**均值**項，效果可拆成三個互補通道，各有�
 | 均值估計 | recovery RMSE (RMISE) | **真**均值 `μ(s)` | 是（有均值結構時） | `scores.R`（`recovery.rmse`） | `mr` |
 
 `pr` 與 `mr` 都沒有 quantile 維（每個 `(method, K)` 一個數字），檔名比照
-`es`/`vs`：`{pr,mr}_mean_vs_K-set<setting><suffix>.pdf`，圖上每個 method 一條線。
+`es`/`vs`：`{predictive_rmse,recovery_rmse}_mean_vs_K-set<setting><suffix>.pdf`，圖上每個 method 一條線。
 
 ### predictive RMSE（`pr`，在 `scores.R` 計算）
 
@@ -341,7 +341,7 @@ pred.rmse[d, m, k] = sqrt( mean_{site, time} ( mean_iter(yp) - y_obs )^2 )
 
 被不可約雜訊主導 → 對 MRTS 鈍，和 Brier 一樣是「MRTS 沒提升預測」的對照。
 流經 `tables.R`（進 `multivar_score` CSV，score 名 `pred_rmse`）→ `plots.R`
-（畫 `pr_mean_vs_K-set<setting><suffix>.pdf`）。
+（畫 `predictive_rmse_mean_vs_K-set<setting><suffix>.pdf`，略去 method 3、5 兩條外離線）。
 
 ### recovery RMSE（`mr`，在 `scores.R` 計算）
 
@@ -366,7 +366,7 @@ recovery.rmse[d, m, k] = sqrt( mean_site ( μ̂(s_i) - μ(s_i) )^2 )
 看不到。本質是 RMISE（root mean integrated squared error）的經驗版
 （cf. Ruppert 2002；Tzeng & Huang 2018）。流經 `tables.R`（進 `multivar_score`
 CSV，score 名 `recovery_rmse`，含 mean/median）→ `plots.R`（畫
-`mr_mean_vs_K-set<setting><suffix>.pdf`，與 es/vs/pr 同 multivar 風格、methods 疊線）。
+`recovery_rmse_mean_vs_K-set<setting><suffix>.pdf`，與 es/vs/pr 同 multivar 風格、methods 疊線）。
 
 > 三者合起來把「**MRTS 估得準**（`mr` 下降）」與「**MRTS 預測有用**
 > （`bs`/`qs`/`pr` 幾乎不動）」拆開：在有均值結構的 nonsta set1，`mr` 暴跌而
