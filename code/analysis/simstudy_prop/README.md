@@ -12,7 +12,7 @@
 
 - `run-prop.R`：執行 prop backend 的 simstudy-style 模擬（直接以這支腳本作為 CLI 入口）
 - `run-prop-batch.R`：將 `settings_prop.csv` 的資料列轉成真正可執行的 batch runs
-- `scores-prop.R`：Stage 1，從 `fits<suffix>/` 計算 Brier / Quantile 分數，存到 `scores<setting>-prop<suffix>.RData`
+- `scores-prop.R`：Stage 1，從 `results<suffix>/` 計算 Brier / Quantile 分數，存到 `scores<setting>-prop<suffix>.RData`
 - `tables-prop.R`：Stage 2，讀 `scores<setting>-prop<suffix>.RData`，產出 CSV 表格 + `simresults<setting>-prop<suffix>.RData` 彙整物件
 - `plots-prop.R`：Stage 3，讀 `simresults<setting>-prop<suffix>.RData`，產出 `output/plots/` 下的 PDF 圖
 - `prop_load.R`：載入 `../../R/prop` backend 與 simstudy 資料
@@ -48,7 +48,7 @@ Rscript run-prop.R --data=simdata_def.RData --setting=1 1 1 1 1 5
 
 預設輸出路徑如下：
 
-- `fits/`：model fit `.RData` 與 run plan，例如 `fits/3-1-2-p20.RData`
+- `results/`：model fit `.RData` 與 run plan，例如 `results/3-1-2-p20.RData`
 - `output/results/`：載入 fits 後的 analysis `.RData`（含 `mrts_brier_analysis.RData`）
 - `output/tables/`：比較表（含 `mrts_brier_long.csv`、`mrts_brier_summary.csv`）
 - `output/plots/`：後續比較圖
@@ -67,7 +67,7 @@ Rscript tables-prop.R --setting=1 --data=simdata_def.RData
 Rscript plots-prop.R  --setting=1 --data=simdata_def.RData
 ```
 
-Stage 1（`scores-prop.R`）讀 `fits<suffix>/<setting>-<method>-<dataset>-p<K>.RData` 中的 `fit.1`，使用 `../../R/ar2/auxfunctions.R` 的 `BrierScore` / `QuantScore`，輸出單一 `.RData` 快取：
+Stage 1（`scores-prop.R`）讀 `results<suffix>/<setting>-<method>-<dataset>-p<K>.RData` 中的 `fit.1`，使用 `../../R/ar2/auxfunctions.R` 的 `BrierScore` / `QuantScore`，輸出單一 `.RData` 快取：
 
 - `output/results/scores<setting>-prop<suffix>.RData`：4 維分數陣列 `[probs, dataset, method, prop_k]` + 參數區間 + `elapsed_sec`
 

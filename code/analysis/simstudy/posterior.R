@@ -201,9 +201,23 @@ for (di in seq_along(datasets)) {
         cat(sprintf("  (niter detected: %d)\n", niter_detected))
       }
 
+      # Current MRTS fits use an [1, MRTS] design (no s1/s2 base columns), so
+      # beta cols 2+ are MRTS coefficients, not beta.1/beta.2. Legacy MRTS
+      # fits carry [1, s1, s2, MRTS] and keep all three base coefficients.
+      n_mrts <- if (!is.null(env$mrts_meta)) dim(env$mrts_meta$pred)[3] else 0L
+      p_base <- if (!is.null(fit$beta) && !is.null(ncol(fit$beta))) {
+        ncol(fit$beta) - n_mrts
+      } else {
+        NA_integer_
+      }
+
       for (pi in seq_along(params)) {
         p <- params[[pi]]
         if (!is.null(p$applies) && !(method %in% p$applies)) next
+        if (p$name %in% c("beta.1", "beta.2") &&
+              !is.na(p_base) && p_base < 3L) {
+          next
+        }
         draws <- tryCatch(p$extract(fit), error = function(e) NULL)
         if (is.null(draws) || !is.numeric(draws) || length(draws) == 0L) next
         post_mean[[pi]][di, mi, ki] <- mean(draws, na.rm = TRUE)

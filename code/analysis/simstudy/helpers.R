@@ -293,15 +293,10 @@ build_mrts_covariates <- function(S_train, S_pred, nt, k) {
     stop("MRTS basis column mismatch.", call. = FALSE)
   }
 
+  # The mrts output is used as the full mean design matrix: col 1 is the
+  # constant (intercept), cols 2-3 are linear in the coordinates, cols 4..k
+  # are TPS eigenfunctions. All k columns are kept.
   original_cols <- ncol(basis_train)
-  col_sd <- apply(basis_train, 2, sd)
-  keep <- which(is.finite(col_sd) & col_sd > 1e-10)
-  if (length(keep) == 0) {
-    stop("All MRTS columns are near-constant after construction.", call. = FALSE)
-  }
-
-  basis_train <- basis_train[, keep, drop = FALSE]
-  basis_pred <- basis_pred[, keep, drop = FALSE]
 
   mrts_train <- array(0, dim = c(nrow(S_train), nt, ncol(basis_train)))
   mrts_pred <- array(0, dim = c(nrow(S_pred), nt, ncol(basis_pred)))
@@ -319,24 +314,6 @@ build_mrts_covariates <- function(S_train, S_pred, nt, k) {
     kept_cols = ncol(basis_train),
     dropped_cols = original_cols - ncol(basis_train)
   )
-}
-
-append_mrts_covariates <- function(X_train, X_pred, mrts_cov) {
-  p_base <- dim(X_train)[3]
-  p_mrts <- dim(mrts_cov$train)[3]
-
-  X_train_ext <- array(NA_real_, dim = c(dim(X_train)[1], dim(X_train)[2], p_base + p_mrts))
-  X_pred_ext <- array(NA_real_, dim = c(dim(X_pred)[1], dim(X_pred)[2], p_base + p_mrts))
-
-  X_train_ext[, , seq_len(p_base)] <- X_train
-  X_pred_ext[, , seq_len(p_base)] <- X_pred
-
-  for (jj in seq_len(p_mrts)) {
-    X_train_ext[, , p_base + jj] <- mrts_cov$train[, , jj]
-    X_pred_ext[, , p_base + jj] <- mrts_cov$pred[, , jj]
-  }
-
-  list(train = X_train_ext, pred = X_pred_ext)
 }
 
 get_mrts_baseline_plan <- function(method_ids = NULL) {
@@ -477,11 +454,9 @@ run_mrts_pot_setting <- function(
         mrts_k = mrts_k
       ))
 
-      extended_x <- append_mrts_covariates(
-        X_train = x_o,
-        X_pred = x_p,
-        mrts_cov = mrts_cache[[as.character(mrts_k)]]
-      )
+      # Design matrix = mrts(S, k) as-is (col 1 is the constant/intercept);
+      # the $train/$pred arrays are used directly, see run-settings.R.
+      extended_x <- mrts_cache[[as.character(mrts_k)]]
 
       cat(
         "  start:", spec$label[1],

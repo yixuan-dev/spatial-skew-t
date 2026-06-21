@@ -64,24 +64,24 @@ Rscript run-prop.R [--data=<path>|--data <path>] \
 
 PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 
-## 輸出位置 (`fits_dir`) 規則
+## 輸出位置 (`results_dir`) 規則
 
-`fits_dir` 的決定優先序：
+`results_dir` 的決定優先序：
 
-1. 環境變數 `SIMSTUDY_PROP_FITS_DIR`（若有設定一律生效）
+1. 環境變數 `SIMSTUDY_PROP_RESULTS_DIR`（若有設定一律生效）
 2. 從 `--data` 的 basename 推導：
-   - `simdata.RData` → `fits/`
-   - `simdata_def.RData` → `fits_def/`
-   - 其他 `simdata<suffix>.RData` → `fits<suffix>/`
-3. 預設 `fits/`
+   - `simdata.RData` → `results/`
+   - `simdata_def.RData` → `results_def/`
+   - 其他 `simdata<suffix>.RData` → `results<suffix>/`
+3. 預設 `results/`
 
-也就是說，當切換到 `simdata_def.RData` 時，輸出會自動分流到 `fits_def/`，
-不會和原本 `fits/` 中的 baseline 結果混在一起。
+也就是說，當切換到 `simdata_def.RData` 時，輸出會自動分流到 `results_def/`，
+不會和原本 `results/` 中的 baseline 結果混在一起。
 
 ## 目前 workflow 的資料與輸出分工
 
-- `fits/`（或 `fits_def/`、`fits<suffix>/`）
-  - model fit `.RData`，命名為 `<fits_dir>/<setting>-<method>-<dataset>-p<k>.RData`
+- `results/`（或 `results_def/`、`results<suffix>/`）
+  - model fit `.RData`，命名為 `<results_dir>/<setting>-<method>-<dataset>-p<k>.RData`
   - `run-plan-setting-<setting>.csv`
 - `output/results/`
   - `scores<setting>-prop<suffix>.RData`：scores-prop.R 的分數快取
@@ -112,7 +112,7 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 擬合完成後，分數計算、表格產出、繪圖分成三步驟，可分別重跑：
 
 ```powershell
-# Stage 1: 從 fits/ 讀取，計算 Brier / Quantile 分數，存到 scores<setting>-prop<suffix>.RData
+# Stage 1: 從 results/ 讀取，計算 Brier / Quantile 分數，存到 scores<setting>-prop<suffix>.RData
 & "C:\Program Files\R\R-4.5.1\bin\Rscript.exe" ".\scores-prop.R" --setting=4
 
 # Stage 2: 讀 scores<setting>-prop<suffix>.RData，產出 CSV 表格 + simresults 彙整物件
@@ -132,7 +132,7 @@ PowerShell 建議將向量規格放在引號中，避免 shell 先行解讀。
 - `--setting=<id>` 必填
 - `--data=<path>` 可選（同 run-prop.R 規則）
 - `--methods=<spec>`、`--datasets=<spec>`、`--prop_k=<spec>` 可選；
-  `--prop_k` 預設會掃描 `fits<suffix>/<setting>-*-*-p<K>.RData` 自動偵測
+  `--prop_k` 預設會掃描 `results<suffix>/<setting>-*-*-p<K>.RData` 自動偵測
 
 `tables-prop.R` 會自動以 setting + suffix 推導出對應的 `scores...RData`，
 並產出：
@@ -150,9 +150,9 @@ lambda 95% CI）。
 
 例如：
 
-- `--setting=3 "2" 2 1 "1" "20"` 會寫出 `fits/3-1-2-p20.RData`
-- `--setting=5 "1:3" 2 1 "(3,5)" "c(20,30)"` 會寫出 `fits/5-3-1-p20.RData`, `fits/5-5-1-p20.RData`, `fits/5-3-1-p30.RData`, ...
-- `--data=simdata_def.RData --setting=1 "1" 1 1 "1" "20"` 會寫出 `fits_def/1-1-1-p20.RData`
+- `--setting=3 "2" 2 1 "1" "20"` 會寫出 `results/3-1-2-p20.RData`
+- `--setting=5 "1:3" 2 1 "(3,5)" "c(20,30)"` 會寫出 `results/5-3-1-p20.RData`, `results/5-5-1-p20.RData`, `results/5-3-1-p30.RData`, ...
+- `--data=simdata_def.RData --setting=1 "1" 1 1 "1" "20"` 會寫出 `results_def/1-1-1-p20.RData`
 
 ## `settings_prop.csv` 批次執行
 
@@ -162,11 +162,11 @@ lambda 95% CI）。
 - 若不給 selector，會依 `enabled=yes` 與 `priority` 順序依序執行
 - `runner_script` 欄位目前預期為 `run-prop.R`
 - `data` 欄位（optional）對應 `--data=<path>` flag：
-  - 留空 → 使用預設 `simdata.RData`，輸出到 `fits/`
-  - 例如 `simdata_def.RData` → 輸出自動分流到 `fits_def/`
+  - 留空 → 使用預設 `simdata.RData`，輸出到 `results/`
+  - 例如 `simdata_def.RData` → 輸出自動分流到 `results_def/`
   - 路徑會先試 `./<value>`，找不到時自動回退到 `../simstudy/<basename>`
 - `compare_after=yes` 會在擬合完成後依序執行 `scores-prop.R` 與
-  `tables-prop.R`，使用同一個 `fits<suffix>/` 讀取 fits
+  `tables-prop.R`，使用同一個 `results<suffix>/` 讀取 fits
 
 批次腳本會另外輸出：
 
@@ -181,7 +181,7 @@ lambda 95% CI）。
 - 在哪個 quantile / band 上，哪個 (method, prop_k) 表現最好？
 - skew methods 對 lambda 的 95% 區間覆蓋率如何？
 
-兩支腳本都只看 `prop` 自己的 fits（讀 `fits<suffix>/`），不依賴
+兩支腳本都只看 `prop` 自己的 fits（讀 `results<suffix>/`），不依賴
 `../simstudy/results/` 的 baseline。要對 baseline 比較時，請另外把
 `../simstudy/run-settings.R` 的對應結果跑出來，再自行讀兩邊的
 `scores<setting>-prop<suffix>.RData` 與 `simresults...` 物件來比。

@@ -1,0 +1,35 @@
+\subsection{MERRA-2 surface temperature}\label{sec:data-merra2}
+
+To complement the ozone case study with a controlled medium-size benchmark on data that is structurally different from EPA ozone, we run the temporal probe on hourly surface-temperature output from the MERRA-2 reanalysis.  The question is whether the AR(2) extension yields measurable Brier-score gains in a regime that is smoother and less tail-dominated than ozone---in other words, whether the temporal axis of the STP hierarchy carries more leverage when the underlying field is itself temporally smoother.  The data comprise $n_s = 100$ spatial locations observed at $n_t = 100$ consecutive hourly time points, with longitude and latitude retained for each site.
+
+\subsubsection{Data preprocessing and model setup}
+
+We randomly split the sites into training and validation subsets using seed $123$, allocating $70\%$ of the sites to model fitting and the remaining $30\%$ to held-out evaluation.  The regression design uses an intercept and a first-order spatial trend,
+\begin{align}
+  \bX_t(\bs) = [1,\; s_1,\; s_2]^\top,
+\end{align}
+where $s_1$ and $s_2$ are the longitude and latitude of site $\bs$.  Because the covariates are not standardized in this experiment, we set \texttt{nu.upper = 10} so that the smoothness parameter $\nu$ of the \Matern covariance cannot drift into the numerically unstable large-$\nu$ regime during MCMC.
+
+To isolate the effect of temporal structure, the three temporal specifications -- no time series, AR(1), and AR(2) -- share the same core configuration: a \skewt margin, a \Matern covariance, $K=5$ knots, and no censoring threshold.  Each chain is run for $20\,000$ iterations with the first $10\,000$ discarded as burn-in, yielding $10\,000$ retained posterior draws per model.
+
+\subsubsection{Results}
+
+Table~\ref{tab:merra2-temporal-compare} reports quantile-score (QS) and Brier-score (BS) comparisons across the three temporal specifications.  The differences are small in absolute terms but qualitatively informative: the no-time-series model performs marginally better on the QS metrics and attains the lowest BS at the most extreme exceedance level ($0.99$), whereas AR(2) attains the best BS at the $0.90$ and $0.95$ levels.  None of the three specifications therefore dominates uniformly; the preferred model depends on whether one targets bulk predictive accuracy, mid-tail exceedance probabilities, or the far tail.
+
+The remaining summary metrics reinforce this reading.  MAPE is slightly lower for AR(2) ($0.0106$), with AR(1) close behind, while the no-time-series model is somewhat worse on this bulk-accuracy measure.  The $95\%$ predictive-interval coverage is nearly identical across the three models ($0.912$--$0.916$), suggesting that temporal dependence affects predictive sharpness more than calibration.  These modest gains come at a non-trivial computational cost: total fitting time rises from $777.3$ seconds for the no-time-series model to $1041.7$ seconds for AR(1) and $1075.8$ seconds for AR(2).  Taken together, the MERRA-2 results suggest that AR(2) is a defensible option when slightly better mid-tail behavior is desired, but the improvement is incremental rather than decisive---consistent with the picture obtained from the simulation study and the EPA ozone analysis.  That the same incremental verdict appears across three datasets of different size, signal-to-noise, and temporal smoothness motivates the structural explanation given in the Discussion section that follows.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of temporal specifications in the MERRA-2 experiment. Smaller values indicate better predictive performance.}
+\label{tab:merra2-temporal-compare}
+\scriptsize
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Model & QS90 & QS95 & QS99 & BS90 & BS95 & BS99 \\
+\midrule
+No Temporal & \textbf{4.714} & \textbf{2.522} & \textbf{0.570} & 0.041 & 0.018 & \textbf{0.008} \\
+AR(1) & 4.716 & 2.522 & 0.570 & 0.040 & 0.016 & 0.009 \\
+AR(2) & 4.717 & 2.522 & 0.571 & \textbf{0.040} & \textbf{0.016} & 0.009 \\
+\bottomrule
+\end{tabular}
+\end{table}

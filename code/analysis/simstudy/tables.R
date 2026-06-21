@@ -21,11 +21,7 @@
 #   Rscript tables.R --setting=1 --data=simdata_def.RData
 #
 # Outputs (suffix = "" for simdata.RData, "_def" for simdata_def.RData, ...):
-#   output/tables/score_long<setting><suffix>.csv
-#   output/tables/score_mean<setting><suffix>.csv
-#   output/tables/score_rel_gauss<setting><suffix>.csv
-#   output/tables/multivar_score<setting><suffix>.csv
-#   output/tables/best_method_per_K<setting><suffix>.csv
+#   output/tables/score_summary<setting><suffix>.csv
 #   output/tables/lambda_coverage<setting><suffix>.csv
 #   output/results/simresults<setting><suffix>.RData
 #########################################################################
@@ -93,10 +89,6 @@ cat(sprintf(
   if (nzchar(data_suffix)) data_suffix else "<none>"
 ))
 
-n_probs   <- length(probs)
-n_methods <- length(methods)
-n_ks      <- length(mrts_ks)
-
 # ---- mean / median scores ------------------------------------------
 mean_apply <- function(a) apply(a, c(1, 3, 4), mean,   na.rm = TRUE)
 med_apply  <- function(a) apply(a, c(1, 3, 4), median, na.rm = TRUE)
@@ -112,50 +104,8 @@ dn_mean <- list(quantile = as.character(probs),
 dimnames(bs_mean) <- dimnames(qs_mean) <- dn_mean
 dimnames(bs_med)  <- dimnames(qs_med)  <- dn_mean
 
-# ---- score_long: per-(score, method, mrts_k, dataset, quantile) ------
-flatten_long <- function(arr, score) {
-  grid <- expand.grid(
-    quantile = probs,
-    dataset  = datasets,
-    method   = methods,
-    mrts_k   = mrts_ks,
-    KEEP.OUT.ATTRS = FALSE,
-    stringsAsFactors = FALSE
-  )
-  grid$score <- score
-  grid$value <- as.vector(arr)
-  grid[, c("score", "method", "mrts_k", "dataset", "quantile", "value")]
-}
-score_long_table <- rbind(
-  flatten_long(brier.score, "brier"),
-  flatten_long(quant.score, "quant")
-)
-write.csv(
-  score_long_table,
-  file.path(tables_dir, sprintf("score_long%d%s.csv", setting_id, data_suffix)),
-  row.names = FALSE
-)
-
-# ---- score_mean: aggregated per (score, method, mrts_k, quantile) ----
-score_long <- function(arr_mean, arr_med, score) {
-  out <- expand.grid(quantile = probs, method = methods, mrts_k = mrts_ks,
-                     KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
-  out$score  <- score
-  out$mean   <- as.vector(arr_mean)
-  out$median <- as.vector(arr_med)
-  out
-}
-score_table <- rbind(
-  score_long(bs_mean, bs_med, "brier"),
-  score_long(qs_mean, qs_med, "quant")
-)
-write.csv(
-  score_table[, c("score", "method", "mrts_k", "quantile", "mean", "median")],
-  file.path(tables_dir, sprintf("score_mean%d%s.csv", setting_id, data_suffix)),
-  row.names = FALSE
-)
-
-# ---- score_rel_gauss: relative scores vs method 1 (Gaussian) ---------
+# ---- relative scores vs method 1 (Gaussian) --------------------------
+# Arrays only (kept in simresults for plots.R / plots_for_paper.R).
 rel_to_gauss <- function(arr) {
   if (!"1" %in% dimnames(arr)$method) {
     return(array(NA_real_, dim = dim(arr), dimnames = dimnames(arr)))
@@ -170,31 +120,28 @@ qs_rel_mean <- rel_to_gauss(qs_mean)
 bs_rel_med  <- rel_to_gauss(bs_med)
 qs_rel_med  <- rel_to_gauss(qs_med)
 
-rel_long <- function(arr_mean, arr_med, score) {
-  out <- expand.grid(quantile = probs, method = methods, mrts_k = mrts_ks,
-                     KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
-  out$score      <- score
-  out$rel_mean   <- as.vector(arr_mean)
-  out$rel_median <- as.vector(arr_med)
-  out
-}
-rel_table <- rbind(
-  rel_long(bs_rel_mean, bs_rel_med, "brier"),
-  rel_long(qs_rel_mean, qs_rel_med, "quant")
-)
-write.csv(
-  rel_table[, c("score", "method", "mrts_k", "quantile", "rel_mean", "rel_median")],
-  file.path(tables_dir, sprintf("score_rel_gauss%d%s.csv", setting_id, data_suffix)),
-  row.names = FALSE
-)
-
-# ---- multivar_score: energy + variogram, aggregated over datasets ----
-# energy.score / vario.score are [dataset, method, mrts_k]. Average and
-# median over datasets per (method, mrts_k), and form the relative ratio
-# vs method 1 (Gaussian), matching the score_rel_gauss convention.
+# ---- score_summary: all scores in one table --------------------------
+# Brier / quantile scores are per threshold quantile (one row per
+# (method, mrts_k, quantile)); energy / variogram / pred_rmse /
+# recovery_rmse / elapsed_sec are dataset-level [dataset, method, mrts_k]
+# (quantile = NA). All are dataset means/medians plus the relative ratio
+# vs method 1 (Gaussian).
 has_multivar  <- exists("energy.score") && exists("vario.score")
 has_pred_rmse <- exists("pred.rmse")
 has_recovery  <- exists("recovery.rmse")
+has_elapsed   <- exists("elapsed_sec")
+summary_cols <- c("score", "method", "mrts_k", "quantile", "mean", "median",
+                  "rel_mean", "rel_median")
+quantile_rows <- function(a_mean, a_med, a_rel_mean, a_rel_med, score) {
+  out <- expand.grid(quantile = probs, method = methods, mrts_k = mrts_ks,
+                     KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+  out$score      <- score
+  out$mean       <- as.vector(a_mean)
+  out$median     <- as.vector(a_med)
+  out$rel_mean   <- as.vector(a_rel_mean)
+  out$rel_median <- as.vector(a_rel_med)
+  out[, summary_cols]
+}
 mv_summary <- function(arr, score) {
   a_mean <- apply(arr, c(2, 3), mean,   na.rm = TRUE)   # method x mrts_k
   a_med  <- apply(arr, c(2, 3), median, na.rm = TRUE)
@@ -205,63 +152,34 @@ mv_summary <- function(arr, score) {
   out <- expand.grid(method = methods, mrts_k = mrts_ks,
                      KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
   out$score      <- score
+  out$quantile   <- NA_real_
   out$mean       <- as.vector(a_mean)
   out$median     <- as.vector(a_med)
   out$rel_mean   <- as.vector(rel_of(a_mean))
   out$rel_median <- as.vector(rel_of(a_med))
-  out[, c("score", "method", "mrts_k", "mean", "median",
-          "rel_mean", "rel_median")]
+  out[, summary_cols]
 }
-mv_parts <- list()
+sum_parts <- list(
+  quantile_rows(bs_mean, bs_med, bs_rel_mean, bs_rel_med, "brier"),
+  quantile_rows(qs_mean, qs_med, qs_rel_mean, qs_rel_med, "quant")
+)
 if (has_multivar) {
-  mv_parts <- c(mv_parts, list(mv_summary(energy.score, "energy"),
-                               mv_summary(vario.score,  "variogram")))
+  sum_parts <- c(sum_parts, list(mv_summary(energy.score, "energy"),
+                                 mv_summary(vario.score,  "variogram")))
 }
 if (has_pred_rmse) {                                     # point-prediction RMSE
-  mv_parts <- c(mv_parts, list(mv_summary(pred.rmse, "pred_rmse")))
+  sum_parts <- c(sum_parts, list(mv_summary(pred.rmse, "pred_rmse")))
 }
 if (has_recovery) {                                      # mean-surface recovery
-  mv_parts <- c(mv_parts, list(mv_summary(recovery.rmse, "recovery_rmse")))
+  sum_parts <- c(sum_parts, list(mv_summary(recovery.rmse, "recovery_rmse")))
 }
-if (length(mv_parts) > 0) {
-  multivar_table <- do.call(rbind, mv_parts)
-} else {
-  multivar_table <- data.frame(
-    score = character(0), method = integer(0), mrts_k = integer(0),
-    mean = numeric(0), median = numeric(0),
-    rel_mean = numeric(0), rel_median = numeric(0)
-  )
-  cat("  (no energy/variogram/pred-rmse scores in cache; multivar table empty)\n")
+if (has_elapsed) {                                       # MCMC runtime (sec)
+  sum_parts <- c(sum_parts, list(mv_summary(elapsed_sec, "elapsed_sec")))
 }
+score_summary_table <- do.call(rbind, sum_parts)
 write.csv(
-  multivar_table,
-  file.path(tables_dir, sprintf("multivar_score%d%s.csv", setting_id, data_suffix)),
-  row.names = FALSE
-)
-
-# ---- best_method_per_K: lowest mean per quantile ---------------------
-best_combo <- function(arr_mean, score) {
-  out <- data.frame(score = score, quantile = probs,
-                    best_method = NA_integer_,
-                    best_mrts_k = NA_integer_,
-                    best_value  = NA_real_)
-  for (i in seq_len(n_probs)) {
-    # Force 2-D shape so the n_ks == 1 (or n_methods == 1) case still works.
-    mat <- matrix(arr_mean[i, , , drop = FALSE],
-                  nrow = n_methods, ncol = n_ks)
-    if (all(is.na(mat))) next
-    idx <- which(mat == min(mat, na.rm = TRUE), arr.ind = TRUE)[1, ]
-    out$best_method[i] <- methods[idx[1]]
-    out$best_mrts_k[i] <- mrts_ks[idx[2]]
-    out$best_value[i]  <- mat[idx[1], idx[2]]
-  }
-  out
-}
-best_table <- rbind(best_combo(bs_mean, "brier"),
-                    best_combo(qs_mean, "quant"))
-write.csv(
-  best_table,
-  file.path(tables_dir, sprintf("best_method_per_K%d%s.csv", setting_id, data_suffix)),
+  score_summary_table,
+  file.path(tables_dir, sprintf("score_summary%d%s.csv", setting_id, data_suffix)),
   row.names = FALSE
 )
 
@@ -317,8 +235,7 @@ simresults_file <- file.path(
 simresults_objs <- c(
   "bs_mean", "qs_mean", "bs_med", "qs_med",
   "bs_rel_mean", "qs_rel_mean", "bs_rel_med", "qs_rel_med",
-  "score_long_table", "score_table", "rel_table", "multivar_table",
-  "best_table", "cov_table", "lambda",
+  "score_summary_table", "cov_table", "lambda",
   "probs", "mrts_ks", "methods", "datasets", "intervals", "setting",
   "data_suffix"
 )

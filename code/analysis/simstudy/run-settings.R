@@ -225,13 +225,12 @@ run_method_mcmc <- function(plan_id, dataset_id) {
             nt = dim(x.o)[2],
             k = spec$mrts_k[1]
         )
-        extended_x <- append_mrts_covariates(
-            X_train = x.o,
-            X_pred = x.p,
-            mrts_cov = mrts_meta
-        )
-        x.train.use <- extended_x$train
-        x.pred.use <- extended_x$pred
+        # Design matrix = mrts(S, k) as-is: col 1 is the constant (intercept),
+        # cols 2-3 are linear in (s1, s2), cols 4..k are TPS eigenfunctions.
+        # The baseline columns are not carried along (k = total design width).
+        x.train.use <- mrts_meta$train
+        x.pred.use <- mrts_meta$pred
+        mrts_meta$design <- "mrts"
     }
 
     set.seed(get_simstudy_seed(

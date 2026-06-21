@@ -240,6 +240,13 @@ true_mean_rec <- function(set) {
   if (is_nonsta_truth) {
     g <- if (settings.nonsta$surf_type[setting] == "invariant") {
       as.vector(f.basis %*% surf.coef.invariant)
+    } else if (settings.nonsta$surf_type[setting] == "ns_dependence") {
+      # Setting 3: non-stationary-dependence random effect u_t = F.re %*% t(W3),
+      # mean-zero in t. The best a time-pooled fixed mean can recover is the
+      # empirical time-average (~ 0). recovery.rmse therefore stays flat / rises
+      # with K -- this is the EXPECTED weakness fingerprint (structure lives in
+      # the dependence, not the mean), not a bug.
+      as.vector(F.re %*% colMeans(W.nsdep[[set]]))
     } else {
       as.vector(f.basis %*% colMeans(W.varying[[set]]))
     }
@@ -334,20 +341,36 @@ for (di in seq_along(datasets)) {
         pred.rmse[di, mi, ki] <- sqrt(mean((ppmean - validate)^2, na.rm = TRUE))
       }
 
-      if (!is.null(fit$beta) && ncol(fit$beta) >= 3L) {
-        beta.0[, di, mi, ki] <- quantile(fit$beta[, 1], probs = intervals, na.rm = TRUE)
-        beta.1[, di, mi, ki] <- quantile(fit$beta[, 2], probs = intervals, na.rm = TRUE)
-        beta.2[, di, mi, ki] <- quantile(fit$beta[, 3], probs = intervals, na.rm = TRUE)
-
-        if (compute_recovery) {
-          b <- colMeans(fit$beta)
-          fitsurf <- if (!is.null(env$mrts_meta)) {
-            Xtest_rec %*% b[1:3] + env$mrts_meta$pred[, 1, ] %*% b[4:length(b)]
-          } else {
-            Xtest_rec %*% b[1:3]
+      # Base-column count depends on the fit's design: baselines carry
+      # [1, s1, s2] (p_base = 3), legacy MRTS fits carry [1, s1, s2, MRTS]
+      # (p_base = 3), current MRTS fits use mrts(S, k) as the full design
+      # (p_base = 0; its col 1 is the constant, so beta col 1 is still the
+      # intercept). Infer p_base from the beta width minus the MRTS column
+      # count so every generation of result files scores correctly.
+      if (!is.null(fit$beta) && !is.null(ncol(fit$beta))) {
+        n_mrts <- if (!is.null(env$mrts_meta)) dim(env$mrts_meta$pred)[3] else 0L
+        p_base <- ncol(fit$beta) - n_mrts
+        if (p_base >= 0L) {
+          beta.0[, di, mi, ki] <- quantile(fit$beta[, 1], probs = intervals, na.rm = TRUE)
+          if (p_base >= 3L) {
+            beta.1[, di, mi, ki] <- quantile(fit$beta[, 2], probs = intervals, na.rm = TRUE)
+            beta.2[, di, mi, ki] <- quantile(fit$beta[, 3], probs = intervals, na.rm = TRUE)
           }
-          recovery.rmse[di, mi, ki] <-
-            sqrt(mean((as.vector(fitsurf) - true_mean_rec(set))^2))
+
+          if (compute_recovery) {
+            b <- colMeans(fit$beta)
+            fitsurf <- if (p_base > 0L) {
+              Xtest_rec[, seq_len(p_base), drop = FALSE] %*% b[seq_len(p_base)]
+            } else {
+              0
+            }
+            if (n_mrts > 0L) {
+              fitsurf <- fitsurf +
+                env$mrts_meta$pred[, 1, ] %*% b[(p_base + 1L):length(b)]
+            }
+            recovery.rmse[di, mi, ki] <-
+              sqrt(mean((as.vector(fitsurf) - true_mean_rec(set))^2))
+          }
         }
       }
       if (!is.null(fit$tau.alpha))

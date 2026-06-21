@@ -129,10 +129,10 @@ extract_leading_flags <- function(args, flag_names) {
 }
 
 # Derive a results directory from the dataset filename:
-#   simdata.RData      -> default_dir (e.g. "fits")
+#   simdata.RData      -> default_dir (e.g. "results")
 #   simdata_def.RData  -> "<default_dir>_def"
 #   other.RData        -> "<default_dir>_<other>"
-derive_prop_results_dir <- function(data_path, default_dir = "fits") {
+derive_prop_results_dir <- function(data_path, default_dir = "results") {
   base <- tools::file_path_sans_ext(basename(data_path))
   if (identical(base, "simdata")) {
     return(default_dir)

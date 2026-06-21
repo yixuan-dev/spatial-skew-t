@@ -106,9 +106,9 @@ for (ii in seq_len(nrow(selected))) {
   }
 
   data_spec <- trimws(spec$data[1])
-  fits_dir_for_row <- derive_prop_results_dir(
+  results_dir_for_row <- derive_prop_results_dir(
     if (nzchar(data_spec)) data_spec else "simdata.RData",
-    default_dir = "fits"
+    default_dir = "results"
   )
 
   env_fit <- c(
@@ -117,7 +117,7 @@ for (ii in seq_len(nrow(selected))) {
     SIMSTUDY_PROP_UPDATE = as.character(spec$update[1]),
     SIMSTUDY_PROP_THIN = as.character(spec$thin[1]),
     SIMSTUDY_PROP_COV_UPDATE_EVERY = as.character(spec$prop_cov_update_every[1]),
-    SIMSTUDY_PROP_FITS_DIR = fits_dir_for_row
+    SIMSTUDY_PROP_RESULTS_DIR = results_dir_for_row
   )
 
   fit_args <- character(0)
@@ -135,10 +135,10 @@ for (ii in seq_len(nrow(selected))) {
   )
 
   cat(sprintf(
-    "[batch] start row=%d run_id=%s data=%s fits_dir=%s setting=%s datasets=%s methods=%s prop_k=%s\n",
+    "[batch] start row=%d run_id=%s data=%s results_dir=%s setting=%s datasets=%s methods=%s prop_k=%s\n",
     spec$row_id[1], spec$run_id[1],
     if (nzchar(data_spec)) data_spec else "<default>",
-    fits_dir_for_row,
+    results_dir_for_row,
     spec$setting[1], spec$datasets[1], spec$methods[1], spec$prop_k[1]
   ))
   fit_status <- run_rscript_source_with_env(
@@ -154,7 +154,7 @@ for (ii in seq_len(nrow(selected))) {
   scores_status <- NA_integer_
   tables_status <- NA_integer_
   if (isTRUE(spec$compare_after_flag[1])) {
-    env_post <- c(SIMSTUDY_PROP_FITS_DIR = fits_dir_for_row)
+    env_post <- c(SIMSTUDY_PROP_RESULTS_DIR = results_dir_for_row)
 
     scores_args <- character(0)
     if (nzchar(data_spec)) {
@@ -203,7 +203,7 @@ for (ii in seq_len(nrow(selected))) {
     selection_mode = selection_mode,
     runner_script = runner_script,
     data = data_spec,
-    fits_dir = fits_dir_for_row,
+    results_dir = results_dir_for_row,
     setting = spec$setting[1],
     datasets = spec$datasets[1],
     methods = spec$methods[1],

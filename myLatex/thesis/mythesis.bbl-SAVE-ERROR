@@ -1,0 +1,215 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nyt/global//global/global/global}
+    \entry{gneiting_strictly_2007}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=cf94799d213c0ab2fd2012473da7440b}{%
+           family={Gneiting},
+           familyi={G\bibinitperiod},
+           given={Tilmann},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=205b9f60128ee13642fa79b6f1330d63}{%
+           family={Raftery},
+           familyi={R\bibinitperiod},
+           given={Adrian\bibnamedelima E},
+           giveni={A\bibinitperiod\bibinitdelim E\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {ASA Website}%
+      }
+      \strng{namehash}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \strng{fullhash}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \strng{fullhashraw}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \strng{bibnamehash}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \strng{authorbibnamehash}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \strng{authornamehash}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \strng{authorfullhash}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \strng{authorfullhashraw}{e1cf3b58d0c2bb5af66e55c7f264277d}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Scoring rules assess the quality of probabilistic forecasts, by assigning a numerical score based on the predictive distribution and on the event or value that materializes. A scoring rule is proper if the forecaster maximizes the expected score for an observation drawn from the distributionF if he or she issues the probabilistic forecast F, rather than G ≠ F. It is strictly proper if the maximum is unique. In prediction problems, proper scoring rules encourage the forecaster to make careful assessments and to be honest. In estimation problems, strictly proper scoring rules provide attractive loss and utility functions that can be tailored to the problem at hand. This article reviews and develops the theory of proper scoring rules on general probability spaces, and proposes and discusses examples thereof. Proper scoring rules derive from convex functions and relate to information measures, entropy functions, and Bregman divergences. In the case of categorical variables, we prove a rigorous version of the Savage representation. Examples of scoring rules for probabilistic forecasts in the form of predictive densities include the logarithmic, spherical, pseudospherical, and quadratic scores. The continuous ranked probability score applies to probabilistic forecasts that take the form of predictive cumulative distribution functions. It generalizes the absolute error and forms a special case of a new and very general type of score, the energy score. Like many other scoring rules, the energy score admits a kernel representation in terms of negative definite functions, with links to inequalities of Hoeffding type, in both univariate and multivariate settings. Proper scoring rules for quantile and interval forecasts are also discussed. We relate proper scoring rules to Bayes factors and to cross-validation, and propose a novel form of cross-validation known as random-fold cross-validation. A case study on probabilistic weather forecasts in the North American Pacific Northwest illustrates the importance of propriety. We note optimum score approaches to point and quantile estimation, and propose the intuitively appealing interval score as a utility function in interval estimation that addresses width as well as coverage.}
+      \field{issn}{0162-1459}
+      \field{journaltitle}{Journal of the American Statistical Association}
+      \field{month}{3}
+      \field{note}{\_eprint: https://doi.org/10.1198/016214506000001437}
+      \field{number}{477}
+      \field{title}{Strictly {Proper} {Scoring} {Rules}, {Prediction}, and {Estimation}}
+      \field{urlday}{10}
+      \field{urlmonth}{11}
+      \field{urlyear}{2025}
+      \field{volume}{102}
+      \field{year}{2007}
+      \field{urldateera}{ce}
+      \field{pages}{359\bibrangedash 378}
+      \range{pages}{20}
+      \verb{doi}
+      \verb 10.1198/016214506000001437
+      \endverb
+      \verb{file}
+      \verb Full Text PDF:C\:\\Users\\Yi-Xuan\\Zotero\\storage\\A3N2TL7N\\Gneiting和Raftery - 2007 - Strictly Proper Scoring Rules, Prediction, and Estimation.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1198/016214506000001437
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1198/016214506000001437
+      \endverb
+      \keyw{Bayes factor,Bregman divergence,Brier score,Coherent,Continuous ranked probability score,Cross-validation,Entropy,Kernel score,Loss function,Minimum contrast estimation,Negative definite function,Prediction interval,Predictive distribution,Quantile forecast,Scoring rule,Skill score,Strictly proper,Utility function}
+    \endentry
+    \entry{morris_space-time_2017}{article}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=fd7aebb0015b9113fe68ffdcb0fe9dc6}{%
+           family={Morris},
+           familyi={M\bibinitperiod},
+           given={Samuel\bibnamedelima A.},
+           giveni={S\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=07e2b57b1d5830aa04444bd2a4cba3d6}{%
+           family={Reich},
+           familyi={R\bibinitperiod},
+           given={Brian\bibnamedelima J.},
+           giveni={B\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8f231cf05a4d636c84fc109b3fe01297}{%
+           family={Thibaud},
+           familyi={T\bibinitperiod},
+           given={Emeric},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f0d3c070e26940d106aaabd7802db5a3}{%
+           family={Cooley},
+           familyi={C\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{9c2671cca9bc85b07936877af4dcf616}
+      \strng{fullhash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
+      \strng{fullhashraw}{e9f17b5f6bb6cd32729d9b4b9d20f841}
+      \strng{bibnamehash}{9c2671cca9bc85b07936877af4dcf616}
+      \strng{authorbibnamehash}{9c2671cca9bc85b07936877af4dcf616}
+      \strng{authornamehash}{9c2671cca9bc85b07936877af4dcf616}
+      \strng{authorfullhash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
+      \strng{authorfullhashraw}{e9f17b5f6bb6cd32729d9b4b9d20f841}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{To assess the compliance of air quality regulations, the Environmental Protection Agency (EPA) must know if a site exceeds a pre-specified level. In the case of ozone, the level for compliance is fixed at 75 parts per billion, which is high, but not extreme at all locations. We present a new space-time model for threshold exceedances based on the skew-t process. Our method incorporates a random partition to permit long-distance asymptotic independence while allowing for sites that are near one another to be asymptotically dependent, and we incorporate thresholding to allow the tails of the data to speak for themselves. We also introduce a transformed AR(1) time-series to allow for temporal dependence. Finally, our model allows for high-dimensional Bayesian inference that is comparable in computation time to traditional geostatistical methods for large data sets. We apply our method to an ozone analysis for July 2005, and find that our model improves over both Gaussian and max-stable methods in terms of predicting exceedances of a high level.}
+      \field{issn}{0006-341X}
+      \field{journaltitle}{Biometrics}
+      \field{month}{9}
+      \field{number}{3}
+      \field{title}{A {Space}-{Time} {Skew}-t {Model} for {Threshold} {Exceedances}}
+      \field{urlday}{14}
+      \field{urlmonth}{3}
+      \field{urlyear}{2025}
+      \field{volume}{73}
+      \field{year}{2017}
+      \field{urldateera}{ce}
+      \field{pages}{749\bibrangedash 758}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1111/biom.12644
+      \endverb
+      \verb{file}
+      \verb Morris(2017)-Supplementary_Material:C\:\\Users\\Yi-Xuan\\Zotero\\storage\\WPHA3TQ3\\Morris(2017)-Supplementary_Material.pdf:application/pdf;PDF:C\:\\Users\\Yi-Xuan\\Zotero\\storage\\ZZISIWE7\\Morris …等 - 2017 - A Space-Time Skew- t Model for Threshold Exceedances.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1111/biom.12644
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1111/biom.12644
+      \endverb
+    \endentry
+    \entry{tzeng_resolution_2018}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=f8e1fe326f04c3771942dd05f31181a8}{%
+           family={Tzeng},
+           familyi={T\bibinitperiod},
+           given={ShengLi},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2e82f806c870b69199bc65280b1df52b}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Hsin-Cheng},
+           giveni={H\bibinithyphendelim C\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Taylor \& Francis}%
+      }
+      \strng{namehash}{bacc4c8d304cb113859d1923f3b857bc}
+      \strng{fullhash}{bacc4c8d304cb113859d1923f3b857bc}
+      \strng{fullhashraw}{bacc4c8d304cb113859d1923f3b857bc}
+      \strng{bibnamehash}{bacc4c8d304cb113859d1923f3b857bc}
+      \strng{authorbibnamehash}{bacc4c8d304cb113859d1923f3b857bc}
+      \strng{authornamehash}{bacc4c8d304cb113859d1923f3b857bc}
+      \strng{authorfullhash}{bacc4c8d304cb113859d1923f3b857bc}
+      \strng{authorfullhashraw}{bacc4c8d304cb113859d1923f3b857bc}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{The spatial random effects model is flexible in modeling spatial covariance functions and is computationally efficient for spatial prediction via fixed rank kriging (FRK). However, the model depends on a class of basis functions, which if not selected properly, may result in unstable or undesirable results. Additionally, the maximum likelihood (ML) estimates of the model parameters are commonly computed using an expectation-maximization (EM) algorithm, which further limits its applicability when a large number of basis functions are required. In this research, we propose a class of basis functions extracted from thin-plate splines. The functions are ordered in terms of their degrees of smoothness with higher-order functions corresponding to larger-scale features and lower-order ones corresponding to smaller-scale details, leading to a parsimonious representation of a (nonstationary) spatial covariance function with the number of basis functions playing the role of spatial resolution. The proposed class of basis functions avoids the difficult knot-allocation or scale-selection problem. In addition, we show that ML estimates of the random effects covariance matrix can be expressed in simple closed forms, and hence the resulting FRK can accommodate a much larger number of basis functions without numerical difficulties. Finally, we propose to select the number of basis functions using Akaike’s information criterion, which also possesses a simple closed-form expression. The whole procedure, involving no additional tuning parameter, is efficient to compute, easy to program, automatic to implement, and applicable to massive amounts of spatial data even when they are sparsely and irregularly located. Proofs of the theorems and an R package autoFRK are provided in supplementary materials available online.}
+      \field{issn}{0040-1706}
+      \field{journaltitle}{Technometrics}
+      \field{month}{4}
+      \field{note}{\_eprint: https://doi.org/10.1080/00401706.2017.1345701}
+      \field{number}{2}
+      \field{title}{Resolution {Adaptive} {Fixed} {Rank} {Kriging}}
+      \field{urlday}{22}
+      \field{urlmonth}{3}
+      \field{urlyear}{2026}
+      \field{volume}{60}
+      \field{year}{2018}
+      \field{urldateera}{ce}
+      \field{pages}{198\bibrangedash 208}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.1080/00401706.2017.1345701
+      \endverb
+      \verb{file}
+      \verb Full Text PDF:C\:\\Users\\Yi-Xuan\\Zotero\\storage\\PP9XU8S4\\Tzeng和Huang - 2018 - Resolution Adaptive Fixed Rank Kriging.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1080/00401706.2017.1345701
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1080/00401706.2017.1345701
+      \endverb
+      \keyw{Computer experiment,Maximum likelihood,Multi-resolution,Nonstationary spatial covariance function,Thin-plate splines}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

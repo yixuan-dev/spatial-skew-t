@@ -8,8 +8,8 @@
 #
 # --data defaults to ./simdata.RData (with fallback to ../simstudy/simdata.RData).
 # When --data is supplied with a non-default file (e.g. simdata_def.RData),
-# fits_dir is derived from the basename: simdata_def.RData -> fits_def/
-# (unless SIMSTUDY_PROP_FITS_DIR is set, which always wins).
+# results_dir is derived from the basename: simdata_def.RData -> results_def/
+# (unless SIMSTUDY_PROP_RESULTS_DIR is set, which always wins).
 #########################################################################
 
 script_dir_override <- trimws(Sys.getenv("SIMSTUDY_PROP_SCRIPT_DIR", unset = ""))
@@ -95,26 +95,26 @@ if (nrow(unsupported) > 0L) {
   )
 }
 
-fits_dir_env <- trimws(Sys.getenv("SIMSTUDY_PROP_FITS_DIR", unset = ""))
-if (nzchar(fits_dir_env)) {
-  fits_dir <- fits_dir_env
+results_dir_env <- trimws(Sys.getenv("SIMSTUDY_PROP_RESULTS_DIR", unset = ""))
+if (nzchar(results_dir_env)) {
+  results_dir <- results_dir_env
 } else {
-  fits_dir <- derive_prop_results_dir(data_path, default_dir = "fits")
+  results_dir <- derive_prop_results_dir(data_path, default_dir = "results")
 }
-if (!dir.exists(fits_dir)) {
-  dir.create(fits_dir, recursive = TRUE, showWarnings = FALSE)
+if (!dir.exists(results_dir)) {
+  dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 }
 
 write.csv(
   method_plan,
-  file.path(fits_dir, sprintf("run-plan-setting-%d.csv", setting)),
+  file.path(results_dir, sprintf("run-plan-setting-%d.csv", setting)),
   row.names = FALSE
 )
 
 cat(sprintf(
-  "Prop run: data=%s fits_dir=%s setting=%d datasets=%s iters=%d burn=%d workers=%d ms_threads=%d cov_update_every=%d\n",
+  "Prop run: data=%s results_dir=%s setting=%d datasets=%s iters=%d burn=%d workers=%d ms_threads=%d cov_update_every=%d\n",
   data_path,
-  fits_dir,
+  results_dir,
   setting,
   paste(dataset_ids, collapse = ","),
   iters,
@@ -141,7 +141,7 @@ run_method_prop_mcmc <- function(plan_id, dataset_id) {
 
   set.seed(get_prop_seed(setting, spec$method_id[1], dataset_id, spec$prop_k[1]))
   outputfile <- build_prop_result_file(
-    results_dir = fits_dir,
+    results_dir = results_dir,
     setting_id = setting,
     method_id = spec$method_id[1],
     dataset_id = dataset_id,
@@ -244,7 +244,7 @@ if (workers_use > 1L) {
   parallel::clusterExport(
     cl,
     varlist = c(
-      "setting", "iters", "burn", "update", "thin", "fits_dir",
+      "setting", "iters", "burn", "update", "thin", "results_dir",
       "method_plan", "mcmc_tasks", "prop_cov_update_every", "run_method_prop_mcmc"
     ),
     envir = environment()

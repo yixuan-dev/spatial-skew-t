@@ -10,19 +10,30 @@
 # choice of K_MRTS can be justified by a recovery curve (Brier/quantile
 # score vs K) rather than asserted.
 #
-# Two settings, both skew-t-1 (lambda = 3, dist = "t", nknots = 1):
+# Three settings, all skew-t-1 (lambda = 3, dist = "t", nknots = 1):
 #   1 - TIME-INVARIANT surface:  g(s) = a1 f1(s) + a2 f2(s), fixed (a1, a2).
 #       The truth lies inside the space the Morris model can represent
 #       (beta is pooled over time -> a single, time-constant coefficient
 #       per covariate; see updateBeta() in R/ar2/update_params.R).  MRTS
 #       can therefore recover g(s) exactly in the limit -> the score-vs-K
-#       curve has a clean elbow and K can be justified as "past the plateau".
+#       curve has a clean elbow.  POSITIVE CONTROL: structure really in the
+#       fixed mean, MRTS recovers it.
 #
 #   2 - TIME-VARYING surface:    g_t(s) = w1(t) f1(s) + w2(t) f2(s),
 #       (w1(t), w2(t)) ~ N(0, diag(25, 9)) per Tzeng & Huang.  Because the
 #       model's beta is time-constant, this structure is NOT fully in the
 #       representable space; MRTS can at best capture the time-average.
 #       This is the robustness / misspecification companion to setting 1.
+#
+#   3 - NON-STATIONARY DEPENDENCE (random effect):  adds a mean-zero, per-day
+#       random effect u_t(s) = sum_j xi_{tj} cos(kappa_j ||s - c_j||),
+#       xi_{tj} ~ N(0, tau_j^2), redrawn every day (the SAME cosine basis as
+#       Tzeng & Huang Scenario 1, written natively on [0,10]^2).  The induced
+#       covariance is low-rank and NON-STATIONARY; the non-stationarity lives
+#       in the DEPENDENCE (second moment), not the mean.  MRTS acts on the
+#       fixed-effect mean with a time-pooled coefficient, so it CANNOT capture
+#       this structure: recovery/score-vs-K should stay flat or rise.  MAIN
+#       RESULT: demonstrates the structural limit of mean-only augmentation.
 #
 # The two basis fields f1, f2 are evaluated once at all sites (s is fixed),
 # and the building blocks (f.basis, surface coefficients / weights) are
@@ -55,10 +66,10 @@ tau.alpha.t <- 3
 tau.beta.t  <- 8
 
 # All settings are skew-t-1
-dist.nonsta   <- c("t", "t")
-nknots.nonsta <- c(1,   1)
-lambda.nonsta <- c(3,   3)
-surf.type     <- c("invariant", "varying")
+dist.nonsta   <- c("t", "t", "t")
+nknots.nonsta <- c(1,   1,   1)
+lambda.nonsta <- c(3,   3,   3)
+surf.type     <- c("invariant", "varying", "ns_dependence")
 nsettings     <- length(surf.type)
 
 # -----------------------------------------------------------------------
@@ -102,6 +113,35 @@ f2  <- cos(2 * pi * sqrt((s01[, 1] - c2[1])^2 + (s01[, 2] - c2[2])^2))
 f.basis <- cbind(f1 = f1, f2 = f2)   # ns x 2  (the ground-truth surface basis)
 
 # -----------------------------------------------------------------------
+# Setting 3 control: NON-STATIONARY DEPENDENCE injected as a mean-zero,
+# per-day RANDOM EFFECT (basis-function random effect / FRK-style):
+#   u_t(s) = sum_j xi_{tj} * cos(kappa_j * ||s - c_j||),  xi_{tj} ~ N(0, tau_j^2),
+# redrawn every day t.  Marginalizing over xi gives a low-rank NON-STATIONARY
+# covariance Cov(u_t(s), u_t(s')) = sum_j tau_j^2 phi_j(s) phi_j(s'); the
+# variance sum_j tau_j^2 phi_j(s)^2 varies with location -> non-stationary.
+#
+# This is the SAME cosine basis as Tzeng & Huang (2018, Scenario 1) but written
+# NATIVELY on the [0,10]^2 domain (no s/10 rescaling): the wavenumber kappa_j is
+# specified directly in [0,10] units.  Algebraically identical to the rescaled
+# form, since cos(a_j pi ||s/10 - c_j/10||) = cos((a_j pi / 10) ||s - c_j||),
+# so kappa_j = a_j pi / 10 with the centre c_j placed in [0,10]^2.
+#
+# Purpose: a data-generating process whose non-stationarity lives in the
+# DEPENDENCE (second moment / random effect), NOT the mean.  The MRTS extension
+# acts on the fixed-effect mean with a coefficient pooled over time, so it
+# CANNOT capture this structure: the score-vs-K (and recovery) curve should stay
+# flat / rise, demonstrating the structural limit of mean-only augmentation.
+# -----------------------------------------------------------------------
+kappa.re   <- c(pi / 10, pi / 5)            # native wavenumbers on [0,10]^2
+centers.re <- rbind(c(0, 10), c(7.5, 2.5))  # bump centres in [0,10]^2
+tau.re     <- c(5, 3)                       # component sds (Tzeng: tau^2 = 25, 9)
+F.re <- sapply(seq_len(nrow(centers.re)), function(j) {
+  cos(kappa.re[j] * fields::rdist(s, centers.re[j, , drop = FALSE]))
+})                                          # ns x 2 (native cosine basis)
+Tcov.re <- diag(tau.re^2)                   # Var(xi_t) = diag(25, 9)
+L.re    <- chol(Tcov.re)                    # Tcov.re = L'L
+
+# -----------------------------------------------------------------------
 # Storage
 # -----------------------------------------------------------------------
 y       <- array(NA, dim = c(ns, nt, nsets, nsettings))
@@ -114,6 +154,8 @@ knots.t <- vector("list", length = nsettings)
 #   setting 2: g_t(s)    = f.basis %*% t(W[[set]])          (nt x 2 weights)
 surf.coef.invariant <- a.fixed
 W.varying           <- vector("list", length = nsets)  # filled below
+#   setting 3: u_t(s) = F.re %*% t(W3),  W3 (nt x 2) ~ N(0, diag(25, 9)) per day
+W.nsdep             <- vector("list", length = nsets)  # filled below
 
 L.var <- chol(M.var)  # M.var = L'L
 
@@ -151,13 +193,21 @@ for (setting in seq_len(nsettings)) {
     if (surf.type[setting] == "invariant") {
       g_s <- as.vector(f.basis %*% a.fixed)        # ns-vector, constant in t
       data$y <- data$y + matrix(g_s, ns, nt)
-    } else {
+    } else if (surf.type[setting] == "varying") {
       # Tzeng time-varying weights, drawn reproducibly per dataset.
       # Generated only once (during setting 2) and stored for reuse.
       set.seed(900000 + set)
       W <- matrix(rnorm(nt * 2), nt, 2) %*% L.var  # nt x 2
       W.varying[[set]] <- W
       data$y <- data$y + f.basis %*% t(W)          # ns x nt
+    } else {  # "ns_dependence": non-stationary-dependence random effect
+      # u_t(s) = F.re %*% t(W3), W3 (nt x 2) ~ N(0, diag(25, 9)) redrawn per day.
+      # Mean-zero in t -> no fixed mean structure for a pooled-coefficient MRTS
+      # mean to recover; the non-stationarity is entirely in the dependence.
+      set.seed(750000 + set)
+      W3 <- matrix(rnorm(nt * 2), nt, 2) %*% L.re  # nt x 2
+      W.nsdep[[set]] <- W3
+      data$y <- data$y + F.re %*% t(W3)            # ns x nt
     }
 
     y[, , set, setting]        <- data$y
@@ -190,6 +240,8 @@ save(
   ns, nt, s, nsets, ntest, x,
   # ground-truth surface building blocks (for the recovery analysis)
   f.basis, c1, c2, surf.scale, surf.coef.invariant, W.varying, M.var,
+  # setting 3 non-stationary-dependence random-effect building blocks
+  F.re, W.nsdep, kappa.re, centers.re, tau.re,
   file = "simdata_nonsta.RData"
 )
 

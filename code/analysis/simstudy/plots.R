@@ -88,8 +88,7 @@ if (!file.exists(simresults_file)) {
 }
 load(simresults_file)
 # Provides: bs_mean/qs_mean/bs_med/qs_med, bs_rel_mean/qs_rel_mean/...,
-#           score_long_table, score_table, rel_table, multivar_table,
-#           best_table, cov_table, lambda, probs, mrts_ks, methods,
+#           score_summary_table, cov_table, lambda, probs, mrts_ks, methods,
 #           datasets, intervals, setting, data_suffix; plus
 #           energy.score / vario.score when the Stage-1 cache had them.
 
@@ -155,8 +154,9 @@ dgp_label_map <- list(
 # its own DGP per setting; without this its settings would be mislabelled
 # with the simdata catalog (e.g. setting 1 -> "Gaussian").
 dgp_label_map_nonsta <- list(
-  "1" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary mean (static basis)"),
-  "2" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary mean (dynamic basis)")
+  "1" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3) with an additive non-stationary spatial fixed effect"),
+  "2" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3) with an additive non-stationary spatial random effect"),
+  "3" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3) with an additive non-stationary spatial random effect")
 )
 # The deformed-covariance sim (simdata_def.RData -> suffix "_def") is all
 # Skew-t (K=1, lambda=3) with a deformed covariance per setting (see

@@ -81,7 +81,7 @@ load(scores_file)
 # Provides: quant.score, brier.score, beta.0/1/2, tau.alpha, tau.beta,
 #           rho, nu, gamma, lambda, elapsed_sec, probs, intervals,
 #           prop_ks, datasets, methods, setting,
-#           data_path, data_suffix, fits_dir   (provenance)
+#           data_path, data_suffix, results_dir   (provenance)
 
 cat(sprintf(
   "tables-prop: setting=%d cache=%s suffix='%s'\n",

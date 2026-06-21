@@ -1,7 +1,8 @@
 #########################################################################
 # scores-prop.R - Stage 1 of the simstudy_prop post-fit pipeline.
 #
-# Loads prop fits from <fits_dir>/<setting>-<method>-<dataset>-p<K>.RData,
+# Loads prop fits from <results_dir>/<setting>-<method>-<dataset>-p<K>.RData,
+#   (results_dir = results/, results_def/, ... depending on the dataset)
 # computes Brier / Quantile scores against the held-out test set in the
 # loaded simdata, captures parameter quantile intervals + elapsed_sec,
 # and writes a single .RData cache to:
@@ -16,7 +17,7 @@
 #                         [--data=<path>]
 #                         [--methods=<spec>]   default 1:5
 #                         [--datasets=<spec>]  default 1..nsets
-#                         [--prop_k=<spec>]    default = auto-detect from fits
+#                         [--prop_k=<spec>]    default = auto-detect from results
 #
 # Examples:
 #   Rscript scores-prop.R --setting=4
@@ -24,12 +25,12 @@
 #   Rscript scores-prop.R --setting=4 --prop_k="c(20,30)" --datasets="1:10"
 #
 # Filename suffix:
-#   simdata.RData      -> scores<setting>-prop.RData      (in fits/)
-#   simdata_def.RData  -> scores<setting>-prop_def.RData  (in fits_def/)
+#   simdata.RData      -> scores<setting>-prop.RData      (from results/)
+#   simdata_def.RData  -> scores<setting>-prop_def.RData  (from results_def/)
 #
-# fits_dir resolution:
-#   1. SIMSTUDY_PROP_FITS_DIR env var if set
-#   2. else derive_prop_results_dir(data_path, "fits")
+# results_dir resolution:
+#   1. SIMSTUDY_PROP_RESULTS_DIR env var if set
+#   2. else derive_prop_results_dir(data_path, "results")
 #########################################################################
 
 rm(list = ls())
@@ -56,21 +57,21 @@ if (is.null(flags$setting) || !nzchar(flags$setting)) {
   stop("scores-prop.R: --setting=<id> is required.", call. = FALSE)
 }
 
-# ---- load data + resolve fits_dir / suffix ---------------------------
+# ---- load data + resolve results_dir / suffix ---------------------------
 data_path   <- resolve_simstudy_data_path(flags$data)
 load(data_path)
 data_suffix <- derive_data_suffix(data_path)
 
 setting <- parse_setting_spec(flags$setting, y)
 
-fits_dir_env <- trimws(Sys.getenv("SIMSTUDY_PROP_FITS_DIR", unset = ""))
-fits_dir <- if (nzchar(fits_dir_env)) {
-  fits_dir_env
+results_dir_env <- trimws(Sys.getenv("SIMSTUDY_PROP_RESULTS_DIR", unset = ""))
+results_dir <- if (nzchar(results_dir_env)) {
+  results_dir_env
 } else {
   derive_prop_results_dir(data_path, "fits")
 }
-if (!dir.exists(fits_dir)) {
-  stop(sprintf("fits directory not found: %s", fits_dir), call. = FALSE)
+if (!dir.exists(results_dir)) {
+  stop(sprintf("results directory not found: %s", results_dir), call. = FALSE)
 }
 
 # ---- methods / datasets / prop_k -------------------------------------
@@ -91,10 +92,10 @@ datasets <- if (!is.null(flags$datasets) && nzchar(flags$datasets)) {
   seq_len(as.integer(dim(y)[3]))
 }
 
-# prop_k auto-detect: scan fits_dir for "<setting>-*-*-p<K>.RData"
-auto_detect_prop_ks <- function(fits_dir, setting) {
+# prop_k auto-detect: scan results_dir for "<setting>-*-*-p<K>.RData"
+auto_detect_prop_ks <- function(results_dir, setting) {
   pat <- sprintf("^%d-\\d+-\\d+-[pP](\\d+)\\.RData$", setting)
-  files <- list.files(fits_dir, pattern = pat)
+  files <- list.files(results_dir, pattern = pat)
   if (length(files) == 0L) return(integer(0))
   m <- regmatches(files, regexec(pat, files))
   ks <- vapply(m, function(x) as.integer(x[2]), integer(1))
@@ -104,11 +105,11 @@ auto_detect_prop_ks <- function(fits_dir, setting) {
 prop_ks <- if (!is.null(flags$prop_k) && nzchar(flags$prop_k)) {
   parse_prop_k_spec(flags$prop_k)
 } else {
-  detected <- auto_detect_prop_ks(fits_dir, setting)
+  detected <- auto_detect_prop_ks(results_dir, setting)
   if (length(detected) == 0L) {
     stop(sprintf(
-      "No fits matching '%d-*-*-p<K>.RData' found in %s; pass --prop_k=<spec> explicitly.",
-      setting, fits_dir
+      "No results matching '%d-*-*-p<K>.RData' found in %s; pass --prop_k=<spec> explicitly.",
+      setting, results_dir
     ), call. = FALSE)
   }
   detected
@@ -120,8 +121,8 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = F
 out_file <- file.path(out_dir, sprintf("scores%d-prop%s.RData", setting, data_suffix))
 
 cat(sprintf(
-  "scores-prop: setting=%d data=%s fits_dir=%s out=%s\n  methods=%s datasets=%s prop_k=%s\n",
-  setting, data_path, fits_dir, out_file,
+  "scores-prop: setting=%d data=%s results_dir=%s out=%s\n  methods=%s datasets=%s prop_k=%s\n",
+  setting, data_path, results_dir, out_file,
   paste(methods, collapse = ","),
   paste(range(datasets), collapse = ".."),
   paste(prop_ks, collapse = ",")
@@ -177,7 +178,7 @@ save_checkpoint <- function() {
        tau.alpha, tau.beta, rho, nu, gamma, lambda,
        elapsed_sec,
        probs, intervals, prop_ks, datasets, methods, setting,
-       data_path, data_suffix, fits_dir,
+       data_path, data_suffix, results_dir,
        file = out_file)
 }
 
@@ -190,7 +191,7 @@ for (di in seq_along(datasets)) {
     method <- methods[mi]
     for (ki in seq_along(prop_ks)) {
       prop_k <- prop_ks[ki]
-      f <- file.path(fits_dir,
+      f <- file.path(results_dir,
                      sprintf("%d-%d-%d-p%d.RData", setting, method, set, prop_k))
       if (!file.exists(f)) {
         cat("missing: ", f, "\n", sep = "")

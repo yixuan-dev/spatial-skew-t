@@ -60,11 +60,21 @@ PowerShell 建議用字串傳入，避免 shell 先行解讀。
 
 若 `mrts_k` 非空，runner 會把 `methods` 內選到的 method 1–5 改為：
 
-- `1+mrts{K}`：method 1 加上 `K` 個 MRTS basis
-- `2+mrts{K}`：method 2 加上 `K` 個 MRTS basis
-- `3+mrts{K}`：method 3 加上 `K` 個 MRTS basis
-- `4+mrts{K}`：method 4 加上 `K` 個 MRTS basis
-- `5+mrts{K}`：method 5 加上 `K` 個 MRTS basis
+- `1+mrts{K}`：method 1 改用 `K` 個 MRTS basis 作均值設計
+- `2+mrts{K}`：method 2 改用 `K` 個 MRTS basis 作均值設計
+- `3+mrts{K}`：method 3 改用 `K` 個 MRTS basis 作均值設計
+- `4+mrts{K}`：method 4 改用 `K` 個 MRTS basis 作均值設計
+- `5+mrts{K}`：method 5 改用 `K` 個 MRTS basis 作均值設計
+
+MRTS 版本的設計矩陣**直接採用 `autoFRK::mrts(S, k)` 的輸出**
+（`mrts_meta$design = "mrts"`），不串接 baseline 欄位。**K 的定義：k =
+基底函數總數 = 設計矩陣總欄數 = 迴歸係數個數**，欄位依解析度排序——
+第 1 欄為常數（即截距）、第 2–3 欄為標準化座標的線性欄、第 4..k 欄為
+k−3 個 thin-plate spline 特徵基底。k=3 的 span 等同 baseline 的
+[1, s1, s2]（baseline 為其巢狀特例）；不保留 s1/s2 原始欄也避免了與
+MRTS 線性欄的完全共線。
+（舊版結果檔為 [截距, s1, s2, MRTS]；`scores.R` / `posterior.R` 以
+`ncol(fit$beta) - MRTS 欄數` 自動辨識兩代設計，新舊檔皆可正確計分。）
 
 例如：
 

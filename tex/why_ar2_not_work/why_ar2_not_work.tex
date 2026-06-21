@@ -1,0 +1,147 @@
+The simulation study and the EPA ozone analysis of the preceding sections produced the same qualitative picture: the AR(2) extension is a defensible alternative to the AR(1) baseline but does not systematically improve the upper-tail Brier score, with relative gains at the level of Monte Carlo noise.  Across two settings that differ in sample size and signal-to-noise, the empirical pattern is robust enough to demand a structural explanation rather than a dataset-specific one.  That explanation is developed formally in Appendix~\ref{app:why-ar2}; here we summarize it in words.
+
+The explanation rests on three structural facts.  First, the unit-variance standardization that the inverse PIT requires in order to preserve the spatial \skewt margin forces the time-$t$ marginal of every latent to be invariant to the AR coefficients $\phi$ (Proposition~\ref{prop:marginal-invariance}): the AR order is invisible to any one-day quantity and is identifiable only from joint laws across time.  Second, because the held-out predictive at a site--day depends on the latent field only through its time-$t$ slice, $\phi$ can influence the Brier score only through two routes---the temporal pooling that tightens the latent conditional, and the enlarged hyperparameter posterior incurred by the two extra coefficients per latent---never through the $\phi$-blind prior marginal (Proposition~\ref{prop:phi-route}).  Third, the predictive variance that drives the Brier score splits into a $\phi$-invariant spatial-noise floor and a small AR-reducible term (Proposition~\ref{prop:floor}); in the data-rich regime the reducible part shrinks only as $\calO(q^{-2})$ in the per-day information $q$ and is attenuated further by the censoring and partition mechanisms, while the diffuse posterior on a weakly identified $\phi$ can turn the second route into a net cost.  Together these facts leave the AR(2) extension with little structural leverage on the held-out Brier score, and can even make it underperform the more constrained AR(1) baseline.
+
+This conclusion is specific to the held-out Brier score at a single threshold; it does not preclude AR(2) gains under scoring rules that probe joint behavior across time, nor in forecasting tasks that extrapolate beyond the training window.  Its constructive implication is that the spatial-noise floor is lowered by a more flexible spatial trend---such as the MRTS enrichment of the regression component---rather than by a richer temporal prior, consistent with the simulation finding that the spatial flexibility of MRTS variants, rather than the temporal AR order, governs the held-out Brier score.  The empirical pattern across both datasets is therefore not an artifact of the MCMC implementation but the predicted behavior of the predictive Brier integral under the STP kernel with a unit-variance AR(2) prior.  Because the argument depends only on a unit-variance standardization of the temporal latents and PIT-preserved marginals, it applies to any hierarchical extreme-value model that shares these two design choices, and it identifies the spatial regression component, rather than the temporal prior, as the structural place where future upper-tail-predictive improvement of this model class should be sought.
+
+\subsection{Why the AR(2) extension does not improve the held-out Brier score}\label{app:why-ar2}
+
+This appendix develops the structural argument summarized in \sref{sec:discussion}.
+
+\medskip\noindent\textbf{Notation.}  Throughout this appendix we write $\phi := (\phi_1^{(\cdot)}, \phi_2^{(\cdot)})$ generically for the AR(2) coefficients of any latent series and $\btheta$ for the remaining fixed-parameter vector ($\bbeta$, $\lambda$, $\varphi$, $\nu$, $\gamma$, and the partition hyperparameters $a, b$).  Let $\bY^{\mathrm{tr}}$ denote the censored training observations $\{\widetilde Y_t(\bs)\}$ at training sites $\bs$ and $t = 1, \ldots, n_t$.  Let $g(\bs^*, t) \in \{1, \ldots, K\}$ be the partition index of the held-out site $\bs^*$ on day $t$, defined by $\bs^* \in P_{t,\,g(\bs^*, t)}$, and write $g := g(\bs^*, t)$ for short.  Stack the day-$t$ knot-level latents into
+\begin{align}
+  \calL_t \;:=\; \big(z_{t1}, \ldots, z_{tK},\; \sigma^2_{t1}, \ldots, \sigma^2_{tK},\; \bw_{t1}, \ldots, \bw_{tK}\big).
+  \label{eq:Lt-disc}
+\end{align}
+For a threshold $c$ the Brier score at the held-out cell $(\bs^*, t)$ is
+\begin{align}
+  \mathrm{BS}(\bs^*, t; c) \;:=\;
+   E\!\left[\big(\mathbf 1\{Y_t(\bs^*) > c\} - \hat p(\bs^*, t; c)\big)^2\right],
+  \qquad
+  \hat p(\bs^*, t; c) \;:=\; \mathrm{Pr}\!\big(Y_t(\bs^*) > c \mid \bY^{\mathrm{tr}}\big).
+  \label{eq:brier-disc}
+\end{align}
+
+\paragraph{Marginal invariance to $\phi$.}
+
+The standardization that fixes $\gamma_0 = \mathrm{Var}(Y_t) = 1$ in \eref{eq:gamma12}--\eref{eq:sigeps}, together with the bivariate stationary initialization \eref{eq:joint-init}, has a consequence that is decisive for the held-out Brier score in \eref{eq:brier-disc}.
+
+\begin{proposition}[Marginal invariance to $\phi$]\label{prop:marginal-invariance}
+Let $\{Y_t\}_{t=1}^{n_t}$ be generated by the standardized AR(2) recursion \eref{eq:ar2-recursion} with innovation variance \eref{eq:sigeps} and stationary initial pair \eref{eq:joint-init}, under the stability condition \eref{eq:stab-triangle}.  Then $Y_t \sim N(0,1)$ for every $t \in \{1, \ldots, n_t\}$, regardless of $(\phi_1, \phi_2)$.
+\end{proposition}
+
+\begin{proof}[Sketch]
+By \eref{eq:joint-init}, $Y_1, Y_2 \sim N(0,1)$.  Suppose inductively that $\mathrm{Var}(Y_{t-1}) = \mathrm{Var}(Y_{t-2}) = 1$ and $\mathrm{Cov}(Y_{t-1}, Y_{t-2}) = \gamma_1$.  Substituting \eref{eq:ar2-recursion} into $\mathrm{Var}(Y_t) = \phi_1^2 + \phi_2^2 + 2\phi_1\phi_2\gamma_1 + \sigma_\epsilon^2$ and using \eref{eq:gamma12}--\eref{eq:sigeps} gives $\mathrm{Var}(Y_t) = 1$.  Means are zero by linearity, and joint normality is preserved by the linear recursion.
+\end{proof}
+
+Because the inverse PIT layer \eref{eq:wstar}--\eref{eq:sigmastar} that maps each $Y_t = w^*_{tki}$, $z^*_{tk}$, or $\sigma^{2*}_{tk}$ back to the working scale is a fixed monotone function of $Y_t$ alone, Proposition~\ref{prop:marginal-invariance} carries over verbatim:
+
+\begin{corollary}[$\phi$-free latent marginal at each $t$]\label{cor:phi-free-latent}
+Under \eref{eq:ar2-recursion}--\eref{eq:joint-init} for the transformed latents $z^*_{tk}, \sigma^{2*}_{tk}, \bw^*_{tk}$, the prior marginal of $\calL_t$ in \eref{eq:Lt-disc} does not depend on $\phi$ for any $t$.  In particular, the AR(1) baseline of \textcite{morris_space-time_2017} and the AR(2) extension of \sref{sec:ar2} share the same prior marginal at every fixed time point.
+\end{corollary}
+
+The AR order is invisible to the one-point marginal; it is identifiable only from joint laws across time.
+
+\paragraph{The Brier score sees only the time-$t$ marginal.}
+
+The kernel \eref{eq:fullmodel} at a single space--time cell $(\bs^*, t)$ depends on the latents only through $\calL_t$, so the predictive exceedance probability factorizes as
+\begin{align}
+  \hat p(\bs^*, t; c)
+   \;=\; \iint \mathrm{Pr}\!\big(Y_t(\bs^*) > c \,\big|\, \btheta, \calL_t\big)\,
+            \pi\!\big(\calL_t \,\big|\, \btheta, \bY^{\mathrm{tr}}\big)\,
+            \pi\!\big(\btheta \,\big|\, \bY^{\mathrm{tr}}\big)\,
+            \ddd\calL_t \, \ddd\btheta.
+   \label{eq:predictive-disc}
+\end{align}
+Combining \eref{eq:predictive-disc} with Corollary~\ref{cor:phi-free-latent} gives the following structural fact.
+
+\begin{proposition}[$\phi$ enters Brier only through the posterior]\label{prop:phi-route}
+For the kernel \eref{eq:fullmodel} and the latent prior of \sref{sec:ar2}, $\phi$ can influence the held-out Brier score \eref{eq:brier-disc} only through two routes: the posterior $\pi(\btheta \mid \bY^{\mathrm{tr}})$ over the hyperparameters and the conditional $\pi(\calL_t \mid \btheta, \bY^{\mathrm{tr}})$ obtained by temporal pooling.  The prior marginal of $\calL_t$ at the test day is $\phi$-blind.
+\end{proposition}
+
+The first route (posterior on $\btheta$) adds estimation variance proportional to the size of the augmented parameter space; the second route (temporal pooling of $\calL_t$) is the only mechanism by which a richer AR order can tighten the predictive.  The AR(2) prior introduces two extra coefficients per latent series and thereby pays a cost on the first route; the question is whether the second route delivers a benefit large enough to overcome it.
+
+\paragraph{Reducible/irreducible decomposition and the variance floor.}
+
+Write $p(c) := \mathrm{Pr}(Y_t(\bs^*) > c)$ for the true exceedance probability.  Standard manipulation of \eref{eq:brier-disc} gives the bias--variance decomposition
+\begin{align}
+  E\!\big[\mathrm{BS}(\bs^*, t; c)\big]
+    \;=\; \underbrace{p(c)\,(1 - p(c))}_{\text{irreducible}}
+       \;+\; \underbrace{\big(E[\hat p(\bs^*, t; c)] - p(c)\big)^2 \;+\; \mathrm{Var}\!\big(\hat p(\bs^*, t; c)\big)}_{\text{reducible by the model}}.
+  \label{eq:brier-split-disc}
+\end{align}
+The irreducible term is a property of the data-generating process and is $\phi$-invariant; AR(2) can act only on the reducible term.  When each knot is informed by a sizeable group of training sites the likelihood swamps the prior, both models are unbiased to leading order, and the contest reduces to $\mathrm{Var}(\hat p)$.  A delta-method expansion of $\hat p$ around the predictive mean of $Y_t(\bs^*)$ gives
+\begin{align}
+  \mathrm{Var}\!\big(\hat p(\bs^*, t; c)\big)
+    \;\approx\; \big[f_{Y_t(\bs^*) \mid \bY^{\mathrm{tr}}}(c)\big]^2 \;
+                \mathrm{Var}\!\big(Y_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big),
+  \label{eq:delta-method}
+\end{align}
+where $f_{Y_t(\bs^*) \mid \bY^{\mathrm{tr}}}$ is the predictive density at the held-out cell.  To localize the $\phi$-dependence in \eref{eq:delta-method} we decompose the predictive variance by conditioning.  Define the spatial kriging-residual variance at the held-out site
+\begin{align}
+  \rho^*_{\bs^*, t} \;:=\; \mathrm{Var}\!\big(v_t(\bs^*) \,\big|\, \btheta,\, \bY^{\mathrm{tr}}\big),
+  \label{eq:kriging-resid}
+\end{align}
+which is determined entirely by the Mat\'ern hyperparameters $(\varphi, \nu, \gamma)$ and the spatial configuration of training sites; in particular it does not depend on $\phi$.  Conditional on $(\btheta, \calL_t, \bY^{\mathrm{tr}})$ the kernel \eref{eq:fullmodel} gives
+\begin{align}
+  Y_t(\bs^*) \,\big|\, \btheta, \calL_t, \bY^{\mathrm{tr}}
+   \;\sim\; N\!\Big(\bX_t(\bs^*)^\top\bbeta + \lambda\,\sigma_{tg}\,|z_{tg}| + \sigma_{tg}\,\hat v_t(\bs^*),\;
+                    \sigma^2_{tg}\,\rho^*_{\bs^*, t}\Big),
+  \label{eq:cond-pred}
+\end{align}
+where $\hat v_t(\bs^*) := E[v_t(\bs^*) \mid \btheta, \bY^{\mathrm{tr}}]$ is the kriging mean.  Applying the law of total variance with respect to the posterior on $(\btheta, \calL_t)$ then yields
+\begin{align}
+  \mathrm{Var}\!\big(Y_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big)
+    \;=\; \underbrace{E\!\big[\sigma^2_{tg}\,\rho^*_{\bs^*, t} \,\big|\, \bY^{\mathrm{tr}}\big]}_{\text{Channel D: spatial-noise floor}}
+    \;+\; \underbrace{\mathrm{Var}\!\big(\bX_t(\bs^*)^\top\bbeta + \lambda\,\sigma_{tg}\,|z_{tg}| + \sigma_{tg}\,\hat v_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big)}_{\text{Channels A--B: }z\text{- and }\sigma\text{-pooling}}.
+  \label{eq:var-decomp-disc}
+\end{align}
+
+\begin{proposition}[$\phi$-invariant noise floor]\label{prop:floor}
+For each fixed $\btheta$ the kriging-residual variance $\rho^*_{\bs^*, t}$ in \eref{eq:kriging-resid} is a function of the spatial hyperparameters and the spatial configuration alone, with no dependence on $\phi$.  Consequently, the floor term
+\begin{align}
+  \mathrm{Var}\!\big(Y_t(\bs^*) \,\big|\, \bY^{\mathrm{tr}}\big)
+    \;\ge\; E\!\big[\sigma^2_{tg}\,\rho^*_{\bs^*, t} \,\big|\, \bY^{\mathrm{tr}}\big]
+  \label{eq:floor}
+\end{align}
+can be moved by $\phi$ only through the AR(2) effect on the posterior mean $E[\sigma^2_{tg} \mid \bY^{\mathrm{tr}}]$.
+\end{proposition}
+
+\begin{proof}[Sketch]
+$v_t(\bs^*) \mid \btheta$ is centered Gaussian, independent of $\calL_t$, and i.i.d.\ across $t$.  Its kriging-residual variance \eref{eq:kriging-resid} depends only on the spatial covariance entries and the training configuration; the AR(2) prior on $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ enters \eref{eq:fullmodel} only through $\calL_t$.  The lower bound \eref{eq:floor} then follows by dropping the non-negative second summand in \eref{eq:var-decomp-disc}.
+\end{proof}
+
+The implication of Proposition~\ref{prop:floor} is that, even with a perfectly known $\phi$ that drives $\mathrm{Var}(z_{tg} \mid \bY^{\mathrm{tr}})$ and $\mathrm{Var}(\sigma^2_{tg} \mid \bY^{\mathrm{tr}})$ as low as possible, the predictive variance entering \eref{eq:delta-method} still carries the spatial-noise term in \eref{eq:floor}, which is $\phi$-blind apart from the modulation of $E[\sigma^2_{tg} \mid \bY^{\mathrm{tr}}]$.  In regimes where this floor is the dominant contributor to \eref{eq:var-decomp-disc}---which is the case for both the simulated and ozone settings, where the per-knot site count is large and the spatial correlation at $\bs^*$ is moderate---the leverage of AR order on the Brier score is structurally small.
+
+\paragraph{Why the gain in Channels A--B is also small.}
+
+Within Channel~A, the AR(2) prior tightens $\pi(z^*_{tg} \mid \bY^{\mathrm{tr}})$ by borrowing strength from $z^*_{(t\pm 1)g}$ and $z^*_{(t\pm 2)g}$.  A Gaussian surrogate calculation on the standardized latent gives the following bound.  Suppose the day-$t$ likelihood contributes effective precision $q$ to $z^*_{tg}$ (so the i.i.d./AR(1)-equivalent posterior variance at $t$ is $(1+q)^{-1}$), and let
+\begin{align}
+  \kappa(\phi) \;:=\; \frac{1 + \phi_1^2 + \phi_2^2}{\sigma_\epsilon^2}
+  \label{eq:kappa-disc}
+\end{align}
+be the AR(2) full-conditional precision read off \eref{eq:ar2-recursion} and \eref{eq:sigeps}.  Then the AR(2) marginal posterior variance $v_t(\phi)$ satisfies
+\begin{align}
+  0 \;\le\; v_t^{\mathrm{iid}} - v_t(\phi)
+    \;\le\; \frac{\kappa(\phi) - 1}{(1 + q)\,(\kappa(\phi) + q)}
+    \;=\; \calO\!\big(q^{-2}\big),
+  \label{eq:frozen-bound-disc}
+\end{align}
+where $v_t^{\mathrm{iid}} := (1 + q)^{-1}$ is the i.i.d.\ posterior variance and $\kappa(\phi) \ge 1$ with equality iff $\phi = 0$.  In the data-rich regime ($q \gg 1$) the AR(2)-induced reduction in $\mathrm{Var}(z^*_{tg} \mid \bY^{\mathrm{tr}})$ scales as $1/q^2$, while the i.i.d./AR(1) variance scales as $1/q$.  The same bound applies to $\sigma^{2*}_{tg}$ along Channel~B with the appropriate effective precision.
+
+The censoring layer that retains only $\widetilde Y_t(\bs) = \max\{Y_t(\bs), T\}$ further attenuates the effective precision feeding $\sigma^{2*}_{tg}$ and $z^*_{tg}$, because below-threshold observations contribute information only through the imputed values; this shrinks the per-day Fisher information for the scale latent in particular, and the bound \eref{eq:frozen-bound-disc} is then tight against an even smaller $q$.
+
+\paragraph{The cost of $\phi$ via the posterior on $\btheta$.}
+
+A complementary observation, made quantitative through \eref{eq:brier-split-disc}, is that adding $\phi_1^{(z)}, \phi_2^{(z)}, \phi_1^{(\sigma)}, \phi_2^{(\sigma)}, \phi_1^{(w)}, \phi_2^{(w)}$ to the parameter vector inflates the posterior $\pi(\btheta \mid \bY^{\mathrm{tr}})$.  By the law of total variance,
+\begin{align}
+  \mathrm{Var}\!\big(\hat p(\bs^*, t; c)\big)
+    \;\approx\; E_\phi\!\big[\mathrm{Var}\!\big(\hat p \,\big|\, \phi\big)\big]
+       \;+\; \mathrm{Var}_\phi\!\big(E[\hat p \,|\, \phi]\big).
+  \label{eq:total-var-disc}
+\end{align}
+The AR(2) prior shrinks the first summand through \eref{eq:frozen-bound-disc} (Channels A--B) but introduces the second summand, which is identically zero only when $\phi$ has a point posterior.  When $\phi$ is weakly identified from the data---as is typical for $\phi^{(\sigma)}$ and $\phi^{(w)}$, where the per-day information about a scale parameter or a knot location read through an $\argmin$ is small---the posterior on $\phi$ stays diffuse and the second summand can offset the first.  This is the route by which a model with more flexibility can produce a slightly worse Brier score than a more constrained one, and it is consistent with the empirical pattern in \tref{tab:ozone-top4-quantile-200-200}, where the AR(2) variant beats the AR(1) baseline on some quantiles and loses on others without dominating overall.
+
+\paragraph{What the analysis does and does not say.}
+
+Three points are worth emphasizing.  First, Propositions~\ref{prop:marginal-invariance}--\ref{prop:floor} are statements about the held-out Brier score at a single threshold; they do not preclude AR(2) gains under scoring rules that probe joint distributions across time (e.g., multi-day energy scores or rules sensitive to volatility clustering), nor do they apply to forecasting tasks in which one or more held-out days are extrapolated beyond the training window.  Second, the variance bound \eref{eq:frozen-bound-disc} is non-asymptotic but expressed in the standardized-latent surrogate; converting it to a calibrated bound on the original-scale predictive requires propagating the inverse PIT \eref{eq:wstar}--\eref{eq:sigmastar}, which only attenuates the bound further because the half-normal and inverse-gamma transforms compress the latent variability.  Third, the noise floor \eref{eq:floor} can be eroded by reducing the kriging-residual variance $\rho^*_{\bs^*, t}$---through a more flexible spatial trend or the MRTS enrichment of the regression component---rather than by enriching the temporal prior.  This is consistent with the simulation finding that the leverage on held-out Brier lives in the spatial regression component, not in the temporal prior.
