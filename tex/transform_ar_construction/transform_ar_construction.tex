@@ -1,0 +1,349 @@
+\documentclass[11pt]{article}
+
+% ---- Packages ----
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+}
+
+% ---- Theorem environments ----
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+
+% ---- Notation shortcuts ----
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Rplus}{\mathbb{R}_{+}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\Norm}{\mathcal{N}}
+\newcommand{\Unif}{\mathrm{Unif}}
+\newcommand{\Gam}{\mathrm{Gamma}}
+\newcommand{\HN}{\mathrm{HN}}
+\newcommand{\given}{\,\vert\,}
+\newcommand{\Phinv}{\Phi^{-1}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% ---- Listings setup for R code ----
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  showstringspaces=false,
+  language=R,
+  commentstyle=\color{gray},
+  keywordstyle=\color{blue!60!black},
+  stringstyle=\color{green!50!black},
+  frame=single,
+  framerule=0.3pt
+}
+
+% ---- Title block ----
+\title{
+  Copula / Probit Transforms and the Autocorrelated Gaussian Prior\\
+  for Time-Varying Parameters in the Spatial Skew-$t$ Model:\\
+  Code-to-Text Correspondence
+}
+\author{Technical Note --- \texttt{transform\_ar\_construction}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We document and verify the construction by which the time-varying parameters of
+the spatial skew-$t$ process acquire their autocorrelation. The governing idea is
+stated in one sentence:
+\begin{quote}
+\emph{``For each time-varying parameter, we transform the parameter to obtain a
+standard normal marginal distribution, place a Gaussian prior with autocorrelation
+on the transformed parameter, and then transform back to the appropriate marginal
+distribution for the skew-$t$ process.''}
+\end{quote}
+We locate the three operations of this recipe in the \code{ar2} source tree, give
+the exact mathematical form of each transform and its inverse CDF, and confirm
+that the implementation is faithful to the text. The key implementation detail
+that makes the statement true---namely that the autocorrelated Gaussian prior is
+normalised to unit marginal variance at \emph{every} time point so the
+standard-normal marginal is preserved---is made explicit.
+\end{abstract}
+
+% ====================================================================
+\section{The three-step recipe and where it lives in the code}
+\label{sec:recipe}
+
+There are three time-varying parameters, each indexed by knot $k$ and day
+$t\in\{1,\dots,n_t\}$:
+\begin{itemize}[nosep]
+  \item the partition precision $\tau_{kt}$ (\code{tau});
+  \item the skew random effect $z_{kt}$ (\code{z});
+  \item the knot location $w_{kt}=(w_{kt}^{(1)},w_{kt}^{(2)})$ (\code{knots}).
+\end{itemize}
+Each parameter follows the identical three-step recipe. Table~\ref{tab:map}
+maps the sentence onto the source files.
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{p{0.30\textwidth} p{0.38\textwidth} p{0.24\textwidth}}
+\toprule
+\textbf{Text concept} & \textbf{Code operation} & \textbf{Location} \\
+\midrule
+\textcircled{1} transform $\to$ standard normal marginal
+  & forward copula / probit: \code{gamma.cop}, \code{hn.cop}, \code{transform\$probit}
+  & \code{auxfunctions.R} L25--33, L78--81 \\
+\textcircled{2} Gaussian prior with autocorrelation
+  & stationary AR(2) conditional normal densities, \code{ar2\_conditional\_log\_density}
+  & \code{auxfunctions\_ar2.R} L56--102 \\
+\textcircled{3} transform back $\to$ skew-$t$ marginal
+  & inverse copula / inv.\ probit: \code{gamma.invcop}, \code{hn.invcop}, \code{transform\$inv.probit}
+  & \code{auxfunctions.R} L29--33 \\
+\bottomrule
+\end{tabular}
+\caption{Correspondence between the textual recipe and the implementation.
+All paths are relative to \code{code/R/ar2/}.}
+\label{tab:map}
+\end{table}
+
+The Metropolis updates that drive these parameters live in
+\code{update\_params\_ar2.R}: \code{updateTauTS\_AR2}, \code{updateZTS\_AR2}, and
+\code{updateKnotsTS\_AR2}. In each, the proposal and acceptance are carried out
+\emph{on the transformed (Gaussian) scale}, which is natural because the prior is
+Gaussian there.
+
+% ====================================================================
+\section{The transform tools}
+\label{sec:tools}
+
+Throughout, $\Phi$ and $\varphi$ denote the standard normal CDF and PDF, and
+$\Phinv=\code{qnorm}$.
+
+\begin{definition}[Gaussian copula transform]
+For a target marginal CDF $F$, the object \code{transform\$copula}
+(\code{auxfunctions.R} L25--28) and its inverse \code{transform\$inv.copula}
+(L29--32) implement
+\begin{equation}
+\operatorname{cop}_F(x) = \Phinv\!\big(F(x)\big),
+\qquad
+\operatorname{cop}_F^{-1}(u^\ast) = F^{-1}\!\big(\Phi(u^\ast)\big).
+\label{eq:copula}
+\end{equation}
+\end{definition}
+
+\begin{definition}[Probit transform]
+For $\Unif(l,u)$, \code{transform\$probit} (L14--17) and \code{transform\$inv.probit}
+(L18--22) implement
+\begin{equation}
+\operatorname{probit}(w) = \Phinv\!\Big(\tfrac{w-l}{u-l}\Big),
+\qquad
+\operatorname{probit}^{-1}(w^\ast) = (u-l)\,\Phi(w^\ast) + l.
+\label{eq:probit}
+\end{equation}
+\end{definition}
+
+The probit pair is the copula special case of \eqref{eq:copula} with
+$F(w)=(w-l)/(u-l)$, the $\Unif(l,u)$ CDF. The named copulas instantiated in
+\code{auxfunctions.R} (L78--81) are
+\[
+\code{gamma.cop} = \operatorname{cop}_{F_\Gam},\quad
+\code{gamma.invcop} = \operatorname{cop}_{F_\Gam}^{-1},\quad
+\code{hn.cop} = \operatorname{cop}_{F_\HN},\quad
+\code{hn.invcop} = \operatorname{cop}_{F_\HN}^{-1}.
+\]
+
+\begin{lemma}[Standard-normal marginal]
+\label{lem:sn}
+If $X$ has continuous marginal CDF $F$, then $\operatorname{cop}_F(X)=\Phinv(F(X))\sim\Norm(0,1)$,
+since $F(X)\sim\Unif(0,1)$ and $\Phinv$ maps $\Unif(0,1)$ to $\Norm(0,1)$.
+Conversely $\operatorname{cop}_F^{-1}(U^\ast)=F^{-1}(\Phi(U^\ast))$ has marginal $F$
+whenever $U^\ast\sim\Norm(0,1)$.
+\end{lemma}
+
+Lemma~\ref{lem:sn} is exactly step~\textcircled{1} (forward) and step~\textcircled{3}
+(backward) of the recipe. It also pins down the requirement that makes the recipe
+correct: in step~\textcircled{3} the back-transform reproduces the intended marginal
+$F$ \emph{only if} the transformed variate is $\Norm(0,1)$. Section~\ref{sec:prior}
+shows the AR(2) prior is engineered to guarantee this at every $t$.
+
+% ====================================================================
+\section{Per-parameter marginals, forward transforms, and inverse CDFs}
+\label{sec:perparam}
+
+\subsection{Precision $\tau$: Gamma marginal}
+The marginal is $\tau\sim\Gam(\alpha,\beta)$ with shape $\alpha=\code{tau.alpha}$
+and rate $\beta=\code{tau.beta}$.
+
+\paragraph{Forward (to $\Norm(0,1)$).}
+\code{update\_params\_ar2.R} L19, \code{tau.star <- gamma.cop(tau, tau.alpha, tau.beta)}:
+\begin{equation}
+\tau^\ast = \Phinv\!\big(F_\Gam(\tau;\alpha,\beta)\big),
+\qquad
+F_\Gam(\tau;\alpha,\beta) = \frac{\gamma(\alpha,\beta\tau)}{\Gamma(\alpha)},
+\end{equation}
+where $\gamma(\cdot,\cdot)$ is the lower incomplete gamma function.
+
+\paragraph{Inverse CDF (back to $\Rplus$).}
+\code{update\_params\_ar2.R} L31, \code{can.tau <- gamma.invcop(can.tau.star, tau.alpha, tau.beta)}:
+\begin{equation}
+\tau = F_\Gam^{-1}\!\big(\Phi(\tau^\ast);\alpha,\beta\big)
+     = Q_\Gam\!\big(\Phi(\tau^\ast)\big),
+\end{equation}
+with $Q_\Gam=\code{qgamma}$ the gamma quantile function. A floor of $10^{-6}$ is
+applied for numerical stability (L32--34).
+
+\subsection{Skew effect $z$: Half-Normal marginal}
+Conditional on $\tau$, the model takes $z\given\tau\sim\HN(0,\sigma)$ with scale
+$\sigma=1/\sqrt{\tau}$ (\code{update\_params\_ar2.R} L343--344). The half-normal CDF and
+quantile function are (\code{auxfunctions.R} L56--73)
+\begin{equation}
+F_\HN(z;\sigma) = 2\Phi\!\big(z/\sigma\big) - 1,
+\qquad
+F_\HN^{-1}(p;\sigma) = \sigma\,\Phinv\!\Big(\tfrac{1+p}{2}\Big),
+\qquad z \ge 0.
+\end{equation}
+
+\paragraph{Forward (to $\Norm(0,1)$).}
+\code{z.star <- hn.cop(z, sig)}:
+\begin{equation}
+z^\ast = \Phinv\!\big(2\Phi(z\sqrt{\tau}) - 1\big).
+\end{equation}
+
+\paragraph{Inverse CDF (back to $\Rplus$).}
+\code{update\_params\_ar2.R} L372, \code{can.z <- hn.invcop(can.z.star, sig)}:
+\begin{equation}
+z = \frac{1}{\sqrt{\tau}}\;\Phinv\!\Big(\tfrac{1+\Phi(z^\ast)}{2}\Big).
+\end{equation}
+
+\begin{remark}[A latent inconsistency in \code{dhn}, off the transform path]
+The density helper \code{dhn} returns \code{dnorm(x,0,sig)/2} (\code{auxfunctions.R} L47),
+i.e.\ $\varphi(x/\sigma)/(2\sigma)$, whereas the true half-normal density consistent
+with $F_\HN$ above is $2\varphi(x/\sigma)/\sigma$---a factor of four apart. The copula
+transforms call only \code{phn} and \code{qhn}, so \code{dhn} never enters the AR
+construction; the discrepancy is a latent bug with no effect on the pipeline.
+\end{remark}
+
+\subsection{Knot location $w$: Uniform marginal}
+Each coordinate $j\in\{1,2\}$ has marginal $w^{(j)}\sim\Unif(l_j,u_j)$ with
+$l_j=\code{min.s[j]}$, $u_j=\code{max.s[j]}$.
+
+\paragraph{Forward (to $\Norm(0,1)$).}
+\code{update\_params\_ar2.R} L477--484, \code{transform\$probit}:
+\begin{equation}
+w^{(j)\ast} = \Phinv\!\Big(\tfrac{w^{(j)} - l_j}{u_j - l_j}\Big).
+\end{equation}
+
+\paragraph{Inverse CDF (back to the spatial domain).}
+\code{update\_params\_ar2.R} L520--527, \code{transform\$inv.probit}:
+\begin{equation}
+w^{(j)} = (u_j - l_j)\,\Phi(w^{(j)\ast}) + l_j.
+\end{equation}
+
+% ====================================================================
+\section{Step \textcircled{2}: the autocorrelated Gaussian prior}
+\label{sec:prior}
+
+Write $X^\ast_t$ for the transformed series, i.e.\ any of $\tau^\ast_{kt}$,
+$z^\ast_{kt}$, $w^{(j)\ast}_{kt}$. The prior is a stationary, mean-zero,
+\emph{unit-variance} AR(2) (\code{auxfunctions\_ar2.R} L9--54):
+\begin{equation}
+X^\ast_t = \phi_1 X^\ast_{t-1} + \phi_2 X^\ast_{t-2} + \varepsilon_t,
+\qquad \varepsilon_t \sim \Norm(0,\sigma_\varepsilon^2).
+\label{eq:ar2}
+\end{equation}
+The decisive design choice is the normalisation $\gamma_0\equiv 1$
+(\code{auxfunctions\_ar2.R} L31). The remaining stationary autocovariances and the
+innovation variance then follow from the Yule--Walker equations:
+\begin{equation}
+\gamma_0 = 1,\qquad
+\gamma_1 = \frac{\phi_1}{1-\phi_2},\qquad
+\gamma_2 = \phi_1\gamma_1 + \phi_2,\qquad
+\sigma_\varepsilon^2 = \gamma_0 - \phi_1\gamma_1 - \phi_2\gamma_2.
+\label{eq:yw}
+\end{equation}
+Used as a prior, the joint density factorises into the conditional normals
+(\code{auxfunctions\_ar2.R} L62--92):
+\begin{align}
+X^\ast_1 &\sim \Norm(0,\,1), \label{eq:cond1}\\
+X^\ast_2 \given X^\ast_1 &\sim \Norm\!\big(\gamma_1 X^\ast_1,\; 1-\gamma_1^2\big), \label{eq:cond2}\\
+X^\ast_t \given X^\ast_{t-1},X^\ast_{t-2} &\sim \Norm\!\big(\phi_1 X^\ast_{t-1} + \phi_2 X^\ast_{t-2},\; \sigma_\varepsilon^2\big), \quad t\ge 3. \label{eq:condt}
+\end{align}
+Stationarity is enforced by the triangle (\code{check\_ar2\_stability}, L2--7):
+\begin{equation}
+|\phi_2| < 1,\qquad \phi_1 + \phi_2 < 1,\qquad \phi_2 - \phi_1 < 1.
+\label{eq:stab}
+\end{equation}
+
+\begin{proposition}[Marginal invariance]
+\label{prop:marg}
+Under \eqref{eq:ar2}--\eqref{eq:condt}, every $X^\ast_t$ has marginal $\Norm(0,1)$.
+Consequently, by Lemma~\ref{lem:sn}, the back-transform of step~\textcircled{3}
+returns each parameter to its intended marginal ($\Gam$, $\HN$, or $\Unif$) at every
+time point.
+\end{proposition}
+
+\begin{proof}[Sketch]
+Equation \eqref{eq:cond1} gives $\Var(X^\ast_1)=\gamma_0=1$. For \eqref{eq:cond2},
+$\Var(X^\ast_2)=\gamma_1^2\Var(X^\ast_1)+(1-\gamma_1^2)=1$. For $t\ge 3$, the
+Yule--Walker choice \eqref{eq:yw} of $\sigma_\varepsilon^2$ is precisely the value
+that propagates $\Var(X^\ast_t)=1$ forward. Hence the marginal variance is $1$ for
+all $t$; with zero mean this is $\Norm(0,1)$.
+\end{proof}
+
+% ====================================================================
+\section{Verdict: the code is faithful to the text}
+\label{sec:verdict}
+
+The implementation realises each clause of the sentence, and additionally handles
+two requirements that the prose leaves implicit but that correctness demands.
+
+\begin{enumerate}[label=(\roman*), leftmargin=*]
+\item \textbf{``standard normal marginal'' must hold at every $t$.}
+The back-transform $F^{-1}(\Phi(X^\ast_t))$ recovers the correct $F$ only when
+$X^\ast_t\sim\Norm(0,1)$. The $\gamma_0=1$ normalisation
+(Proposition~\ref{prop:marg}) secures this. In particular, the $t=2$ conditional
+\eqref{eq:cond2} uses the stationary bivariate form $\Norm(\gamma_1 X^\ast_1,1-\gamma_1^2)$
+rather than the backward-extrapolated $\Norm(\phi_1 X^\ast_1,\sigma_\varepsilon^2)$; the
+two coincide only when $\phi_2=0$, and only the former keeps $\Var=1$. This is the
+``Fix~1'' branch in \code{get\_ar2\_conditional\_params} (\code{auxfunctions\_ar2.R}
+L70--85).
+
+\item \textbf{The Metropolis ratio must include the $t{+}1$ and $t{+}2$ terms.}
+Because $X^\ast_t$ appears as the lag-1 term of the $t{+}1$ conditional and the
+lag-2 term of the $t{+}2$ conditional, a proposal for $X^\ast_t$ changes three
+factors of the joint prior. The updates add all three contributions to the
+acceptance ratio (``Fix~2'', e.g.\ \code{update\_params\_ar2.R} L62--95); omitting
+the lag-2 term would break detailed balance and bias the lag-2 autocorrelation
+away from $\gamma_2$.
+\end{enumerate}
+
+Finally, the prior-predictive simulators are duals of the same maps:
+\code{makeTauAR2}, \code{makeZAR2}, and \code{makeKnotsAR2}
+(\code{auxfunctions\_ar2.R} L153--193) draw a unit-variance stationary AR(2) path
+$X^\ast$ via \code{simulate\_ar2\_standard} and then apply the corresponding inverse
+copula / inv.\ probit. The \code{*ARP} variants generalise the AR(2) to a general
+AR($p$), solving the discrete Lyapunov equation for the stationary state covariance
+while preserving $\gamma_0=1$; the logic is identical.
+
+\paragraph{Conclusion.}
+The code implements ``transform $\to$ standard normal $\to$ autocorrelated Gaussian
+prior $\to$ back to the skew-$t$ marginal'' exactly as written, with the three
+parameters $(\tau, z, w)$ mapped through Gamma, Half-Normal, and Uniform copula
+marginals respectively. The only transform-irrelevant defect is the unused
+\code{dhn} normalising constant.
+
+\end{document}

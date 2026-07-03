@@ -21,6 +21,8 @@
 #  13 - skew t-1, AR(2) on z only (phi_z = (0.80, -0.35), phi_tau = phi_w = 0): pure level channel
 #  14 - skew t-1, AR(2) on tau only (phi_tau = (0.80, -0.35), phi_z = phi_w = 0): pure volatility channel
 #  15 - skew t-5, AR(2) on w only  (phi_w  = (0.80, -0.35), phi_z = phi_tau = 0): pure knot-mixing channel (K=5 needed)
+#  16 - skew t-1, AR(2) on all three channels, phi = (0.15, 0.80): near-unit-root
+#       (phi1 + phi2 = 0.95) and lag-2 dominant (phi2 >> phi1) -> cleanest AR(2)-vs-AR(1) contrast
 #
 # analysis methods:
 #  1 - Gaussian
@@ -55,7 +57,7 @@ beta.t <- c(10, 0, 0)
 nu.t <- 0.5
 gamma.t <- 0.9
 dist.t <- c("gaussian", "t", "t", "t", "t")
-nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 1, 5, 5, 1, 1, 5)
+nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 1, 5, 5, 1, 1, 5, 1)
 rho.t <- c(1, 1, 1, 1, 1)
 lambda.t <- c(0, 0, 0, 3, 3)
 tau.alpha.t <- 6
@@ -69,7 +71,7 @@ knots.gev <- expand.grid(knots.x, knots.x)
 ns <- nrow(s)
 nt <- 50
 nsets <- 50
-nsettings <- 15
+nsettings <- 16
 ntest <- 44
 
 x <- array(1, c(ns, nt, 3))
@@ -79,9 +81,10 @@ for (t in 1:nt) {
 }
 
 build_phi_triple <- function(setting) {
-  phi_strong <- c(0.80, -0.35)
-  phi_weak   <- c(0.12, -0.05)
-  phi_zero   <- c(0, 0)
+  phi_strong  <- c(0.80, -0.35)
+  phi_weak    <- c(0.12, -0.05)
+  phi_persist <- c(0.15, 0.80)  # near-unit-root, lag-2 dominant
+  phi_zero    <- c(0, 0)
 
   triple <- switch(as.character(setting),
     "9"  = list(phi.z = phi_strong, phi.tau = phi_strong, phi.w = phi_strong),
@@ -91,6 +94,7 @@ build_phi_triple <- function(setting) {
     "13" = list(phi.z = phi_strong, phi.tau = phi_zero,   phi.w = phi_zero),
     "14" = list(phi.z = phi_zero,   phi.tau = phi_strong, phi.w = phi_zero),
     "15" = list(phi.z = phi_zero,   phi.tau = phi_zero,   phi.w = phi_strong),
+    "16" = list(phi.z = phi_persist, phi.tau = phi_persist, phi.w = phi_persist),
     stop(sprintf("No phi triple configured for setting %s", setting))
   )
 
