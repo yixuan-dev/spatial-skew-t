@@ -239,55 +239,82 @@ but its upper tail, namely the probability that an unmonitored location breaches
 a high threshold. We pursue two goals: spatial prediction at unmonitored sites,
 and mapping the probability of extreme exceedances across the domain.
 
-Faithfulness to the upper tail is where conventional spatial models fall short.
-Likelihood-based spatial prediction usually rests on a Gaussian process. A
-Gaussian margin is light-tailed and symmetric. It is therefore mismatched to
-fields that are heavy-tailed and skewed. A Gaussian process is also
-asymptotically independent. The probability that two sites are jointly extreme
-decays to zero as the level rises. A Gaussian covariance then cannot reproduce
-the tendency of nearby stations to breach a high ozone level on the same day.
-The \skewt process removes both defects at once \parencite{morris_space-time_2017}.
-Its margin is heavy-tailed and asymmetric. It retains asymptotic dependence
-between sites. It also keeps computation on the order of a Gaussian model. One difficulty remains. In a spatial setting, the multivariate \skewt is
-asymptotically dependent between all sites, regardless of the distance between them. This imposes long-range dependence that the data do not support. Morris
-meets the concern with a fresh random spatial partition, drawn anew each day.
-The partition confines asymptotic dependence to stations near one another, and
-leaves distant sites effectively independent.
+A spatial model for ozone threshold exceedances warrants special consideration,
+since standard spatial methods are likely to perform poorly. Two features of the
+problem are decisive. First, likelihood-based spatial modeling typically assumes
+a Gaussian process, which is appropriate when interest lies in mean behavior. The
+Gaussian distribution is light-tailed and symmetric. Daily ozone maxima are
+neither. Their residuals are heavy-tailed and are well described by a \skewt
+distribution \parencite{morris_space-time_2017}. Second, our interest is in the
+dependence structure at high levels, which a covariance designed for mean
+behavior does not capture. A Gaussian process is asymptotically independent
+outside the degenerate case of perfect dependence, so the probability that two
+sites are jointly extreme decays to zero as the level increases. Nearby ozone
+monitors, however, tend to record high values on the same days, and this
+agreement weakens with distance \parencite{morris_space-time_2017}. These
+considerations call for a heavy-tailed, asymmetric margin that retains asymptotic
+dependence. The \skewt distribution provides both. It is a subasymptotic model,
+capturing the joint tail decay at high but finite levels rather than the limiting
+dependence of extreme events \parencite{huser_advances_2022}. This is the regime
+the ozone data occupy.
 
-A separate literature models extremes directly, as exceedances over a high
-threshold. This is the classical route of extreme-value statistics. Univariate
-work fits the generalized Pareto distribution to threshold exceedances.
-Multivariate work adds a censored treatment of the different ways a threshold
-can be crossed. Spatial versions follow, fitted by censored pairwise
-likelihood. Later extensions reach space-time data and supply more efficient
-full-likelihood inference \parencite{morris_space-time_2017}. All of this rests
-on one assumption. The threshold must be high enough for extreme-value limit
-theory to hold and to justify extrapolation beyond the observed range. Two costs
-follow. The inference is computationally intensive. In practice it is confined
-to rather small datasets. The ozone problem meets neither condition. The
-regulatory level of interest is not extreme enough for the limit theory. The
-network holds $1{,}089$ monitoring stations, well beyond the reach of these
-methods.
+Our approach also departs from threshold models based on extreme-value
+distributions, a well-developed part of the field in which extreme events are
+defined as exceedances over a high threshold. \textcite{Davison1990} model
+univariate exceedances with the generalized Pareto distribution.
+\textcite{Ledford1996} address the multivariate case through a censored
+likelihood that distinguishes the ways in which a threshold may be exceeded.
+\textcite{Wadsworth2012} and \textcite{Thibaud2013} carried these ideas to
+spatial extremes, fitting models by a censored pairwise likelihood
+\parencite{Padoan2010}. \textcite{Huser2014} extended them to space-time data.
+Such methods are grounded in extreme-value theory and presume a threshold high
+enough for extremal models to be valid and for extrapolation beyond the observed
+range. They are also computationally demanding and, in practice, restricted to
+small datasets. Neither feature suits the present application. The 75 ppb
+standard corresponds to roughly the 0.92 sample quantile of the daily ozone
+maxima \parencite{morris_space-time_2017}, well short of the far tail that
+extremal models require. The network is also large, with $1{,}089$ monitoring
+stations. A complementary strategy retains the max-stable process while
+lightening its computational cost. Fully Bayesian inference for max-stable
+processes is cumbersome at scale. \textcite{morris_exploration_2019} address this
+by truncating the spectral representation to a small set of empirical basis
+functions that carry the spatial dependence. Their construction renders inference
+feasible for large datasets and, as a by-product, dispenses with the assumption
+of stationarity.
 
-This thesis builds on the model of \textcite{morris_space-time_2017} rather than
-replacing it. We retain its spatial \skewt process and its three extensions.
-These are the daily random partition, the threshold censoring, and the
-first-order autoregressive prior on the latent temporal parameters. We then
-probe the model along two axes. The first axis is temporal. The AR(1) prior ties
-each day only to the day before. We extend it to a second-order prior that adds
-one further lag. The aim is to capture longer-range temporal dependence in the
-record. The second axis is spatial. The baseline relies on a stationary \Matern
-covariance for spatial structure. Real ozone fields are not stationary in the
-mean. We draw on the multi-resolution thin-plate spline (MRTS) basis of
-\textcite{tzeng_resolution_2018}. This basis is automatically ordered and
-depends on location alone. We incorporate it in the simplest available way, as
-fixed-rank covariates in the mean. This attempts to relax the stationarity
-assumption without altering the original model structure. Each axis is a
-candidate extension, not a wholesale
-replacement of the baseline. Together they aim to sharpen the model on
-threshold-exceedance prediction.
+In this paper we build on the spatial \skewt process of
+\textcite{morris_space-time_2017}. This process is not max-stable, yet it retains
+extremal dependence, and it is constructed by location-scale mixing of Gaussian
+processes, so that inference remains at the order of a Gaussian model. Their
+model has three components. A random spatial partition, redrawn each day,
+confines asymptotic dependence to nearby sites. A censored likelihood focuses
+inference on exceedances above a threshold. A transformed first-order
+autoregressive process carries dependence through time. We extend this baseline
+along two axes. The first is temporal. The autoregressive prior links each day
+only to the one before, and we add a further lag to capture longer-range
+dependence in the record. The second is spatial. The baseline assumes a
+stationary \Matern covariance, which is restrictive over a continental network.
+We therefore introduce the multi-resolution thin-plate spline basis of
+\textcite{tzeng_resolution_2018} as fixed-effect covariates in the mean,
+following the basis-function idea reviewed above, so as to relax stationarity at
+little additional cost. Each axis is a candidate extension rather than a
+replacement of the baseline, and together they are intended to improve prediction
+of threshold exceedances.
 
-\section{Methodology}
+The remainder of the thesis is organized as follows. \sref{sec:methodology}
+reviews the spatial \skewt process of \textcite{morris_space-time_2017}, develops
+the two extensions in turn---the standardized AR(2) prior on the latent dynamics
+and the MRTS basis functions in the mean---and assembles them into a single
+hierarchical model together with the MCMC algorithm used for inference.
+\sref{sec:simulation} evaluates each extension on synthetic data, describing the
+generating designs, the two-fold cross-validation scheme, and the held-out Brier
+score, and reports the comparisons for the AR(2) and MRTS extensions separately.
+\sref{sec:realdata} applies the models to the ozone network, comparing the
+baseline against the two extensions in their ability to predict threshold
+exceedances. \sref{sec:discussion} concludes and outlines directions for further
+work. Technical derivations for the AR(2) prior are collected in the appendices.
+
+\section{Methodology}\label{sec:methodology}
 
 In this section, we first introduce the spatio-temporal skew-$t$ process (STP) proposed by \textcite{morris_space-time_2017}, and then develop two extensions of it. The first extends the autoregressive structure on the Gaussian-copula margins of the latent processes from AR(1) to AR(2). The second augments the regression component with multi-resolution thin-plate spline (MRTS) basis functions to capture non-stationary mean structure. Lastly, we present the full hierarchical model together with the MCMC algorithm used for inference.
 
@@ -455,7 +482,7 @@ Following \textcite{morris_space-time_2017}, we write the spatial \skewt thresho
 \end{align}
 where $\Theta = \{\varphi, \nu, \gamma, \lambda, \bbeta\}$ and $\bSigma$ is the \Matern covariance of \eref{eq:matern}.  The priors on $\bw^*_{tk}$, $z^*_{tk}$ and $\sigma^{2*}_{tk}$ follow \eref{eq:ar1-w}--\eref{eq:ar1-sigma} for the baseline, or \eref{eq:ar2-w}--\eref{eq:ar2-sigma} under our AR(2) extension.  Equation~\eref{eq:hier} is the baseline of \textcite{morris_space-time_2017}; our contributions are the AR(2) priors above and the MRTS mean term $\bX^*_t(\bs)^\top \bbeta^*$ of \eref{eq:fullmodel-mrts}, which replace the latent dynamics and the mean while leaving the censoring layer and \Matern covariance unchanged.  Predictions at new sites use Bayesian kriging on the multivariate normal full conditional of $\bY_t$.
 
-\section{Simulation study}
+\section{Simulation study}\label{sec:simulation}
 
 In this section, we present the results from a simulation study to investigate how the AR(2) time-varying structure on latent variables and the number of thin-plate splines basis functions impact the accuracy of predictions made by the model and to compare with Gaussian and methods without the proposed extensions.
 
@@ -577,7 +604,7 @@ Enlarging the MRTS basis does not lower the mean Brier score on either setting. 
 
 Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The AR(2) prior provides temporal flexibility and the MRTS covariates enrich the spatial regression component, yet their empirical benefits depend on the data-generating mechanism and on the target exceedance level.  Whether the same pattern holds on real environmental data (and, if so, what it implies for practitioners choosing among the candidate settings) is the question taken up in the Data analysis section, where AR(2) and MRTS variants are treated as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
 
-\section{Real data analysis}
+\section{Real data analysis}\label{sec:realdata}
 
 \textcite{morris_space-time_2017} introduced the spatio-temporal \skewt (STP) process to predict high-threshold ground-level ozone exceedances from U.S. EPA monitoring data.  We return to that same data here, asking not for a new model class but whether enlarging the STP candidate class along the two axes developed in this thesis, an AR(2) temporal prior and an MRTS spatial-mean term, yields better held-out tail prediction.  The comparison is therefore designed to identify the exceedance levels, if any, at which the enlarged candidate class improves on the STP baseline, rather than to select a single overall-best model.
 
