@@ -296,24 +296,126 @@ simulate_arp_standard <- function(nt, n, phi, tol = 1e-6, param_name = NULL) {
     return(out)
 }
 
-makeTauARP <- function(nt, nknots, tau.alpha, tau.beta, phi) {
-    tau.star <- simulate_arp_standard(nt = nt, n = nknots, phi = phi, param_name = "tau")
+# Exact stationary Gaussian ARFIMA(0, d, 0) / fractional-Gaussian-noise sampler.
+# Sibling of simulate_arp_standard: returns an n x nt matrix whose one-point
+# marginal is EXACTLY N(0, 1) (variance 1, Gaussian), so the copula transforms
+# downstream (gamma.invcop / hn.invcop / inv.probit) stay valid. Unlike the
+# finite-order AR path, this carries genuine long memory (hyperbolic ACF,
+# sum_h |rho(h)| = Inf), the misspecified DGP that AR(1)/AR(2) analysis models
+# cannot represent.
+#
+# Method: Davies-Harte / Wood-Chan exact circulant embedding. The target
+# autocorrelation obeys rho(h)/rho(h-1) = (h-1+d)/(h-d) with rho(0)=1 (Hosking
+# 1981); since gamma(0)=1 the autocovariance equals the autocorrelation.
+simulate_arfima_standard <- function(nt, n, d, tol = 1e-8, param_name = NULL) {
+    if (!is.finite(d) || d <= -0.5 || d >= 0.5) {
+        stop(sprintf("ARFIMA(0,d,0) requires d in (-0.5, 0.5); got %s", format(d)))
+    }
+    N <- as.integer(nt)
+    out <- matrix(0.0, nrow = n, ncol = max(N, 0L))
+    if (N <= 0L) return(out)
+    if (N == 1L) { out[] <- rnorm(n); return(out) }
+
+    # Autocovariances gamma(0..N-1) (== autocorrelations, since gamma(0)=1),
+    # built by ratio recursion to avoid gamma-function overflow.
+    g <- numeric(N)
+    g[1L] <- 1
+    for (h in seq_len(N - 1L)) g[h + 1L] <- g[h] * ((h - 1L + d) / (h - d))
+
+    # Minimal circulant embedding, size m = 2(N-1); first column is the
+    # symmetric extension (gamma_0..gamma_{N-1}, gamma_{N-2}..gamma_1).
+    m <- 2L * (N - 1L)
+    cseq <- c(g, if (N >= 3L) g[(N - 1L):2L] else numeric(0))
+    lambda <- Re(stats::fft(cseq))                 # circulant eigenvalues (real, >= 0)
+    neg_tol <- tol * max(abs(lambda))
+    if (any(lambda < -neg_tol)) {
+        nm <- if (!is.null(param_name)) paste0(" for '", param_name, "'") else ""
+        stop(sprintf(
+            "Davies-Harte embedding%s has negative eigenvalues (min %.3e, d=%.4f); not PSD-embeddable at nt=%d.",
+            nm, min(lambda), d, N))
+    }
+    lambda[lambda < 0] <- 0
+    sl <- sqrt(lambda)
+    half <- m %/% 2L                               # = N - 1
+
+    for (i in seq_len(n)) {
+        # Hermitian-symmetric complex weights with E|Z_k|^2 = 1, so that
+        # Re(fft(sqrt(lambda) * Z)) / sqrt(m) is real with covariance gamma.
+        Z <- complex(length.out = m)
+        Z[1L] <- rnorm(1L)                         # k = 0 (real)
+        Z[half + 1L] <- rnorm(1L)                  # k = m/2 (real)
+        if (half >= 2L) {
+            kR <- 2L:half                          # 0-based k = 1 .. half-1
+            Z[kR] <- complex(real = rnorm(half - 1L), imaginary = rnorm(half - 1L)) / sqrt(2)
+            Z[m - kR + 2L] <- Conj(Z[kR])          # enforce Hermitian symmetry
+        }
+        y <- Re(stats::fft(sl * Z)) / sqrt(m)
+        out[i, ] <- y[1L:N]
+    }
+    out
+}
+
+# Dispatch a latent-process spec to the matching unit-variance N(0,1) sampler:
+# finite-order AR(p) via simulate_arp_standard, long memory via
+# simulate_arfima_standard. Both return an n x nt matrix with marginal N(0,1).
+draw_latent_standard <- function(spec, nt, n, param_name = NULL) {
+    if (!is.null(spec$type) && identical(spec$type, "arfima")) {
+        return(simulate_arfima_standard(nt = nt, n = n, d = spec$d, param_name = param_name))
+    }
+    simulate_arp_standard(nt = nt, n = n, phi = spec$coeffs, param_name = param_name)
+}
+
+# Yule-Walker pseudo-true coefficients: the AR(1) and AR(2) coefficients an
+# analysis model converges to (in the M-closest projection sense) when the true
+# process is ARFIMA(0, d, 0). Uses the first two theoretical autocorrelations,
+# rho(1) = d/(1-d) and rho(2) = d(1+d)/((1-d)(2-d)). The AR(2) projection has a
+# POSITIVE phi2 = (rho2 - rho1^2)/(1 - rho1^2) for all d in (0, 0.5) -- the
+# signature that AR(1) is misspecified and AR(2) captures the lag-2 partial
+# autocorrelation. Returns d, Hurst exponent, rho1/rho2, and both projections.
+arfima_yw_projection <- function(d) {
+    if (!is.finite(d) || d <= -0.5 || d >= 0.5) {
+        stop(sprintf("arfima_yw_projection: d must be in (-0.5, 0.5); got %s", format(d)))
+    }
+    rho1 <- d / (1 - d)
+    rho2 <- d * (1 + d) / ((1 - d) * (2 - d))
+    ar2_phi1 <- rho1 * (1 - rho2) / (1 - rho1^2)
+    ar2_phi2 <- (rho2 - rho1^2) / (1 - rho1^2)
+    list(
+        d = d, hurst = d + 0.5,
+        rho1 = rho1, rho2 = rho2,
+        ar1 = rho1,
+        ar2 = c(phi1 = ar2_phi1, phi2 = ar2_phi2)
+    )
+}
+
+# Theoretical ARFIMA(0, d, 0) autocorrelation rho(0..H) via the ratio recursion
+# rho(h)/rho(h-1) = (h-1+d)/(h-d), rho(0)=1. Used by the implied-ACF diagnostic
+# to overlay the true long-memory ACF against the AR(1)/AR(2) geometric fits.
+arfima_acf <- function(d, H) {
+    r <- numeric(H + 1L)
+    r[1L] <- 1
+    for (h in seq_len(H)) r[h + 1L] <- r[h] * ((h - 1L + d) / (h - d))
+    r
+}
+
+makeTauARP <- function(nt, nknots, tau.alpha, tau.beta, spec) {
+    tau.star <- draw_latent_standard(spec, nt = nt, n = nknots, param_name = "tau")
     tau <- gamma.invcop(x = tau.star, tau.alpha, tau.beta)
     return(tau)
 }
 
-makeZARP <- function(nt, nknots, tau, phi) {
-    z.star <- simulate_arp_standard(nt = nt, n = nknots, phi = phi, param_name = "z")
+makeZARP <- function(nt, nknots, tau, spec) {
+    z.star <- draw_latent_standard(spec, nt = nt, n = nknots, param_name = "z")
     sd <- 1 / sqrt(tau)
     z <- hn.invcop(x = z.star, sig = sd)
     return(z)
 }
 
-makeKnotsARP <- function(nt, nknots, s, phi) {
+makeKnotsARP <- function(nt, nknots, s, spec) {
     knots.star <- knots <- array(NA, dim = c(nknots, 2, nt))
 
-    knots.star[, 1, ] <- simulate_arp_standard(nt = nt, n = nknots, phi = phi, param_name = "w")
-    knots.star[, 2, ] <- simulate_arp_standard(nt = nt, n = nknots, phi = phi, param_name = "w")
+    knots.star[, 1, ] <- draw_latent_standard(spec, nt = nt, n = nknots, param_name = "w")
+    knots.star[, 2, ] <- draw_latent_standard(spec, nt = nt, n = nknots, param_name = "w")
 
     min.s1 <- min(s[, 1]); max.s1 <- max(s[, 1])
     min.s2 <- min(s[, 2]); max.s2 <- max(s[, 2])
@@ -325,6 +427,22 @@ makeKnotsARP <- function(nt, nknots, s, phi) {
 }
 
 parse_phi_spec <- function(phi, param_name) {
+    # Long-memory spec: list(type = "arfima", d = <d>). Intercepted before the
+    # numeric-vector path so the fractional differencing parameter is not
+    # coerced through unlist(). order = Inf makes the order >= 1 dispatch in
+    # rpotspatTS_arp select the make*ARP path, where draw_latent_standard then
+    # routes on $type.
+    if (is.list(phi) && identical(phi$type, "arfima")) {
+        d <- phi$d
+        if (is.null(d) || !is.numeric(d) || length(d) != 1 ||
+            !is.finite(d) || d <= -0.5 || d >= 0.5) {
+            stop(sprintf(
+                "phi.%s: arfima spec requires a single numeric d in (-0.5, 0.5)",
+                param_name))
+        }
+        return(list(order = Inf, type = "arfima", d = as.numeric(d), coeffs = numeric(0)))
+    }
+
     coeffs <- if (is.list(phi)) {
         unlist(phi, recursive = TRUE, use.names = FALSE)
     } else {
@@ -470,7 +588,7 @@ rpotspatTS_arp <- function(nt, x, s, beta,
             tau <- makeTauARP(
                 nt = nt, nknots = nknots,
                 tau.alpha = tau.alpha, tau.beta = tau.beta,
-                phi = phi.tau.spec$coeffs
+                spec = phi.tau.spec
             )
         } else {
             tau <- matrix(rgamma(nknots * nt, tau.alpha, tau.beta), nknots, nt)
@@ -482,7 +600,7 @@ rpotspatTS_arp <- function(nt, x, s, beta,
 
     if (skew) {
         if (phi.z.spec$order >= 1) {
-            z <- makeZARP(nt = nt, nknots = nknots, tau = tau, phi = phi.z.spec$coeffs)
+            z <- makeZARP(nt = nt, nknots = nknots, tau = tau, spec = phi.z.spec)
         } else {
             z <- abs(matrix(rnorm(nknots * nt, 0, sd), nknots, nt))
         }
@@ -491,7 +609,7 @@ rpotspatTS_arp <- function(nt, x, s, beta,
     }
 
     if (phi.w.spec$order >= 1) {
-        knots <- makeKnotsARP(nt = nt, nknots = nknots, s = s, phi = phi.w.spec$coeffs)
+        knots <- makeKnotsARP(nt = nt, nknots = nknots, s = s, spec = phi.w.spec)
     } else {
         knots <- makeKnotsTS(nt = nt, nknots = nknots, s = s, phi = 0)
     }

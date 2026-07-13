@@ -63,12 +63,84 @@ Rscript plots.R  --setting=1 --data=simdata_def.RData
 | 13      | Skew-t, K = 1, AR(2) on z only: φ_z=(0.80, -0.35), φ_τ=φ_w=0 (pure level channel) |
 | 14      | Skew-t, K = 1, AR(2) on τ only: φ_τ=(0.80, -0.35), φ_z=φ_w=0 (pure volatility channel) |
 | 15      | Skew-t, K = 5, AR(2) on w only: φ_w=(0.80, -0.35), φ_z=φ_τ=0 (pure knot-mixing channel) |
+| 16      | Skew-t, K = 1, AR(2) on all channels, φ=(0.15, 0.80) near-unit-root, lag-2 dominant |
+| 17      | **Skew-t, K = 1, LONG MEMORY ARFIMA(0, d, 0), d = 0.20 (Hurst 0.70)** |
+| 18      | **Skew-t, K = 1, LONG MEMORY ARFIMA(0, d, 0), d = 0.35 (Hurst 0.85)** |
+| 19      | **Skew-t, K = 1, LONG MEMORY ARFIMA(0, d, 0), d = 0.45 (Hurst 0.95)** |
 
 setting 4 / 5 是文件最常用的 skew-t 目標。
+
+### Long-memory settings 17–19（AR(2)-vs-AR(1) misspecification 研究）
+
+Settings 17–19 的三個潛在通道（τ, z, w）都由 **ARFIMA(0, d, 0)** 驅動——雙曲
+衰減 ACF、Σ|ρ(h)|=∞，**落在 AR(1) 與 AR(2) 兩個分析類之外**，所以「AR(2) 比
+AR(1) 好」不再是循環論證（不是用 AR(2) 配 AR(2)）。生成由 Davies–Harte 精確
+circulant embedding（`simulate_arfima_standard()`）保證潛在高斯過程邊際嚴格
+N(0,1)、變異數精確為 1（copula 前提）。d 由 `build_phi_triple()` 的 arfima 分支
+指定；`phi.path[[17:19]]` 存 `type="arfima"`、`d`、Hurst 與理論 Yule–Walker
+投影（`yw_ar1`、`yw_ar2`）。
+
+分析方法直接複用既有的 **method 7 (AR(2), K=1)** 與 **method 9 (AR(1), K=1)**，
+基準加 **method 1 (Gaussian/i.i.d.)**；spatial hold-out 不需新的 forecast recursion。
+
+> **兩個必讀的預期**（跑之前先知道）：
+> 1. **spatial hold-out 的預測分數（Brier/quantile/energy）對 AR(2)-vs-AR(1)
+>    幾乎必然是 null**（Prop 2：邊際不變 + kernel locality + K=1 過度識別，與
+>    DGP 是否長記憶無關）。此為**負控制**結論，非失敗。
+> 2. **參數恢復在 nt = 50 有明顯有限樣本偏誤**：AR(2) 後驗 φ̂₂ 會為正但**遠低於**
+>    YW 投影（0.11/0.21/0.29）。d=0.20 訊號最弱（可能測不出=power 問題），d=0.45
+>    最明顯。定量佐證見 `validate_arfima.R` 的 info 行與
+>    `diagnostics_lm.R` 的 money plot / φ̂₂-vs-YW 圖。
+
+生成、擬合、診斷的腳本：
+- `validate_arfima.R`：DGP 生成器的理論 de-risk（無 MCMC；var=1、ACF、YW 投影、
+  特徵值非負）——**跑任何 MCMC 前先跑這個**。
+- `setup_lm_append.R`：把 settings 17–19 幂等地附掛到現有 `simdata.RData`（不重生
+  1–16、不需 SpatialExtremes；以重現 setting 9 為一致性守門）。或用完整 `setup.R`。
+- `smoke_lm.R`：small-iters 煙霧測試（method 1/7/9 能否在 ARFIMA 資料上擬合、
+  φ 形狀是否 AR(2)→2 欄 / AR(1)→1 欄）。
+- `diagnostics_lm.R`：隱含 ACF money plot（純理論）＋ φ̂₂-vs-YW 圖，輸出到
+  `output/plots/diagnostics/`。
 
 `simdata_def.RData`（deformed covariance）現有 setting 1–6（3 個線性變形 + 3 個非線性變形）。
 完整的實驗設計、D 函數定義、物件結構與 prop model 預期效果見
 [non_stationary/def_settings_design.md](non_stationary/def_settings_design.md)。
+
+### `simdata_nonsta.RData`：非平穩 setting 1–10
+
+全部是 skew-t-1（λ=3, dist="t", nknots=1），差別在**非平穩住在哪個動差**、以及**用什麼機制產生**。
+設計目的是把「mean-only 的 MRTS 擴充有結構性上限」從單一證據點（舊的 setting 3）變成一條線。
+
+| ID | `surf_type` | 機制 | 注入路徑 | 動差 | MRTS 預期 |
+|----|-------------|------|---------|------|----------|
+| 1 | `invariant` | 固定 cosine-bump 均值面 | 均值 | 1st | **完全撿到**（正控制） |
+| 2 | `varying` | 時變 cosine-bump 均值面 | 均值 | 1st | 只撿到時間平均 |
+| 3 | `ns_dependence` | 低秩 cosine 隨機效應 | 加法 | 2nd | 撿不到（相關會**轉負**） |
+| 4 | `ps_cov` | Paciorek–Schervish 局部各向異性 | 取代 C | 2nd | 撿不到 |
+| 5 | `ps_add` | 同 4，改當加法隨機效應 | 加法 | 2nd + 邊際 | 撿不到 |
+| 6 | `covdep_cov` | ρ(s) = ρ₀·exp(0.7·f₁(s)) ★ | 取代 C | 2nd | **撿不到** |
+| 7 | `covdep_add` | 同 6，改當加法隨機效應 | 加法 | 2nd + 邊際 | 撿不到 |
+| 8 | `fuentes_cov` | 4 區域加權混合 GP（range 差 10 倍） | 取代 C | 2nd | 撿不到 |
+| 9 | `gh_marginal` | Tukey g-and-h 場，g(s) 控偏態、h(s) 控尾重 | 加法 | 3rd + 4th | 撿不到 |
+| 10 | `lambda_varying` | λ(s) = 3 + 3·f₂(s) ∈ [0, 6] ★ | 改 skew 項 | 3rd | **部分撿到** |
+
+★ **核心對照是 setting 1 vs 6**：同一個 f₁(s)，一個放**均值**（MRTS 完全恢復）、一個放**相關 range**
+（MRTS 不論 K 多大都無效）。這排除了「資訊不足」的替代解釋——動差層級錯了，不是資訊不夠。
+Setting 10 是中間態：λ(s) 誘導出空間變動的均值（MRTS 撿得到），但偏態異質性撿不到。
+
+三條注入路徑：**`replace_C`**（4/6/8，把非平穩相關矩陣直接餵給 `rpotspatTS(cov.type="precomputed")`；
+單位對角 → **skew-t 邊際完全不變**、真均值恆為 10）、**`additive`**（3/5/7/9，mean-zero 隨機場；
+邊際會被改變）、**`skew_term`**（10）。Settings 4/5 與 6/7 是 A/B 配對，**共用 base seed**，
+底層 skew-t 抽樣完全相同。
+
+跑診斷（**在投入任何 MCMC 前先跑這個**）：
+
+```
+Rscript non_stationary/diagnose_nonsta.R   # -> output/nonsta_diagnostics.pdf / .csv
+```
+
+完整的數學定義、參數選擇、診斷結果與踩過的坑見
+[non_stationary/nonsta_settings_design.md](non_stationary/nonsta_settings_design.md)。
 
 ## Method catalog（分析方法，對應 `--methods=<spec>`）
 
@@ -308,10 +380,9 @@ foreach ($s in 1..3) {
   & $R .\plots.R  --setting=$s --data=simdata_def.RData
 }
 
-# Non-stationary dataset，3 個 setting（1 invariant 正控、2 dynamic、3 非平穩相依 random effect）
-# setting 3 為獨立 realization，需自行擬合（methods 1:5，MRTS K 同前）
-& $R .\run-settings.R --setting=3 --data=simdata_nonsta.RData   # methods 1:5, MRTS K sweep
-foreach ($s in 1..3) {
+# Non-stationary dataset，setting 1-10（見上方 setting 表）
+# settings 4-10 尚未擬合，需自行跑（methods 1:5，MRTS K 同前）
+foreach ($s in 1..10) {
   & $R .\scores.R --setting=$s --data=simdata_nonsta.RData --methods="(1:5)"
   & $R .\tables.R --setting=$s --data=simdata_nonsta.RData
   & $R .\plots.R  --setting=$s --data=simdata_nonsta.RData
@@ -367,11 +438,16 @@ recovery.rmse[d, m, k] = sqrt( mean_site ( μ̂(s_i) - μ(s_i) )^2 )
 
 真均值來源（僅在 `^simdata` 開頭的模擬資料計算，真實資料無真均值 → 跳過）：
 
-- `simdata_nonsta.RData`：`μ(s) = 10 + g(s)`，`g` 由存下的 cosine-bump 基底
-  重建（setting 1 時間固定 = 固定係數；setting 2 時間變動 = 時間平均權重；
-  setting 3 = 非平穩相依 random effect `u_t = F.re %*% t(W3)`，逐日 mean-zero，
-  pooled 固定 mean 只能拿到時間平均 ≈ 0 → recovery 隨 K **持平/微升**，這是
-  「結構在 dependence、fixed-effect mean 抓不到」的預期弱點指紋，非 bug）
+- `simdata_nonsta.RData`：直接查存下的 **`truemean.field[[setting]][, set]`**（[144 × 50]，
+  該 setting／該 dataset 在所有站點的時間平均真均值）。`replace_C` 的三個 setting（4/6/8）
+  真均值**恆為 10**——完全沒有均值結構，所以 recovery 只會隨 K **持平/上升**。這是
+  「結構在 dependence、fixed-effect mean 抓不到」的預期弱點指紋，非 bug。
+
+  > `truemean.field` 是 2026-07 新增的統一契約。舊寫法用 `surf_type` **字串**做 if/else 分支，
+  > **任何不認得的字串都會靜默掉進 `else` → `f.basis %*% colMeans(W.varying[[set]])`**，
+  > 不報錯、數字看起來也合理，但完全是錯的（實測：對 setting 6 會給出跨度 [8.49, 11.51] 的
+  > 假真值，RMSE 誤差 1.18）。`scores.R` 保留舊分支當 fallback，所以
+  > `simdata_nonsta.pre10.bak.RData` 仍可重跑。
 - `simdata.RData` / `simdata_def.RData`：`μ(s) = X(s)'β_true`，
   `β_true = c(10,0,0)`（intercept-only，見 `setup.R`）→ 平面；RMSE 隨 K **上升**
   代表 MRTS 在擬合假結構
@@ -386,7 +462,7 @@ CSV，score 名 `recovery_rmse`，含 mean/median）→ `plots.R`（畫
 > 三者合起來把「**MRTS 估得準**（`mr` 下降）」與「**MRTS 預測有用**
 > （`bs`/`qs`/`pr` 幾乎不動）」拆開：在有均值結構的 nonsta set1，`mr` 暴跌而
 > `bs`/`pr` 持平；在 knot 型的 set5，三者皆平（`mr` 甚至微升），顯示無均值
-> 結構可吃。
+> 結構可吃。nonsta 的 settings 4–10 是這條軸的系統性展開（見上方 setting 表）。
 
 ## 與 `simstudy_prop/` 的對應
 

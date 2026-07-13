@@ -1,4 +1,5 @@
-build_basis_matrix <- function(s_obs, s_pred = NULL, k, tol = 1e-8) {
+build_basis_matrix <- function(s_obs, s_pred = NULL, k, tol = 1e-8,
+                               trim_constant = TRUE) {
   s_obs <- prop_check_numeric_matrix(s_obs, "s_obs")
   if (nrow(s_obs) < 2L) {
     stop("s_obs must contain at least two observation locations.", call. = FALSE)
@@ -20,12 +21,16 @@ build_basis_matrix <- function(s_obs, s_pred = NULL, k, tol = 1e-8) {
     s_obs = s_obs,
     s_pred = s_pred,
     k = k,
-    tol = tol
+    tol = tol,
+    trim_constant = trim_constant
   )
   basis_obj <- prop_require_names(
     basis_obj,
     "basis_obj",
-    c("q_obs", "q_pred", "requested_k", "original_cols", "kept_cols", "rank_kept", "source")
+    c(
+      "q_obs", "q_pred", "requested_k", "original_cols", "kept_cols",
+      "rank_kept", "source", "trim_constant"
+    )
   )
 
   list(
@@ -35,7 +40,8 @@ build_basis_matrix <- function(s_obs, s_pred = NULL, k, tol = 1e-8) {
     original_cols = basis_obj$original_cols,
     kept_cols = basis_obj$kept_cols,
     rank_kept = basis_obj$rank_kept,
-    source = basis_obj$source
+    source = basis_obj$source,
+    trim_constant = basis_obj$trim_constant
   )
 }
 

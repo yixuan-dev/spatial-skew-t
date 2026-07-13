@@ -22,6 +22,7 @@
 | Regression inference (V2–V3) | Point estimates of β are unbiased. But confidence intervals for the **intercept** are too narrow — 38% undercoverage at moderate range, ~60% undercoverage at long range. The MCMC feedback makes this worse, not better | ❌ Concern |
 | Spatial prediction (V4) | Predictions at unmonitored sites are **well-calibrated** (within 2% of nominal coverage) across all tested ranges. This is the primary use case | ✅ Good |
 | Computation (V5) | Current implementation is **not faster** than Matérn due to an unintended O(n³) bottleneck in the code. A known fix exists and would achieve 126× speedup at n=500 | ❌ Fix needed |
+| Constant column A/B (K1) | Trimming the mrts constant column is **not** required for TH numerics; under prop MCMC, **keeping** it does not improve β₀ bias but **inflates** β₀ posterior SD on skew-t (≈3×). Default trim retained | ✅ Decided |
 
 ### What needs action before submission
 
@@ -29,7 +30,7 @@
 
 2. **Clarify the scope of validity** (V1–V3): the method works well for spatial prediction (V4) but produces overconfident regression CIs when the spatial range is moderate or long. The paper should either restrict to short-range applications, or add a sentence acknowledging this limitation for inference on regression coefficients.
 
-3. **The dropped constant column** is the root cause of both V1 and V2 failures. It was dropped to prevent the spatial model from absorbing the regression intercept, which is a sound design choice — but it means long-range spatial correlation cannot be represented. This trade-off should be stated explicitly.
+3. **Constant-column policy (K1):** trimming is a **bias–variance / basis-rank** choice, not a TH numerical requirement. On simdata (dataset 1, prop_k=20, iters=8000), keeping the constant column slightly reduces |β₀ bias| but widens skew-t β₀ SD by >2× with no absorption warning. **Keep `prop_trim_constant=TRUE` as default** until long-range V1 gains from retaining the column are demonstrated.
 
 ### What is not a concern
 
@@ -55,8 +56,8 @@
 | **V5** | Current MRTS has O(n³) bottleneck; Woodbury-only is 126× faster | ✅ verified — see findings |
 | **B1** | rank(H) ≤ min(K, T); K ≪ T required | ⬜ |
 | **B2** | K ≪ n; low-rank approximation quality | ⬜ |
-| **B3** | Dropping constant MRTS column preserves spatial information | ⬜ |
-| **C1** | std_res is mean-zero; no aliasing with intercept | ⬜ |
+| **B3** | Dropping constant MRTS column preserves spatial information | ⚠️ trade-off — see K1 |
+| **C1** | std_res is mean-zero; no aliasing with intercept | ✅ K1 — no absorption under injection |
 | **C2** | G→R normalisation does not bias the Morris posterior | ⬜ |
 | **C3** | Plug-in M is an effective within-MCMC strategy | ⬜ |
 | **D1** | σ_ξ² > 0 floor is sufficient for Woodbury stability | ⬜ |
@@ -466,6 +467,54 @@
 - The Woodbury formulas needed for O(nK) operations **are already implemented** in `prop_apply_rinv_obs` and the matrix determinant lemma derivation.
 - At n=500: Woodbury-only achieves 126× speedup over Matérn Chol. This requires removing `chol2inv(chol(R_obs))` from `prop_make_cov_state` and routing all likelihood computations through the Woodbury path.
 - **Action required:** refactor `prop_make_cov_state` and `quadform_logdet` to avoid the explicit n×n precision matrix.
+
+| **K1** | Constant-column trim vs keep under prop MCMC (bias–variance) | ✅ verified — see findings |
+
+---
+
+## K1 — Constant Column A/B (Experiment 1)
+
+**Script:** `verify_e1_constant_column_ab.R` · **Date:** 2026-07-08 · **Output:** `output/tables/e1_constant_column_ab.csv`
+
+### Motivation (revised)
+
+- Earlier notes suggested trimming the mrts constant column to avoid intercept aliasing and TH instability.
+- Separate numerics checks show **F′F is full rank** with the constant column present and autoFRK `cMLEimat` / `getInverseSquareRootMatrix` run without failure.
+- K1 tests whether **Morris prop MCMC** (β update → residual → TH `M` refresh every iteration) still needs the trim for **bias–variance balance**.
+
+### Setup
+
+- Data: `simdata.RData`, dataset 1, observed sites only (same mask as `simstudy_prop/run-prop.R`).
+- True β = (10, 0, 0); constant injection `Y ← Y + a`, `a ∈ {0, 2, 5}` ⇒ target β₀ = 10 + a.
+- Variants: **A_trim** (`prop_trim_constant=TRUE`, default) vs **B_keep** (`FALSE`).
+- Phase A: setting 1, Gaussian (`method="gaussian"`, `nknots=1`).
+- Phase B: setting 4, Skew-t K=1 (`method="t"`, `skew=TRUE`, `nknots=1`).
+- MCMC: `iters=8000`, `burn=3000`, `prop_k=20`, `prop_cov_update_every=1`.
+
+### Key results
+
+| Phase | Variant | β₀ bias range | β₀ SD range | Injection slope | Notes |
+|-------|---------|---------------|-------------|-----------------|-------|
+| Gaussian | A_trim | −0.24 to −0.25 | 0.114–0.117 | 0.999 | PASS all cells |
+| Gaussian | B_keep | −0.23 to −0.23 | 0.113–0.115 | 0.999 | Slightly lower abs bias; SD similar |
+| Skew-t K=1 | A_trim | −0.55 to −0.60 | 0.163–0.195 | 0.992 | PASS bias; moderate negative bias |
+| Skew-t K=1 | B_keep | −0.66 to −0.71 | 0.453–0.515 | 0.990 | WARN_variance (SD > 2× A); larger abs bias |
+
+Injection test: `β₀_mean` tracks `a` with slope ≈ 1 and intercept ≈ 9.3–9.8 in **both** variants (no evidence that spatial `σ_ξ²` absorbs the level shift).
+
+### Conclusions
+
+1. **No identifiability crisis from keeping the constant column** under this MCMC schedule — injection slopes ≈ 1, no absorption flag.
+2. **Trim is not numerically necessary** for TH / `(F′F)^{-1/2}`.
+3. **Default trim still preferred** on skew-t: B_keep widens β₀ posterior SD by ~3× without meaningful bias improvement.
+4. Gaussian phase: A vs B nearly identical on bias and variance; either is acceptable.
+5. **V1 long-range limitation** from excluding `1_n` remains a separate modeling question; K1 does not show that retaining the column fixes skew-t β₀ inference.
+
+### Recommendation
+
+- Keep **`prop_trim_constant=TRUE`** as default.
+- Use **`prop_trim_constant=FALSE`** only in exploratory long-range / non-stationary runs where V1 spatial scores are the primary metric, accepting wider β₀ uncertainty.
+- Toggle exposed as `prop_trim_constant` in `mcmc_prop.R` and recorded in `fit$prop$trim_constant`.
 
 ---
 

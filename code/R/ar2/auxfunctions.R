@@ -406,9 +406,10 @@ makeZTS <- function(nt, nknots, tau, phi) {
 rpotspatTS <- function(nt, x, s, beta, gamma, nu, rho, phi.z, phi.w,
                        phi.tau, lambda, tau.alpha, tau.beta, nknots,
                        dist,
-                       cov.type = c("matern", "deformed", "nl_deformed"),
+                       cov.type = c("matern", "deformed", "nl_deformed",
+                                    "precomputed"),
                        theta = 0, ratio = 1,
-                       f_coords = NULL) {
+                       f_coords = NULL, C.mat = NULL) {
   cov.type <- match.arg(cov.type)
   p <- dim(x)[3]
   ns <- nrow(s)
@@ -428,7 +429,18 @@ rpotspatTS <- function(nt, x, s, beta, gamma, nu, rho, phi.z, phi.w,
     skew <- TRUE
   }
 
-  C <- if (cov.type == "deformed") {
+  C <- if (cov.type == "precomputed") {
+    # Caller supplies the ns x ns correlation matrix directly. Used by
+    # setup_nonsta.R to inject non-stationary DEPENDENCE (Paciorek-Schervish,
+    # covariate-driven range, Fuentes mixture) while leaving the skew-t
+    # marginal untouched -- C.mat must therefore have a unit diagonal, which
+    # is what to_correlation() in non_stationary/ns_cov_builders.R guarantees.
+    if (is.null(C.mat)) stop("C.mat must be provided when cov.type = 'precomputed'")
+    if (!is.matrix(C.mat) || nrow(C.mat) != ns || ncol(C.mat) != ns) {
+      stop("C.mat must be an ns x ns matrix")
+    }
+    C.mat
+  } else if (cov.type == "deformed") {
     CorFxDef(s = s, gamma = gamma, rho = rho, theta = theta, ratio = ratio)
   } else if (cov.type == "nl_deformed") {
     if (is.null(f_coords)) stop("f_coords must be provided when cov.type = 'nl_deformed'")

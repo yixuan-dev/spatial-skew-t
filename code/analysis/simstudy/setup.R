@@ -23,6 +23,14 @@
 #  15 - skew t-5, AR(2) on w only  (phi_w  = (0.80, -0.35), phi_z = phi_tau = 0): pure knot-mixing channel (K=5 needed)
 #  16 - skew t-1, AR(2) on all three channels, phi = (0.15, 0.80): near-unit-root
 #       (phi1 + phi2 = 0.95) and lag-2 dominant (phi2 >> phi1) -> cleanest AR(2)-vs-AR(1) contrast
+#  17 - skew t-1, LONG MEMORY: ARFIMA(0, d, 0) on all channels, d = 0.20 (Hurst 0.70)
+#  18 - skew t-1, LONG MEMORY: ARFIMA(0, d, 0) on all channels, d = 0.35 (Hurst 0.85)
+#  19 - skew t-1, LONG MEMORY: ARFIMA(0, d, 0) on all channels, d = 0.45 (Hurst 0.95)
+#       17-19 lie OUTSIDE both AR(1) and AR(2) analysis classes (hyperbolic ACF,
+#       sum|rho(h)| = Inf) -> the non-circular DGP for AR(2)-vs-AR(1). The AR(2)
+#       Yule-Walker projection has POSITIVE phi2 (0.11/0.21/0.29), the signature
+#       AR(1) cannot represent. NB at nt=50 the finite-sample AR MLE is biased
+#       well below these YW values (see validate_arfima.R info line).
 #
 # analysis methods:
 #  1 - Gaussian
@@ -57,7 +65,7 @@ beta.t <- c(10, 0, 0)
 nu.t <- 0.5
 gamma.t <- 0.9
 dist.t <- c("gaussian", "t", "t", "t", "t")
-nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 1, 5, 5, 1, 1, 5, 1)
+nknots.t <- c(1, 1, 5, 1, 5, NA, NA, NA, 1, 1, 5, 5, 1, 1, 5, 1, 1, 1, 1)
 rho.t <- c(1, 1, 1, 1, 1)
 lambda.t <- c(0, 0, 0, 3, 3)
 tau.alpha.t <- 6
@@ -71,7 +79,7 @@ knots.gev <- expand.grid(knots.x, knots.x)
 ns <- nrow(s)
 nt <- 50
 nsets <- 50
-nsettings <- 16
+nsettings <- 19
 ntest <- 44
 
 x <- array(1, c(ns, nt, 3))
@@ -85,6 +93,8 @@ build_phi_triple <- function(setting) {
   phi_weak    <- c(0.12, -0.05)
   phi_persist <- c(0.15, 0.80)  # near-unit-root, lag-2 dominant
   phi_zero    <- c(0, 0)
+  # Long-memory (ARFIMA(0,d,0)) channel spec; consumed by draw_latent_standard.
+  lm_spec <- function(d) list(type = "arfima", d = d)
 
   triple <- switch(as.character(setting),
     "9"  = list(phi.z = phi_strong, phi.tau = phi_strong, phi.w = phi_strong),
@@ -95,11 +105,19 @@ build_phi_triple <- function(setting) {
     "14" = list(phi.z = phi_zero,   phi.tau = phi_strong, phi.w = phi_zero),
     "15" = list(phi.z = phi_zero,   phi.tau = phi_zero,   phi.w = phi_strong),
     "16" = list(phi.z = phi_persist, phi.tau = phi_persist, phi.w = phi_persist),
+    # Long-memory DGP: ARFIMA(0,d,0) on all three channels (w carries no signal
+    # at K=1). d in {0.20, 0.35, 0.45} -> Hurst {0.70, 0.85, 0.95}. Lies outside
+    # both the AR(1) and AR(2) analysis classes -> non-circular AR(2)-vs-AR(1).
+    "17" = list(phi.z = lm_spec(0.20), phi.tau = lm_spec(0.20), phi.w = lm_spec(0.20)),
+    "18" = list(phi.z = lm_spec(0.35), phi.tau = lm_spec(0.35), phi.w = lm_spec(0.35)),
+    "19" = list(phi.z = lm_spec(0.45), phi.tau = lm_spec(0.45), phi.w = lm_spec(0.45)),
     stop(sprintf("No phi triple configured for setting %s", setting))
   )
 
   for (nm in names(triple)) {
     p <- triple[[nm]]
+    # Long-memory specs have no finite AR(2) stationarity triangle to check.
+    if (is.list(p) && identical(p$type, "arfima")) next
     if (any(p != 0) && !check_ar2_stability(p[1], p[2])) {
       stop(sprintf(
         "Non-stationary AR(2) in %s for setting %s: phi1=%.3f, phi2=%.3f",
@@ -179,12 +197,23 @@ for (setting in 1:nsettings) {
     print(setting)
   } else if (setting >= 9) {
     phi.triple <- build_phi_triple(setting)
-    phi.path[[setting]] <- list(
-      type = "channel-specific",
-      phi.z   = phi.triple$phi.z,
-      phi.tau = phi.triple$phi.tau,
-      phi.w   = phi.triple$phi.w
-    )
+    is_lm <- is.list(phi.triple$phi.z) && identical(phi.triple$phi.z$type, "arfima")
+    if (is_lm) {
+      dval <- phi.triple$phi.z$d
+      yw <- arfima_yw_projection(dval)
+      phi.path[[setting]] <- list(
+        type = "arfima", d = dval, hurst = yw$hurst,
+        phi.z = phi.triple$phi.z, phi.tau = phi.triple$phi.tau, phi.w = phi.triple$phi.w,
+        yw_ar1 = yw$ar1, yw_ar2 = yw$ar2  # pseudo-true AR projections for diagnostics
+      )
+    } else {
+      phi.path[[setting]] <- list(
+        type = "channel-specific",
+        phi.z   = phi.triple$phi.z,
+        phi.tau = phi.triple$phi.tau,
+        phi.w   = phi.triple$phi.w
+      )
+    }
     nknots <- nknots.t[setting]
     tau.t.setting <- array(NA, dim = c(nknots, nt, nsets))
     z.t.setting <- array(NA, dim = c(nknots, nt, nsets))

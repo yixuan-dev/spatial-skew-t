@@ -16,11 +16,18 @@
 #     record is long (nt = 200) and no sites are withheld.
 #
 # data settings (AR(2) coefficients phi = (phi1, phi2) shared by the
-#                latent tau*, z*, w* Gaussian processes; eq. (2) of the note):
+#                latent tau*, z*, w* Gaussian processes; eq. (2) of the note).
+# rho(F) = companion spectral radius; h* = memory horizon at eps = 0.05.
 #   1 - i.i.d. in time      phi = (0, 0)        null control
-#   2 - weak AR(2)          phi = (0.12, -0.05) small spectral radius
-#   3 - moderate AR(2)      phi = (0.60, -0.30) the note's reference case
-#   4 - strong AR(2)        phi = (0.80, -0.35) long memory horizon
+#   2 - weak AR(2)          phi = (0.12, -0.05) rho(F) = 0.224, h* = 3
+#   3 - moderate AR(2)      phi = (0.60, -0.30) rho(F) = 0.548, h* = 5
+#   4 - strong AR(2)        phi = (0.80, -0.35) rho(F) = 0.592, h* = 6
+#
+# All four are SHORT-memory: a stationary AR(2) has geometrically decaying
+# ACF, rho(h) ~ rho(F)^h, so sum_h |rho(h)| < Inf. "Strong" means a longer
+# decorrelation time, not long memory (hyperbolic decay, e.g. ARFIMA(0,d,0)),
+# which no finite-order AR can reproduce. All three non-i.i.d. pairs have
+# complex roots (phi1^2 + 4*phi2 < 0), so their ACFs are damped sinusoids.
 #
 # All settings: skew-t (dist = "t"), K = 1 knot, lambda = 3.
 # With K = 1 the Voronoi membership is constant, so w carries no signal

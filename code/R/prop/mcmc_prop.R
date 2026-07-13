@@ -26,6 +26,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                  prop_sigma_floor = 1e-6,
                  prop_cov_update_every = 1L,
                  prop_basis_tol = 1e-8,
+                 prop_trim_constant = TRUE,
                  prop_sigma_eps_sq = 0) {
   beta_update_method <- match.arg(beta_update_method)
 
@@ -80,7 +81,8 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
     s_obs = s,
     s_pred = if (predictions) s.pred else NULL,
     k = as.integer(prop_k),
-    tol = prop_basis_tol
+    tol = prop_basis_tol,
+    trim_constant = isTRUE(prop_trim_constant)
   )
   q_obs <- basis_obj$F_obs
   q_pred <- basis_obj$F_pred
@@ -434,6 +436,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
       basis_kept_cols = basis_obj$kept_cols,
       basis_rank_kept = basis_obj$rank_kept,
       basis_source = basis_obj$source,
+      trim_constant = basis_obj$trim_constant,
       cov_update_every = prop_cov_update_every,
       thresholded = thresholded,
       censored_cells = sum(thresh.obs),

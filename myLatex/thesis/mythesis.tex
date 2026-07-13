@@ -526,32 +526,31 @@ Both coefficient pairs lie inside the stationarity triangle \eref{eq:stab-triang
 This experiment enriches the regression component with the MRTS basis functions $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We use two generating designs:
 \begin{enumerate}
   \item \Skewt, $K = 5$ knots, $\lambda = 3$, with the constant mean $\bX^\top \bbeta = 10$;
-  \item \Skewt, $K = 1$ knot, $\lambda = 3$, with an additive non-stationary spatial random effect $u_t(\bs)$ added on top, so that the non-stationarity lives in the second moment (covariance), not the mean.
+  \item \Skewt, $K = 1$ knot, $\lambda = 3$, with an additive non-stationary spatial random effect $u_t(\bs)$ (specified below).
 \end{enumerate}
 
-The second design moves the non-stationarity into the dependence, to expose the structural limit of a fixed-effect mean basis.  It adds a mean-zero, per-day random effect built from the cosine basis of \textcite{tzeng_resolution_2018}, written natively on the $[0,10]^2$ domain (no rescaling to the unit square):
+The second design moves the non-stationarity into the dependence, to expose the structural limit of a fixed-effect mean basis.  It adds a mean-zero, per-day random effect built from the cosine basis, on $[0,10]^2$ domain:
 \begin{itemize}
   \item Two fixed cosine fields with centres $\bc_1 = (0, 10)^\top$, $\bc_2 = (7.5, 2.5)^\top$ and native wavenumbers $\kappa_1 = \pi/10$, $\kappa_2 = \pi/5$,
     \begin{align}
       \phi_j(\bs) = \cos\!\big(\kappa_j \, \| \bs - \bc_j \|\big), \qquad j = 1, 2.
       \label{eq:nsdep-basis}
     \end{align}
-    (With $\kappa_j = a_j \pi / 10$ and $\bc_j$ on $[0,10]^2$, $a_1 = 1$, $a_2 = 2$, this is the native form of the cosine bumps of \textcite{tzeng_resolution_2018}, avoiding any rescaling to the unit square.)
   \item The random effect superposes them with independent, daily redrawn Gaussian weights,
     \begin{align}
       u_t(\bs) = \sum_{j=1}^{2} \xi_{tj}\, \phi_j(\bs), \qquad \xi_{tj} \iid N(0, \tau_j^2), \quad (\tau_1, \tau_2) = (5, 3),
       \label{eq:nsdep-re}
     \end{align}
     independently across $j$ and across days $t$.
-  \item The response adds $u_t$ to the 1-knot \skewt model,
-    \begin{align}
-      Y_t(\bs) = 10 + \lambda \, \sigma_t(\bs) \, |z_t(\bs)| + \sigma_t(\bs) \, v_t(\bs) + u_t(\bs).
-      \label{eq:nsdep-gen}
-    \end{align}
-  \item Marginalising over $\xi$, $u_t$ has zero mean and the low-rank covariance $\mathrm{Cov}\big(u_t(\bs), u_t(\bs')\big) = \sum_j \tau_j^2 \, \phi_j(\bs)\, \phi_j(\bs')$, whose variance $\sum_j \tau_j^2 \, \phi_j(\bs)^2$ varies with location: the dependence is non-stationary while the mean stays constant at $10$.
-  \item Because $u_t$ is redrawn each day and has zero time-average, no fixed mean function exists for the time-pooled $\bbeta^*$ of \eref{eq:fullmodel-mrts} to recover.  This design is a deliberate negative control: the MRTS augmentation acts on the first moment, so it cannot represent a non-stationary second-moment structure, and the score- and recovery-versus-$K$ curves should stay flat or rise.
 \end{itemize}
-We emphasise the honest scope this sets up.  The MRTS basis is a fixed-effect mean (trend) component; it reduces mean estimation error only when the structure genuinely lies in the mean, and any sufficiently rich basis would do the same, with the MRTS-specific benefit being the tuning-free, coarse-to-fine ordering of $K_{\mathrm{MRTS}}$ rather than a unique gain in mean accuracy.  The resolution-adaptive property for which MRTS was designed by \textcite{tzeng_resolution_2018} applies to low-rank covariance (fixed-rank kriging) with random coefficients, which the fixed-effect mean use here does not engage.  The random-effect design makes this concrete: when the non-stationarity is a second-moment (covariance) feature, the mean augmentation has no purchase on it.
+
+The response adds $u_t$ to the 1-knot \skewt model,
+\begin{align}
+  Y_t(\bs) = 10 + \lambda \, \sigma_t(\bs) \, |z_t(\bs)| + \sigma_t(\bs) \, v_t(\bs) + u_t(\bs).
+  \label{eq:nsdep-gen}
+\end{align}
+
+Marginalising over $\xi$ gives a zero-mean random effect whose pointwise variance $\sum_j \tau_j^2\, \phi_j(\bs)^2$ varies with location (Appendix~\ref{app:nsdep-cov}), so the dependence is non-stationary while the marginal mean stays constant at $10$.
 
 Each of the five baseline models is fit across MRTS basis sizes $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$, where $K_{\mathrm{MRTS}} = 0$ recovers the no-MRTS baseline.
 
@@ -765,6 +764,16 @@ where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through t
   R \;=\; \min\!\left(1,\; \frac{\pi(Y_t^{(c)} \mid Y_{-t}, \bY)}{\pi(Y_t \mid Y_{-t}, \bY)}\right), \label{eq:mh-ratio}
 \end{align}
 in which all three prior factors must appear; omitting the lag-2 factor distorts the stationary distribution of the chain away from the AR(2) joint and produces a lag-2 autocorrelation that does not match the Yule--Walker value in \eref{eq:gamma12}.
+
+\subsection{Marginal covariance of the non-stationary-dependence design}\label{app:nsdep-cov}
+
+The second MRTS design of \sref{sec:sim-mrts-design} superposes two fixed cosine fields \eref{eq:nsdep-basis} with daily-redrawn Gaussian weights $\xi_{tj} \iid N(0, \tau_j^2)$ \eref{eq:nsdep-re}.  Marginalising over the weights, $u_t(\bs) = \sum_{j} \xi_{tj}\, \phi_j(\bs)$ has zero mean, $\mathrm{E}[u_t(\bs)] = \sum_j \phi_j(\bs)\, \mathrm{E}[\xi_{tj}] = 0$, and, by the independence of $\xi_{t1}$ and $\xi_{t2}$, the low-rank covariance
+\begin{align}
+  \mathrm{Cov}\big(u_t(\bs), u_t(\bs')\big)
+    \;=\; \sum_{j=1}^{2} \tau_j^2\, \phi_j(\bs)\, \phi_j(\bs').
+  \label{eq:nsdep-cov}
+\end{align}
+The pointwise variance $\mathrm{Var}\big(u_t(\bs)\big) = \sum_{j} \tau_j^2\, \phi_j(\bs)^2$ depends on location, so the dependence is non-stationary while the marginal mean stays constant at $10$.
 
 
 % --------------------------------------------------------------

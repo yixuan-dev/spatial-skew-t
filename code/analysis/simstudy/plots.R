@@ -153,10 +153,22 @@ dgp_label_map <- list(
 # The non-stationary-mean sim (simdata_nonsta.RData -> suffix "_nonsta") has
 # its own DGP per setting; without this its settings would be mislabelled
 # with the simdata catalog (e.g. setting 1 -> "Gaussian").
+#
+# Settings 1-2 put the non-stationarity in the MEAN (MRTS can recover it),
+# 3-8 in the DEPENDENCE (it structurally cannot), 9-10 in the higher moments.
+# Settings 1 and 6 are the headline pair: the SAME cosine field f1 drives the
+# mean in 1 and the correlation range in 6. See setup_nonsta.R.
 dgp_label_map_nonsta <- list(
-  "1" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3) with an additive non-stationary spatial fixed effect"),
-  "2" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3) with an additive non-stationary spatial random effect"),
-  "3" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3) with an additive non-stationary spatial random effect")
+  "1"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary MEAN: fixed cosine-bump surface"),
+  "2"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary MEAN: time-varying cosine-bump surface"),
+  "3"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: low-rank cosine random effect"),
+  "4"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: Paciorek-Schervish local anisotropy (in " * italic(C) * ")"),
+  "5"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: Paciorek-Schervish field (additive)"),
+  "6"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: covariate-driven range " * rho * "(" * italic(s) * ")" ~ "(in " * italic(C) * ")"),
+  "7"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: covariate-driven range (additive)"),
+  "8"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: Fuentes 4-regime GP mixture (in " * italic(C) * ")"),
+  "9"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary TAILS: Tukey " * italic(g) * "-and-" * italic(h) * " field"),
+  "10" = bquote("Skew-" * italic(t) * " (K=1), non-stationary SKEWNESS: " * lambda * "(" * italic(s) * ") = 3 + 3" * italic(f)[2] * "(" * italic(s) * ")")
 )
 # The deformed-covariance sim (simdata_def.RData -> suffix "_def") is all
 # Skew-t (K=1, lambda=3) with a deformed covariance per setting (see

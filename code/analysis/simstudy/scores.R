@@ -231,21 +231,32 @@ skew.methods <- c(2L, 4L, 7L, 8L)
 obs <- c(rep(TRUE, nrow(y) - ntest), rep(FALSE, ntest))
 
 # True regression mean at the test sites, for recovery.rmse. Only defined for
-# the simulation data (real data has no known truth). nonsta carries a saved
-# cosine-bump surface; the standard/deformed sims are intercept-only.
+# the simulation data (real data has no known truth).
+#
+# setup_nonsta.R saves truemean.field[[setting]][, set]: the time-averaged true
+# mean at every site, for every setting and dataset. Reading it directly beats
+# re-deriving the mean per surf_type here -- the old chain branched on the
+# surf_type STRING and silently fell through to the "varying" formula for any
+# value it did not recognise, so every setting added to the file would have
+# produced plausible-looking but wrong recovery numbers.
+#
+# Several nonsta settings have NO mean structure at all (the replace_C ones put
+# their non-stationarity entirely in the error correlation), so their true mean
+# is flat at 10 and recovery.rmse can only rise with K. That is the expected
+# weakness fingerprint -- structure in the dependence, not the mean -- not a bug.
 Xtest_rec <- cbind(1, s[!obs, 1], s[!obs, 2])
 compute_recovery <- grepl("^simdata", basename(data_path))
-is_nonsta_truth  <- exists("f.basis")
+has_truemean     <- exists("truemean.field")
+is_legacy_nonsta <- !has_truemean && exists("f.basis")
 true_mean_rec <- function(set) {
-  if (is_nonsta_truth) {
+  if (has_truemean) {
+    return(truemean.field[[setting]][!obs, set])
+  }
+  if (is_legacy_nonsta) {
+    # Pre-10-setting simdata_nonsta.RData (see simdata_nonsta.pre10.bak.RData).
     g <- if (settings.nonsta$surf_type[setting] == "invariant") {
       as.vector(f.basis %*% surf.coef.invariant)
     } else if (settings.nonsta$surf_type[setting] == "ns_dependence") {
-      # Setting 3: non-stationary-dependence random effect u_t = F.re %*% t(W3),
-      # mean-zero in t. The best a time-pooled fixed mean can recover is the
-      # empirical time-average (~ 0). recovery.rmse therefore stays flat / rises
-      # with K -- this is the EXPECTED weakness fingerprint (structure lives in
-      # the dependence, not the mean), not a bug.
       as.vector(F.re %*% colMeans(W.nsdep[[set]]))
     } else {
       as.vector(f.basis %*% colMeans(W.varying[[set]]))

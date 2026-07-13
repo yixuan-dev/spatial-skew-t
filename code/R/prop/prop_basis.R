@@ -122,7 +122,8 @@ prop_orthonormalize_basis <- function(obs_basis, pred_basis = NULL, tol = 1e-8) 
   )
 }
 
-build_prop_basis <- function(s_obs, s_pred = NULL, k, tol = 1e-8) {
+build_prop_basis <- function(s_obs, s_pred = NULL, k, tol = 1e-8,
+                             trim_constant = TRUE) {
   if (is.na(k) || k < 1L) {
     stop("prop_k must be a positive integer.", call. = FALSE)
   }
@@ -132,10 +133,18 @@ build_prop_basis <- function(s_obs, s_pred = NULL, k, tol = 1e-8) {
     basis_obj <- prop_fallback_basis(s_obs = s_obs, s_pred = s_pred, k = k)
   }
 
-  trimmed <- prop_trim_basis(
-    obs_basis = as.matrix(basis_obj$obs),
-    pred_basis = if (is.null(basis_obj$pred)) NULL else as.matrix(basis_obj$pred)
-  )
+  obs_basis <- as.matrix(basis_obj$obs)
+  pred_basis <- if (is.null(basis_obj$pred)) NULL else as.matrix(basis_obj$pred)
+  if (isTRUE(trim_constant)) {
+    trimmed <- prop_trim_basis(obs_basis = obs_basis, pred_basis = pred_basis)
+  } else {
+    trimmed <- list(
+      obs = obs_basis,
+      pred = pred_basis,
+      original_cols = ncol(obs_basis),
+      kept_cols = ncol(obs_basis)
+    )
+  }
   ortho <- prop_orthonormalize_basis(trimmed$obs, trimmed$pred, tol = tol)
 
   list(
@@ -145,6 +154,7 @@ build_prop_basis <- function(s_obs, s_pred = NULL, k, tol = 1e-8) {
     requested_k = as.integer(k),
     original_cols = trimmed$original_cols,
     kept_cols = trimmed$kept_cols,
-    rank_kept = ortho$rank_kept
+    rank_kept = ortho$rank_kept,
+    trim_constant = isTRUE(trim_constant)
   )
 }

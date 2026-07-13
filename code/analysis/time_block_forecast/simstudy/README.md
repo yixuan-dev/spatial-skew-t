@@ -12,12 +12,19 @@ i.i.d. skew-t models with the Brier score under a **spatial-only**
 holdout and found a null result. `ar2_rethink.tex` proves this is an
 artifact of the experiment, not of temporal pooling:
 
-- **Proposition 1** — the Brier score depends on the predictive only
-  through marginal exceedance probabilities.
-- **Proposition 2** — under a spatial-only holdout the AR(2) and i.i.d.
-  priors induce the *same* time-`t` marginal, so a marginal score
-  cannot separate them; the lower-dimensional model wins the
-  bias–variance contest.
+- **Kernel locality** (`prop:kernel-decomposition`) — the predictive at
+  a spatially held-out cell `(s*, t)` conditions on the time-`t` latents
+  alone, so the Brier score depends on the predictive only through the
+  marginal exceedance probability at that cell.
+- **Marginal invariance** (`prop:invariance`, `prop:phi-free`) — the
+  standardised construction leaves every one-point marginal at `N(0,1)`
+  for all `phi`, including the i.i.d. case `phi = 0`; `phi` moves only
+  the latent autocovariance. The AR(2) and i.i.d. specifications thus
+  induce *identical prior marginals* at `(s*, t)`, and `phi` can reach
+  the Brier score only through the posterior — a residual benefit
+  bounded at `O(q_t^-2)` (`prop:frozen-bound`), small enough to be
+  swamped, so the lower-dimensional model wins the bias–variance
+  contest.
 - **Section 4** — the cure is to hold out **time blocks** and forecast
   forward from the posterior of the seam state, scoring by lead time.
 
@@ -54,12 +61,30 @@ Every setting is the same family — skew-t, `dist = "t"`, `K = 1` knot,
 `lambda = 3` — and differs only in the AR(2) coefficient pair `phi`
 shared by the latent processes `tau*, z*, w*` (eq. 2 of the note):
 
-| setting | label    | `phi = (phi1, phi2)` | role                                               |
-| ------- | -------- | -------------------- | -------------------------------------------------- |
-| 1       | iid      | (0.00, 0.00)         | null control — AR(2) must **not** beat i.i.d. here |
-| 2       | weak     | (0.12, -0.05)        | small spectral radius, short memory horizon        |
-| 3       | moderate | (0.60, -0.30)        | the note's reference case (Remark 5)               |
-| 4       | strong   | (0.80, -0.35)        | long memory horizon                                |
+| setting | label    | `phi = (phi1, phi2)` | `rho(F)` | `h*(0.05)` | role                                               |
+| ------- | -------- | -------------------- | -------- | ---------- | -------------------------------------------------- |
+| 1       | iid      | (0.00, 0.00)         | 0        | 0          | null control — AR(2) must **not** beat i.i.d. here |
+| 2       | weak     | (0.12, -0.05)        | 0.224    | 3          | small spectral radius, short decorrelation time    |
+| 3       | moderate | (0.60, -0.30)        | 0.548    | 5          | the note's reference case (Remark 5)               |
+| 4       | strong   | (0.80, -0.35)        | 0.592    | 6          | largest spectral radius of the four                |
+
+`rho(F)` is the companion-matrix spectral radius (Definition 5) and
+`h*(0.05)` the effective memory horizon (eq. 14); both come from
+`ar2_spectral_radius()` / `ar2_memory_horizon()` in
+[time_block_helpers.R](time_block_helpers.R).
+
+All four settings are **short-memory** processes: a stationary AR(2) has
+an autocorrelation function that decays geometrically, `rho(h) ~ rho(F)^h`,
+so `sum_h |rho(h)| < Inf`. "Strong" here means a longer decorrelation
+time, *not* long memory in the Hosking/Granger sense (hyperbolic decay
+`rho(h) ~ C h^(2d-1)`, which no finite-order AR can reproduce). A genuine
+long-memory data-generating process — e.g. ARFIMA(0, d, 0) — would be a
+separate setting, and is the natural DGP for an AR(2)-vs-AR(1)
+misspecification study, since it lies outside both model classes.
+
+All three non-i.i.d. pairs have **complex** characteristic roots
+(`phi1^2 + 4 phi2 < 0`), so their ACFs are damped sinusoids rather than
+monotone decays.
 
 With `K = 1` the Voronoi membership is constant, so `w` carries no
 signal and the temporal effect lives entirely in `tau` and `z` — this

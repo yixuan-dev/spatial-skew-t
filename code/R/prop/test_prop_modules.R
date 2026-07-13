@@ -78,6 +78,24 @@ run_test("build_basis_matrix rejects non-positive k", {
   )
 })
 
+run_test("build_basis_matrix trim_constant controls kept mrts columns", {
+  if (!requireNamespace("autoFRK", quietly = TRUE)) {
+    cat("[SKIP] autoFRK not installed\n")
+    return(invisible(NULL))
+  }
+  loc <- cbind(runif(30), runif(30))
+  k_req <- 8L
+  basis_trim <- build_basis_matrix(s_obs = loc, k = k_req, trim_constant = TRUE)
+  basis_keep <- build_basis_matrix(s_obs = loc, k = k_req, trim_constant = FALSE)
+  stopifnot(
+    isTRUE(basis_trim$trim_constant),
+    isFALSE(basis_keep$trim_constant),
+    basis_trim$kept_cols == k_req - 1L,
+    basis_keep$kept_cols == k_req,
+    basis_keep$rank_kept == k_req
+  )
+})
+
 run_test("update_residuals returns raw and standardized residuals", {
   residual_block <- update_residuals(
     y = y,
