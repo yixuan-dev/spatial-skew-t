@@ -240,15 +240,19 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
         ))
     }
 
-    # 提取不同落後階數的數據
+    # 提取不同落後階數的數據 (含 t = 1, 2 初始切片)
     if (day.mar == 2) {
         data.current <- data[, 3:nt, drop = FALSE]
         data.lag1 <- data[, 2:(nt - 1), drop = FALSE]
         data.lag2 <- data[, 1:(nt - 2), drop = FALSE]
+        data.t1 <- data[, 1]
+        data.t2 <- data[, 2]
     } else if (day.mar == 3) {
         data.current <- data[, , 3:nt, drop = FALSE]
         data.lag1 <- data[, , 2:(nt - 1), drop = FALSE]
         data.lag2 <- data[, , 1:(nt - 2), drop = FALSE]
+        data.t1 <- data[, , 1]
+        data.t2 <- data[, , 2]
     }
 
     # Determine prior means for phi1 and phi2
@@ -257,9 +261,13 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
     p.s.1 <- if (length(prior.sd) >= 1) prior.sd[1] else 0.5
     p.s.2 <- if (length(prior.sd) >= 2) prior.sd[2] else p.s.1
 
+    # 精確平穩似然: t >= 3 的轉移密度 + 依賴 phi 的初始塊 p(Y_2 | Y_1, phi)。
+    # 只用轉移密度 (條件似然) 在 AR(1) 是恆等式、在 AR(2) 會使 phi-block 與
+    # latent-block 目標不同的分佈 (Gibbs blocks 不相容); 詳見
+    # tex/ar2_phi_exact_likelihood/. Y_1 的邊際 N(0,1) 不含 phi, 於接受比中消去。
     cur.moments <- get_ar2_standard_moments(phi1, phi2)
-    cur.ll <- ar2_transition_loglik(
-        data.current, data.lag1, data.lag2,
+    cur.ll <- ar2_stationary_loglik(
+        data.current, data.lag1, data.lag2, data.t1, data.t2,
         phi1 = phi1, phi2 = phi2, moments = cur.moments
     )
 
@@ -279,8 +287,8 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
         )
 
         if (!is.null(can.moments)) {
-            can.ll <- ar2_transition_loglik(
-                data.current, data.lag1, data.lag2,
+            can.ll <- ar2_stationary_loglik(
+                data.current, data.lag1, data.lag2, data.t1, data.t2,
                 phi1 = can.phi1, phi2 = phi2, moments = can.moments
             )
 
@@ -306,8 +314,8 @@ updatePhiAR2TS <- function(data, phi1, phi2, day.mar,
         )
 
         if (!is.null(can.moments)) {
-            can.ll <- ar2_transition_loglik(
-                data.current, data.lag1, data.lag2,
+            can.ll <- ar2_stationary_loglik(
+                data.current, data.lag1, data.lag2, data.t1, data.t2,
                 phi1 = phi1, phi2 = can.phi2, moments = can.moments
             )
 

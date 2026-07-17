@@ -1,0 +1,295 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1.1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=leftline,
+  framesep=6pt,
+  xleftmargin=10pt,
+  rulecolor=\color{gray!50},
+  backgroundcolor=\color{gray!5},
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\DeclareMathOperator{\hn}{HN}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\E}{\mathbb{E}}
+
+\title{\textbf{A stale comment, a silent failure}\\[2pt]
+\large Why \code{z.init = 0.01} destroyed the time-block forecast study}
+\author{Technical note}
+\date{12 July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The time-block forecast study
+(\code{code/analysis/time\_block\_forecast/simstudy/}) reported that the AR(2)
+model forecasts \emph{four times worse} than an i.i.d.-in-time baseline, with
+the gap growing monotonically in lead time. That result is an artifact of a
+single argument, \code{z.init = 0.01}, passed to \code{mcmc()} on the strength
+of a comment that was true when it was written and false by the time it was
+read. This note explains why the comment was wrong, derives the cascade from
+that one number to a predictive standard deviation of $104$ against a data
+marginal of $4.38$, and documents the verification. The deeper point is not the
+bug: it is that the workaround converted a \emph{loud} failure into a
+\emph{silent} one.
+\end{abstract}
+
+\section{The comment}
+
+\code{run-settings.R} carried this justification for overriding the default
+initial value of the latent skew process $z$:
+
+\begin{lstlisting}
+# z.init = 0 (the backend default) is fatal for the temporal/AR(2) z
+# update: hn.cop(0, sig) = qnorm(phn(0, sig)) = -Inf, the MH ratio R
+# becomes NaN, and the `if (!is.na(R))` guard in updateZTS_AR2
+# silently rejects every proposal -- z and phi.z stay stuck at 0,
+# producing all-NaN forecasts. A small positive initial value lets
+# hn.cop evaluate finitely on the very first iteration.
+fit <- mcmc(..., z.init = 0.01, ...)
+\end{lstlisting}
+
+Every sentence about the \emph{mechanism} is correct. The sentence about the
+\emph{default} is not.
+
+\section{What the backend actually does}
+
+The model couples $z$ to a latent Gaussian process through a half-normal
+copula. With $\sigma = \tau^{-1/2}$,
+\begin{equation}
+  z^\star \;=\; \operatorname{hn.cop}(z, \sigma)
+        \;=\; \Phi^{-1}\!\big(\operatorname{phn}(z,\sigma)\big)
+        \;=\; \Phi^{-1}\!\big(2\,\Phi(z/\sigma) - 1\big).
+  \label{eq:hncop}
+\end{equation}
+At $z = 0$ this gives $\Phi^{-1}(0) = -\infty$, and the Metropolis ratio
+degenerates to \code{NaN}. That failure was real, and it was \emph{fixed in the
+backend}. From \code{code/R/ar2/mcmc\_ar2.R:249--250}:
+
+\begin{lstlisting}
+if (is.null(z.init)) {
+    z.init <- 0.6745 / sqrt(tau.init)  # median of HN(1/sqrt(tau.init)) -> z.star = 0
+}
+\end{lstlisting}
+
+The signature default is \code{z.init = NULL}, \emph{not} $0$. When \code{NULL},
+$z$ is initialised at the \textbf{median of its own half-normal marginal}. This
+choice is exact: since $0.6745 = \Phi^{-1}(0.75)$, substituting
+$z = 0.6745\,\sigma$ into \eqref{eq:hncop} gives
+\begin{equation}
+  z^\star \;=\; \Phi^{-1}\!\big(2\Phi(0.6745) - 1\big)
+          \;=\; \Phi^{-1}(2 \times 0.75 - 1)
+          \;=\; \Phi^{-1}(0.5) \;=\; 0 ,
+\end{equation}
+\emph{dead centre} of the copula's Gaussian scale, for any $\tau$. The backend's
+own \code{README.md} documents this fix, its symptom, and its rationale --- and
+closes with the sentence that seals the trap:
+
+\begin{quote}
+\itshape ``Callers who pass \code{z.init} explicitly are unaffected.''
+\end{quote}
+
+\section{Why the comment was true once, and false later}
+
+The chronology is the whole story.
+
+\begin{enumerate}\itemsep2pt
+  \item The backend default \emph{was} $z.init = 0$. It produced $-\infty$, then
+        \code{NaN}, then a frozen chain. This is the bug the comment describes.
+  \item \code{run-settings.R} worked around it locally by passing
+        \code{z.init = 0.01}. The $-\infty$ disappeared; the study ran.
+  \item The backend was then fixed \emph{properly}, changing the default to
+        \code{NULL} $\mapsto$ the half-normal median, and documenting it.
+  \item The correct fix could not reach \code{run-settings.R}, precisely because
+        it passed \code{z.init} explicitly --- exactly the case the README
+        excludes.
+  \item Nobody removed the now-obsolete workaround, and its comment --- an
+        accurate description of a world that no longer existed --- kept the
+        workaround looking justified.
+\end{enumerate}
+
+The comment did not merely go stale. It \emph{actively defended} the line that
+had to be deleted.
+
+\section{What $0.01$ actually does}
+
+Take \code{tau.init = 1}, so $\sigma = 1$. Equation~\eqref{eq:hncop} gives
+
+\begin{center}
+\begin{tabular}{lcl}
+\toprule
+\code{z.init} & $z^\star = \operatorname{hn.cop}(z,1)$ & \\
+\midrule
+$0$                      & $-\infty$ & the original bug: \code{NaN}, chain frozen \\
+$0.01$ \emph{(the workaround)} & $\mathbf{-2.41}$ & finite, but a $2.4\sigma$ tail start \\
+$0.6745$ \emph{(the correct default)} & $\mathbf{0}$ & the centre of the copula scale \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The workaround did not restore the chain to a sensible starting point. It moved
+it from an \emph{impossible} one to an \emph{extremely improbable} one. A
+random-walk Metropolis chain started $2.4$ standard deviations into the tail of
+the very space it must explore does not, in practice, come back.
+
+\section{The cascade}
+
+\subsection{Step 1: $z$ freezes}
+
+Started at $z^\star = -2.41$, the chain never reaches the bulk. Across $20{,}000$
+iterations the fitted $z$ stays at $\approx 0.2$, while its own model
+distribution, $z \sim \hn(0,\sigma)$ with $\sigma \approx 2$, demands
+\begin{equation}
+  \E[z] \;=\; \sigma\sqrt{2/\pi} \;\approx\; 1.6 .
+  \label{eq:zmean}
+\end{equation}
+The fitted $z$ is a factor of $7$--$8$ below the value the model itself
+prescribes. Its maximum over the entire retained chain is $0.30$; in a healthy
+fit it reaches $15$.
+
+\subsection{Step 2: the AR coefficient chases the freeze}
+
+A frozen $z$ is, as a time series, nearly constant --- and a nearly constant
+series looks maximally persistent. The AR(2) update on $z^\star$ obliges,
+driving $\hat\phi_{1z} \to 1.11$ (truth: $0.80$), i.e.\ toward a unit root. The
+near-unit-root prior then pins $z$ \emph{harder}. The freeze is
+self-reinforcing: $\phi \mid z \to$ unit root if $z$ looks smooth; $z \mid \phi
+\to$ smooth if $\phi$ is a unit root.
+
+\subsection{Step 3: $\lambda$ and $\beta_0$ compensate}
+
+The data see the skew channel only through the \emph{product} $\lambda z$, in
+\begin{equation}
+  \mu \;=\; \beta_0 \;+\; \lambda\,\bar z .
+  \label{eq:ridge}
+\end{equation}
+This is a ridge: $(\beta_0, \lambda, \bar z)$ can slide along it freely provided
+$\mu$ is preserved. With $\bar z$ pinned $7\times$ too small, the sampler
+restores $\mu$ by sending $\lambda$ and $\beta_0$ to absurd values. All three
+blocks reproduce the data mean of $14.5$ \emph{exactly}:
+
+\begin{center}
+\begin{tabular}{lrrrl}
+\toprule
+ & $\beta_0$ & $\lambda$ & $\bar z$ & $\mu = \beta_0 + \lambda\bar z$ \\
+\midrule
+truth                  & $10$    & $+3$    & $\approx 1.6$ & $\approx 14.5$ \\
+block 1 (healthy)      & $10.36$ & $+2.91$ & $1.42$ & $\mathbf{14.50}$ \\
+block 3 (\emph{broken}) & $36.41$ & $\mathbf{-97.75}$ & $0.22$ & $\mathbf{14.92}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{This is why the failure is silent.} The likelihood is satisfied. The
+fitted mean is right. Nothing inside the fit looks wrong. Only the individual
+parameters are catastrophic --- and $\lambda$ has even flipped sign.
+
+\subsection{Step 4: the forecast exposes the inconsistency}
+
+\code{forecast\_block} is correct, and that is exactly why it detonates. It does
+not reuse the frozen $z$; it redraws $z$ from the model's own law,
+$z_{\text{fc}} \sim \hn(0, \tau_{\text{fc}}^{-1/2})$, which by
+\eqref{eq:zmean} has mean $\approx 1.6$. It then multiplies by the corrupted
+$\lambda$:
+\begin{equation}
+  \lambda \, z_{\text{fc}} \;\approx\; (-97.75)(1.6) \;\approx\; -156 ,
+  \qquad
+  \operatorname{sd}\big(\lambda z_{\text{fc}}\big)
+    \;=\; |\lambda|\,\sigma\sqrt{1 - 2/\pi} \;\approx\; 118 .
+\end{equation}
+Against a data marginal standard deviation of $4.38$, the observed predictive SD
+was $104$ and the predictive median was dragged far negative --- for a
+quantity whose data never leave $14.5 \pm 4.4$.
+
+The forecast is the \emph{only} place in the pipeline where $z$ is drawn from
+its model distribution rather than read from the stuck chain. It is therefore
+the only place the inconsistency can become visible. The forecaster was not the
+bug; it was the detector.
+
+\section{Verification}
+
+The chain was reproduced bit-for-bit (same seed, same sequential block order),
+then rerun with the single argument \code{z.init = 0.01} removed and nothing
+else changed.
+
+\begin{center}
+\begin{tabular}{lrrrrrr}
+\toprule
+& \multicolumn{3}{c}{\textbf{with} \code{z.init = 0.01}} & \multicolumn{3}{c}{\textbf{default} \code{z.init}} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+quantity (truth) & blk 1 & blk 2 & blk 3 & blk 1 & blk 2 & blk 3 \\
+\midrule
+$\bar z$ \hfill($\approx 1.6$)      & $1.42$ & $0.20$ & $0.22$ & $0.77$ & $1.46$ & $\mathbf{1.68}$ \\
+$\lambda$ \hfill($+3$)              & $2.91$ & $-55.8$ & $-97.8$ & $5.81$ & $2.90$ & $\mathbf{2.80}$ \\
+$\beta_0$ \hfill($10$)              & $10.36$ & $25.19$ & $36.41$ & $10.34$ & $10.45$ & $\mathbf{10.36}$ \\
+$\phi_{1z}$ \hfill($0.80$)          & $0.55$ & $0.94$ & $1.11$ & $0.61$ & $0.58$ & $\mathbf{0.62}$ \\
+\midrule
+predictive SD, lead 15 \hfill($4.38$) & $5.79$ & $\mathbf{41.9}$ & $\mathbf{104.4}$ & $9.89$ & $5.04$ & $\mathbf{4.94}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Deleting one argument returns $\lambda$ to $+2.80$, $\beta_0$ to $10.36$, $\bar
+z$ to $1.68$, and the lead-15 predictive SD to $4.94$ against a marginal of
+$4.38$ --- i.e.\ the forecast now converges to climatology, as an AR forecast
+must.
+
+\paragraph{Consequence.} Every score in the previous time-block study --- CRPS,
+Brier, energy, variogram --- was computed from this corrupted predictive sample
+and must be discarded. The headline finding, ``AR(2) forecasts four times worse
+than i.i.d.,'' was never a statement about temporal pooling. It was a statement
+about an initial value.
+
+\paragraph{Residual caveat.} The fix removes the catastrophic corner but not the
+ridge \eqref{eq:ridge}. In the repaired run, block~1 (the shortest prefix, $50$
+days) still drifts to $\lambda = 5.81$ against a truth of $3$, with $\bar z$
+correspondingly low --- the product $\lambda \bar z$ and $\mu$ remain correct.
+The $(\beta_0, \lambda, z)$ non-identifiability is a property of the model, not
+of this bug, and it deserves separate treatment.
+
+\section{The real lesson}
+
+The original bug was \textbf{loud}: $-\infty$, then \code{NaN}, then $\phi_z$
+identically zero for every iteration. It announced itself. Anyone looking at the
+output would have stopped.
+
+The workaround silenced it. With \code{z.init = 0.01} there is no $-\infty$, no
+\code{NaN}, no all-zero coefficient. There is a chain that mixes, a posterior
+that concentrates, a fitted mean that matches the data, and a set of scores that
+look entirely publishable. The failure did not go away; it went
+\emph{underground}, and it stayed there for a full study.
+
+\begin{quote}
+A workaround that removes the \emph{symptom} without removing the \emph{cause}
+does not make a system safer. It makes the next failure quieter.
+\end{quote}
+
+\paragraph{What should have caught it.} Two assertions, each one line, each
+checkable without any knowledge of this bug:
+
+\begin{enumerate}\itemsep2pt
+  \item \textbf{Self-consistency of the fit.} The model asserts $z \sim
+        \hn(0,\tau^{-1/2})$, hence $\E[z] = \tau^{-1/2}\sqrt{2/\pi}$. The fitted
+        $\bar z$ was $7\times$ smaller. \emph{A fit that violates its own
+        generative assumption by a factor of seven is not a fit.}
+  \item \textbf{Recovery of known truth.} This is a \emph{simulation} study: the
+        truth is $\lambda = +3$. The fit returned $\lambda = -98$. The sign alone
+        is disqualifying. Simulation studies have ground truth available for free
+        and should assert against it automatically.
+\end{enumerate}
+
+Neither assertion requires suspecting the initialisation. Either would have
+failed on the first block, in minutes, instead of after forty hours and a false
+conclusion.
+
+\end{document}

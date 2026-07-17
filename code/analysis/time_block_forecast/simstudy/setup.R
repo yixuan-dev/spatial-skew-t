@@ -22,12 +22,26 @@
 #   2 - weak AR(2)          phi = (0.12, -0.05) rho(F) = 0.224, h* = 3
 #   3 - moderate AR(2)      phi = (0.60, -0.30) rho(F) = 0.548, h* = 5
 #   4 - strong AR(2)        phi = (0.80, -0.35) rho(F) = 0.592, h* = 6
+#   5 - near-unit-root      phi = (0.15, 0.80)  rho(F) = 0.973, h* = 109
+#       (lag-2 dominant; ported from code/analysis/simstudy/setup.R
+#        phi_persist. Real roots 0.973 and -0.823, so the memory horizon
+#        approaches half the record -- the regime where AR(2) pooling
+#        should finally separate from i.i.d. in forecast scores.)
+#   6 - LONG MEMORY         ARFIMA(0, d, 0), d = 0.35 (Hurst 0.85)
+#   7 - LONG MEMORY         ARFIMA(0, d, 0), d = 0.45 (Hurst 0.95)
+#       (hyperbolic ACF rho(h) ~ h^{2d-1}: no finite-order AR reproduces it.
+#        The AR(2) fit is misspecified here by construction -- the question
+#        is whether its geometric-memory pooling still beats i.i.d. when the
+#        truth decays hyperbolically. Ported from the main simstudy's
+#        settings 17-19 grid; generator = Davies-Harte exact embedding in
+#        simulate_arfima_standard(), spec list(type = "arfima", d = d).)
 #
-# All four are SHORT-memory: a stationary AR(2) has geometrically decaying
-# ACF, rho(h) ~ rho(F)^h, so sum_h |rho(h)| < Inf. "Strong" means a longer
-# decorrelation time, not long memory (hyperbolic decay, e.g. ARFIMA(0,d,0)),
-# which no finite-order AR can reproduce. All three non-i.i.d. pairs have
-# complex roots (phi1^2 + 4*phi2 < 0), so their ACFs are damped sinusoids.
+# Settings 1-5 are SHORT-memory: a stationary AR(2) has geometrically
+# decaying ACF, rho(h) ~ rho(F)^h, so sum_h |rho(h)| < Inf. "Strong" means a
+# longer decorrelation time, not long memory. Settings 2-4 have complex
+# roots (phi1^2 + 4*phi2 < 0), so their ACFs are damped sinusoids; setting 5
+# has real roots and a slowly decaying, sign-alternating-component ACF.
+# Settings 6-7 are genuinely LONG-memory: sum_h |rho(h)| = Inf.
 #
 # All settings: skew-t (dist = "t"), K = 1 knot, lambda = 3.
 # With K = 1 the Voronoi membership is constant, so w carries no signal
@@ -78,18 +92,25 @@ dist.t <- "t"
 
 # AR(2) coefficient pair per setting (shared by tau*, z*, w*).
 phi.settings <- list(
-  c(0.00, 0.00),   # 1 - i.i.d. control
-  c(0.12, -0.05),  # 2 - weak
-  c(0.60, -0.30),  # 3 - moderate (reference case in the note)
-  c(0.80, -0.35)   # 4 - strong
+  c(0.00, 0.00),                  # 1 - i.i.d. control
+  c(0.12, -0.05),                 # 2 - weak
+  c(0.60, -0.30),                 # 3 - moderate (reference case in the note)
+  c(0.80, -0.35),                 # 4 - strong
+  c(0.15, 0.80),                  # 5 - near-unit-root (rho(F) = 0.973)
+  list(type = "arfima", d = 0.35),  # 6 - long memory, Hurst 0.85
+  list(type = "arfima", d = 0.45)   # 7 - long memory, Hurst 0.95
 )
-setting.label <- c("iid", "weak", "moderate", "strong")
+setting.label <- c("iid", "weak", "moderate", "strong", "nearunit",
+                   "lm35", "lm45")
 nsettings <- length(phi.settings)
 
 # fail loudly if any non-control pair leaves the stationarity triangle
 # (Definition 3 of the note); a non-stationary recursion would explode.
+# ARFIMA specs are stationary by their own d-range check in
+# simulate_arfima_standard() and skip the AR(2) triangle.
 for (setting in 2:nsettings) {
   pair <- phi.settings[[setting]]
+  if (is.list(pair) && identical(pair$type, "arfima")) next
   if (!check_ar2_stability(pair[1], pair[2])) {
     stop(sprintf(
       "Setting %d AR(2) pair phi=(%.3f, %.3f) is non-stationary.",
@@ -127,7 +148,8 @@ phi.path <- vector("list", length = nsettings)
 # ---- generation loop --------------------------------------------------
 for (setting in 1:nsettings) {
   pair <- phi.settings[[setting]]
-  is.iid <- all(pair == 0)
+  is.lm <- is.list(pair) && identical(pair$type, "arfima")
+  is.iid <- !is.lm && all(pair == 0)
   phi.arg <- if (is.iid) 0 else pair
 
   tau.t.setting <- array(NA, dim = c(nknots.t, nt, nsets))
@@ -152,17 +174,30 @@ for (setting in 1:nsettings) {
   tau.t[[setting]] <- tau.t.setting
   z.t[[setting]] <- z.t.setting
   knots.t[[setting]] <- knots.t.setting
-  phi.path[[setting]] <- list(
-    type = if (is.iid) "iid" else "fixed",
-    label = setting.label[setting],
-    phi1 = rep(pair[1], nt),
-    phi2 = rep(pair[2], nt),
-    phi_pair = pair
-  )
-  cat(sprintf(
-    "setting %d (%s): phi = (%.2f, %.2f) -- %d datasets generated\n",
-    setting, setting.label[setting], pair[1], pair[2], nsets
-  ))
+  if (is.lm) {
+    yw <- arfima_yw_projection(pair$d)
+    phi.path[[setting]] <- list(
+      type = "arfima", label = setting.label[setting],
+      d = pair$d, hurst = yw$hurst,
+      yw_ar1 = yw$ar1, yw_ar2 = yw$ar2
+    )
+    cat(sprintf(
+      "setting %d (%s): ARFIMA d = %.2f (Hurst %.2f) -- %d datasets generated\n",
+      setting, setting.label[setting], pair$d, yw$hurst, nsets
+    ))
+  } else {
+    phi.path[[setting]] <- list(
+      type = if (is.iid) "iid" else "fixed",
+      label = setting.label[setting],
+      phi1 = rep(pair[1], nt),
+      phi2 = rep(pair[2], nt),
+      phi_pair = pair
+    )
+    cat(sprintf(
+      "setting %d (%s): phi = (%.2f, %.2f) -- %d datasets generated\n",
+      setting, setting.label[setting], pair[1], pair[2], nsets
+    ))
+  }
 }
 
 # ---- save -------------------------------------------------------------

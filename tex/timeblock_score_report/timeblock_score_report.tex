@@ -1,0 +1,287 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1.05in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\DeclareMathOperator{\hn}{HN}
+\DeclareMathOperator{\sd}{sd}
+
+\title{\textbf{Time-block forecast scores: AR(2) versus i.i.d.\ temporal
+pooling}\\[2pt]
+\large Report on Experiments A and B (post \code{z.init} fix, assertion-guarded)}
+\author{Score report}
+\date{17 July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Two clean experiments compare the AR(2) skew-t model against the
+i.i.d.-in-time skew-t baseline under the time-block forecast protocol, by
+CRPS and by the Brier score at the $q_{95}$ threshold, resolved by forecast
+lead time. \textbf{Experiment A} (setting 4, five expanding-window blocks
+$\times$ 5 datasets): the models tie once the reflected-ridge blocks are
+excluded; the only visible AR(2) gain sits at lead 1 and is gone by lead 3,
+exactly as the geometric memory of $\phi = (0.80, -0.35)$ predicts.
+\textbf{Experiment B} (block 1 only, guarded fits, datasets 1--10): at the
+same setting 4 the tie replicates; at the near-unit-root setting 5,
+$\phi = (0.15, 0.80)$, the AR(2) advantage becomes real and large --- CRPS
+$-31\%$ over leads 1--5 (Wilcoxon $p = 0.040$; sensitivity $p = 0.010$--$0.021$)
+and a Brier improvement that is \emph{flat in lead time} (AR(2) better at 14
+of 15 leads, mean $-0.008$), consistent with a memory horizon
+($h^\ast \approx 109$ days) that dwarfs the 15-day window. The advantage is a
+monotone function of temporal persistence, as the score-ceiling formula
+$\Delta\mathrm{CRPS}/\mathrm{CRPS} = 1 - \sqrt{1 - \mathrm{SNR}\,\kappa_z(h)}$
+requires.
+\end{abstract}
+
+\section{Data-generating processes and design}
+
+All settings share one skeleton and differ \emph{only} in the temporal
+dependence of the latent processes
+(\code{code/analysis/time\_block\_forecast/simstudy/setup.R}):
+
+\begin{center}
+\small
+\begin{tabular}{lp{0.72\textwidth}}
+\toprule
+component & specification \\
+\midrule
+marginal law & skew-$t$: $y_{st} = \mathbf{x}'\boldsymbol\beta + \lambda z_t
++ \varepsilon_{st}/\sqrt{\tau_t}$, $\tau \sim$ Gamma$(6, 16)$ mixing
+($t$-tails, $\nu \approx 6$), $\lambda = 3$ (right skew), $\beta_0 = 10$ \\
+skew latent & $z_t \mid \tau_t \sim \hn(0, \tau_t^{-1/2})$, global
+($K = 1$ knot, so the temporal signal lives entirely in $\tau, z$) \\
+spatial & Mat\'ern $\nu = 0.5$ (exponential), range $1$, spatial
+proportion $\gamma = 0.9$; $144$ sites uniform on $[0,10]^2$ \\
+temporal & Gaussian-copula \textbf{AR(2)} on $\tau^\star, z^\star$ ($w^\star$),
+coefficients $\phi$ per setting \\
+record & $n_t = 200$ days; expanding-window blocks, each forecasting
+$H = 15$ days \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\small
+\begin{tabular}{clccl}
+\toprule
+id & label & $\phi = (\phi_1, \phi_2)$ & spectral radius & memory
+$h^\ast$ ($\varepsilon = .05$) \\
+\midrule
+4 & strong     & $(0.80, -0.35)$ & $0.592$ & 6 days (complex roots) \\
+5 & near-unit-root & $(0.15, 0.80)$ & $0.973$ & 109 days (real roots,
+lag-2 dominant) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Protocol.} Fit on a contiguous prefix $y[, 1\!:\!T_o]$ (all sites
+observed), forecast the window $(T_o, T_o + 15]$ with the seam-conditioned
+recursion of \code{forecast\_block()}. Scores per lead $h$: CRPS
+(\code{crps\_sample}, averaged over sites) and the Brier score for exceedance
+of the validation block's $q_{95}$, identical thresholds for both methods,
+paired by dataset. Both experiments post-date the \code{z.init} repair; all
+Experiment-B fits passed the pre-registered consistency guard (truth
+recovery $\wedge$ predictive spread; see the companion note
+\code{tex/guard\_effect}), which replaced 13 of 40 attempt-0 chains.
+Experiment A excludes the four blocks flagged by the same assertions
+(reflected-ridge fits; \code{tex/lambda\_phiz\_ridge}).
+
+\section{Experiment A: setting 4, five blocks $\times$ five datasets}
+
+Expanding-window blocks with seams at $T_o = 50, 80, 110, 140, 170$;
+$21$ clean (dataset, block) pairs.
+
+\begin{table}[ht]
+\centering
+\caption{Experiment A, setting 4 (strong), clean 21 blocks. Mean score by
+lead; gap $=$ AR(2) $-$ i.i.d.\ (negative favours AR(2)).}
+\label{tab:expA}
+\small
+\begin{tabular}{crrrrrr}
+\toprule
+lead $h$ & \multicolumn{3}{c}{CRPS} & \multicolumn{3}{c}{Brier $q_{95}$} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+ & i.i.d. & AR(2) & gap & i.i.d. & AR(2) & gap \\
+\midrule
+1 & 1.822 & 1.514 & $-0.308$ & 0.0277 & 0.0190 & $-0.0087$ \\
+2 & 2.120 & 2.048 & $-0.072$ & 0.0585 & 0.0552 & $-0.0034$ \\
+3 & 2.273 & 2.288 & $+0.015$ & 0.0509 & 0.0493 & $-0.0016$ \\
+4 & 2.933 & 2.940 & $+0.008$ & 0.0644 & 0.0644 & $+0.0000$ \\
+5 & 3.330 & 3.318 & $-0.012$ & 0.0977 & 0.0989 & $+0.0012$ \\
+6 & 2.785 & 2.941 & $+0.156$ & 0.0692 & 0.0801 & $+0.0109$ \\
+7 & 2.285 & 2.261 & $-0.024$ & 0.0518 & 0.0523 & $+0.0006$ \\
+8 & 2.611 & 2.576 & $-0.035$ & 0.0694 & 0.0701 & $+0.0007$ \\
+9 & 1.968 & 1.991 & $+0.023$ & 0.0298 & 0.0301 & $+0.0003$ \\
+10 & 2.150 & 2.062 & $-0.088$ & 0.0679 & 0.0603 & $-0.0076$ \\
+11 & 2.055 & 2.085 & $+0.030$ & 0.0403 & 0.0417 & $+0.0014$ \\
+12 & 2.372 & 2.520 & $+0.148$ & 0.0554 & 0.0608 & $+0.0053$ \\
+13 & 3.087 & 3.232 & $+0.145$ & 0.0712 & 0.0767 & $+0.0055$ \\
+14 & 2.350 & 2.267 & $-0.083$ & 0.0205 & 0.0231 & $+0.0026$ \\
+15 & 2.432 & 2.298 & $-0.134$ & 0.0768 & 0.0718 & $-0.0050$ \\
+\midrule
+1--5 & 2.495 & 2.422 & $-0.074$ & 0.0599 & 0.0574 & $-0.0025$ \\
+1--15 & 2.438 & 2.423 & $-0.015$ & 0.0568 & 0.0569 & $+0.0001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Reading.} The AR(2) gain is visible exactly where geometric memory
+puts it: lead 1 ($-0.308$ CRPS, $-0.0087$ Brier, both the largest gaps in
+the table) and residually lead 2; from lead 3 onward the gaps oscillate
+around zero at the noise scale. Pooled over all leads the models tie
+(paired two-sided tests over the 21 blocks: Brier $p = 0.97$, CRPS
+$p = 0.78$). With spectral radius $0.592$, the seam state is worth
+$\kappa_z(h) \approx 0.59^h$ of predictable signal: about a third at
+$h = 1$ and effectively nothing by $h = 5$ --- the lead profile of
+Table~\ref{tab:expA} is that decay, read through two proper scores.
+
+\section{Experiment B: block 1, guarded, datasets 1--10}
+
+Block 1 trains on $50$ days and forecasts days $51$--$65$. Every kept fit
+passed the guard; setting-5 datasets $2$ and $8$ are excluded from the
+primary analysis (flagged; sensitivity below).
+
+\begin{table}[ht]
+\centering
+\caption{Experiment B, setting 4 (strong), $n = 10$ datasets.}
+\label{tab:expB4}
+\small
+\begin{tabular}{crrrrrr}
+\toprule
+lead $h$ & \multicolumn{3}{c}{CRPS} & \multicolumn{3}{c}{Brier $q_{95}$} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+ & i.i.d. & AR(2) & gap & i.i.d. & AR(2) & gap \\
+\midrule
+1 & 2.550 & 2.275 & $-0.275$ & 0.0486 & 0.0552 & $+0.0066$ \\
+2 & 3.169 & 3.141 & $-0.028$ & 0.0923 & 0.0922 & $-0.0001$ \\
+3 & 1.749 & 1.766 & $+0.017$ & 0.0281 & 0.0236 & $-0.0045$ \\
+4 & 1.861 & 1.841 & $-0.020$ & 0.0414 & 0.0398 & $-0.0016$ \\
+5 & 1.996 & 2.011 & $+0.015$ & 0.0524 & 0.0540 & $+0.0015$ \\
+6 & 2.244 & 2.259 & $+0.014$ & 0.0333 & 0.0351 & $+0.0019$ \\
+7 & 2.628 & 2.660 & $+0.032$ & 0.0930 & 0.0938 & $+0.0008$ \\
+8 & 1.775 & 1.827 & $+0.051$ & 0.0358 & 0.0390 & $+0.0031$ \\
+9 & 1.649 & 1.685 & $+0.035$ & 0.0255 & 0.0262 & $+0.0007$ \\
+10 & 2.172 & 2.143 & $-0.029$ & 0.0936 & 0.0915 & $-0.0020$ \\
+11 & 1.676 & 1.664 & $-0.012$ & 0.0333 & 0.0347 & $+0.0013$ \\
+12 & 2.132 & 2.096 & $-0.036$ & 0.0774 & 0.0762 & $-0.0011$ \\
+13 & 2.589 & 2.543 & $-0.046$ & 0.1410 & 0.1368 & $-0.0043$ \\
+14 & 1.805 & 1.808 & $+0.003$ & 0.0311 & 0.0324 & $+0.0013$ \\
+15 & 2.067 & 2.058 & $-0.009$ & 0.0694 & 0.0682 & $-0.0013$ \\
+\midrule
+1--5 & 2.265 & 2.207 & $-0.058$ & 0.0526 & 0.0530 & $+0.0004$ \\
+1--15 & 2.137 & 2.118 & $-0.019$ & 0.0597 & 0.0599 & $+0.0002$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Experiment B, setting 5 (near-unit-root), clean $n = 8$ datasets.
+AR(2) is better on CRPS at 12 of 15 leads and on Brier at \textbf{14 of 15}
+leads.}
+\label{tab:expB5}
+\small
+\begin{tabular}{crrrrrr}
+\toprule
+lead $h$ & \multicolumn{3}{c}{CRPS} & \multicolumn{3}{c}{Brier $q_{95}$} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+ & i.i.d. & AR(2) & gap & i.i.d. & AR(2) & gap \\
+\midrule
+1 & 2.120 & 1.531 & $-0.588$ & 0.0529 & 0.0437 & $-0.0092$ \\
+2 & 3.366 & 1.879 & $-1.487$ & 0.0651 & 0.0554 & $-0.0097$ \\
+3 & 2.685 & 2.119 & $-0.567$ & 0.0718 & 0.0719 & $+0.0001$ \\
+4 & 2.788 & 1.552 & $-1.236$ & 0.0258 & 0.0172 & $-0.0087$ \\
+5 & 2.516 & 2.172 & $-0.344$ & 0.0956 & 0.0876 & $-0.0080$ \\
+6 & 2.717 & 1.979 & $-0.738$ & 0.0285 & 0.0184 & $-0.0101$ \\
+7 & 2.551 & 2.181 & $-0.371$ & 0.0709 & 0.0563 & $-0.0146$ \\
+8 & 2.845 & 2.121 & $-0.724$ & 0.0470 & 0.0384 & $-0.0086$ \\
+9 & 2.600 & 2.508 & $-0.092$ & 0.0804 & 0.0706 & $-0.0098$ \\
+10 & 3.786 & 2.736 & $-1.050$ & 0.1091 & 0.1036 & $-0.0055$ \\
+11 & 1.713 & 1.849 & $+0.135$ & 0.0213 & 0.0120 & $-0.0093$ \\
+12 & 3.225 & 2.402 & $-0.824$ & 0.0806 & 0.0746 & $-0.0061$ \\
+13 & 1.732 & 1.869 & $+0.137$ & 0.0332 & 0.0260 & $-0.0072$ \\
+14 & 2.739 & 2.347 & $-0.392$ & 0.0512 & 0.0443 & $-0.0069$ \\
+15 & 1.889 & 2.005 & $+0.116$ & 0.0260 & 0.0180 & $-0.0081$ \\
+\midrule
+1--5 & 2.695 & 1.851 & $-0.844$ & 0.0623 & 0.0552 & $-0.0071$ \\
+1--15 & 2.618 & 2.083 & $-0.535$ & 0.0573 & 0.0492 & $-0.0081$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Paired one-sided tests ($H_1$: AR(2) better), per-dataset units.
+``Sens.'' keeps the flagged datasets ($n = 10$).}
+\label{tab:tests}
+\small
+\begin{tabular}{llrrrr}
+\toprule
+setting & endpoint & gap & $t$ $p$ & Wilcoxon $p$ & sens.\ $t$/W $p$ \\
+\midrule
+4 & CRPS, leads 1--5        & $-0.058$  & $0.135$ & $0.154$ & --- \\
+4 & Brier $q_{95}$, 1--5    & $+0.0004$ & $0.580$ & $0.541$ & --- \\
+4 & CRPS, 1--15             & $-0.019$  & $0.216$ & $0.270$ & --- \\
+4 & Brier $q_{95}$, 1--15   & $+0.0002$ & $0.546$ & $0.500$ & --- \\
+\midrule
+5 & CRPS, leads 1--5        & $-0.844$  & $0.066$ & $\mathbf{0.040}$ & $0.041$ / $\mathbf{0.021}$ \\
+5 & Brier $q_{95}$, 1--5    & $-0.0071$ & $0.232$ & $0.417$ & $0.224$ / $0.305$ \\
+5 & CRPS, 1--15             & $-0.535$  & $0.085$ & $\mathbf{0.021}$ & $0.043$ / $\mathbf{0.010}$ \\
+5 & Brier $q_{95}$, 1--15   & $-0.0081$ & $0.119$ & $0.221$ & $0.124$ / $0.380$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Reading the tables}
+
+\paragraph{1. The advantage is a dose response in persistence.} Pooled
+CRPS gap (leads 1--5): $-0.074$ (Exp.~A, setting 4), $-0.058$ (Exp.~B,
+setting 4), $-0.844$ (Exp.~B, setting 5). Raising the spectral radius from
+$0.59$ to $0.97$ amplifies the advantage $\sim\!14\times$, from
+undetectable to significant. This is what the ceiling formula
+$\Delta\mathrm{CRPS}/\mathrm{CRPS} = 1 - \sqrt{1 - \mathrm{SNR}\,
+\kappa_z(h)}$ demands: the seam state is only worth what $\kappa_z(h)$
+retains of it.
+
+\paragraph{2. The lead profile matches the memory, in both regimes.}
+Setting 4 ($h^\ast = 6$ days): the gain lives at leads 1--2 and dies by
+lead 3, in \emph{both} experiments (Tables \ref{tab:expA} and
+\ref{tab:expB4}, lead-1 CRPS gaps $-0.308$ and $-0.275$ --- a clean
+replication across protocols). Setting 5 ($h^\ast = 109$ days): the gain
+does \emph{not} decay inside the window --- the Brier advantage is
+essentially flat, $-0.006$ to $-0.010$ at nearly every lead
+(Table~\ref{tab:expB5}), because a near-unit-root latent state is still
+informative $15$ days out.
+
+\paragraph{3. CRPS detects what Brier cannot yet.} At setting 5 the two
+scores agree in direction (Brier better at 14/15 leads) but not in
+significance: CRPS is significant ($W$ $p = 0.021$--$0.040$; sensitivity
+$0.010$--$0.021$), Brier is not ($p \ge 0.12$). CRPS integrates the whole
+predictive distribution; the $q_{95}$ Brier scores a single binary tail
+event per site-day and carries an order of magnitude more sampling noise
+per dataset. Powering the Brier endpoint to significance at the observed
+gap ($\approx -0.008$, between-dataset SD $\approx 0.02$) needs roughly
+$30$--$50$ paired datasets; extending the guarded run is mechanical
+(\code{run\_block1\_guarded.R --datasets=11:50}).
+
+\paragraph{4. What the tie at setting 4 means.} It is not evidence that
+AR(2) pooling is useless; it is the statement that at $h^\ast = 6$ days,
+$14$ of the $15$ scored leads lie beyond the memory of the process. Any
+study that pools such leads has diluted its own signal --- which is why the
+setting-5 row, not more setting-4 data, was the correct next experiment.
+
+\paragraph{Provenance.} Experiment A: \code{simstudy/results/4-*.RData}
+(post-fix rerun), scored by \code{scores.R}; clean-block set from
+\code{fit\_diag\_4.RData}. Experiment B:
+\code{block1\_positive\_control/results/blk1-*.RData} (guarded driver),
+scored by the same protocol. Guard counterfactual: companion note
+\code{tex/guard\_effect}.
+
+\end{document}

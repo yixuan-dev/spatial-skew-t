@@ -42,6 +42,35 @@
 # fits already in results_nonsta/ are keyed by setting id.  Their code path and
 # seeds are untouched.
 #
+# ---------------------------------------------------------------------
+# NON-t EXTENSION (settings 13-21).  Settings 1-12 all share the skew-t
+# core, so the fitted skew-t is CORRECTLY specified at large K -- a
+# confound for every "MRTS helps/hurts" conclusion.  Settings 13-21 drop
+# rpotspatTS entirely: nonlinear mean surfaces (orthogonalised against the
+# K=0 design [1, s1, s2], standardised to sd 11) plus Gaussian-GP errors
+# (sinh-arcsinh transformed for setting 18).  sigma.g = 4 was calibrated by
+# non_stationary/nont_precheck.R to put the oracle Brier ceiling R* in the
+# 0.4-0.5 band (median 0.446), comparable to settings 11/12.
+#
+#  ID  surf_type        mean surface                       error
+#  --  ---------------  ---------------------------------  --------------
+#  13  franke           Franke's function (multiscale)     Gaussian GP
+#  14  ridge_curved     curved (banana) Gaussian ridge     Gaussian GP
+#  15  annulus          Ricker ring, r0 = 3, w = 1.5       Gaussian GP
+#  16  sigmoid_front    tanh arc front                     Gaussian GP
+#  17  gp_mean          GP draw per dataset, fixed in t    Gaussian GP
+#  18  franke_sas       same surface as 13                 sinh-arcsinh GP
+#  19  poly2            bowl + saddle (2nd-order poly)     Gaussian GP
+#  20  transform_mix    log + exp-decay + ratio terms      Gaussian GP
+#  21  nonsmooth        hinge + |.| (C^0 creases)          Gaussian GP
+#
+# simdata_nonsta.RData carries all 21 settings (the 13-21 extension was
+# generated as simdata_nonsta_ext.RData, verified against the frozen
+# original by non_stationary/nont_verify.R -- settings 1-12 bit-identical
+# -- and then merged back on 2026-07-17).  Settings 1-12 regenerate
+# bit-for-bit, so existing fits in results_nonsta/ keyed by setting id
+# remain valid.
+#
 # References: see non_stationary/nonsta_settings_design.md
 #########################################################################
 
@@ -54,6 +83,9 @@ library(SpatialTools)
 source("../../R/ar2/auxfunctions.R")
 # Exposes ps_cov(), ps_cov_iso(), fuentes_cov(), gh_transform(), to_correlation()
 source("non_stationary/ns_cov_builders.R")
+# Exposes the settings 13-21 surface builders, ortho_std(), sas_transform(),
+# sas_moments(), matern_cor()
+source("non_stationary/nont_builders.R")
 
 # Pure-R override of mem() to avoid the Rcpp build of g.Rcpp.
 # With nknots = 1 every site maps to knot 1, but keep the generic form.
@@ -72,35 +104,59 @@ rho.t       <- 1
 tau.alpha.t <- 3
 tau.beta.t  <- 8
 
-# All settings are skew-t-1
+# Settings 1-12 are skew-t-1; settings 13-21 are the non-t extension
 surf.type <- c("invariant", "varying", "ns_dependence",
                "ps_cov", "ps_add", "covdep_cov", "covdep_add",
-               "fuentes_cov", "gh_marginal", "lambda_varying")
+               "fuentes_cov", "gh_marginal", "lambda_varying",
+               "invariant_strong", "mrts_multibump",
+               "franke", "ridge_curved", "annulus", "sigmoid_front",
+               "gp_mean", "franke_sas", "poly2", "transform_mix",
+               "nonsmooth")
 nsettings <- length(surf.type)
+nont.first <- 13L                       # settings >= this skip rpotspatTS
 
-dist.nonsta   <- rep("t", nsettings)
-nknots.nonsta <- rep(1L,  nsettings)
-lambda.nonsta <- rep(3,   nsettings)   # setting 10 varies lambda(s) around this
+dist.nonsta   <- c(rep("t", 12),
+                   rep("gauss", 5), "gauss_sas", rep("gauss", 3))
+nknots.nonsta <- rep(1L,  nsettings)    # >= 13: dims of the NA tau/z/knots arrays
+lambda.nonsta <- c(rep(3, 12),          # setting 10 varies lambda(s) around this
+                   rep(NA_real_, 9))    # no skew term in the non-t settings
 
 # Which moment each setting perturbs, and how it is injected.
 moment.nonsta <- c("mean", "mean", "dependence",
                    "dependence", "dependence", "dependence", "dependence",
-                   "dependence", "tails", "skewness")
+                   "dependence", "tails", "skewness",
+                   "mean", "mean",
+                   rep("mean", 9))
 route.nonsta  <- c("mean", "mean", "additive",
                    "replace_C", "additive", "replace_C", "additive",
-                   "replace_C", "additive", "skew_term")
+                   "replace_C", "additive", "skew_term",
+                   "mean", "mean",
+                   rep("mean", 9))
 ref.nonsta    <- c("Tzeng & Huang (2018)", "Tzeng & Huang (2018)",
                    "Cressie & Johannesson (2008)",
                    "Paciorek & Schervish (2006)", "Paciorek & Schervish (2006)",
                    "Schmidt et al. (2011); Risser & Calder (2015)",
                    "Schmidt et al. (2011); Risser & Calder (2015)",
                    "Fuentes (2001, 2002)", "Xu & Genton (2017)",
-                   "Morris et al. (2017) assumption violated")
+                   "Morris et al. (2017) assumption violated",
+                   "Tzeng & Huang (2018), high-SNR",
+                   "multi-bump mean showcase (data-limited resolution)",
+                   "Franke (1979)", "curved ridge (direction-varying)",
+                   "Ricker annulus (non-monotone radial)",
+                   "tanh arc front (steepest recoverable)",
+                   "random smooth mean (GP function class)",
+                   "Jones & Pewsey (2009) sinh-arcsinh error",
+                   "2nd-order polynomial (regression terms)",
+                   "log/exp/ratio transforms (regression terms)",
+                   "hinge + |.| creases (C^0 vs C^inf basis)")
 
-# A/B pairs share a base seed so the underlying skew-t draw is identical:
-# setting 5 borrows setting 4's, setting 7 borrows setting 6's.  Settings 1-3
-# map to themselves, which reproduces the original seeds exactly.
-pair.seed <- c(1, 2, 3, 4, 4, 6, 6, 8, 9, 10)
+# A/B pairs share a base seed so the underlying draw is identical:
+# setting 5 borrows setting 4's, setting 7 borrows setting 6's, and setting 18
+# borrows setting 13's (same Franke mean, same Gaussian innovations -- only the
+# sinh-arcsinh transform differs).  Settings 1-3 map to themselves, which
+# reproduces the original seeds exactly.
+pair.seed <- c(1, 2, 3, 4, 4, 6, 6, 8, 9, 10, 11, 12,
+               13, 14, 15, 16, 17, 13, 19, 20, 21)
 
 # -----------------------------------------------------------------------
 # Non-stationary surface controls (Tzeng & Huang 2018, Scenario 1)
@@ -119,6 +175,62 @@ c2        <- c(0.75, 0.25)   # f2 centre
 surf.scale <- 1.0
 a.fixed   <- c(5, 3) * surf.scale   # time-invariant coefficients (setting 1)
 M.var     <- diag(c(25, 9)) * surf.scale^2  # Var(w1, w2) (setting 2)
+
+# -----------------------------------------------------------------------
+# Setting 11: the SAME surface as setting 1, scaled up 3x.  This is the BRIER
+# POSITIVE CONTROL, and it exists because setting 1 turns out to be incapable of
+# being one.
+#
+# MRTS only touches the fixed-effect mean and beta is pooled over time, so the
+# most any K can do is recover the TIME-AVERAGED mean surface.  The best relative
+# Brier a mean basis could ever achieve is therefore
+#
+#   R* = BS(true mean surface) / BS(spatial constant),
+#
+# computable with no MCMC at all (see the oracle calculation in the design doc).
+# At surf.scale = 1 -- i.e. setting 1 -- that ceiling is R* = 0.86, so even a
+# PERFECT mean basis buys at most 14% of Brier; we measured 1.5%.  Setting 1 was
+# never able to demonstrate that MRTS helps the Brier score, which left every
+# other setting's Brier null uninterpretable ("maybe MRTS never helps").
+#
+# surf.scale.strong = 3 puts sd(mu) = 11.0 against a predictive sd of 7.5
+# (SNR 1.7) and drops the ceiling to R* = 0.375.  That is an unambiguous
+# positive control.
+# -----------------------------------------------------------------------
+surf.scale.strong <- 3.0
+a.fixed.strong    <- c(5, 3) * surf.scale.strong   # = c(15, 9); sd(g) = 11.04
+
+# -----------------------------------------------------------------------
+# Setting 12: a RICH mean surface that showcases where MRTS earns its keep.
+# Settings 1/11 are only two cosine bumps -- so low-rank that MRTS's projection
+# recovery is 90% done by K=5, showing no reason to want a large basis. Setting
+# 12 is SIX medium Gaussian bumps at irregular locations with alternating signs
+# (width 0.16 = 1.6 units), standardised to sd = 11 (high SNR, matching 11).
+#
+# Its noise-free MRTS projection recovery (mrts_recovery_curve.R) declines
+# gradually -- 0.71 at K=5, 0.19 at K=15, 0.06 at K=50 -- versus the 2-bump
+# surface's 0.21 at K=5. THAT extended elbow is the point: a rich mean needs a
+# large K, and MRTS delivers it.
+#
+# A finer (high-frequency) component was tested and dropped: on this 100-train/
+# 44-test geometry a 3-cycle ripple is UN-recoverable (MRTS overfits the train
+# sites and extrapolates wildly at held-out sites, projection error rising with
+# K). MRTS's usable resolution is capped by site density -- a genuine finding,
+# recorded in nonsta_settings_design.md. Six medium bumps sit just inside that
+# recoverable ceiling.
+#
+# Centres are the realisation of set.seed(7); runif(6, .15, .85), hardcoded so
+# the surface is RNG-independent. Time-invariant -> pooled beta recovers it.
+# The surface itself (g.multibump) is built below, once s01 exists.
+# -----------------------------------------------------------------------
+ms.par <- list(
+  centers = rbind(
+    c(0.8422, 0.3880), c(0.4284, 0.8304), c(0.2310, 0.2661),
+    c(0.1988, 0.4714), c(0.3206, 0.2702), c(0.7044, 0.3120)),
+  signs = c(1, -1, 1, -1, 1, -1),
+  width = 0.16,
+  target_sd = 11
+)
 
 # -----------------------------------------------------------------------
 # Sites & covariates (same RNG seed and grid as setup.R / setup_def.R)
@@ -141,6 +253,59 @@ s01 <- s / 10
 f1  <- cos(    pi * sqrt((s01[, 1] - c1[1])^2 + (s01[, 2] - c1[2])^2))
 f2  <- cos(2 * pi * sqrt((s01[, 1] - c2[1])^2 + (s01[, 2] - c2[2])^2))
 f.basis <- cbind(f1 = f1, f2 = f2)   # ns x 2  (the ground-truth surface basis)
+
+# Setting 12 surface (see ms.par above): 6 alternating-sign Gaussian bumps,
+# standardised to sd = 11.  Time-invariant, so pooled beta can recover it.
+g.multibump.raw <- rowSums(sapply(seq_len(nrow(ms.par$centers)), function(k) {
+  d2 <- (s01[, 1] - ms.par$centers[k, 1])^2 + (s01[, 2] - ms.par$centers[k, 2])^2
+  ms.par$signs[k] * exp(-d2 / (2 * ms.par$width^2))
+}))
+g.multibump <- ms.par$target_sd *
+  (g.multibump.raw - mean(g.multibump.raw)) / sd(g.multibump.raw)  # ns-vector, sd 11
+
+# -----------------------------------------------------------------------
+# Settings 13-21: non-t DGPs.  Every mean surface is orthogonalised against
+# the K=0 design [1, s1, s2] (so sd 11 measures only what the baseline
+# cannot fit) and standardised to sd 11.  Errors are sigma.g * (C.stat
+# Gaussian GP), i.i.d. in time; setting 18 pushes the same innovations
+# through the sinh-arcsinh transform (standardised by MC moments, like the
+# g-and-h of setting 9).
+#
+# Constants fixed by non_stationary/nont_precheck.R:
+#   sigma.g = 4          -> oracle Brier ceiling R* median 0.446 (band .4-.5)
+#   annulus width = 1.5  -> projection error declines monotonically with K
+#                           (1.2 was too fine: error ROSE around K = 15)
+#   franke dip unwidened -> recoverable (0.07 at K = 50)
+# -----------------------------------------------------------------------
+sigma.g <- 4
+
+g.nont <- list(
+  franke        = ortho_std(franke_fn(s01),             s),
+  ridge_curved  = ortho_std(ridge_fn(s01),              s),
+  annulus       = ortho_std(annulus_fn(s, width = 1.5), s),
+  sigmoid_front = ortho_std(front_fn(s),                s),
+  poly2         = ortho_std(poly2_fn(s01),              s),
+  transform_mix = ortho_std(transform_mix_fn(s),        s),
+  nonsmooth     = ortho_std(nonsmooth_fn(s),            s)
+)
+g.nont$franke_sas <- g.nont$franke   # setting 18 = setting 13's surface
+
+# Setting 17: one random smooth mean per dataset (fixed across t, so the
+# pooled-beta mean channel can recover it).  Matern nu = 1.5, range 2 --
+# smoother and longer-ranged than the exponential error.
+gpmean.par <- list(range = 2, smoothness = 1.5, seed.base = 860000)
+L.gpmean   <- t(chol(matern_cor(s, range = gpmean.par$range,
+                                smoothness = gpmean.par$smoothness)))
+G.gpmean <- sapply(seq_len(nsets), function(set) {
+  set.seed(gpmean.par$seed.base + set)
+  ortho_std(as.vector(L.gpmean %*% rnorm(ns)), s)
+})                                       # ns x nsets, one surface per column
+
+# Setting 18: sinh-arcsinh error, X = sinh(delta * asinh(Z) + eps).
+# eps = 0.8 gives a right skew comparable to the skew-t core's; delta = 1
+# keeps the tails light (all moments finite) -- skewed but decisively non-t.
+sas.par <- list(eps = 0.8, delta = 1)
+sas.mom <- sas_moments(sas.par$eps, sas.par$delta)
 
 # -----------------------------------------------------------------------
 # Setting 3 control: NON-STATIONARY DEPENDENCE injected as a mean-zero,
@@ -329,6 +494,25 @@ for (setting in seq_len(nsettings)) {
   cov.type.setting <- if (is.null(C.err)) "matern" else "precomputed"
 
   for (set in seq_len(nsets)) {
+    # ---- Non-t settings (13-21): no rpotspatTS ----------------------------
+    # y = 10 + g(s) + sigma.g * (C.stat Gaussian GP), i.i.d. in time.
+    # Setting 18 shares setting 13's base seed, so Z is IDENTICAL and the
+    # sinh-arcsinh transform is the only difference (A/B pair).  tau/z/knots
+    # stay NA for these settings; scores.R reads only truemean.field.
+    if (setting >= nont.first) {
+      set.seed(pair.seed[setting] * 1000 + set)
+      Z <- L.stat %*% matrix(rnorm(ns * nt), ns, nt)
+      err <- if (stype == "franke_sas") {
+        sigma.g * (sas_transform(Z, sas.par$eps, sas.par$delta) - sas.mom$mean) / sas.mom$sd
+      } else {
+        sigma.g * Z
+      }
+      g_s <- if (stype == "gp_mean") G.gpmean[, set] else g.nont[[stype]]
+      y[, , set, setting] <- 10 + g_s + err   # g_s recycles down columns
+      truemean.field[[setting]][, set] <- 10 + g_s
+      next
+    }
+
     # Reproducible skew-t draw.  A/B pairs share a base seed (pair.seed), so
     # settings 4/5 and 6/7 get an identical underlying draw and differ only in
     # how the non-stationarity is injected.  Settings 1-3 map to themselves,
@@ -362,6 +546,18 @@ for (setting in seq_len(nsettings)) {
       g_s <- as.vector(f.basis %*% a.fixed)        # ns-vector, constant in t
       data$y <- data$y + matrix(g_s, ns, nt)
       truemean.field[[setting]][, set] <- 10 + g_s
+
+    } else if (stype == "invariant_strong") {
+      # Same surface as setting 1, 3x the amplitude: the Brier positive control.
+      g_s <- as.vector(f.basis %*% a.fixed.strong)
+      data$y <- data$y + matrix(g_s, ns, nt)
+      truemean.field[[setting]][, set] <- 10 + g_s
+
+    } else if (stype == "mrts_multibump") {
+      # Six medium Gaussian bumps, sd 11, time-invariant: the MRTS showcase --
+      # rich enough that recovery needs a large K (see mrts_recovery_curve.R).
+      data$y <- data$y + matrix(g.multibump, ns, nt)
+      truemean.field[[setting]][, set] <- 10 + g.multibump
 
     } else if (stype == "varying") {
       # Tzeng time-varying weights, drawn reproducibly per dataset.
@@ -452,8 +648,11 @@ save(
   ns, nt, s, nsets, ntest, x,
   # unified truth contract read by scores.R
   truemean.field,
-  # ground-truth surface building blocks (settings 1-2)
+  # ground-truth surface building blocks (settings 1-2, and 11)
   f.basis, c1, c2, surf.scale, surf.coef.invariant, W.varying, M.var,
+  surf.scale.strong, a.fixed.strong,
+  # setting 12 multi-bump mean showcase
+  ms.par, g.multibump,
   # setting 3 non-stationary-dependence random-effect building blocks
   F.re, W.nsdep, kappa.re, centers.re, tau.re,
   # settings 4-10 building blocks (also read by diagnose_nonsta.R)
@@ -463,6 +662,8 @@ save(
   C.fuentes, fuentes.par,
   g.field, h.field, gh.par, gh.mom,
   lambda.field, lambda.par,
+  # settings 13-21 non-t building blocks
+  sigma.g, g.nont, G.gpmean, gpmean.par, sas.par, sas.mom,
   file = "simdata_nonsta.RData"
 )
 

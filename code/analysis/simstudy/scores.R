@@ -96,7 +96,7 @@ if (!dir.exists(results_dir)) {
 # ---- methods / datasets / mrts_k -------------------------------------
 methods <- if (!is.null(flags$methods) && nzchar(flags$methods)) {
   m <- parse_index_expr(flags$methods, "methods")
-  if (any(m < 1L | m > 10L)) stop("methods must be in 1..10", call. = FALSE)
+  if (any(m < 1L | m > 12L)) stop("methods must be in 1..12", call. = FALSE)
   sort(unique(as.integer(m)))
 } else {
   1:5

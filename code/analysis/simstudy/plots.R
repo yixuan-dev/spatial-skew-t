@@ -168,7 +168,9 @@ dgp_label_map_nonsta <- list(
   "7"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: covariate-driven range (additive)"),
   "8"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary DEP.: Fuentes 4-regime GP mixture (in " * italic(C) * ")"),
   "9"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary TAILS: Tukey " * italic(g) * "-and-" * italic(h) * " field"),
-  "10" = bquote("Skew-" * italic(t) * " (K=1), non-stationary SKEWNESS: " * lambda * "(" * italic(s) * ") = 3 + 3" * italic(f)[2] * "(" * italic(s) * ")")
+  "10" = bquote("Skew-" * italic(t) * " (K=1), non-stationary SKEWNESS: " * lambda * "(" * italic(s) * ") = 3 + 3" * italic(f)[2] * "(" * italic(s) * ")"),
+  "11" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), non-stationary MEAN, HIGH SNR (3" * symbol("\264") * " setting 1): Brier positive control"),
+  "12" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), RICH MEAN (6 bumps, sd 11): MRTS large-K showcase")
 )
 # The deformed-covariance sim (simdata_def.RData -> suffix "_def") is all
 # Skew-t (K=1, lambda=3) with a deformed covariance per setting (see

@@ -113,12 +113,30 @@ run_method <- function(method_id, dataset_id) {
     x.block <- x[, blk$test_times, , drop = FALSE]
 
     # fit on the prefix; every site observed, so no s.pred / x.pred.
-    # z.init = 0 (the backend default) is fatal for the temporal/AR(2) z
-    # update: hn.cop(0, sig) = qnorm(phn(0, sig)) = -Inf, the MH ratio R
-    # becomes NaN, and the `if (!is.na(R))` guard in updateZTS_AR2
-    # silently rejects every proposal -- z and phi.z stay stuck at 0,
-    # producing all-NaN forecasts. A small positive initial value lets
-    # hn.cop evaluate finitely on the very first iteration.
+    #
+    # DO NOT pass z.init. The backend default (mcmc_ar2.R:249-250) is
+    #   z.init <- 0.6745 / sqrt(tau.init)
+    # i.e. the MEDIAN of HalfNormal(0, 1/sqrt(tau.init)), which maps to
+    # z.star = 0 -- dead centre on the Gaussian copula scale. It is finite and
+    # correct. (An earlier comment here claimed the default was 0 and that
+    # hn.cop(0, sig) = -Inf made it fatal; the default is NOT 0, and the
+    # "fix", z.init = 0.01, was the actual bug.)
+    #
+    # z.init = 0.01 starts z.star at hn.cop(0.01, 1) = -2.41, a 2.4-sigma tail.
+    # The MH chain never escapes: z froze near 0.2 when the model wants ~1.6.
+    # A frozen z looks like a near-constant series, so phi.z was driven to a
+    # near-unit root (1.11 vs a truth of 0.80), which pinned z harder still --
+    # a self-reinforcing freeze. Since the data only see the product lambda*z,
+    # lambda then compensated, running to -98 (truth +3), and beta0 to 36
+    # (truth 10), all while reproducing the data mean so the likelihood looked
+    # fine from inside the fit. forecast_block correctly redraws z at its proper
+    # scale (~1.6), multiplies by the corrupted lambda, and the predictive
+    # explodes: SD 104 against a marginal SD of 4.38, median -32 against a data
+    # centre of +14. That is the entire "AR(2) is 4x worse than i.i.d." result.
+    #
+    # Verified: dropping this one argument restores lambda to +2.8/+2.9,
+    # beta0 to 10.4, z to 1.68, phi.z to 0.62, and the lead-15 predictive SD to
+    # 4.9 (vs a marginal 4.38) on the exact chain that previously blew up.
     fit <- mcmc(
       y = y.train, x = x.train, s = s,
       method = "t", skew = isTRUE(spec$skew[1]),
@@ -132,7 +150,6 @@ run_method <- function(method_id, dataset_id) {
       ar2_w = isTRUE(spec$ar2[1]),
       ar2_tau = isTRUE(spec$ar2[1]),
       ar2_z = isTRUE(spec$ar2[1]),
-      z.init = 0.01,
       rho.upper = 15, nu.upper = 10
     )
 

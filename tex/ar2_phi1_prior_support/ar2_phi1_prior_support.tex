@@ -1,0 +1,299 @@
+% chktex-file 1
+% chktex-file 3
+% chktex-file 8
+% chktex-file 36
+% Suppress chktex false positives:
+%   1  -- \skewt uses \xspace so trailing space is intentional
+%   3  -- math like \{Y_t\}_{t=1}^{n_t} parses correctly
+%   8  -- en-dashes for proper-name pairs and ranges; ISO dates with hyphen
+%   36 -- AR(p) is canonical notation; no space before the parenthesis
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[capitalize]{cleveref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+% ---- Notation aligned with skewt_rev_2.tex / mycommands.sty ----
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bZero}{\boldsymbol{0}}
+\newcommand{\skewt}{skew-$t$\xspace}
+\newcommand{\Skewt}{Skew-$t$\xspace}
+\newcommand{\eref}[1]{(\ref{#1})}
+\newcommand{\sref}[1]{Section~\ref{#1}}
+
+% ---- Local shorthands ----
+\newcommand{\bphi}{\boldsymbol{\varphi}}
+\newcommand{\ind}{\mathbf{1}}
+
+% ---- Theorem environments ----
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{theorem}[proposition]{Theorem}
+\newtheorem{lemma}[proposition]{Lemma}
+\newtheorem{corollary}[proposition]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[proposition]{Definition}
+
+\theoremstyle{remark}
+\newtheorem{remark}[proposition]{Remark}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{teal},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    framesep=4pt,
+    language=R
+}
+
+\title{Prior Support Mismatch for $\varphi_1$ under the AR(2)
+       Stationarity Triangle:\\ Quantification and a Nested
+       Reparameterisation}
+\author{Yi-Xuan Xie}
+\date{2026-07-13}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+The AR(2) extension in \texttt{update\_params\_ar2.R} reuses the AR(1) prior
+scale $N(0, 0.5^2)$ for both $\varphi_1$ and $\varphi_2$, although the
+marginal support of $\varphi_1$ doubles from $(-1, 1)$ to $(-2, 2)$ under the
+stationarity triangle. This note quantifies the resulting prior penalty and
+posterior shrinkage, shows the effect is negligible for every current
+simulation setting, and records the partial-autocorrelation
+reparameterisation that would make the AR(1) and AR(2) priors nested if a
+high-persistence regime is ever added.
+\end{abstract}
+
+\section{Stationarity regions and marginal supports}\label{sec:regions}
+
+\begin{itemize}
+  \item The unit-variance latent AR($p$) prior restricts $\bphi$ to the
+        stationarity region; for $p = 1$ and $p = 2$ these are
+        \begin{equation}\label{eq:regions}
+          S_1 = (-1, 1),
+          \qquad
+          S_2 = \bigl\{ (\varphi_1, \varphi_2) :
+            \varphi_1 + \varphi_2 < 1,\;
+            \varphi_2 - \varphi_1 < 1,\;
+            |\varphi_2| < 1 \bigr\},
+        \end{equation}
+        with $S_2$ the open triangle with vertices $(-2, -1)$, $(2, -1)$,
+        $(0, 1)$ (\texttt{check\_ar2\_stability}).
+  \item The marginal supports under $S_2$ are therefore
+        \begin{equation}\label{eq:supports}
+          \varphi_1 \in (-2, 2),
+          \qquad
+          \varphi_2 \in (-1, 1),
+        \end{equation}
+        so the support of $\varphi_1$ is twice that of the AR(1) coefficient
+        while $\varphi_2$ matches it.
+\end{itemize}
+
+\section{Prior specification: original versus port}\label{sec:priors}
+
+\begin{itemize}
+  \item The original AR(1) code (\texttt{biometrics/update\_params.R},
+        \texttt{updatePhiTS}) uses a truncated-normal proposal on $S_1$ with
+        Hastings correction and the prior
+        \begin{equation}\label{eq:prior1}
+          p_1(\varphi)
+          \;\propto\;
+          N\!\bigl( \varphi ;\, 0,\, 0.5^2 \bigr)\,
+          \ind\{ \varphi \in S_1 \},
+          \qquad
+          \Phi\!\left( \tfrac{1}{0.5} \right)
+          - \Phi\!\left( -\tfrac{1}{0.5} \right)
+          \approx 0.954,
+        \end{equation}
+        i.e.\ about $95\%$ of the untruncated mass lies inside the support
+        --- scale and support are matched.
+  \item The AR(2) port (\texttt{updatePhiAR2TS}) places the same scale on
+        both coordinates,
+        \begin{equation}\label{eq:prior2}
+          p_2(\bphi)
+          \;\propto\;
+          N\!\bigl( \varphi_1 ;\, 0,\, 0.5^2 \bigr)\,
+          N\!\bigl( \varphi_2 ;\, 0,\, 0.5^2 \bigr)\,
+          \ind\{ \bphi \in S_2 \},
+        \end{equation}
+        the truncation being realised implicitly by the silent-rejection
+        proposal (Proposition~3.3 of \texttt{where\_we\_are.tex}).
+  \item The arguments \texttt{prior.mean}, \texttt{prior.sd} of
+        \texttt{updatePhiAR2TS} are never passed by any production caller
+        (\texttt{updateTauTS\_AR2}, \texttt{updateZTS\_AR2},
+        \texttt{updateKnotsTS\_AR2}); only \texttt{tests/} overrides them, so
+        \eref{eq:prior2} is effectively hardcoded, as \eref{eq:prior1} is in
+        the original.
+  \item For $\varphi_2$ the pair (support, scale) is identical to the AR(1)
+        case, so the calibration carries over; the mismatch is confined to
+        $\varphi_1$.
+\end{itemize}
+
+\section{Quantifying the penalty on the high-persistence corner}
+\label{sec:penalty}
+
+\begin{itemize}
+  \item Under \eref{eq:prior2} the log-prior deficit of a candidate
+        $\varphi_1$ relative to $\varphi_1 = 0$ is
+        \begin{equation}\label{eq:penalty}
+          \log \frac{p_2(0, \varphi_2)}{p_2(\varphi_1, \varphi_2)}
+          = \frac{\varphi_1^2}{2 \cdot 0.5^2}
+          = 2\, \varphi_1^2,
+        \end{equation}
+        e.g.\ $2.0$ nats at $\varphi_1 = 1$, $4.5$ nats at $\varphi_1 = 1.5$
+        ($3\sigma$), and $8.0$ nats at the vertex-adjacent $\varphi_1 \to 2$.
+  \item The region so penalised is the real-root, high-persistence corner of
+        $S_2$ (both roots of $1 - \varphi_1 u - \varphi_2 u^2$ near the unit
+        circle, slowly decaying monotone ACF), which is thus excluded a
+        priori rather than by the data.
+  \item All data-generating values in \texttt{simstudy/setup.R} satisfy
+        $|\varphi_1| \leq 0.80 = 1.6\sigma$, i.e.\
+        $2 \varphi_1^2 \leq 1.28$ nats, well inside the prior's effective
+        support:
+        \begin{equation}\label{eq:dgps}
+          \bphi \in \bigl\{ (0.80, -0.35),\; (0.12, -0.05),\;
+                            (0.15, 0.80) \bigr\}.
+        \end{equation}
+\end{itemize}
+
+\section{Measured posterior shrinkage}\label{sec:shrinkage}
+
+\begin{itemize}
+  \item To isolate the prior's contribution from finite-sample bias, the same
+        componentwise MH sampler (conditional likelihood, silent rejection,
+        $T = 50$, $30$ replicates) was run under \eref{eq:prior2} and under a
+        near-flat reference $N(0, 10^2)$ restricted to $S_2$;
+        \cref{tab:shrink} reports posterior-mean averages.
+\end{itemize}
+
+\begin{table}[ht]
+\centering
+\caption{Posterior means of $(\varphi_1, \varphi_2)$ under the production
+         prior \eref{eq:prior2} and a near-flat prior on $S_2$; $T = 50$,
+         $30$ replicates, $K$ independent series per dataset.}
+\label{tab:shrink}
+\begin{tabular}{llccc}
+\toprule
+Setting & $K$ & Truth & Prior $\mathrm{sd} = 0.5$ & Flat
+  ($\mathrm{sd} = 10$) \\
+\midrule
+16 near-unit-root & 1 & $(0.15,\; 0.80)$  & $(0.17,\; 0.73)$  & $(0.16,\; 0.74)$ \\
+16 near-unit-root & 5 & $(0.15,\; 0.80)$  & $(0.16,\; 0.79)$  & $(0.15,\; 0.79)$ \\
+9 strong          & 1 & $(0.80,\, -0.35)$ & $(0.73,\, -0.31)$ & $(0.77,\, -0.35)$ \\
+9 strong          & 5 & $(0.80,\, -0.35)$ & $(0.78,\, -0.35)$ & $(0.79,\, -0.36)$ \\
+10 weak           & 1 & $(0.12,\, -0.05)$ & $(0.10,\, -0.02)$ & $(0.10,\, -0.02)$ \\
+10 weak           & 5 & $(0.12,\, -0.05)$ & $(0.12,\, -0.06)$ & $(0.12,\, -0.06)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{remark}[Interpretation]\label{rem:shrink}
+The prior-attributable shrinkage peaks at $0.04$ (setting~9, $K = 1$,
+$\varphi_1$: $0.73$ versus $0.77$) and vanishes at $K = 5$, where the
+likelihood carries five times the information. The residual gap from truth
+under the flat prior (e.g.\ $0.77$ versus $0.80$) is finite-sample AR bias,
+which no prior choice removes; the current specification is benign for every
+setting in \eref{eq:dgps}.
+\end{remark}
+
+\section{A caveat for the AR(1)-versus-AR(2) comparison}\label{sec:caveat}
+
+\begin{itemize}
+  \item The study's central comparison fits both an AR(1) and an AR(2)
+        analysis model, whose coefficient priors are \eref{eq:prior1} and
+        \eref{eq:prior2} respectively.
+  \item These are not two versions of one prior: \eref{eq:prior2} restricted
+        to $\{\varphi_2 = 0\}$ has $\varphi_1$-density proportional to
+        $N(0, 0.5^2)$ on $(-1, 1)$, but the two models' implied priors on the
+        ACF $\{\rho(h)\}_{h \geq 1}$ are not linked by any conditioning or
+        marginalisation, so order comparisons carry a (small) prior confound.
+  \item The confound is bounded by the shrinkage in \cref{tab:shrink}
+        ($\leq 0.04$ on posterior means) and is therefore immaterial at the
+        current design, but it should be stated when the comparison is
+        written up.
+\end{itemize}
+
+\section{Nested priors via partial autocorrelations}\label{sec:pacf}
+
+\begin{itemize}
+  \item The clean resolution, if a high-persistence regime
+        ($\varphi_1 > 1$) is ever added, is the partial-autocorrelation
+        (PACF) reparameterisation of Barndorff-Nielsen and Schou (1973) and
+        Monahan (1984): for $p = 2$,
+        \begin{equation}\label{eq:pacf}
+          \varphi_2 = r_2,
+          \qquad
+          \varphi_1 = r_1 (1 - r_2),
+          \qquad
+          (r_1, r_2) \in (-1, 1)^2,
+        \end{equation}
+        a smooth bijection from $(-1, 1)^2$ onto $S_2$ whose inverse is
+        $r_1 = \varphi_1 / (1 - \varphi_2)$, $r_2 = \varphi_2$.
+  \item Note $r_1 = \varphi_1 / (1 - \varphi_2) = \gamma_1$, the lag-one
+        autocorrelation of the process, so the parameters are directly
+        interpretable and the map is available in closed form in both
+        directions.
+  \item Placing independent priors $r_k \sim N(0, 0.5^2)$ truncated to
+        $(-1, 1)$ yields a prior supported exactly on $S_2$ with no silent
+        mass loss, and its geometry respects the triangle automatically:
+        \begin{equation}\label{eq:nested}
+          p = 1: \quad r_1 = \varphi \sim \eref{eq:prior1},
+          \qquad
+          p = 2: \quad (r_1, r_2) \ \text{i.i.d.\ as above},
+        \end{equation}
+        so the AR(1) prior is recovered exactly on the section $r_2 = 0$ ---
+        the priors become nested and comparable across orders.
+  \item Implementation cost is small (transform in
+        \texttt{updatePhiAR2TS}, Jacobian
+        $|\partial \bphi / \partial \mathbf{r}| = 1 - r_2$ in the acceptance
+        ratio), but per \cref{rem:shrink} \emph{no code change is needed
+        now}; this section exists so the option is on record.
+\end{itemize}
+
+\section{Status and decision}\label{sec:status}
+
+\begin{itemize}
+  \item \textbf{Decision (2026-07-15): no code change.} Unlike the
+        $\bphi$-block likelihood issue (fixed the same day; see
+        \texttt{tex/ar2\_phi\_exact\_likelihood/}), this is a prior
+        \emph{elicitation} judgement, not a correctness defect: the sampler
+        validly targets the posterior induced by \eref{eq:prior2}.
+  \item The measured impact bound (\cref{tab:shrink}, $\leq 0.04$ and
+        vanishing at $K = 5$) covers every DGP value in \eref{eq:dgps}, so
+        the specification stays as is for the current study.
+  \item Two follow-ups are on record: state the prior non-nestedness caveat
+        (\sref{sec:caveat}) in the paper's AR(1)-versus-AR(2) comparison,
+        and revisit the PACF reparameterisation (\sref{sec:pacf}) only if a
+        DGP with $|\varphi_1| > 1$ is added.
+\end{itemize}
+
+\begin{thebibliography}{9}
+
+\bibitem{bns1973}
+Barndorff-Nielsen, O.\ and Schou, G.\ (1973).
+On the parametrization of autoregressive models by partial autocorrelations.
+\emph{Journal of Multivariate Analysis}, 3(4), 408--419.
+
+\bibitem{monahan1984}
+Monahan, J.~F.\ (1984).
+A note on enforcing stationarity in autoregressive-moving average models.
+\emph{Biometrika}, 71(2), 403--404.
+
+\end{thebibliography}
+
+\end{document}

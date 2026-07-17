@@ -72,8 +72,10 @@ setting 6 用 $f_1$ 當 range、setting 9 用 $f_1$ 當偏態、$f_2$ 當尾重�
 | 8 | `fuentes_cov` | 4 區域加權混合 GP | **取代 C** | 2nd | Fuentes (2001, 2002) |
 | 9 | `gh_marginal` | Tukey g-and-h 場 | 加法 | 3rd + 4th | Xu & Genton (2017) |
 | 10 | `lambda_varying` | $\lambda(s) = 3 + 3f_2(s)$ ★ | 改 skew 項 | 3rd | Morris et al. (2017) 假設破壞 |
+| 11 | `invariant_strong` | 同 1 的均值面 ×3（sd 11） | 均值 | 1st | Tzeng & Huang (2018), high-SNR |
+| 12 | `mrts_multibump` | 6 個中尺度 Gaussian bump（sd 11） ★ | 均值 | 1st | multi-bump MRTS showcase |
 
-★ = 論文的兩個 headline setting。
+★ = 論文的 headline setting。
 
 ### 三條注入路徑的差別
 
@@ -193,6 +195,45 @@ y_new[, t] <- y_old[, t] + (lambda.field - 3) * data$z[1, t]
 （高分位數的形狀）抓不到 → Brier/quantile 在尾端只會部分改善。這填補了 setting 1（全撿到）
 與 setting 3（全撿不到）之間的空白。
 
+### Setting 11：高 SNR 均值（Brier 正控制）
+
+$$g(s) = 15f_1 + 9f_2\quad(=3\times\text{setting 1},\ \mathrm{sd}=11.04)$$
+
+存在理由：setting 1（sd 3.68）的 oracle Brier 天花板只有 0.856——即使完美恢復均值，Brier
+最多改善 14%，當不了 positive control。sd 拉到 11（SNR≈1.5）把天花板壓到 0.375。詳見下方
+「oracle Brier 天花板」節。
+
+### Setting 12：豐富均值——MRTS 的大-K showcase ★
+
+**動機**：settings 1/11 只是**兩個** cosine bump，低秩到 MRTS 的投影恢復在 **K=5 就完成 ~90%**
+（相對 RMSE 0.21），看不出「為什麼需要大 K」。Setting 12 造一個**更豐富、但仍可恢復**的均值面，
+讓 recovery-vs-K 有延伸的手肘，直接展示 MRTS 多解析度基底的價值。
+
+$$g(s) = 11\cdot\mathrm{std}\!\left(\sum_{k=1}^{6} \epsilon_k\,\exp\!\Big(-\frac{\|s/10 - m_k\|^2}{2\cdot 0.16^2}\Big)\right),\qquad \epsilon = (+,-,+,-,+,-)$$
+
+6 個中尺度 Gaussian bump（寬 0.16 = 1.6 單位）置於不規則位置（`set.seed(7); runif(6,.15,.85)`
+的實現，hardcode），交替正負號，標準化到 sd = 11（時不變 → pooled-β 可恢復）。
+
+**免 MCMC 的 showcase 骨架**（[mrts_recovery_curve.R](mrts_recovery_curve.R)）：用與 MCMC 相同的
+`autoFRK::mrts` 在 100 訓練站點建 K 維基底、外推到 44 測試站點，對真值 $g$ 做 OLS 投影，算測試站點
+相對 RMSE——這是 MCMC recovery 在無噪音極限收斂到的曲線：
+
+| K | 3 | 5 | 10 | 15 | 20 | 25 | 30 | 40 | 50 |
+|---|---|---|---|---|----|----|----|----|----|
+| **setting 12**（6 bump） | 0.82 | **0.71** | 0.43 | 0.19 | 0.17 | 0.13 | 0.094 | 0.063 | 0.057 |
+| setting 1/11（2 bump） | 0.79 | **0.21** | 0.19 | 0.086 | 0.062 | 0.052 | 0.046 | 0.033 | 0.031 |
+
+K=5 時 setting 12 幾乎沒被恢復（0.71）、2-bump 已到 0.21——**巨大落差**；setting 12 一路改善到
+K30 的 0.094、K50 的 0.057。**K5→K30 的增益就是「為什麼需要大 K」的證據。**
+oracle Brier 天花板 $R^\star = 0.595$（< 1，約 40% 空間；比 setting 11 的 0.375 弱，因均值較細）。
+
+> ⚠ **MRTS 的可用解析度受站點密度限制（一個真發現）。** 原設計要放一個高頻細尺度分量
+> （cos(6π)＝每軸 3 週期），但在 100 訓練 / 44 保留的幾何上**根本無法恢復**：每波長僅 ~3 個站點，
+> MRTS 過度配適訓練站點、在保留站點外推爆掉——投影誤差**隨 K 上升**（K5=0.55→K40=0.66）。
+> 掃過多種設計後，6 個寬 0.16 的中尺度 bump 是**恰好落在可恢復上限內**的甜蜜點。這條「可恢復
+> 子空間本質上低維」的邊界，本身是關於 MRTS-on-sparse-sites 的結論，不是失敗。fit 的 K 網格
+> 因此延伸到 `c(3,5,8,10,12,15,20,25,30,40,50)` 以觀察飽和。
+
 ---
 
 ## 診斷結果
@@ -308,6 +349,127 @@ RMSE 誤差 1.18。數字看起來完全合理，但是錯的。
 
 ---
 
+## ⚠⚠ Brier score 的 oracle 天花板：11 個 setting 裡有 9 個在**理論上**就不可能動
+
+> 腳本：[oracle_brier_ceiling.R](oracle_brier_ceiling.R) → `output/oracle_brier_ceiling.csv`
+> **這是論文結果，不只是診斷。** 它把「MRTS 有結構性上限」從「我們觀察到虛無」
+> 升級成「可以證明的恆等式」，MCMC 只是確認。
+
+MRTS 擴充的是**固定效應均值**，而它的係數 $\beta$ 是**跨時間 pooled** 的
+（`updateBeta()`，`R/ar2/update_params.R`）。所以不論 $K$ 多大，均值通道能交付的**極限**
+就是**時間平均的真均值面**
+
+$$\bar\mu(s) = \mathbb E_t\big[\mu_t(s)\big] = \texttt{truemean.field[[setting]][s, d]}$$
+
+而 $K=0$ 的 baseline 只能配一個空間常數（設計是 $[1, s_1, s_2]$ 而真值 $\beta = (10,0,0)$，
+線性項為零）。定義 **oracle 相對 Brier**：
+
+$$R^\star=\frac{\mathrm{BS}\big(\bar\mu\big)}{\mathrm{BS}\big(\text{空間常數}\big)},\qquad
+P(Y>u\mid m)=\mathbb E_{\tau,z}\!\left[1-\Phi\!\left(\frac{u-m-\lambda z}{\sigma}\right)\right]$$
+
+（$\tau\sim\mathrm{Ga}(3/2,4)$，$\sigma=\tau^{-1/2}$，$z\sim\mathrm{HN}(0,\sigma)$，$\lambda=3$）
+
+$R^\star$ 是**下限**：沒有任何 $K$、樣本數或取樣器能把相對 Brier 壓到它以下。
+
+### 結果
+
+| id | `surf_type` | 動差 | $\mathrm{sd}(\bar\mu)$ | $R^\star$ | 判定 |
+|----|-------------|------|------------------------|-----------|------|
+| 1 | invariant | mean | 3.68 | **0.856** | 勉強（上限只有 14%） |
+| 2 | varying | mean | 0.42 | 1.000 | 死路 |
+| 3 | ns_dependence | dependence | 0.41 | 0.999 | 死路 |
+| 4 | ps_cov | dependence | **0.00** | 1.000 | 死路 |
+| 5 | ps_add | dependence | 0.39 | 0.999 | 死路 |
+| 6 | covdep_cov | dependence | **0.00** | 1.000 | 死路 |
+| 7 | covdep_add | dependence | 0.41 | 1.000 | 死路 |
+| 8 | fuentes_cov | dependence | **0.00** | 1.000 | 死路 |
+| 9 | gh_marginal | tails | 0.42 | 1.000 | 死路 |
+| 10 | lambda_varying | skewness | 2.80 | **1.120** | **反效果** |
+| **11** | **invariant_strong** | **mean** | **11.04** | **0.375** | **positive control** |
+
+### 三個必須寫進論文的推論
+
+**(1) Setting 1 從設計上就當不了 Brier 的 positive control。** 天花板 $R^\star = 0.856$
+意味著**即使 MRTS 完美恢復均值面**，Brier 最多只能改善 14%。實測（$n=10$）最好的是
+$m=2$ 在 $K=25$：$\hat R = 0.985\pm 0.004$——1.5%，是理論上限的 15%。這不是 MRTS 的失敗。
+
+**(2) Settings 2–9 的 Brier 虛無不具資訊。** $R^\star \approx 1$ 表示這些 setting
+**沒有時間平均的均值結構**，所以 Brier 對任何 $K$ 都不可能動。在那裡觀察到虛無是**設計的性質**，
+不是關於 MRTS 的證據。特別是 `replace_C` 的 4/6/8：它們的邊際分布已被驗證與平穩參考組相同
+（KS $p = 0.075$–$0.864$），而 **Brier 是逐格的邊際分數**（`scores.R` 自己的註解：
+*"per-cell marginal scores and cannot see spatial dependence"*）→ $\hat R\equiv 1$ 是恆等式。
+**要看相依，必須用 `energy.score` / `vario.score`。**
+
+**(3) Setting 10 的 $R^\star = 1.120 > 1$——把真均值餵給模型反而讓 Brier 變差。**
+因為 $\lambda(s)$ 造成的均值位移只是**症狀**（$\mathbb E[Y(s)] = 10+\lambda(s)\mathbb E[z_t]$），
+病灶在形狀（偏態）。模型的 $\lambda$ 仍是常數，修好症狀而病灶還在，預測分布反而更誤導。
+**這是「mean-only augmentation 是錯的工具」最鋒利的陳述。**
+
+### 多變量分數確實會動（Brier 不動 ≠ MRTS 沒用）
+
+同一批 fit，method 3（Sym-t K=1, POT q=0.80）：
+
+| 分數 | Setting 1 ($K$: 5→25) | Setting 6 ($K$: 5→25) |
+|------|----------------------|----------------------|
+| Brier | 1.003 → 0.994 | 1.002 → 1.000 |
+| **energy.score** | **0.630 → 0.579** | 0.952 → 0.865 |
+| **vario.score** | **0.656 → 0.617** | 0.955 → 0.938 |
+| **pred.rmse** | **0.673 → 0.607** | 0.959 → 0.900 |
+
+MRTS 對預測**是有用的**（method 3 的 energy score 改善 42%），只是 **Brier 看不到**。
+而且 setting 1 的改善（35–42%）遠大於 setting 6（5–14%）——**多變量分數才有鑑別力。**
+
+---
+
+## ⚠ `recovery.rmse` 在「真均值是平的」setting 上會雙峰
+
+**這不是 bug，但讀 settings 4/6/8 的 recovery 數字時必須知道。**
+
+`recovery.rmse` 直接比較 $X'\hat\beta$ 與真均值。但 skew-t 的**截距與偏態項共線**：
+
+$$\mu_t(s) = X'\beta + \lambda z_t, \qquad z_t \sim \text{half-normal},\ E[z_t] > 0$$
+
+所以 $\beta_1$ 與 $\lambda E[z_t]$ 落在同一條 ridge 上——MCMC 可以停在「截距 10 + 大的 $\lambda$ 貢獻」，
+也可以停在「截距 13.3 + 小的 $\lambda$ 貢獻」，兩者對資料的解釋一樣好。
+
+**Setting 1 沒事**：真均值有很強的空間 pattern（`truemean_sd = 3.68`），RMSE 被空間失配主導，
+截距 ridge 只是輕微污染。
+
+**Settings 4/6/8 會出事**：真均值**恆為 10**（完全平的），RMSE 就**只剩**那個不可識別的截距偏移。
+實測（setting 6, pilot datasets 1–3）：
+
+```
+method 4, dataset 2:  K=0: 0.176   K=3: 0.100   K=5: 3.289   K=8: 0.165   K=10: 3.189   K=12: 0.112
+method 2, dataset 1:  K=0: 16.89   K=3: 16.90   K=5: 0.117   K=8: 16.91   K=10: 16.89
+```
+
+數值在同一個 dataset 內隨 K 在兩個模態間跳（`beta[1]` 對應地在 9.94 ↔ 13.31 之間跳）。
+**「MRTS 撿不到東西」的結論方向正確，但個別數字有一半是鏈落在 ridge 哪一端的運氣。**
+
+### 去中心版（診斷用，未納入 `scores.R`）
+
+把擬合均值面與真均值面**各自去中心**再算 RMSE，截距 ridge 直接消失。實測 setting 6：
+
+| Method | K=0 | K=5 | K=10 | K=25 | 倍數 |
+|--------|-----|-----|------|------|------|
+| 1 Gaussian | 0.073 | 0.126 | 0.150 | 0.187 | 2.6× |
+| 2 Skew-t K=1 | 0.046 | 0.082 | 0.102 | 0.120 | 2.6× |
+| 3 Sym-t K=1 | 0.148 | 0.206 | 0.218 | 0.338 | 2.3× |
+| 4 Skew-t K=5 | 0.044 | 0.091 | 0.117 | 0.166 | 3.8× |
+| 5 Sym-t K=5 | 0.199 | 0.310 | 0.470 | 0.517 | 2.6× |
+
+雙峰尖刺全部消失、每個 method 每個 dataset 都**單調上升**，跨 dataset 變異係數砍半（0.582 → 0.287）。
+
+因為 setting 6 的去中心真均值**恆等於 0**，這個數字的意義是「**MRTS 憑空捏造了多少假空間結構**」
+→ 敘述可以從「持平、撿不到」升級成「**沒有均值可撿，所以每加一個基底都是純過度配適，
+假結構隨 K 單調成長 2.6–3.8 倍**」。
+
+> **目前的決定：主指標維持 raw（未去中心）版本**，`scores.R` 不動。上表僅作為已驗證的
+> robustness check 記錄在此。若日後要改用去中心版，setting 1 的 fit 已被刪除，需重跑
+> （datasets 1–3 約 3.3 h / 135 fits）。
+
+---
+
 ## 向後相容
 
 `results_nonsta/` 的 fit 檔名以 setting id 當 key，`output/results/scores{1,2,3}_nonsta.RData`
@@ -332,6 +494,66 @@ RMSE 誤差 1.18。數字看起來完全合理，但是錯的。
   → `diag <- 1` → **正定性斷言**（`min(eigen(...)) > 1e-8`，否則 `stop()`）。三個取代式矩陣的
   最小特徵值分別是 0.18（PS）、0.19（covdep）、0.14（Fuentes）。
 - 所有 $144\times144$ 稠密矩陣直接建，不需任何優化。
+
+---
+
+## 非 t 擴充（settings 13–21）
+
+> 2026-07-17 新增。實作：[setup_nonsta.R](../setup_nonsta.R)（就地擴充）、
+> [nont_builders.R](nont_builders.R)；關卡：[nont_precheck.R](nont_precheck.R)；
+> 驗證：[nont_verify.R](nont_verify.R)；基準：[nont_autofrk_fit.R](nont_autofrk_fit.R)。
+
+### 動機
+
+Settings 1–12 全部共用 skew-t 核心，所以 fitted skew-t 在大 K 時是**正確設定**的模型——
+這是 finding 2（增益全在 thresholded 方法）與 finding 3（Brier 悖論）共同的 confound。
+Settings 13–21 完全不用 `rpotspatTS`：**非線性均值面 + 非 t 誤差**，讓 MRTS 的均值通道
+在沒有「誤差律也對」的加持下單獨受檢。
+
+### Setting 總表（全域編號 13–21）
+
+| ID | `surf_type` | 均值面 g(s) | 誤差 | 出處 |
+|----|------------|------------|------|------|
+| 13 | `franke` | Franke's function（多尺度：2 大 bump + 1 中 bump + 1 細 dip） | Gaussian GP | Franke (1979) |
+| 14 | `ridge_curved` | 彎曲山脊 exp(−(y01−0.5−0.25 sin(2πx01))²/(2·0.12²)) | Gaussian GP | 方向隨位置變 |
+| 15 | `annulus` | Ricker 環 ψ((r−3)/1.5)，r=‖s−(5,5)‖ | Gaussian GP | 徑向非單調 |
+| 16 | `sigmoid_front` | tanh((‖s−(2,2)‖−4.5)/1.0) 弧形鋒面 | Gaussian GP | 最陡可恢復結構 |
+| 17 | `gp_mean` | u ~ GP(0, Matérn ν=1.5, range 2)，**每 dataset 重抽、跨 t 固定** | Gaussian GP | 隨機函數類 |
+| 18 | `franke_sas` | 同 13 | **sinh-arcsinh**(ε=0.8, δ=1) 變換 GP | Jones & Pewsey (2009) |
+| 19 | `poly2` | 二階多項式（bowl + saddle） | Gaussian GP | 回歸語彙・易端 |
+| 20 | `transform_mix` | log(1+s₁) + e^{−s₁/2} + s₁/(1+s₂) | Gaussian GP | 邊界曲率 |
+| 21 | `nonsmooth` | hinge(s₁−5) + \|s₂−4\|（C⁰ 折點） | Gaussian GP | 平滑基底的結構性偏差 |
+
+### 建構規約
+
+- 全部均值面先**對 [1, s₁, s₂] 在 144 站點 OLS 取殘差**（K=0 design 配不到的部分才算
+  訊號，否則 oracle 天花板會被高估），再標準化到 **sd = 11**（比照 11/12）。
+- 誤差 = `sigma.g * L.stat %*% N(0,1)`（既有指數相關 `C.stat`，跨 t iid）；
+  **σ_G = 4** 由 precheck 校準：oracle Brier R\* 中位數 0.446（目標帶 0.4–0.5，與 11/12 可比）。
+- Seeds 沿用 `pair.seed * 1000 + set` 慣例；**18 借 13 的 base seed**——同一張 Franke 面、
+  同一批 Gaussian innovations，唯一差別是 SAS 變換（新的 A/B 對，拆「偏態邊際」的效果）。
+  17 的均值 draw 用獨立流 `860000 + set`。
+- `tau.t/z.t/knots.t` 在 13–21 全為 NA；`truemean.field` 照合約填（17 每 dataset 一張面）。
+
+### Precheck 結果（noise-free MRTS 投影、K50 時的相對 RMSE）
+
+poly2 0.015（K≈12 即飽和，易端控制組）→ franke 0.070 / front 0.094（elbow 延伸到
+K≈40–50，主秀）→ ridge 0.173 / transform_mix 0.214 / annulus 0.247（難端）→
+**nonsmooth 在 ~0.063 出現平台不歸零**（C⁰ 折點 vs C^∞ TPS 基底——均值側的
+「結構性不能」，與相依側 settings 3–8 對稱）。annulus 環寬 1.2 時投影誤差在 K≈15
+**不減反增**，加寬到 1.5 才單調下降（與 setting 12 的「站點密度解析上限」發現一致）。
+
+### 檔案與向後相容
+
+擴充先生成為過渡檔 `simdata_nonsta_ext.RData`，經 [nont_verify.R](nont_verify.R)
+驗證 settings 1–12 與當時的 `simdata_nonsta.RData` **位元級相同**
+（y / truemean.field / tau.t / z.t / knots.t / settings.nonsta 全部 `identical`）後，
+於 2026-07-17 **合併回 `simdata_nonsta.RData`**（y 維度 [144, 50, 50, 21]），過渡檔已刪除，
+`setup_nonsta.R` 的 save 目標也回復原名。既有 `results_nonsta/` 的 fits 以 setting id 為
+key，值未變，全部照用。13–21 的 sd、正交性、σ_G、13/18 共 Z、SAS 偏態檢查全部 PASS
+（nont_verify.R 現為可隨時重跑的 sanity 版）。
+跑 MCMC：`Rscript run-settings.R --data=simdata_nonsta.RData --setting=13 ...`
+（results 進 `results_nonsta/`，與 1–12 同目錄）。
 
 ---
 

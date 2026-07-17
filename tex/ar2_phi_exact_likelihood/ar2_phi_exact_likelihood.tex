@@ -1,0 +1,452 @@
+% chktex-file 1
+% chktex-file 3
+% chktex-file 8
+% chktex-file 36
+% Suppress chktex false positives:
+%   1  -- \skewt uses \xspace so trailing space is intentional
+%   3  -- math like \{Y_t\}_{t=1}^{n_t} parses correctly
+%   8  -- en-dashes for proper-name pairs and ranges; ISO dates with hyphen
+%   36 -- AR(p) is canonical notation; no space before the parenthesis
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[capitalize]{cleveref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+% ---- Notation aligned with skewt_rev_2.tex / mycommands.sty ----
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bZero}{\boldsymbol{0}}
+\newcommand{\skewt}{skew-$t$\xspace}
+\newcommand{\Skewt}{Skew-$t$\xspace}
+\newcommand{\eref}[1]{(\ref{#1})}
+\newcommand{\sref}[1]{Section~\ref{#1}}
+
+% ---- Local shorthands ----
+\newcommand{\Lexact}{L_{\mathrm{exact}}}
+\newcommand{\Lcond}{L_{\mathrm{cond}}}
+\newcommand{\bphi}{\boldsymbol{\varphi}}
+
+% ---- Theorem environments ----
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{theorem}[proposition]{Theorem}
+\newtheorem{lemma}[proposition]{Lemma}
+\newtheorem{corollary}[proposition]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[proposition]{Definition}
+
+\theoremstyle{remark}
+\newtheorem{remark}[proposition]{Remark}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{teal},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    framesep=4pt,
+    language=R
+}
+
+\title{The $\bphi$-Block of the AR(2) Sampler Targets the Wrong Full
+       Conditional:\\ Exact versus Conditional Likelihood in
+       \texttt{updatePhiAR2TS}}
+\author{Yi-Xuan Xie}
+\date{2026-07-13}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+The Metropolis--Hastings update for $\bphi = (\varphi_1, \varphi_2)$ in
+\texttt{update\_params\_ar2.R} evaluates the Box--Jenkins \emph{conditional}
+likelihood, while the latent-block updaters evaluate the \emph{exact}
+stationary likelihood. The two Gibbs blocks therefore target different
+distributions; this note proves the discrepancy, explains why the analogous
+omission is exactly harmless in the original AR(1) code, quantifies the effect
+at $n_t = 50$, and states the three-line fix.
+\end{abstract}
+
+\section{Setup and notation}\label{sec:setup}
+
+\begin{itemize}
+  \item Fix one latent channel ($z^\star$, $\tau^\star$, or a knot coordinate)
+        and one knot $k$; write $Y_{1:T}$ for its copula-transformed series,
+        with independent replicates across $k = 1, \dots, K$.
+  \item The AR(2) prior on $Y_{1:T}$ is the stationary causal Gaussian AR(2)
+        normalised to unit marginal variance, which by Yule--Walker pins
+        \begin{equation}\label{eq:moments}
+          \gamma_0 = 1, \qquad
+          \gamma_1 = \frac{\varphi_1}{1 - \varphi_2}, \qquad
+          \gamma_2 = \varphi_1 \gamma_1 + \varphi_2, \qquad
+          \sigma_\epsilon^2 = 1 - \varphi_1 \gamma_1 - \varphi_2 \gamma_2,
+        \end{equation}
+        all functions of $\bphi = (\varphi_1, \varphi_2)$ alone
+        (\texttt{get\_ar2\_standard\_moments}).
+  \item Stationarity restricts $\bphi$ to the triangle
+        \begin{equation}\label{eq:triangle}
+          S_2 = \bigl\{ (\varphi_1, \varphi_2) :
+            \varphi_1 + \varphi_2 < 1,\;
+            \varphi_2 - \varphi_1 < 1,\;
+            |\varphi_2| < 1 \bigr\}.
+        \end{equation}
+  \item Under stationarity the joint prior density factorises as
+        \begin{equation}\label{eq:factor}
+          p(Y_{1:T} \mid \bphi)
+          = \underbrace{p(Y_1, Y_2 \mid \bphi)}_{\text{initial block}}
+            \prod_{t=3}^{T}
+            N\!\bigl( Y_t ;\, \varphi_1 Y_{t-1} + \varphi_2 Y_{t-2},\,
+                      \sigma_\epsilon^2 \bigr),
+        \end{equation}
+        with initial block
+        \begin{equation}\label{eq:init}
+          (Y_1, Y_2)^\top \sim
+          N_2\!\left( \bZero,\; \Sigma(\bphi) \right),
+          \qquad
+          \Sigma(\bphi) =
+          \begin{pmatrix} 1 & \gamma_1 \\ \gamma_1 & 1 \end{pmatrix}.
+        \end{equation}
+  \item Equivalently, $p(Y_1) = N(0, 1)$ and
+        \begin{equation}\label{eq:p2}
+          p(Y_2 \mid Y_1, \bphi)
+          = N\!\bigl( \gamma_1 Y_1,\; 1 - \gamma_1^2 \bigr),
+        \end{equation}
+        the ``Fix~1'' branch of \texttt{get\_ar2\_conditional\_params}
+        (see \texttt{ar2\_fix\_proposal.tex}).
+\end{itemize}
+
+\section{Exact versus conditional likelihood}\label{sec:defs}
+
+\begin{definition}[Exact and conditional likelihoods]\label{def:lik}
+For fixed $Y_{1:T}$, define as functions of $\bphi \in S_2$
+\begin{equation}\label{eq:defs}
+  \Lexact(\bphi) = p(Y_{1:T} \mid \bphi),
+  \qquad
+  \Lcond(\bphi) = p(Y_{3:T} \mid Y_{1:2}, \bphi)
+  = \prod_{t=3}^{T}
+    N\!\bigl( Y_t ;\, \varphi_1 Y_{t-1} + \varphi_2 Y_{t-2},\,
+              \sigma_\epsilon^2 \bigr).
+\end{equation}
+\end{definition}
+
+\begin{itemize}
+  \item By \eref{eq:factor} the two are linked through the discrepancy factor
+        \begin{equation}\label{eq:discrepancy}
+          \Lexact(\bphi) = f(\bphi;\, Y_{1:2}) \cdot \Lcond(\bphi),
+          \qquad
+          f(\bphi;\, Y_{1:2})
+          = N_2\!\bigl( (Y_1, Y_2)^\top ;\, \bZero,\, \Sigma(\bphi) \bigr).
+        \end{equation}
+  \item \texttt{ar2\_transition\_loglik} computes $\log \Lcond$ only: it sums
+        transition densities over \texttt{data[, 3:nt]}, discarding
+        $\log f$ entirely.
+\end{itemize}
+
+\section{Why the omission is exact in AR(1)}\label{sec:ar1}
+
+\begin{lemma}[AR(1) exemption]\label{lem:ar1}
+For the unit-variance stationary AR(1), i.e.\ $p = 1$ with
+$Y_1 \sim N(0, \gamma_0)$ and $\gamma_0 \equiv 1$, the discrepancy factor
+satisfies $f(\varphi; Y_1) = N(Y_1; 0, 1)$, free of $\varphi$; hence
+\begin{equation}\label{eq:ar1prop}
+  \Lexact(\varphi) \propto_{\varphi} \Lcond(\varphi)
+  \qquad \text{exactly, for every realisation } Y_{1:T}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+The initial block for $p = 1$ is the single marginal
+$p(Y_1 \mid \varphi) = N(Y_1; 0, \gamma_0)$, and the normalisation
+$\gamma_0 = 1$ removes its only $\varphi$-dependence; \eref{eq:discrepancy}
+with constant $f$ gives \eref{eq:ar1prop}.
+\end{proof}
+
+\begin{remark}[The original code is correct]\label{rem:orig}
+The comment in \texttt{biometrics/update\_params.R} (line 925),
+``\emph{likelihood of data impacted by phi does not include day 1},'' is
+therefore an identity under the unit-variance normalisation, not an
+approximation. \texttt{updatePhiTS} and the AR(1) latent blocks consequently
+share one target posterior, and the original sampler is a valid
+MH-within-Gibbs scheme.
+\end{remark}
+
+\section{The AR(2) violation}\label{sec:violation}
+
+\begin{itemize}
+  \item The sampler is MH-within-Gibbs on $(Y, \bphi)$ with target
+        \begin{equation}\label{eq:target}
+          \pi(Y, \bphi \mid \text{data})
+          \;\propto\;
+          p(\text{data} \mid Y)\; p(Y \mid \bphi)\; p(\bphi),
+        \end{equation}
+        and validity requires every block's acceptance ratio to be computed
+        under this single $\pi$.
+  \item The correct full conditional for $\bphi$ is, by
+        \eref{eq:factor}--\eref{eq:init},
+        \begin{equation}\label{eq:fullcond}
+          \pi(\bphi \mid Y)
+          \;\propto\;
+          \underbrace{N_2\!\bigl( (Y_1, Y_2)^\top ;\, \bZero,\,
+            \Sigma(\bphi) \bigr)}_{f(\bphi;\, Y_{1:2})}
+          \prod_{t=3}^{T}
+          N\!\bigl( Y_t ;\, \varphi_1 Y_{t-1} + \varphi_2 Y_{t-2},\,
+                    \sigma_\epsilon^2 \bigr)
+          \; p(\bphi).
+        \end{equation}
+\end{itemize}
+
+\begin{proposition}[Target mismatch between the two blocks]\label{prop:mismatch}
+Suppose $T \geq 3$ and $p(\bphi) > 0$ on $S_2$. In
+\texttt{update\_params\_ar2.R}:
+\begin{enumerate}[label=(\roman*)]
+  \item the $Y$-block updaters (\texttt{updateZTS\_AR2},
+        \texttt{updateTauTS\_AR2}, \texttt{updateKnotsTS\_AR2}) evaluate the
+        prior contribution of $Y_2$ through \eref{eq:p2}, hence are
+        $\pi$-invariant MH kernels;
+  \item the $\bphi$-block (\texttt{updatePhiAR2TS}) accepts with ratio built
+        from $\Lcond(\bphi)\, p(\bphi)$, hence is invariant for
+        \begin{equation}\label{eq:tildepi}
+          \tilde{\pi}(Y, \bphi \mid \text{data})
+          \;\propto\;
+          p(\text{data} \mid Y)\;
+          N(Y_1; 0, 1)\, \Lcond(\bphi)\; p(\bphi),
+        \end{equation}
+        and $\tilde{\pi} \neq \pi$ because
+        $\pi / \tilde{\pi} \propto f(\bphi; Y_{1:2}) / N(Y_2; 0, 1)$ is
+        non-constant in $\bphi$ whenever $\gamma_1 \neq 0$;
+  \item the composite kernel therefore does not admit $\pi$ as an invariant
+        distribution.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+Claim (i) is read off the ``Fix~1'' $t = 2$ branch used in each latent
+update.
+
+For (ii), $\gamma_1 = \varphi_1 / (1 - \varphi_2)$ makes $\Sigma(\bphi)$,
+hence $f(\bphi; Y_{1:2})$, non-constant on $S_2$ for any $Y_{1:2}$ with
+$Y_1 Y_2 \neq 0$ or $Y_1^2 + Y_2^2 \neq 2$: explicitly,
+\begin{equation}\label{eq:logf}
+  \log f(\bphi;\, Y_{1:2})
+  = -\log 2\pi
+    - \tfrac{1}{2} \log\bigl( 1 - \gamma_1^2 \bigr)
+    - \frac{Y_1^2 - 2 \gamma_1 Y_1 Y_2 + Y_2^2}
+           {2 \bigl( 1 - \gamma_1^2 \bigr)}
+\end{equation}
+depends on $\bphi$ through $\gamma_1$.
+
+The factor $f$ depends jointly on $\bphi$ and on $Y_{1:2}$, so it can be
+absorbed into the normalising constant of neither block's full conditional.
+
+For (iii), suppose the composite kernel had invariant law $\pi$; since the
+blocks touch disjoint coordinates, each factor kernel would then be
+$\pi$-invariant on its own coordinates. But the $\bphi$-kernel's unique
+invariant conditional is
+$\tilde{\pi}(\bphi \mid Y) \neq \pi(\bphi \mid Y)$, a contradiction.
+\end{proof}
+
+\begin{remark}[Provenance]\label{rem:port}
+The port copied the ``skip the head of the series'' shape of the AR(1) code
+(\cref{rem:orig}) without noticing that the skipped term acquires
+$\bphi$-dependence at $p = 2$. Only the $Y_1$ factor stays exempt: it is
+$N(0, 1)$ by the $\gamma_0 = 1$ normalisation for every $p$.
+\end{remark}
+
+\section{Magnitude at the study's sample size}\label{sec:magnitude}
+
+\begin{itemize}
+  \item The omitted factor \eref{eq:logf} carries the information of $2$ of
+        the $T$ observations per series, so the perturbation of the
+        $\bphi$-posterior is $O(T^{-1})$ with constant governed by
+        $\partial \log f / \partial \bphi$.
+  \item A direct Monte Carlo check ($T = 50$ as in the simulation study,
+        $30$ replicate datasets, componentwise MH with the production
+        $N(0, 0.5^2)$ prior and silent rejection on $S_2$) compares the
+        posterior mean under $\Lcond$ against $\Lexact$;
+        \cref{tab:bias} reports the averages.
+\end{itemize}
+
+\begin{table}[ht]
+\centering
+\caption{Posterior means of $(\varphi_1, \varphi_2)$ under the conditional
+         and exact likelihoods; $T = 50$, $30$ replicates, $K$ independent
+         series per dataset. Settings are the fixed-AR(2) DGPs of
+         \texttt{simstudy/setup.R}.}
+\label{tab:bias}
+\begin{tabular}{llccc}
+\toprule
+Setting & $K$ & Truth & $\Lcond$ (code) & $\Lexact$ (with $f$) \\
+\midrule
+16 near-unit-root & 1 & $(0.15,\; 0.80)$  & $(0.16,\; 0.76)$  & $(0.15,\; 0.77)$ \\
+16 near-unit-root & 5 & $(0.15,\; 0.80)$  & $(0.14,\; 0.81)$  & $(0.13,\; 0.82)$ \\
+9 strong          & 1 & $(0.80,\, -0.35)$ & $(0.73,\, -0.27)$ & $(0.73,\, -0.27)$ \\
+9 strong          & 5 & $(0.80,\, -0.35)$ & $(0.78,\, -0.33)$ & $(0.78,\, -0.33)$ \\
+10 weak           & 1 & $(0.12,\, -0.05)$ & $(0.06,\, -0.10)$ & $(0.06,\, -0.10)$ \\
+10 weak           & 5 & $(0.12,\, -0.05)$ & $(0.11,\, -0.04)$ & $(0.12,\, -0.04)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{remark}[Interpretation]\label{rem:magnitude}
+All $\Lcond$-versus-$\Lexact$ differences are at most $0.02$, within Monte
+Carlo noise, while the visible departures from truth ($0.03$--$0.07$) are the
+ordinary $O(T^{-1})$ finite-sample AR bias present under both likelihoods.
+The sampler is thus theoretically invalid but numerically indistinguishable
+from the corrected one at $T = 50$; the gap scales as $2/T$ and becomes
+worth re-checking if $T$ drops to $10$--$20$ (time-block forecasting).
+\end{remark}
+
+\section{The fix}\label{sec:fix}
+
+\begin{itemize}
+  \item Add the $\bphi$-dependent part of $\log f$, namely
+        \eref{eq:p2} evaluated at the data, to both \texttt{cur.ll} and
+        \texttt{can.ll} in \texttt{updatePhiAR2TS} (each with its own
+        moments):
+\end{itemize}
+
+\begin{lstlisting}
+# inside updatePhiAR2TS, after computing (cur|can).moments:
+g1 <- moments$gamma1  # = phi1 / (1 - phi2)
+ll <- ll + sum(dnorm(data.t2, g1 * data.t1,
+                     sqrt(1 - g1^2), log = TRUE))
+# data.t1, data.t2 = the t = 1, 2 slices of `data`
+# (columns for day.mar = 2; third-margin slices for day.mar = 3)
+\end{lstlisting}
+
+\begin{itemize}
+  \item The $Y_1$ marginal $N(0, 1)$ needs no term: it cancels in the
+        acceptance ratio for every $p$ (\cref{rem:port}).
+  \item The silent-rejection proposal scheme is unaffected: Proposition~3.3
+        of \texttt{where\_we\_are.tex} concerns the proposal's invariance on
+        $S_2$ and holds for whichever target density is supplied.
+  \item Expected effect: none on the $T = 50$ simulation conclusions
+        (\cref{tab:bias}); the patch restores \eref{eq:fullcond} as the
+        $\bphi$-block target and hence validity of the composite sampler.
+\end{itemize}
+
+\section{Verification and status}\label{sec:verify}
+
+\begin{itemize}
+  \item \textbf{Status (2026-07-15): applied.} The patch of \sref{sec:fix}
+        is in production as \texttt{ar2\_stationary\_loglik}
+        (\texttt{auxfunctions\_ar2.R}), called at all three likelihood
+        evaluations inside \texttt{updatePhiAR2TS}
+        (\texttt{update\_params\_ar2.R}).
+  \item \textbf{Scope of the correctness claim.} The proof of
+        \cref{prop:mismatch} and its resolution never reference the
+        data-generating process, so validity of the fixed sampler holds for
+        every DGP unconditionally; only the \emph{negligibility} claims below
+        are DGP- and $T$-specific.
+\end{itemize}
+
+\subsection{Geweke prior-recovery test (DGP-free)}\label{sec:geweke}
+
+\begin{itemize}
+  \item Design (successive-conditional simulator, Geweke 2004): switch the
+        data likelihood off, so the target collapses to
+        $p(\bphi)\, p(Y \mid \bphi)$, and alternate the production
+        $Y$-block prior structure ($t$, $t{+}1$, $t{+}2$ companion terms via
+        \texttt{ar2\_conditional\_log\_density}) with the production
+        \texttt{updatePhiAR2TS}. If and only if the blocks share one joint
+        density must the $\bphi$-marginal of the chain equal the
+        $N(0, 0.5^2)^{\otimes 2}$ prior truncated to $S_2$ (reference:
+        rejection sample, $n \approx 10^6$).
+  \item Small $T$ amplifies the discrepancy: the initial block carries
+        $2/T$ of the information, so $T = 6$ and $T = 4$ were used
+        ($1/3$ and $1/2$ respectively).
+\end{itemize}
+
+\begin{table}[ht]
+\centering
+\caption{Geweke prior-recovery: deviation of the chain's $\bphi$-marginal
+         mean from the truncated-prior reference, in MCMC standard errors
+         ($z$). ``Conditional'' = pre-fix production code; ``stationary'' =
+         patched code.}
+\label{tab:geweke}
+\begin{tabular}{llcc}
+\toprule
+Design & Version & $z\bigl(E[\varphi_1]\bigr)$ & $z\bigl(E[\varphi_2]\bigr)$ \\
+\midrule
+$T=6$, $K=3$, one chain of $115$k
+  & conditional & $1.0$ & $\phantom{-}2.1$ \\
+  & stationary  & $0.4$ & $-0.7$ \\
+\addlinespace
+$T=4$, $K=3$, six chains of $40$k
+  & conditional & $0.5$ & $\phantom{-}1.8$ \\
+  & stationary  & $0.1$ & $-0.6$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item The conditional-only version deviates on $E[\varphi_2]$ in the
+        \emph{same direction} in two independent designs (deviations
+        $+0.021$ and $+0.011$; Stouffer-combined $z \approx 2.8$), matching
+        the theory: $f$ acts through
+        $\gamma_1 = \varphi_1 / (1 - \varphi_2)$ and so distorts the
+        $\varphi_2$-geometry of the truncated prior first.
+  \item The stationary version passes every statistic in both designs
+        ($|z| \leq 1$), confirming the patch removes the incompatibility in
+        the production function itself, not merely in a reimplementation.
+\end{itemize}
+
+\subsection{DGP coverage of the negligibility claim}\label{sec:coverage}
+
+\begin{itemize}
+  \item \cref{tab:bias} covers the fixed-AR(2) DGPs (settings 9--16);
+        \cref{tab:coverage} extends the same comparison ($T = 50$, $K = 1$,
+        $30$ replicates) to the remaining DGP families of
+        \texttt{simstudy/setup.R}.
+  \item For the long-memory rows the reference is the Yule--Walker
+        pseudo-true projection \texttt{arfima\_yw\_projection(d)\$ar2}; the
+        residual gap to it is finite-sample bias, identical under both
+        likelihoods.
+\end{itemize}
+
+\begin{table}[ht]
+\centering
+\caption{Conditional-versus-exact posterior means on the remaining DGP
+         families; last column is the largest coordinatewise difference.}
+\label{tab:coverage}
+\begin{tabular}{lcccc}
+\toprule
+DGP & Pseudo-true & $\Lcond$ & $\Lexact$ & $\max$ diff \\
+\midrule
+White noise (settings 1--8) & $(0.00,\, 0.00)$ & $(0.02,\, 0.01)$ & $(0.02,\, 0.01)$ & $0.004$ \\
+ARFIMA $d = 0.20$ (17)      & $(0.22,\, 0.11)$ & $(0.18,\, 0.08)$ & $(0.18,\, 0.08)$ & $0.001$ \\
+ARFIMA $d = 0.35$ (18)      & $(0.42,\, 0.21)$ & $(0.34,\, 0.19)$ & $(0.34,\, 0.19)$ & $0.001$ \\
+ARFIMA $d = 0.45$ (19)      & $(0.58,\, 0.29)$ & $(0.59,\, 0.25)$ & $(0.58,\, 0.25)$ & $0.003$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Permanent regression guard}\label{sec:guard}
+
+\begin{itemize}
+  \item \texttt{tests/test\_phi\_block\_consistency.R} now protects the
+        property in three layers: a structural assertion
+        (\texttt{updatePhiAR2TS} calls \texttt{ar2\_stationary\_loglik} and
+        never \texttt{ar2\_transition\_loglik}), an exact identity check
+        (the added term equals the latent-block $t = 2$ density
+        \eref{eq:p2} to $10^{-10}$ on $200$ random draws), and a fixed-seed
+        Geweke smoke gate ($|z| < 4$).
+  \item Layer two is the theorem-level guard --- it verifies block
+        compatibility directly and costs milliseconds; the heavier
+        detection of \cref{tab:geweke} is documented here rather than
+        re-run per test invocation.
+\end{itemize}
+
+\end{document}

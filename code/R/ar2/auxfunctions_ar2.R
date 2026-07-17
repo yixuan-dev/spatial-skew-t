@@ -109,6 +109,29 @@ ar2_transition_loglik <- function(current, lag1, lag2, phi1, phi2, moments = NUL
     sum(dnorm(current, phi1 * lag1 + phi2 * lag2, moments$innov_sd, log = TRUE))
 }
 
+# Exact stationary log-likelihood for the phi update, up to phi-free terms.
+# Adds the phi-DEPENDENT initial-block factor
+#   p(Y_2 | Y_1, phi) = N(gamma_1 * Y_1, 1 - gamma_1^2),  gamma_1 = phi1/(1-phi2)
+# to the t >= 3 transitions, so the phi-block targets the same joint
+# p(Y | phi) as the latent-block updaters (the Fix 1 t = 2 branch of
+# get_ar2_conditional_params). The Y_1 marginal N(0, 1) is phi-free under
+# the gamma_0 = 1 normalisation and cancels in the MH ratio, so it is
+# deliberately omitted -- that is the only omission that stays exact.
+# Using ar2_transition_loglik alone here is exact for AR(1) but NOT for
+# AR(2); see tex/ar2_phi_exact_likelihood/ar2_phi_exact_likelihood.tex.
+ar2_stationary_loglik <- function(current, lag1, lag2, y1, y2,
+                                  phi1, phi2, moments = NULL) {
+    if (is.null(moments)) {
+        moments <- get_ar2_standard_moments(phi1, phi2)
+    }
+
+    g1 <- moments$gamma1
+    sd.t2 <- sqrt(moments$gamma0 - g1^2) # same form as the t == 2 branch
+
+    sum(dnorm(y2, g1 * y1, sd.t2, log = TRUE)) +
+        sum(dnorm(current, phi1 * lag1 + phi2 * lag2, moments$innov_sd, log = TRUE))
+}
+
 # Function to simulate stationary AR(2) time series
 draw_ar2_initial <- function(n, gamma0, gamma1) {
     Sigma <- matrix(c(gamma0, gamma1, gamma1, gamma0), nrow = 2, ncol = 2) # covariance matrix

@@ -146,9 +146,14 @@ get_simstudy_seed <- function(setting_id, method_id, dataset_id, mrts_k = NA_int
 }
 
 get_simstudy_method_catalog <- function(include_maxstable = TRUE) {
+  # Methods 11/12 are the DISAMBIGUATORS for the "MRTS gain is threshold-only"
+  # hypothesis: identical to methods 3/5 (symmetric t) except thresh_all = 0.
+  # Method 3 vs 11 (and 5 vs 12) differ ONLY in the POT threshold, so if 11/12
+  # also show the energy-score gain the driver is the symmetric-t (no lambda
+  # absorbing the intercept); if they stay flat the driver is the threshold.
   catalog <- data.frame(
-    method_id = 1:10,
-    method_key = as.character(1:10),
+    method_id = c(1:10, 11L, 12L),
+    method_key = as.character(c(1:10, 11L, 12L)),
     family = c(
       "gaussian",
       "skew_t_k1_thresh0",
@@ -159,7 +164,9 @@ get_simstudy_method_catalog <- function(include_maxstable = TRUE) {
       "skew_t_k1_thresh0_ar2_temporal",
       "skew_t_k5_thresh0_ar2_temporal",
       "skew_t_k1_thresh0_ar1_temporal",
-      "skew_t_k5_thresh0_ar1_temporal"
+      "skew_t_k5_thresh0_ar1_temporal",
+      "t_k1_thresh0_sym",
+      "t_k5_thresh0_sym"
     ),
     label = c(
       "Gaussian",
@@ -171,21 +178,23 @@ get_simstudy_method_catalog <- function(include_maxstable = TRUE) {
       "Skew-t, K=1, AR(2)",
       "Skew-t, K=5, AR(2)",
       "Skew-t, K=1, AR(1)",
-      "Skew-t, K=5, AR(1)"
+      "Skew-t, K=5, AR(1)",
+      "Sym-t, K=1 (no threshold)",
+      "Sym-t, K=5 (no threshold)"
     ),
-    runner = c(rep("mcmc", 5), "maxstable", rep("mcmc", 4)),
-    method = c("gaussian", "t", "t", "t", "t", NA_character_, "t", "t", "t", "t"),
-    skew = c(FALSE, TRUE, FALSE, TRUE, FALSE, NA, TRUE, TRUE, TRUE, TRUE),
-    thresh_all = c(0, 0, 0.80, 0, 0.80, NA, 0, 0, 0, 0),
-    thresh_quant = c(TRUE, TRUE, TRUE, TRUE, TRUE, NA, TRUE, TRUE, TRUE, TRUE),
-    nknots = c(1L, 1L, 1L, 5L, 5L, NA_integer_, 1L, 5L, 1L, 5L),
-    use_exponential_fallback = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE),
-    temporaltau = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, TRUE, TRUE),
-    temporalz = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, TRUE, TRUE),
-    temporalw = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, TRUE, TRUE),
-    ar2_tau = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, FALSE, FALSE),
-    ar2_z = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, FALSE, FALSE),
-    ar2_w = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, FALSE, FALSE),
+    runner = c(rep("mcmc", 5), "maxstable", rep("mcmc", 4), "mcmc", "mcmc"),
+    method = c("gaussian", "t", "t", "t", "t", NA_character_, "t", "t", "t", "t", "t", "t"),
+    skew = c(FALSE, TRUE, FALSE, TRUE, FALSE, NA, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE),
+    thresh_all = c(0, 0, 0.80, 0, 0.80, NA, 0, 0, 0, 0, 0, 0),
+    thresh_quant = c(TRUE, TRUE, TRUE, TRUE, TRUE, NA, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
+    nknots = c(1L, 1L, 1L, 5L, 5L, NA_integer_, 1L, 5L, 1L, 5L, 1L, 5L),
+    use_exponential_fallback = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE),
+    temporaltau = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE),
+    temporalz = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE),
+    temporalw = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE),
+    ar2_tau = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+    ar2_z = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+    ar2_w = c(FALSE, FALSE, FALSE, FALSE, FALSE, NA, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
     stringsAsFactors = FALSE
   )
 
@@ -207,8 +216,9 @@ resolve_mrts_method_ids <- function(method_ids = NULL, default_ids = 1:5) {
   }
 
   ids <- sort(unique(as.integer(method_ids)))
-  if (length(ids) == 0 || any(is.na(ids)) || any(ids < 1L | ids > 5L)) {
-    stop("MRTS methods must be a non-empty set of integers in 1..5.", call. = FALSE)
+  mrts_ok <- c(1:5, 11L, 12L)   # non-temporal MCMC methods; 11/12 = sym-t, no threshold
+  if (length(ids) == 0 || any(is.na(ids)) || !all(ids %in% mrts_ok)) {
+    stop("MRTS methods must be a non-empty subset of {1..5, 11, 12}.", call. = FALSE)
   }
 
   ids

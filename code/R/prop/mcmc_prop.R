@@ -11,7 +11,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                  beta.init = NULL, tau.init = 1,
                  tau.alpha.init = 0.1, tau.beta.init = 0.1,
                  rho.init = 5, nu.init = 0.5, gamma.init = 0.5,
-                 z.init = 0, lambda.init = NULL, knots.init = NULL,
+                 z.init = NULL, lambda.init = NULL, knots.init = NULL,
                  phi.tau.init = NULL, phi.w.init = NULL, phi.z.init = NULL,
                  beta.m = 0, beta.s = 20,
                  tau.alpha.min = 0.1, tau.alpha.max = 10, tau.alpha.by = 0.1,
@@ -142,6 +142,12 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
   }
 
   if (skew) {
+    # Sync with mcmc_ar2.R: the old default z.init = 0 is harmless on the
+    # non-temporal Gibbs path used here, but maps to hn.cop(0, sig) = -Inf
+    # and freezes the chain if a temporal z update is ever enabled.
+    if (is.null(z.init)) {
+      z.init <- 0.6745 / sqrt(tau.init)  # median of HN(1/sqrt(tau.init)) -> z.star = 0
+    }
     z <- matrix(z.init, nknots, nt)
     zg <- matrix(0, ns, nt)
     for (tt in seq_len(nt)) {

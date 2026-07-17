@@ -58,8 +58,8 @@ parse_dataset_spec <- function(dataset_str) {
 
 parse_methods_spec <- function(methods_str) {
     method_ids <- parse_index_expr(methods_str, "methods")
-    if (any(method_ids < 1 | method_ids > 10)) {
-        stop("methods must be integers in 1..10", call. = FALSE)
+    if (any(method_ids < 1 | method_ids > 12)) {
+        stop("methods must be integers in 1..12", call. = FALSE)
     }
     sort(unique(as.integer(method_ids)))
 }
@@ -155,7 +155,9 @@ get_method_catalog <- function() {
 
 build_run_plan <- function(method_ids, mrts_k_values) {
     catalog <- get_method_catalog()
-    eligible_ids <- intersect(method_ids, 1:5)
+    # MRTS-eligible = the non-temporal MCMC methods (1-5 plus the sym-t
+    # no-threshold disambiguators 11/12)
+    eligible_ids <- intersect(method_ids, c(1:5, 11L, 12L))
     baseline_ids <- method_ids
     if (length(mrts_k_values) > 0) {
         baseline_ids <- setdiff(method_ids, eligible_ids)

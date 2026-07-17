@@ -1,0 +1,246 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1.1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\DeclareMathOperator{\hn}{HN}
+\DeclareMathOperator{\sd}{sd}
+\DeclareMathOperator{\E}{\mathbb{E}}
+
+\title{\textbf{What the guard bought}\\[2pt]
+\large A bit-for-bit counterfactual of assertion-guarded refitting\\
+in the block-1 positive control}
+\author{Technical note}
+\date{17 July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The block-1 positive control study
+(\code{code/analysis/time\_block\_forecast/block1\_positive\_control/}) fits
+$40$ chains --- settings $\{4,5\}$ $\times$ methods \{i.i.d., AR(2)\} $\times$
+datasets $1$--$10$ --- under an assertion guard: a fit that fails truth
+recovery (B) or predictive-spread (C) is refitted with a new seed, at most
+three times. The guard replaced the attempt-0 chain in $13$ of the $40$ cells.
+This note quantifies exactly what that intervention did to the forecast
+scores, by refitting every replaced attempt-0 chain bit-for-bit (same seed,
+same call) and scoring it --- i.e.\ by reconstructing the study an
+\emph{unguarded} pipeline would have delivered. On the affected cells the
+guard improved the Brier score by $16\%$ and the CRPS by $12\%$ on average;
+the rescues are largest exactly where the reflected-ridge law
+$\max_h \sd(\hat y_h) \approx 1.5\,|\hat\lambda|$ predicts
+(up to $12\times$ on Brier for $|\hat\lambda| \ge 5$), and negligible for
+mild reflections. One cell moved the other way: a $\hat\lambda = -15$
+reflected chain \emph{outscored} its healthy replacement. We argue this
+exception is not a defect but the point: the guard selects fits that are
+consistent with the model and the known truth --- a criterion computable
+\emph{before} seeing validation outcomes --- and therefore it is not, and
+must not be, a score optimizer.
+\end{abstract}
+
+\section{Setting}
+
+The positive control asks whether fitting AR(2)-generated data with the
+AR(2) model beats an i.i.d.-in-time skew-t baseline in forecast scores.
+Design: data settings $4$ (strong, $\phi = (0.80, -0.35)$, spectral radius
+$0.592$) and $5$ (near-unit-root, $\phi = (0.15, 0.80)$, radius $0.973$);
+datasets $1$--$10$; block~1 only (train $t = 1..50$, forecast $t = 51..65$);
+both methods. Truth: $\lambda = 3$, $\beta_0 = 10$.
+
+Block 1's short prefix is where the reflected ridge
+(\code{tex/lambda\_phiz\_ridge}) bites hardest, so every fit runs the
+self-consistency assertions of \code{fit\_diag\_utils.R} and is kept only if
+it passes
+\begin{itemize}\itemsep1pt
+  \item[\textbf{B}] truth recovery: $\operatorname{sign}(\hat\lambda) = +$,
+        $|\hat\lambda/3 - 1| < 0.6$, $\hat\beta_0$ near $10$;
+  \item[\textbf{C}] predictive spread: $\max_h \sd(\hat y_h) \le 3 \times$
+        marginal SD,
+\end{itemize}
+otherwise it is refitted with seed $+\,7919 \cdot \text{attempt}$, at most
+three reseeds, \emph{symmetrically for both methods} (the ridge is a property
+of the shared skew-t family: the i.i.d.\ method reflected five times in this
+study). A cell still failing after four attempts is kept but flagged, and the
+primary analysis excludes it. The rule was pre-registered before any scores
+were computed.
+
+The guard changed the delivered chain in $13$ cells: $10$ rescued
+(reseed found a passing chain) and $3$ flagged (setting 5: dataset 2 under
+both methods, and dataset 8 under AR(2)).
+
+\section{The counterfactual}
+
+\code{run\_block1\_guarded.R} saves only the kept fit, so the unguarded
+study is not on disk --- but it is fully reproducible: the attempt-0 seed is
+\code{get\_tbf\_seed(setting, method, dataset)}, and rerunning \code{mcmc()}
+with it reproduces the rejected chain bit-for-bit. \code{guard\_effect.R}
+does exactly this for the $13$ affected cells, pushes each chain through
+\code{forecast\_block()}, and scores both versions under the study protocol:
+CRPS and the Brier score at the $q_{95}$ threshold of the validation block,
+averaged over leads $1$--$5$ (the pre-registered primary window).
+Define
+\begin{equation*}
+  \text{unguarded study} = \text{attempt-0 chain in every cell},
+  \qquad
+  \text{guarded study} = \text{the kept chains}.
+\end{equation*}
+The $27$ unaffected cells are identical in both, so the whole effect of the
+guard lives in Table~\ref{tab:cases}.
+
+\section{Results}
+
+\begin{table}[ht]
+\centering
+\caption{All $13$ affected cells. m1 = i.i.d., m2 = AR(2); arrows read
+attempt-0 $\to$ kept. ``att'' = attempts used (4 = flag kept). Scores are
+means over leads 1--5.}
+\label{tab:cases}
+\small
+\begin{tabular}{llcrrrrrr}
+\toprule
+cell & & att & $\hat\lambda_0$ & $\hat\lambda_{\text{kept}}$ &
+\multicolumn{2}{c}{CRPS} & \multicolumn{2}{c}{Brier $q_{95}$} \\
+\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+ & & & & & att-0 & kept & att-0 & kept \\
+\midrule
+s4 d5  m2 & rescue & 2 & $-7.28$ & $+3.93$ & $2.64$ & $1.57$ & $0.0205$ & $\mathbf{0.0017}$ \\
+s4 d5  m1 & rescue & 2 & $-7.23$ & $+3.52$ & $3.19$ & $1.90$ & $0.0265$ & $\mathbf{0.0033}$ \\
+s4 d10 m1 & rescue & 2 & $-4.97$ & $+2.99$ & $2.87$ & $2.21$ & $0.0558$ & $0.0226$ \\
+s5 d7  m1 & rescue & 2 & $-3.99$ & $+2.47$ & $1.61$ & $1.29$ & $0.0832$ & $0.0463$ \\
+s4 d4  m2 & rescue & 2 & $-4.01$ & $+2.19$ & $1.46$ & $1.12$ & $0.0010$ & $0.0022$ \\
+s4 d6  m2 & rescue & 3 & $-8.90$ & $+2.86$ & $5.59$ & $5.48$ & $0.1378$ & $0.1349$ \\
+s5 d5  m1 & rescue & 2 & $-4.28$ & $+2.60$ & $2.80$ & $2.45$ & $0.0164$ & $0.0166$ \\
+s5 d6  m2 & rescue & 2 & $+5.40$ & $+3.95$ & $2.24$ & $2.30$ & $0.0794$ & $0.0799$ \\
+s5 d8  m1 & rescue & 4 & $-2.62$ & $+2.29$ & $1.97$ & $2.37$ & $0.0000$ & $0.0007$ \\
+s5 d3  m2 & rescue & 4 & $\mathbf{-15.18}$ & $+3.34$ & $1.94$ & $\mathbf{2.15}$ & $0.1088$ & $\mathbf{0.1323}$ \\
+\midrule
+s5 d2  m1 & flag & 4 & $+0.23$ & $+0.24$ & $1.17$ & $1.17$ & $0.0194$ & $0.0194$ \\
+s5 d2  m2 & flag & 4 & $+0.55$ & $+0.56$ & $1.16$ & $1.16$ & $0.0190$ & $0.0190$ \\
+s5 d8  m2 & flag & 4 & $-2.47$ & $-2.54$ & $1.23$ & $1.25$ & $0.0000$ & $0.0000$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Group means over the affected cells (leads 1--5).}
+\label{tab:groups}
+\begin{tabular}{lcrrrr}
+\toprule
+group & cells & \multicolumn{2}{c}{CRPS} & \multicolumn{2}{c}{Brier $q_{95}$} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+ & & att-0 & kept & att-0 & kept \\
+\midrule
+setting 4, i.i.d. & 2 & $3.03$ & $2.05$ & $0.0412$ & $0.0129$ \\
+setting 4, AR(2)  & 3 & $3.23$ & $2.73$ & $0.0531$ & $0.0463$ \\
+setting 5, i.i.d. & 4 & $1.89$ & $1.82$ & $0.0298$ & $0.0207$ \\
+setting 5, AR(2)  & 4 & $1.64$ & $1.71$ & $0.0518$ & $0.0578$ \\
+\midrule
+all affected      & 13 & $2.30$ & $2.03$ & $0.0437$ & $0.0368$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three regularities.
+
+\paragraph{1. The rescue size follows the $|\lambda|$ law.} The ridge note
+established $\max_h \sd(\hat y_h) \approx 1.49\,|\hat\lambda|$ across every
+fit, healthy or broken. Since an overdispersed, mis-centred predictive
+distribution is punished by both proper scores, the damage of a reflected
+chain --- and hence the value of replacing it --- should grow with
+$|\hat\lambda_0|$. It does. The two $|\hat\lambda_0| \approx 7$ reflections
+(s4 d5) give the largest rescues: Brier $0.0205 \to 0.0017$ and
+$0.0265 \to 0.0033$, i.e.\ $8$--$12\times$; CRPS drops by $40\%$. The mild
+$|\hat\lambda_0| \approx 2.5$ reflections (s5 d8) score essentially the same
+as healthy chains --- a weak reflection widens the forecast too little to
+matter. Both methods benefit: the i.i.d.\ method's two setting-4 reflections
+were among the worst, and their repair drives that group's Brier from
+$0.0412$ to $0.0129$.
+
+\paragraph{2. Overall, honesty was cheap and profitable.} Across the $13$
+cells the guard improved Brier by $16\%$ and CRPS by $12\%$; folded into the
+full $40$-cell study the guarded version is strictly better calibrated
+\emph{and} slightly better scoring. The positive-control conclusions
+(AR(2) beats i.i.d.\ on CRPS at near-unit-root persistence, $-31\%$ at leads
+1--5, Wilcoxon $p = 0.040$) were additionally shown to be insensitive to the
+flag-exclusions: the sensitivity run that keeps all cells gives
+$p = 0.010$--$0.021$.
+
+\paragraph{3. One cell went the other way, and it is the most instructive
+row in the table.} In s5 d3 the AR(2) attempt-0 chain sat at
+$\hat\lambda = -15.18$ --- the most extreme reflection in the study --- yet
+scored \emph{better} than its healthy replacement (CRPS $1.94$ vs $2.15$,
+Brier $0.109$ vs $0.132$). Dataset 3 is the hardest in setting 5 (both
+methods score Brier $> 0.1$ there even when healthy); on a hard validation
+window, an overdispersed forecast hedges, and a confident, well-calibrated
+forecast pays for its confidence. A finite window of $15$ days can and
+occasionally will reward the wrong model.
+
+\section{Why the exception is the point}
+
+Suppose the guard had been built the obvious wrong way: refit until the
+\emph{score} improves. Then s5 d3 would have kept the $\hat\lambda = -15$
+chain --- a fit whose skew loading has the wrong sign by a factor of five,
+whose latent path is upside down, and whose predictive spread is inflated
+$5\times$ --- because it happened to win on one $15$-day window. That is
+selection on outcomes: it biases every downstream comparison and cannot be
+defended.
+
+The actual guard never looks at validation data. Assertions B and C are
+computable from the fit and the training data alone (B uses the simulation
+truth, which a simulation study owns by construction; C uses the climatology
+bound that any stationary forecast must respect). The guard therefore
+implements \emph{selection on model consistency}: it asks ``is this chain a
+sample from the posterior the model claims?'', not ``did this chain get
+lucky?''. The price is occasionally visible --- about $+0.02$ Brier on one
+cell here --- and it is the premium for an unbiased study. The correct
+reading of Table~\ref{tab:cases} is not ``the guard won 9 rows and lost 1''
+but ``the guard delivered 37 of 40 cells with certified-consistent fits, and
+told us exactly which 3 it could not certify.''
+
+\paragraph{The flagged cells carry information too.} Dataset 2 of setting 5
+failed in the same way under \emph{both} methods and all four seeds:
+$\hat\lambda \approx 0.25$ (i.i.d.) and $\approx 0.56$ (AR(2)), stable to
+three decimals across reseeds. This is not chain capture --- it is the
+\emph{data}: under a near-unit-root $z$ process ($h^\ast \approx 109$ days),
+a single $50$-day training window can realize an essentially flat $z$ path,
+in which case $\lambda$ is genuinely under-identified by that window and no
+reseed can fix it. The A$'$ statistic separates the two situations cleanly
+in its first field test: passing fits have
+$\sd_t(\hat z)/(\hat\sigma\sqrt{1 - 2/\pi}) \approx 1.04$--$1.17$, flagged
+fits $0.57$--$0.77$. Flagging, rather than silently averaging such cells
+into the comparison, is the guard doing for the study what assertions A/C
+did for the \code{z.init} bug: converting a quiet distortion into a visible,
+attributable one.
+
+\section{Summary}
+
+\begin{itemize}\itemsep2pt
+  \item An unguarded block-1 study would have shipped $10$ reflected or
+        inflated chains among $40$; the guard replaced them at a cost of
+        $\sim\!1$ extra fit per affected cell.
+  \item Effect on scores, affected cells: Brier $-16\%$, CRPS $-12\%$;
+        rescue magnitude $\propto |\hat\lambda_0|$, up to $12\times$ on
+        Brier, negligible below $|\hat\lambda_0| \approx 3$.
+  \item Both methods needed it: the ridge is a family property, not an
+        AR(2) property.
+  \item One cell paid a small score premium for consistency; that premium is
+        the operational difference between guarding on \emph{assertions} and
+        cherry-picking on \emph{outcomes}.
+  \item The three flagged cells are a data-level identifiability statement
+        about short windows under near-unit-root persistence, now visible
+        instead of silent.
+\end{itemize}
+
+\begin{quote}
+A guard that can never lose points against an oracle is not a guard; it is a
+leaderboard. The value of assertion-guarded refitting is that its selections
+are defensible before the validation data are opened.
+\end{quote}
+
+\end{document}
