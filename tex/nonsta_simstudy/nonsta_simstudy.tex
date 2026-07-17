@@ -16,16 +16,16 @@
 \title{Non-stationary simulation study:\\
 what a mean-only MRTS augmentation can and cannot buy}
 \author{}
-\date{July 2026 --- interim report v2 (settings 1--12 and the
-threshold-vs-symmetry disambiguation fitted)}
+\date{July 2026 --- interim report v3 (settings 1--12, the
+threshold-vs-symmetry disambiguation, and the $K \ge 30$ extension)}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
 We evaluate the MRTS covariate extension of the Morris et al.\ (2017) skew-$t$
-space--time model on eleven simulated data-generating processes (DGPs) that place
-non-stationarity in different moments: the mean (settings 1, 2, 11), the spatial
+space--time model on twelve simulated data-generating processes (DGPs) that place
+non-stationarity in different moments: the mean (settings 1, 2, 11, 12), the spatial
 dependence (settings 3--8), the tails (setting 9), and the skewness (setting 10).
 Three findings.
 (i)~MRTS improves predictive scores \emph{only} where the truth carries
@@ -48,7 +48,11 @@ misspecified $K=0$ baseline. The rich-mean setting~12, run out to $K=50$,
 resolves this: the deterioration is confined to intermediate $K$ (where the
 mean basis is still too coarse), and once the basis is fine enough
 ($K \ge 30$--$40$) the Brier score improves by 7--12\%, consistent with the
-extrapolation-error mechanism.
+extrapolation-error mechanism. The discriminating check passes: the
+simple-surface setting~11, extended to the same $K = 50$, never turns
+positive --- its Brier ratio only decays back to parity ($1.09 \to 1.00$) ---
+so the reversal requires mean structure that only a fine basis can resolve,
+not merely a large $K$.
 \end{abstract}
 
 \section{Design}
@@ -74,7 +78,7 @@ any pooled-$\beta$ mean basis).
 
 \begin{table}[ht]
 \centering\small
-\caption{The eleven fitted DGP settings and the number of simulation replicates
+\caption{The twelve fitted DGP settings and the number of simulation replicates
 $n$ (independent datasets) fitted per setting. Routes: \emph{mean} = added to
 the fixed mean; \emph{additive} = mean-zero random field added to the draw;
 \emph{replace $C$} = non-stationary correlation handed to the generator (unit
@@ -96,6 +100,7 @@ ID & \texttt{surf\_type} & non-stationarity & route & $n$ \\
 9  & gh\_marginal      & tails, Tukey $g$-and-$h$, $g(\bs), h(\bs)$& additive   & 3  \\
 10 & lambda\_varying   & skewness, $\lambda(\bs) = 3 + 3 f_2(\bs)$ & skew term  & 3  \\
 11 & invariant\_strong & mean, $3\times$ setting 1, $\mathrm{sd}=11$ & mean     & 3  \\
+12 & mrts\_multibump   & mean, 6 Gaussian bumps, $\mathrm{sd}=11$    & mean     & 3  \\
 \bottomrule
 \multicolumn{5}{l}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables.}
 \end{tabular}
@@ -144,7 +149,10 @@ the $K$-column \texttt{autoFRK::mrts} basis built on the \emph{training} sites
 only (column 1 = intercept, 2--3 linear, $4{:}K$ thin-plate-spline
 eigenfunctions; $K=3$ spans the baseline). MCMC: 20{,}000 iterations, 10{,}000
 burn-in. The random seed is shared across $\Kmrts$ within each
-(method, dataset), so all $K$-comparisons are \emph{paired}.
+(method, dataset), so all $K$-comparisons are \emph{paired}. The grid is
+being extended by $\Kmrts \in \{30, 40, 50\}$ setting by setting (complete
+for settings 1, 4, 11, 12 at the time of writing; Table~\ref{tab:brierK}
+shows exactly which cells exist).
 
 \paragraph{Scoring.}
 The last 44 of the 144 sites are held out entirely; all scores are computed
@@ -178,70 +186,26 @@ method.
 \begin{table}[ht]
 \centering\small
 \caption{\textbf{Energy score}, best over $K>0$ relative to the same method's
-$K=0$ (minimising $K$ in parentheses). Values $<1$: MRTS helps.}
+$K=0$ (minimising $K$ in parentheses). Values $<1$: MRTS helps; bold:
+$\bar R < 0.75$.}
 \label{tab:energy}
-\begin{tabular}{clcccccc}
-\toprule
-ID & non-stationarity & $n$ & Gaussian & Skew-$t$ K1 & Sym-$t$ K1 T & Skew-$t$ K5 & Sym-$t$ K5 T \\
-\midrule
-1 & mean (2 bumps, sd 3.7) & 10 & $0.995^{*}$ {\tiny(25)} & $0.982^{*}$ {\tiny(25)} & $\mathbf{0.579^{*}}$ {\tiny(20)} & $0.987^{*}$ {\tiny(20)} & $\mathbf{0.659^{*}}$ {\tiny(12)} \\
-3 & dependence (low-rank) & 10 & $1.000$ {\tiny(5)} & $1.000$ {\tiny(3)} & $0.993$ {\tiny(5)} & $1.000$ {\tiny(15)} & $0.911$ {\tiny(3)} \\
-4 & dependence (PS, repl.\ $C$) & 3 & $0.999^{*}$ {\tiny(5)} & $1.000$ {\tiny(8)} & $0.943^{*}$ {\tiny(8)} & $0.996^{*}$ {\tiny(3)} & $0.846$ {\tiny(15)} \\
-5 & dependence (PS, additive) & 3 & $0.999$ {\tiny(12)} & $0.999^{*}$ {\tiny(8)} & $0.953$ {\tiny(15)} & $0.998^{*}$ {\tiny(10)} & $0.955$ {\tiny(15)} \\
-6 & dependence ($\rho(\bs)$, repl.\ $C$) & 3 & $1.000$ {\tiny(10)} & $0.999$ {\tiny(10)} & $0.861^{*}$ {\tiny(20)} & $0.997^{*}$ {\tiny(12)} & $0.941^{*}$ {\tiny(10)} \\
-7 & dependence ($\rho(\bs)$, additive) & 3 & $1.000$ {\tiny(25)} & $1.000$ {\tiny(10)} & $0.988$ {\tiny(20)} & $0.995$ {\tiny(25)} & $0.926$ {\tiny(15)} \\
-8 & dependence (Fuentes, repl.\ $C$) & 3 & $1.000$ {\tiny(10)} & $1.000$ {\tiny(3)} & $0.848$ {\tiny(25)} & $0.998$ {\tiny(5)} & $0.721^{*}$ {\tiny(10)} \\
-9 & tails ($g$-and-$h$) & 3 & $0.999^{*}$ {\tiny(5)} & $1.000$ {\tiny(10)} & $0.887$ {\tiny(5)} & $0.986$ {\tiny(25)} & $0.942$ {\tiny(5)} \\
-10 & skewness ($\lambda(\bs)$) & 3 & $0.994$ {\tiny(25)} & $1.000$ {\tiny(3)} & $0.975$ {\tiny(5)} & $0.998$ {\tiny(25)} & $0.938^{*}$ {\tiny(5)} \\
-11 & mean (2 bumps, sd 11) & 3 & $0.990$ {\tiny(25)} & $0.984$ {\tiny(25)} & $\mathbf{0.199^{*}}$ {\tiny(20)} & $0.982$ {\tiny(25)} & $\mathbf{0.267^{*}}$ {\tiny(20)} \\
-\bottomrule
-\end{tabular}
+\input{bestK_energy}
 \end{table}
 
 \begin{table}[ht]
 \centering\small
 \caption{\textbf{Brier score} (mean over the 11 exceedance levels), best over
-$K>0$ relative to own $K=0$.}
+$K>0$ relative to own $K=0$. Bold: $\bar R < 0.75$.}
 \label{tab:brier}
-\begin{tabular}{clcccccc}
-\toprule
-ID & non-stationarity & $n$ & Gaussian & Skew-$t$ K1 & Sym-$t$ K1 T & Skew-$t$ K5 & Sym-$t$ K5 T \\
-\midrule
-1 & mean (2 bumps, sd 3.7) & 10 & $1.000$ {\tiny(3)} & $0.985^{*}$ {\tiny(25)} & $0.994^{*}$ {\tiny(25)} & $0.993$ {\tiny(20)} & $0.971$ {\tiny(3)} \\
-3 & dependence (low-rank) & 10 & $1.000$ {\tiny(5)} & $0.999$ {\tiny(5)} & $1.000$ {\tiny(3)} & $0.997$ {\tiny(15)} & $0.993$ {\tiny(12)} \\
-4 & dependence (PS, repl.\ $C$) & 3 & $0.999$ {\tiny(25)} & $0.999$ {\tiny(25)} & $0.998^{*}$ {\tiny(5)} & $0.985^{*}$ {\tiny(25)} & $0.940^{*}$ {\tiny(20)} \\
-5 & dependence (PS, additive) & 3 & $1.000$ {\tiny(3)} & $0.999$ {\tiny(12)} & $1.000$ {\tiny(8)} & $0.990$ {\tiny(15)} & $0.973$ {\tiny(5)} \\
-6 & dependence ($\rho(\bs)$, repl.\ $C$) & 3 & $0.999$ {\tiny(20)} & $0.999^{*}$ {\tiny(5)} & $0.999^{*}$ {\tiny(15)} & $0.983^{*}$ {\tiny(12)} & $0.970$ {\tiny(10)} \\
-7 & dependence ($\rho(\bs)$, additive) & 3 & $1.000$ {\tiny(15)} & $0.999$ {\tiny(10)} & $0.998$ {\tiny(15)} & $0.990$ {\tiny(5)} & $0.968$ {\tiny(15)} \\
-8 & dependence (Fuentes, repl.\ $C$) & 3 & $1.000^{*}$ {\tiny(3)} & $1.000$ {\tiny(3)} & $0.999$ {\tiny(3)} & $0.997$ {\tiny(12)} & $0.962$ {\tiny(12)} \\
-9 & tails ($g$-and-$h$) & 3 & $1.000$ {\tiny(12)} & $1.000$ {\tiny(15)} & $1.000$ {\tiny(3)} & $0.996$ {\tiny(10)} & $0.967$ {\tiny(12)} \\
-10 & skewness ($\lambda(\bs)$) & 3 & $0.995$ {\tiny(25)} & $0.999$ {\tiny(3)} & $0.957^{*}$ {\tiny(25)} & $0.994$ {\tiny(25)} & $0.988$ {\tiny(20)} \\
-11 & mean (2 bumps, sd 11) & 3 & $1.000$ {\tiny(3)} & $1.000$ {\tiny(3)} & $0.959^{*}$ {\tiny(25)} & $1.004$ {\tiny(3)} & $0.997$ {\tiny(3)} \\
-\bottomrule
-\end{tabular}
+\input{bestK_brier}
 \end{table}
 
 \begin{table}[ht]
 \centering\small
 \caption{\textbf{Variogram score} ($p = 1/2$), best over $K>0$ relative to own
-$K=0$.}
+$K=0$. Bold: $\bar R < 0.75$.}
 \label{tab:vario}
-\begin{tabular}{clcccccc}
-\toprule
-ID & non-stationarity & $n$ & Gaussian & Skew-$t$ K1 & Sym-$t$ K1 T & Skew-$t$ K5 & Sym-$t$ K5 T \\
-\midrule
-1 & mean (2 bumps, sd 3.7) & 10 & $0.995^{*}$ {\tiny(25)} & $0.976^{*}$ {\tiny(25)} & $\mathbf{0.617^{*}}$ {\tiny(15)} & $0.984^{*}$ {\tiny(20)} & $\mathbf{0.712}$ {\tiny(12)} \\
-3 & dependence (low-rank) & 10 & $1.000$ {\tiny(5)} & $1.000$ {\tiny(3)} & $0.984$ {\tiny(5)} & $0.999$ {\tiny(25)} & $0.894$ {\tiny(3)} \\
-4 & dependence (PS, repl.\ $C$) & 3 & $0.999^{*}$ {\tiny(10)} & $1.000$ {\tiny(15)} & $0.988$ {\tiny(15)} & $0.997$ {\tiny(10)} & $0.990$ {\tiny(3)} \\
-5 & dependence (PS, additive) & 3 & $0.999^{*}$ {\tiny(12)} & $0.999^{*}$ {\tiny(8)} & $0.971$ {\tiny(15)} & $0.998$ {\tiny(15)} & $0.986$ {\tiny(15)} \\
-6 & dependence ($\rho(\bs)$, repl.\ $C$) & 3 & $0.999$ {\tiny(10)} & $0.999$ {\tiny(10)} & $0.924^{*}$ {\tiny(20)} & $0.997$ {\tiny(12)} & $0.984$ {\tiny(10)} \\
-7 & dependence ($\rho(\bs)$, additive) & 3 & $1.000$ {\tiny(10)} & $1.000$ {\tiny(8)} & $0.995$ {\tiny(3)} & $0.995$ {\tiny(5)} & $0.960$ {\tiny(15)} \\
-8 & dependence (Fuentes, repl.\ $C$) & 3 & $1.000$ {\tiny(8)} & $1.000$ {\tiny(3)} & $0.890$ {\tiny(25)} & $1.000$ {\tiny(3)} & $0.847$ {\tiny(5)} \\
-9 & tails ($g$-and-$h$) & 3 & $1.000$ {\tiny(3)} & $1.000$ {\tiny(5)} & $0.865$ {\tiny(5)} & $0.982$ {\tiny(25)} & $0.947$ {\tiny(5)} \\
-10 & skewness ($\lambda(\bs)$) & 3 & $0.991$ {\tiny(25)} & $1.000$ {\tiny(25)} & $1.000$ {\tiny(3)} & $0.995$ {\tiny(25)} & $0.905^{*}$ {\tiny(10)} \\
-11 & mean (2 bumps, sd 11) & 3 & $0.973$ {\tiny(25)} & $0.953^{*}$ {\tiny(25)} & $\mathbf{0.201^{*}}$ {\tiny(10)} & $0.952^{*}$ {\tiny(25)} & $\mathbf{0.244^{*}}$ {\tiny(20)} \\
-\bottomrule
-\end{tabular}
+\input{bestK_vario}
 \end{table}
 
 \input{brier_byK_table}
@@ -249,10 +213,11 @@ ID & non-stationarity & $n$ & Gaussian & Skew-$t$ K1 & Sym-$t$ K1 T & Skew-$t$ K
 \subsection{Finding 1: gains appear only where the truth has mean structure ---
 and this is provable a priori}
 
-The only large entries in any table are settings 1 and 11 (mean structure),
-methods 3 and 5: energy and variogram reductions of 34--42\% (setting 1)
-and 73--80\% (setting 11). Every dependence, tails and skewness setting is flat
-to within a few percent, in \emph{all three} scores.
+The only large entries in any table are settings 1, 11 and 12 (mean
+structure), methods 3 and 5: energy and variogram reductions of 34--42\%
+(setting 1), 73--80\% (setting 11) and 58\% (setting 12). Every dependence,
+tails and skewness setting is flat to within a few percent, in \emph{all
+three} scores.
 
 This dichotomy can be established without MCMC. Because the MRTS coefficient
 $\beta$ is pooled over time, the most any mean basis can deliver is the
@@ -312,19 +277,21 @@ profile.
 \caption{Setting 11, relative score vs $\Kmrts$ ($n=3$): the thresholded
 symmetric-$t$ methods against the unthresholded skew-$t$.}
 \label{tab:perK}
-\begin{tabular}{llcccccccc}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{llccccccccccc}
 \toprule
-score & method & $K{=}3$ & $K{=}5$ & $K{=}8$ & $K{=}10$ & $K{=}12$ & $K{=}15$ & $K{=}20$ & $K{=}25$ \\
+score & method & $K{=}3$ & $K{=}5$ & $K{=}8$ & $K{=}10$ & $K{=}12$ & $K{=}15$ & $K{=}20$ & $K{=}25$ & $K{=}30$ & $K{=}40$ & $K{=}50$ \\
 \midrule
 \multirow{3}{*}{energy}
- & Skew-$t$ K1 (no thr.)   & $0.999$ & $1.013$ & $1.022$ & $1.027$ & $1.023$ & $1.017$ & $0.996$ & $0.984$ \\
- & Sym-$t$ K1 (thr.)       & $0.990$ & $\mathbf{0.263}$ & $0.266$ & $0.229$ & $0.201$ & $0.244$ & $\mathbf{0.199}$ & $0.256$ \\
- & Sym-$t$ K5 (thr.)       & $1.001$ & $0.317$ & $0.539$ & $0.374$ & $0.342$ & $0.462$ & $\mathbf{0.267}$ & $0.333$ \\
+ & Skew-$t$ K1 (no thr.)   & $0.999$ & $1.013$ & $1.022$ & $1.027$ & $1.023$ & $1.017$ & $0.996$ & $0.984$ & $0.978$ & $0.966$ & $0.965$ \\
+ & Sym-$t$ K1 (thr.)       & $0.990$ & $\mathbf{0.263}$ & $0.266$ & $0.229$ & $0.201$ & $0.244$ & $\mathbf{0.199}$ & $0.256$ & $0.233$ & $0.268$ & $0.305$ \\
+ & Sym-$t$ K5 (thr.)       & $1.001$ & $0.317$ & $0.539$ & $0.374$ & $0.342$ & $0.462$ & $\mathbf{0.267}$ & $0.333$ & $0.359$ & $0.906$ & $0.860$ \\
 \midrule
 \multirow{3}{*}{Brier}
- & Skew-$t$ K1 (no thr.)   & $1.000$ & $1.052$ & $1.074$ & $1.103$ & $\mathbf{1.163}$ & $1.138$ & $1.110$ & $1.086$ \\
- & Sym-$t$ K1 (thr.)       & $0.999$ & $1.016$ & $1.021$ & $1.039$ & $1.008$ & $0.982$ & $0.977$ & $0.959$ \\
- & Sym-$t$ K5 (thr.)       & $0.997$ & $1.078$ & $1.182$ & $1.114$ & $1.163$ & $1.120$ & $1.104$ & $1.133$ \\
+ & Skew-$t$ K1 (no thr.)   & $1.000$ & $1.052$ & $1.074$ & $1.103$ & $\mathbf{1.163}$ & $1.138$ & $1.110$ & $1.086$ & $1.048$ & $1.017$ & $1.014$ \\
+ & Sym-$t$ K1 (thr.)       & $0.999$ & $1.016$ & $1.021$ & $1.039$ & $1.008$ & $0.982$ & $0.977$ & $0.959$ & $0.952$ & $0.954$ & $0.959$ \\
+ & Sym-$t$ K5 (thr.)       & $0.997$ & $1.078$ & $1.182$ & $1.114$ & $1.163$ & $1.120$ & $1.104$ & $1.133$ & $1.030$ & $1.086$ & $1.063$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -436,6 +403,20 @@ trade-off. Practically: \emph{for judging mean-structure recovery, the Brier
 score remains the wrong instrument --- it responds only when the basis is fine
 enough to make the residual extrapolation error negligible; energy/variogram
 scores (or the recovery RMSE directly) are the informative ones.}
+
+\paragraph{The large-$K$ limit discriminates the mechanism.}
+If the reversal were simply a matter of ``$K$ large enough,'' setting 11 ---
+whose 2-bump surface the basis captures by $K \approx 10$ --- should also turn
+positive by $K = 50$. It does not (Table~\ref{tab:perK}, rightmost columns):
+the mid-$K$ deterioration decays monotonically ($1.16$ at $K{=}12$ to
+$1.01$--$1.00$ at $K{=}50$ for the skew-$t$ and Gaussian methods) but never
+crosses below parity, leaving the oracle headroom $R^\star = 0.439$ entirely
+unused. The weak-signal setting 1 behaves the same way at large $K$ (skew-$t$
+K1: $0.985$ at $K{=}25$, $0.978$ at $K{=}50$ --- smooth, small, no regime
+change). Same $K$ grid, same machinery, opposite outcome to setting 12: the
+Brier reversal requires mean structure that \emph{only} a fine basis can
+resolve; extra columns on an already-resolved surface buy nothing and merely
+let the sharpness--extrapolation penalty fade.
 
 \section{Caveats}
 

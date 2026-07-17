@@ -31,11 +31,35 @@ relK <- function(a) {
        Ks = Ks, n = length(keep))
 }
 
-res <- list(); csv <- NULL
-for (s in settings) {
+# Load a setting's brier array, appending the K=30/40/50 extension cache when
+# present. Dataset dims differ between caches (setting 1: 50 vs 10 rows), so
+# rows are aligned by the `datasets` id vector saved in each cache.
+load_brier <- function(s) {
   e <- new.env()
   load(sprintf("output/results/scores%d_nonsta.RData", s), envir = e)
-  r <- relK(to3(e$brier.score))
+  a <- to3(e$brier.score)
+  ids_a <- if (exists("datasets", envir = e)) e$datasets else seq_len(dim(a)[1])
+  stopifnot(length(ids_a) == dim(a)[1])
+  ext_file <- sprintf("output/results/scores%d_nonsta_K3050.RData", s)
+  if (file.exists(ext_file)) {
+    ee <- new.env(); load(ext_file, envir = ee)
+    b <- to3(ee$brier.score)
+    ids_b <- if (exists("datasets", envir = ee)) ee$datasets else seq_len(dim(b)[1])
+    stopifnot(identical(dimnames(a)[[2]], dimnames(b)[[2]]),
+              length(ids_b) == dim(b)[1], all(ids_b %in% ids_a))
+    ab <- array(NA_real_, dim = c(dim(a)[1], dim(a)[2], dim(a)[3] + dim(b)[3]),
+                dimnames = list(NULL, dimnames(a)[[2]],
+                                c(dimnames(a)[[3]], dimnames(b)[[3]])))
+    ab[, , seq_len(dim(a)[3])] <- a
+    ab[match(ids_b, ids_a), , dim(a)[3] + seq_len(dim(b)[3])] <- b
+    a <- ab
+  }
+  a
+}
+
+res <- list(); csv <- NULL
+for (s in settings) {
+  r <- relK(load_brier(s))
   res[[as.character(s)]] <- r
   for (m in 1:5) for (j in seq_along(r$Ks)) {
     if (r$Ks[j] == 0) next

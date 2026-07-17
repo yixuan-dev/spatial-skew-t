@@ -1,16 +1,3 @@
 "method_id","method_key","label","runner","method","skew","thresh_all","thresh_quant","nknots","use_exponential_fallback","temporaltau","temporalz","temporalw","ar2_tau","ar2_z","ar2_w","mrts_k","output_tag","plan_id"
-1,"1+mrts30","Gaussian + MRTS(30)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",1
-1,"1+mrts40","Gaussian + MRTS(40)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",2
-1,"1+mrts50","Gaussian + MRTS(50)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",3
-2,"2+mrts50","Skew-t, K=1 + MRTS(50)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",4
-2,"2+mrts30","Skew-t, K=1 + MRTS(30)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",5
-2,"2+mrts40","Skew-t, K=1 + MRTS(40)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",6
-3,"3+mrts50","Sym-t, K=1, T=q(0.80) + MRTS(50)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",7
-3,"3+mrts40","Sym-t, K=1, T=q(0.80) + MRTS(40)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",8
-3,"3+mrts30","Sym-t, K=1, T=q(0.80) + MRTS(30)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",9
-4,"4+mrts40","Skew-t, K=5 + MRTS(40)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",10
-4,"4+mrts50","Skew-t, K=5 + MRTS(50)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",11
-4,"4+mrts30","Skew-t, K=5 + MRTS(30)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",12
-5,"5+mrts30","Sym-t, K=5, T=q(0.80) + MRTS(30)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",13
-5,"5+mrts40","Sym-t, K=5, T=q(0.80) + MRTS(40)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",14
-5,"5+mrts50","Sym-t, K=5, T=q(0.80) + MRTS(50)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",15
+2,"2+mrts25","Skew-t, K=1 + MRTS(25)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,25,"mrts25",1
+3,"3+mrts25","Sym-t, K=1, T=q(0.80) + MRTS(25)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,25,"mrts25",2

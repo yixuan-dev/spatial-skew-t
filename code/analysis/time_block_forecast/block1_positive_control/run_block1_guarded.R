@@ -91,8 +91,15 @@ for (setting in settings) {
       spec <- catalog[catalog$method_id == m, , drop = FALSE]
       tic <- proc.time()
 
+      # Early stop for REPRODUCIBLE failures: if two consecutive attempts
+      # land on the same lambda (within 15%) and both fail, the failure is
+      # data-level (e.g. a flat long-memory z realization under-identifies
+      # lambda in a 50-day window) -- reseeding cannot fix it, and further
+      # attempts risk trading a stable near-miss for a reflected chain.
+      # This never changes which fits PASS; it only stops futile reseeds.
       chk <- NULL
       yhat <- NULL
+      lam_prev <- NA_real_
       for (attempt in 0:(max_attempts - 1L)) {
         seed <- get_tbf_seed(setting, m, d) + 7919L * attempt
         set.seed(seed)
@@ -128,6 +135,14 @@ for (setting in settings) {
           if (chk$pass) "PASS" else "FAIL -> reseed"
         ))
         if (chk$pass) break
+        if (!is.na(lam_prev) &&
+            abs(chk$lambda - lam_prev) < 0.15 * max(abs(lam_prev), 0.5)) {
+          cat(sprintf(
+            "s%d d%d m%d: reproducible failure (lam stable) -> stop reseeding\n",
+            setting, d, m))
+          break
+        }
+        lam_prev <- chk$lambda
       }
 
       elapsed <- unname((proc.time() - tic)[3])
