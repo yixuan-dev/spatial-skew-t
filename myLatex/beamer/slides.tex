@@ -1,0 +1,227 @@
+% !TeX program = xelatex
+% !TeX root = slides.tex
+% =====================================================================
+%  Master's Thesis Defense Slides (Beamer)
+%  Compile: XeLaTeX -> biber -> XeLaTeX -> XeLaTeX
+%  Relative paths; shares img, references, mycommands with thesis/
+% =====================================================================
+\documentclass[12pt, aspectratio=169]{beamer}
+
+% -------------------------------
+% Theme & appearance
+% -------------------------------
+\usetheme{Madrid}
+\usecolortheme{whale}
+\useinnertheme{circles}
+\setbeamertemplate{navigation symbols}{}     % remove navigation icons
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{bibliography item}[text]
+
+% NDHU blue palette (adjust as you like)
+\definecolor{NDHUblue}{RGB}{0, 60, 120}
+\setbeamercolor{structure}{fg=NDHUblue}
+
+% -------------------------------
+% Top "point flow" bar: horizontal section navigation on every frame
+% current section highlighted, others shaded
+% -------------------------------
+\setbeamertemplate{headline}{%
+  \begin{beamercolorbox}[wd=\paperwidth, ht=3ex, dp=1.25ex, leftskip=1.5ex, rightskip=1.5ex]{section in head/foot}%
+    \hbox to\hsize{\hfil\insertsectionnavigationhorizontal{0.98\paperwidth}{}{}\hfil}%
+  \end{beamercolorbox}%
+}
+
+% -------------------------------
+% Fonts (English)
+% -------------------------------
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+
+% -------------------------------
+% Math, tables, figures
+% -------------------------------
+\usepackage{amsmath, amsthm, amssymb}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows}
+
+% Thesis math macros (\skewt, \bomega, \blambda, ...), shared with thesis/
+\input{../thesis/mycommands.sty}
+
+% -------------------------------
+% Bibliography (shared .bib with thesis)
+% -------------------------------
+\usepackage[backend=biber, style=authoryear]{biblatex}
+\addbibresource{../references/references.bib}
+\DeclareDelimFormat{nameyeardelim}{\addcomma\space}
+
+% -------------------------------
+% Thesis metadata
+% -------------------------------
+\title[ST skew-t Extension]{Extending the Spatio-Temporal Skew-$t$ Process for Threshold Exceedance Prediction}
+\subtitle{AR(2) Temporal Priors and Multi-Resolution Spline Basis Functions}
+\author[Y.-H.\ Hsieh]{Yi-Hsuan Hsieh \\ Advisor: Prof.\ Hao-Yun Huang}
+\institute[NDHU]{Department of Applied Mathematics\\ National Dong Hwa University}
+\date{July 2026}
+
+% =====================================================================
+\begin{document}
+
+% ---- Title page (no top bar) ----
+{\setbeamertemplate{headline}{}
+\begin{frame}[plain]
+  \titlepage
+\end{frame}}
+
+% ---- Outline ----
+\begin{frame}[plain]{Outline}
+  \tableofcontents
+\end{frame}
+
+% =====================================================================
+\section{Motivation}
+% =====================================================================
+\begin{frame}{Motivation}
+  \begin{itemize}
+    \item \textbf{Threshold exceedance} events in air pollution (e.g., ozone) are spatially dependent and heavy-tailed.
+    \item Gaussian processes cannot jointly capture \textbf{skewness} and \textbf{tail dependence}.
+    \item This work extends the spatio-temporal \skewt process with:
+      \begin{enumerate}
+        \item AR(2) temporal priors, for richer temporal dynamics;
+        \item Multi-resolution spline basis functions, for non-stationary spatial structure.
+      \end{enumerate}
+  \end{itemize}
+
+  \begin{block}{Goal}
+    Quantify the predictive gain of these extensions for \textbf{threshold exceedance prediction} (CRPS, Brier score).
+  \end{block}
+\end{frame}
+
+\begin{frame}{Related Work}
+  \begin{itemize}
+    \item \skewt processes and tail-dependence models.
+    \item Temporal priors in spatio-temporal models.
+    \item Basis-function expansions and autoFRK.
+  \end{itemize}
+  \vfill
+  % Citation example (needs matching key in references.bib):
+  % \footnotesize See \textcite{key1}, \textcite{key2}.
+\end{frame}
+
+% =====================================================================
+\section{Methods}
+% =====================================================================
+\begin{frame}{Model Setup}
+  Let $Y(\bs, t)$ be the observation at location $\bs$ and time $t$:
+  \begin{equation}
+    Y(\bs, t) = \bx(\bs, t)^\top \bbeta + \bB(\bs)^\top \bomega_t + \varepsilon(\bs, t),
+  \end{equation}
+  where
+  \begin{itemize}
+    \item $\bB(\bs)$: multi-resolution spline basis functions;
+    \item $\bomega_t$: temporal coefficients with an AR(2) prior
+      \[
+        \bomega_t = \phi_1 \bomega_{t-1} + \phi_2 \bomega_{t-2} + \bfe_t;
+      \]
+    \item $\varepsilon(\bs, t)$: \skewt error with skewness parameter $\blambda$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Inference \& Evaluation}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Bayesian inference}
+      \begin{itemize}
+        \item MCMC sampling.
+        \item Identifiability check for $\phi_\tau$.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Predictive scoring}
+      \begin{itemize}
+        \item CRPS.
+        \item Brier score (threshold exceedance).
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\section{Simulation}
+% =====================================================================
+\begin{frame}{Simulation Design}
+  \begin{table}
+    \centering
+    \begin{tabular}{lcc}
+      \toprule
+      Scenario & Parameters & Description \\
+      \midrule
+      Strong     & $(\phi_1, \phi_2) = (\cdot, \cdot)$ & strong temporal dependence \\
+      Near-unit  & $(0.15,\ 0.80)$ & near unit root \\
+      \bottomrule
+    \end{tabular}
+    \caption{Simulation scenarios (illustrative).}
+  \end{table}
+  \begin{itemize}
+    \item Key finding: the AR(2) advantage emerges in the near-unit scenario.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Simulation Results}
+  % Figure example:
+  % \begin{figure}
+  %   \centering
+  %   \includegraphics[width=0.7\linewidth]{../img/your_figure.png}
+  %   \caption{Simulation results.}
+  % \end{figure}
+  \centering
+  \emph{(Place simulation result figures/tables here.)}
+\end{frame}
+
+% =====================================================================
+\section{Application}
+% =====================================================================
+\begin{frame}{Ozone Data Analysis}
+  \begin{itemize}
+    \item Data source and preprocessing.
+    \item After removing the autoFRK spatial structure, residuals become \textbf{heavier-tailed} ($\nu$: 15.7 $\to$ 3.8).
+    \item Heavy tails are a feature of the data, not a lack of fit.
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\section{Conclusion}
+% =====================================================================
+\begin{frame}{Conclusion \& Contributions}
+  \begin{enumerate}
+    \item AR(2) temporal priors yield significant predictive gains in the near-unit regime.
+    \item Multi-resolution spline bases capture non-stationary spatial structure.
+    \item $\phi_\tau$ is identifiable: the posterior concentrates well beyond the prior.
+  \end{enumerate}
+  \vfill
+  \begin{block}{Future Work}
+    Higher-dimensional space-time, more threshold settings, and real-time prediction.
+  \end{block}
+\end{frame}
+
+% ---- References ----
+\begin{frame}[allowframebreaks]{References}
+  \printbibliography[heading=none]
+\end{frame}
+
+% ---- Thanks ----
+{\setbeamertemplate{headline}{}
+\begin{frame}[plain]
+  \centering
+  \vfill
+  {\Huge Thank You}\\[1em]
+  {\large Questions \& Comments Welcome}
+  \vfill
+\end{frame}}
+
+\end{document}
