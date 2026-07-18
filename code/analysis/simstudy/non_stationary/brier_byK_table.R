@@ -13,7 +13,12 @@
 
 if (basename(getwd()) != "simstudy") setwd("d:/Github/spatial-skew-t/code/analysis/simstudy")
 
-settings <- c(1L, 3:12)                     # setting 2: no MRTS sweep
+# Auto-detect scored settings (2 is K=0-only, skipped); non-t block (>=13)
+# appears as its Phase C caches arrive, so this is re-runnable incrementally.
+candidate_settings <- c(1L, 3:21)
+settings <- candidate_settings[vapply(candidate_settings, function(s)
+  file.exists(sprintf("output/results/scores%d_nonsta.RData", s)), TRUE)]
+first_nont <- 13L
 K.all    <- c(3, 5, 8, 10, 12, 15, 20, 25, 30, 40, 50)
 mlab.tex <- c("Gaussian", "Skew-$t$ K1", "Sym-$t$ K1 T", "Skew-$t$ K5", "Sym-$t$ K5 T")
 mlab.csv <- c("Gaussian", "SkewT-K1", "SymT-K1-T", "SkewT-K5", "SymT-K5-T")
@@ -85,7 +90,8 @@ L <- c(
   paste0("\\caption{\\textbf{Relative Brier score at every $\\Kmrts$} (vs the same",
          " method's own $K=0$, mean over datasets; $^{*}$ marks $|\\bar R - 1| >",
          " 2\\,\\widehat{\\mathrm{SE}}$). Setting 2 is excluded ($K=0$ only);",
-         " $K \\ge 30$ was fitted for setting 12 only. Isolated large values of",
+         " a dash means that $K$ was not fitted for that setting (settings",
+         " 13--21 use only $K \\in \\{30,40,50\\}$). Isolated large values of",
          " Sym-$t$ K5 T are the exponential-fallback outliers discussed in the",
          " Caveats and are reported as-is.}"),
   "\\label{tab:brierK}",
@@ -96,7 +102,12 @@ L <- c(
 for (m in 1:5) {
   L <- c(L, "\\midrule",
          sprintf("\\multicolumn{%d}{l}{\\emph{%s}} \\\\[1pt]", ncol.tot, mlab.tex[m]))
+  nont_marked <- FALSE
   for (s in settings) {
+    if (!nont_marked && s >= first_nont) {
+      L <- c(L, sprintf("\\multicolumn{%d}{l}{\\quad\\footnotesize non-$t$ ext.\\ (Gaussian-GP)} \\\\", ncol.tot))
+      nont_marked <- TRUE
+    }
     r <- res[[as.character(s)]]
     L <- c(L, paste0(s, " & ", r$n, " & ",
                      paste(vapply(K.all, function(K) fmt(r, m, K), ""), collapse = " & "),

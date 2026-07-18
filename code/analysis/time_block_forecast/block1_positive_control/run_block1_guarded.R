@@ -118,9 +118,11 @@ for (setting in settings) {
           ar2_z = isTRUE(spec$ar2[1]),
           rho.upper = 15, nu.upper = 10
         )
-        yhat <- forecast_block(fit = fit, seam = blk$seam, H = block_H,
-                               x_block = x.block, s = s,
-                               ar2 = isTRUE(spec$ar2[1]))
+        yhat <- forecast_block(
+          fit = fit, seam = blk$seam, H = block_H,
+          x_block = x.block, s = s,
+          ar2 = isTRUE(spec$ar2[1]),
+          ar1 = isTRUE(spec$temporal[1]) && !isTRUE(spec$ar2[1]))
         chk <- check_fit_consistency(fit, yhat, truth, marginal_sd,
                                      data_mean = mean(y.train))
         chk <- cbind(setting = setting, method = m, dataset = d,

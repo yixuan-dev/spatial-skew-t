@@ -14,7 +14,13 @@
 
 if (basename(getwd()) != "simstudy") setwd("d:/Github/spatial-skew-t/code/analysis/simstudy")
 
-settings <- c(1L, 3:12)
+# Auto-detect which settings have been scored (setting 2 is K=0-only, skipped).
+# Settings 13-21 are the non-t extension and appear only once their Phase C
+# score cache exists, so this script can be re-run incrementally.
+candidate_settings <- c(1L, 3:21)
+settings <- candidate_settings[vapply(candidate_settings, function(s)
+  file.exists(sprintf("output/results/scores%d_nonsta.RData", s)), TRUE)]
+first_nont <- 13L                      # non-t block starts here (Gaussian-GP)
 slab <- c(
   "1"  = "mean (2 bumps, sd 3.7)",
   "3"  = "dependence (low-rank)",
@@ -26,7 +32,16 @@ slab <- c(
   "9"  = "tails ($g$-and-$h$)",
   "10" = "skewness ($\\lambda(\\bs)$)",
   "11" = "mean (2 bumps, sd 11)",
-  "12" = "mean (6 bumps, sd 11)"
+  "12" = "mean (6 bumps, sd 11)",
+  "13" = "mean, Franke (multiscale)",
+  "14" = "mean, curved ridge",
+  "15" = "mean, annulus (Ricker)",
+  "16" = "mean, sigmoid front",
+  "17" = "mean, GP draw",
+  "18" = "mean, Franke + sinh-arcsinh err.",
+  "19" = "mean, poly2 (bowl+saddle)",
+  "20" = "mean, transform mix",
+  "21" = "mean, non-smooth (hinges)"
 )
 score_files <- c(energy = "energy.score", brier = "brier.score", vario = "vario.score")
 
@@ -88,7 +103,14 @@ header <- paste0(
 
 for (sc in names(score_files)) {
   L <- header
+  nont_marked <- FALSE
   for (s in settings) {
+    if (!nont_marked && s >= first_nont) {
+      L <- c(L, "\\midrule",
+             paste0("\\multicolumn{8}{l}{\\emph{Non-$t$ extension ",
+                    "(Gaussian-GP errors; skew-$t$ is misspecified)}} \\\\"))
+      nont_marked <- TRUE
+    }
     r <- relK(load_score(s, score_files[[sc]]))
     cells <- vapply(1:5, function(m) best_cell(r, m), "")
     L <- c(L, paste0(s, " & ", slab[[as.character(s)]], " & ", r$n, " & ",

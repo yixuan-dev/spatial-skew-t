@@ -152,20 +152,25 @@ get_tbf_seed <- function(setting_id, method_id, dataset_id) {
 # temporal pooling. Method 3 freezes the Voronoi membership at the seam
 # (the fixed-membership ablation of Remark 8) to separate the tau/z
 # signal from knot-flip noise; with K = 1 it coincides with method 2.
+# Method 4 is AR(1) temporal pooling: temporal = TRUE but ar2 = FALSE, so
+# the backend estimates a single lag (phi.z/phi.tau are [iters, 1]). It is
+# the discriminating middle rung -- AR(2) minus AR(1) isolates the value of
+# the second lag.
 get_tbf_method_catalog <- function() {
   data.frame(
-    method_id = 1:3,
-    method_key = as.character(1:3),
+    method_id = 1:4,
+    method_key = as.character(1:4),
     label = c(
       "Skew-t, K=1, i.i.d. in time",
       "Skew-t, K=1, AR(2) temporal (tau,z,w)",
-      "Skew-t, K=1, AR(2) temporal, fixed membership"
+      "Skew-t, K=1, AR(2) temporal, fixed membership",
+      "Skew-t, K=1, AR(1) temporal (tau,z)"
     ),
-    skew = c(TRUE, TRUE, TRUE),
-    nknots = c(1L, 1L, 1L),
-    temporal = c(FALSE, TRUE, TRUE),
-    ar2 = c(FALSE, TRUE, TRUE),
-    fixed_membership = c(FALSE, FALSE, TRUE),
+    skew = c(TRUE, TRUE, TRUE, TRUE),
+    nknots = c(1L, 1L, 1L, 1L),
+    temporal = c(FALSE, TRUE, TRUE, TRUE),
+    ar2 = c(FALSE, TRUE, TRUE, FALSE),
+    fixed_membership = c(FALSE, FALSE, TRUE, FALSE),
     stringsAsFactors = FALSE
   )
 }
@@ -244,7 +249,7 @@ tbf_blocks <- function(block_seams, block_H, nt) {
 #
 # Returns: predictive sample array yhat [iters x ns x H].
 #########################################################################
-forecast_block <- function(fit, seam, H, x_block, s, ar2 = TRUE) {
+forecast_block <- function(fit, seam, H, x_block, s, ar2 = TRUE, ar1 = FALSE) {
   # The AR(2) backend stores tau/z as keepers[iters, nknots, T_o] but
   # drops the singleton knot axis on return when nknots == 1, so fit$tau
   # arrives as a 2-D [iters, T_o] matrix. Restore the knot axis so the
@@ -284,6 +289,18 @@ forecast_block <- function(fit, seam, H, x_block, s, ar2 = TRUE) {
       z.seam <- hn.cop(z.obs, sig = sd.z)
       tau.star <- ar2_recurse(tau.seam, phi.tau, H, K)
       z.star <- ar2_recurse(z.seam, phi.z, H, K)
+    } else if (ar1) {
+      # AR(1): a single-lag recursion from the T_o seam state only.
+      # fit$phi.z / fit$phi.tau are [iters, 1] when ar2_z/ar2_tau = FALSE.
+      phi.tau <- fit$phi.tau[m, 1L]
+      phi.z <- fit$phi.z[m, 1L]
+      tau.obs <- matrix(tau_traj[m, , seam, drop = FALSE], K, 1L)
+      z.obs <- matrix(z_traj[m, , seam, drop = FALSE], K, 1L)
+      tau.seam <- gamma.cop(tau.obs, a.m, b.m)
+      sd.z <- 1 / sqrt(tau.obs)
+      z.seam <- hn.cop(z.obs, sig = sd.z)
+      tau.star <- ar1_recurse(tau.seam, phi.tau, H, K)
+      z.star <- ar1_recurse(z.seam, phi.z, H, K)
     } else {
       # i.i.d. baseline: each forecast slice is a fresh N(0,1) draw,
       # i.e. the stationary marginal (Corollary 1).
@@ -335,6 +352,22 @@ ar2_recurse <- function(seam_state, phi, H, K) {
     cur <- phi1 * prev1 + phi2 * prev2 + rnorm(K, 0, innov.sd)
     out[, h] <- cur
     prev2 <- prev1
+    prev1 <- cur
+  }
+  out
+}
+
+# AR(1) latent recursion: given the 1-column seam state (column T_o) advance
+# H steps with innovation variance fixed so the marginal variance stays 1,
+# i.e. innov.sd = sqrt(1 - phi1^2). A non-stationary tail draw (|phi1| >= 1)
+# is clamped to the i.i.d. marginal, mirroring ar2_recurse (Remark 7d).
+ar1_recurse <- function(seam_state, phi1, H, K) {
+  innov.sd <- if (abs(phi1) < 1) sqrt(1 - phi1^2) else 1
+  out <- matrix(NA_real_, K, H)
+  prev1 <- seam_state[, 1]
+  for (h in seq_len(H)) {
+    cur <- phi1 * prev1 + rnorm(K, 0, innov.sd)
+    out[, h] <- cur
     prev1 <- cur
   }
   out

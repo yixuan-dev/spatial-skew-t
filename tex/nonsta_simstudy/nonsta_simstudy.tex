@@ -58,8 +58,8 @@ not merely a large $K$.
 \section{Design}
 
 \paragraph{Data-generating process.}
-All settings share the skew-$t$-1 core on $n_s=144$ sites drawn uniformly on
-$[0,10]^2$:
+Settings 1--12 share the skew-$t$-1 core on $n_s=144$ sites drawn uniformly on
+$[0,10]^2$ (settings 13--21 replace it with a Gaussian process; see below):
 \begin{equation}
 Y_t(\bs) \;=\; 10 \;+\; \lambda\,\sigma_t\,|z_t| \;+\; \sigma_t\, v_t(\bs)
 \;+\; [\text{structure}]_k,
@@ -74,12 +74,20 @@ i.i.d.\ in time. The settings differ only in the structure term---or, for the
 (Table~\ref{tab:dgp}). Table~\ref{tab:anatomy} gives the resulting anatomy of
 each DGP: the marginal law of $Y_t(\bs)$, the spatial dependence of the error
 process, and the time-averaged true mean surface $\bar\mu(\bs)$ (the target of
-any pooled-$\beta$ mean basis).
+any pooled-$\beta$ mean basis). Settings 13--21 form a \emph{non-$t$ extension}:
+they drop the skew-$t$ generator entirely in favour of a nonlinear mean surface
+(sd 11) with Gaussian-GP errors ($\sigma_g = 4$, same $C_{\mathrm{exp}}$), so
+that the mean channel is tested without the crutch of a correctly specified
+error law at large $K$. Their fitting is in progress; the design tables list
+all 21 settings, while the score tables report settings that have been fitted.
 
 \begin{table}[ht]
 \centering\small
-\caption{The twelve fitted DGP settings and the number of simulation replicates
-$n$ (independent datasets) fitted per setting. Routes: \emph{mean} = added to
+\caption{The DGP settings and the number of simulation replicates
+$n$ (independent datasets) fitted per setting. Settings 1--12 share the
+skew-$t$ core; settings 13--21 are the non-$t$ extension (Gaussian-GP errors,
+$\sigma_g = 4$; nonlinear mean surface orthogonalised against $[1,s_1,s_2]$
+and standardised to $\mathrm{sd}=11$). Routes: \emph{mean} = added to
 the fixed mean; \emph{additive} = mean-zero random field added to the draw;
 \emph{replace $C$} = non-stationary correlation handed to the generator (unit
 diagonal, so the \emph{marginal} skew-$t$ law is unchanged --- verified by KS
@@ -101,21 +109,36 @@ ID & \texttt{surf\_type} & non-stationarity & route & $n$ \\
 10 & lambda\_varying   & skewness, $\lambda(\bs) = 3 + 3 f_2(\bs)$ & skew term  & 3  \\
 11 & invariant\_strong & mean, $3\times$ setting 1, $\mathrm{sd}=11$ & mean     & 3  \\
 12 & mrts\_multibump   & mean, 6 Gaussian bumps, $\mathrm{sd}=11$    & mean     & 3  \\
+\midrule
+\multicolumn{5}{l}{\emph{Non-$t$ extension (Gaussian-GP errors; skew-$t$ generator dropped)}$^{b}$} \\
+13 & franke         & mean, Franke (multiscale)                 & mean & 3 \\
+14 & ridge\_curved  & mean, curved Gaussian ridge               & mean & 3 \\
+15 & annulus        & mean, Ricker ring ($r_0{=}3$, $w{=}1.5$)   & mean & 3 \\
+16 & sigmoid\_front & mean, $\tanh$ arc front                    & mean & 3 \\
+17 & gp\_mean       & mean, GP draw (per dataset, fixed in $t$)  & mean & 3 \\
+18 & franke\_sas    & mean $=$ setting 13; sinh-arcsinh error   & mean & 3 \\
+19 & poly2          & mean, bowl $+$ saddle (2nd-order poly)     & mean & 3 \\
+20 & transform\_mix & mean, log $+$ exp-decay $+$ ratio terms    & mean & 3 \\
+21 & nonsmooth      & mean, hinge $+\,|\cdot|$ ($C^0$ creases)   & mean & 3 \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables.}
+\multicolumn{5}{p{0.92\textwidth}}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables. $^{b}$ settings 13--21 use the grid $\Kmrts \in \{0,30,40,50\}$; fitting is in progress (setting 13 complete at time of writing).}
 \end{tabular}
 \end{table}
 
 \begin{table}[ht]
 \centering\footnotesize
-\caption{Anatomy of the twelve DGPs: marginal law of $Y_t(\bs)$, spatial
+\caption{Anatomy of the DGPs: marginal law of $Y_t(\bs)$, spatial
 dependence of the error process, and time-averaged true mean $\bar\mu(\bs)$
 (its spatial sd in parentheses; per-dataset values for random means).
 $C_{\mathrm{exp}}(h) = 0.9\, e^{-h}$ is the shared stationary exponential
 correlation (Mat\'ern $\nu = \tfrac12$, $\rho = 1$, unit diagonal, i.e.\ a 10\%
 nugget); ``skew-$t$'' is the $t_3$ core of \eqref{eq:core} with $\lambda = 3$;
 $\ast$ denotes convolution with an independent additive field
-($\sigma_{\mathrm{add}} = 3$); $f_1, f_2$ are the two cosine bumps.}
+($\sigma_{\mathrm{add}} = 3$); $f_1, f_2$ are the two cosine bumps. For the
+non-$t$ block (13--21) the error is $\sigma_g\,\varepsilon$ with
+$\varepsilon \sim N(0, C_{\mathrm{exp}})$, $\sigma_g = 4$ (so the marginal is
+Gaussian, sd 4), and every mean surface is orthogonalised against
+$[1,s_1,s_2]$ and rescaled to $\mathrm{sd} = 11$.}
 \label{tab:anatomy}
 \begin{tabular}{clp{3.3cm}p{4.4cm}p{3.9cm}}
 \toprule
@@ -133,6 +156,17 @@ ID & \texttt{surf\_type} & marginal law & spatial dependence & mean structure $\
 10 & lambda\_varying   & skew-$t$ with $\lambda(\bs) = 3 + 3f_2 \in [0,6]$ & $C_{\mathrm{exp}}$, stationary & induced: $10 + \lambda(\bs)\,\bar z$, $\bar z = \frac{1}{T}\sum_t \sigma_t |z_t|$ \hfill (2.8) \\
 11 & invariant\_strong & skew-$t$ & $C_{\mathrm{exp}}$, stationary & $10 + 15f_1 + 9f_2$ \hfill (11.0) \\
 12 & mrts\_multibump   & skew-$t$ & $C_{\mathrm{exp}}$, stationary & $10\,+$ six alternating-sign Gaussian bumps (width 1.6) \hfill (11.0) \\
+\midrule
+\multicolumn{5}{l}{\emph{Non-$t$ extension: Gaussian-GP errors, $\sigma_g = 4$, mean surface sd 11}} \\
+13 & franke         & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ Franke's function (2 large $+$ 1 medium bump, 1 fine dip) \hfill (11.0) \\
+14 & ridge\_curved  & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ curved Gaussian ridge $\exp[-(s_2' - 0.5 - 0.25\sin 2\pi s_1')^2 / 2\cdot0.12^2]$ \hfill (11.0) \\
+15 & annulus        & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ Ricker ring $\psi((r-3)/1.5)$, $r = \lVert\bs - (5,5)\rVert$ \hfill (11.0) \\
+16 & sigmoid\_front & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+ \tanh[(\lVert\bs - (2,2)\rVert - 4.5)/1.0]$ arc front \hfill (11.0) \\
+17 & gp\_mean       & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ GP draw (Mat\'ern $\nu{=}1.5$, range 2), redrawn per dataset, fixed in $t$ \hfill (11.0) \\
+18 & franke\_sas    & sinh-arcsinh ($\epsilon{=}0.8$, $\delta{=}1$), right-skewed & $C_{\mathrm{exp}}$, stationary & $10\,+$ Franke (identical to setting 13) \hfill (11.0) \\
+19 & poly2          & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ 2nd-order polynomial (bowl $+$ saddle) \hfill (11.0) \\
+20 & transform\_mix & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+ \log(1{+}s_1) + e^{-s_1/2} + s_1/(1{+}s_2)$ \hfill (11.0) \\
+21 & nonsmooth      & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+ \mathrm{hinge}(s_1{-}5) + |s_2 - 4|$ ($C^0$ creases) \hfill (11.0) \\
 \bottomrule
 \end{tabular}
 \end{table}
