@@ -1,17 +1,16 @@
 "method_id","method_key","label","runner","method","skew","thresh_all","thresh_quant","nknots","use_exponential_fallback","temporaltau","temporalz","temporalw","ar2_tau","ar2_z","ar2_w","mrts_k","output_tag","plan_id"
-4,"4+mrts3","Skew-t, K=5 + MRTS(3)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,3,"mrts3",1
-4,"4+mrts5","Skew-t, K=5 + MRTS(5)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,5,"mrts5",2
-4,"4+mrts8","Skew-t, K=5 + MRTS(8)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,8,"mrts8",3
-4,"4+mrts10","Skew-t, K=5 + MRTS(10)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,10,"mrts10",4
-4,"4+mrts12","Skew-t, K=5 + MRTS(12)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,12,"mrts12",5
-4,"4+mrts15","Skew-t, K=5 + MRTS(15)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,15,"mrts15",6
-4,"4+mrts20","Skew-t, K=5 + MRTS(20)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,20,"mrts20",7
-4,"4+mrts25","Skew-t, K=5 + MRTS(25)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,25,"mrts25",8
-5,"5+mrts3","Sym-t, K=5, T=q(0.80) + MRTS(3)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,3,"mrts3",9
-5,"5+mrts5","Sym-t, K=5, T=q(0.80) + MRTS(5)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,5,"mrts5",10
-5,"5+mrts8","Sym-t, K=5, T=q(0.80) + MRTS(8)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,8,"mrts8",11
-5,"5+mrts10","Sym-t, K=5, T=q(0.80) + MRTS(10)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,10,"mrts10",12
-5,"5+mrts12","Sym-t, K=5, T=q(0.80) + MRTS(12)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,12,"mrts12",13
-5,"5+mrts15","Sym-t, K=5, T=q(0.80) + MRTS(15)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,15,"mrts15",14
-5,"5+mrts20","Sym-t, K=5, T=q(0.80) + MRTS(20)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,20,"mrts20",15
-5,"5+mrts25","Sym-t, K=5, T=q(0.80) + MRTS(25)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,25,"mrts25",16
+1,"1+mrts30","Gaussian + MRTS(30)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",1
+1,"1+mrts40","Gaussian + MRTS(40)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",2
+1,"1+mrts50","Gaussian + MRTS(50)","mcmc","gaussian",FALSE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",3
+2,"2+mrts50","Skew-t, K=1 + MRTS(50)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",4
+2,"2+mrts30","Skew-t, K=1 + MRTS(30)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",5
+2,"2+mrts40","Skew-t, K=1 + MRTS(40)","mcmc","t",TRUE,0,TRUE,1,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",6
+3,"3+mrts50","Sym-t, K=1, T=q(0.80) + MRTS(50)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",7
+3,"3+mrts40","Sym-t, K=1, T=q(0.80) + MRTS(40)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",8
+3,"3+mrts30","Sym-t, K=1, T=q(0.80) + MRTS(30)","mcmc","t",FALSE,0.8,TRUE,1,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",9
+4,"4+mrts40","Skew-t, K=5 + MRTS(40)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",10
+4,"4+mrts50","Skew-t, K=5 + MRTS(50)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",11
+4,"4+mrts30","Skew-t, K=5 + MRTS(30)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",12
+5,"5+mrts30","Sym-t, K=5, T=q(0.80) + MRTS(30)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,30,"mrts30",13
+5,"5+mrts40","Sym-t, K=5, T=q(0.80) + MRTS(40)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,40,"mrts40",14
+5,"5+mrts50","Sym-t, K=5, T=q(0.80) + MRTS(50)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,50,"mrts50",15
