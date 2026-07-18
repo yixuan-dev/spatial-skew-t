@@ -20,12 +20,13 @@
 \newcommand{\code}[1]{\texttt{#1}}
 \DeclareMathOperator{\hn}{HN}
 \DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\sd}{sd}
 \DeclareMathOperator{\E}{\mathbb{E}}
 
 \title{\textbf{A stale comment, a silent failure}\\[2pt]
 \large Why \code{z.init = 0.01} destroyed the time-block forecast study}
 \author{Technical note}
-\date{12 July 2026}
+\date{12 July 2026 \quad(rev.\ 18 July 2026)}
 
 \begin{document}
 \maketitle
@@ -39,9 +40,14 @@ single argument, \code{z.init = 0.01}, passed to \code{mcmc()} on the strength
 of a comment that was true when it was written and false by the time it was
 read. This note explains why the comment was wrong, derives the cascade from
 that one number to a predictive standard deviation of $104$ against a data
-marginal of $4.38$, and documents the verification. The deeper point is not the
-bug: it is that the workaround converted a \emph{loud} failure into a
-\emph{silent} one.
+marginal of $4.38$, and documents the verification --- including the effect on
+the study's own scores, where the fix halves the AR(2) CRPS and cuts its Brier
+by a third. It then records two findings from the cleanup: the model
+non-identifiability the bug exploited persists as a milder, stochastic
+``reflected'' branch that corrupts \emph{every} proper score (Brier included,
+not only the multivariate ones), and the same fatal default still lies dormant
+behind a guard in a sibling backend. The deeper point is not the bug: it is
+that the workaround converted a \emph{loud} failure into a \emph{silent} one.
 \end{abstract}
 
 \section{The comment}
@@ -244,18 +250,111 @@ z$ to $1.68$, and the lead-15 predictive SD to $4.94$ against a marginal of
 $4.38$ --- i.e.\ the forecast now converges to climatology, as an AR forecast
 must.
 
-\paragraph{Consequence.} Every score in the previous time-block study --- CRPS,
-Brier, energy, variogram --- was computed from this corrupted predictive sample
-and must be discarded. The headline finding, ``AR(2) forecasts four times worse
-than i.i.d.,'' was never a statement about temporal pooling. It was a statement
-about an initial value.
+\paragraph{Consequence, in the currency of the study.} Every score in the
+previous time-block study was computed from this corrupted predictive sample.
+Rescoring the setting-4 study (five blocks $\times$ five datasets) before and
+after the one-argument fix makes the damage concrete in the scores themselves,
+not merely in the predictive SD:
 
-\paragraph{Residual caveat.} The fix removes the catastrophic corner but not the
-ridge \eqref{eq:ridge}. In the repaired run, block~1 (the shortest prefix, $50$
-days) still drifts to $\lambda = 5.81$ against a truth of $3$, with $\bar z$
-correspondingly low --- the product $\lambda \bar z$ and $\mu$ remain correct.
-The $(\beta_0, \lambda, z)$ non-identifiability is a property of the model, not
-of this bug, and it deserves separate treatment.
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+ & \textbf{before} (\code{z.init=0.01}) & \textbf{after} (fixed) & change \\
+\midrule
+AR(2) CRPS (mean)        & $5.95$   & $2.64$   & $-56\%$ \\
+AR(2) Brier $q_{95}$     & $0.104$  & $0.070$  & $-33\%$ \\
+i.i.d.\ CRPS (mean)      & $2.33$   & $2.41$   & $+3\%$ \\
+i.i.d.\ Brier $q_{95}$   & $0.053$  & $0.059$  & $+11\%$ \\
+\midrule
+AR(2)$-$i.i.d.\ CRPS gap  & $+3.62$  & $+0.23$  & \\
+\quad (clean 21 blocks)   &          & $-0.015$ ($p = 0.78$) & \\
+AR(2)$-$i.i.d.\ Brier gap  & $+0.051$ & $+0.011$ & \\
+\quad (clean 21 blocks)   &          & $+0.0001$ ($p = 0.97$) & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The i.i.d.\ method barely moves --- it never runs the temporal $z$ update the
+bug lives in --- while the AR(2) method's CRPS more than halves and its Brier
+falls by a third. Once the four residual reflected blocks are excluded
+(\S\ref{sec:residual}), the two methods are a statistical tie on both scores.
+The headline finding, ``AR(2) forecasts four times worse than i.i.d.,'' was
+never a statement about temporal pooling. It was a statement about an initial
+value.
+
+\section{The residual: the same ridge, entered a different way}
+\label{sec:residual}
+
+The fix removes the catastrophic corner but not the ridge \eqref{eq:ridge}.
+The bug forced \emph{every} chain onto the ridge deterministically, through
+the $z$ coordinate; with that door shut, a minority of chains still drift onto
+it stochastically during burn-in, through the $(\lambda, \beta_0)$
+coordinates. On the guarded block-1 study these ``reflected'' fits appear in
+about a quarter of cells: $\lambda$ flips to $-4$ to $-15$, $\beta_0$ rises to
+$26$--$35$ so that $\beta_0 + \lambda\bar z$ still reproduces the data mean,
+$\bar z$ stays correct (so the level-based assertion below \emph{passes}), and
+the predictive SD inflates as $\max_h \sd(\hat y_h) \approx 1.5\,|\hat\lambda|$.
+This is a genuine non-identifiability of the model, milder than the bug
+(predictive SD $6$--$21$, not $104$), and it is documented separately in the
+companion note \code{tex/lambda\_phiz\_ridge}. Two practical consequences
+belong here, because both were discovered while cleaning up after this bug.
+
+\subsection{A reflected fit corrupts every proper score, not only the joint
+ones}
+
+It is tempting to hope that a latent-process pathology only shows up in
+multivariate scores (energy, variogram) that credit temporal dependence, so
+that a study reporting the univariate Brier score could ignore it. It cannot.
+Refitting the five strongest reflected cells bit-for-bit and scoring the
+reflected chain against its healthy replacement on all four scores:
+
+\begin{center}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+cell & $\hat\lambda$ (refl.\,$\to$\,heal.) & Brier $q_{95}$ & CRPS & energy & variogram \\
+\midrule
+s5 d3 m2 & $-15.2 \to +3.3$ & $0.109 \to 0.132$ & $1.94 \to 2.15$ & $9.9 \to 7.2$ & $243 \to 93$ \\
+s4 d6 m2 & $-8.9 \to +2.9$  & $0.138 \to 0.135$ & $5.59 \to 5.48$ & $21.5 \to 18.3$ & $430 \to 302$ \\
+s4 d5 m2 & $-7.3 \to +3.9$  & $\mathbf{0.021 \to 0.002}$ & $2.64 \to 1.57$ & $14.3 \to 11.8$ & $276 \to 179$ \\
+s4 d5 m1 & $-7.2 \to +3.5$  & $\mathbf{0.027 \to 0.003}$ & $3.19 \to 1.90$ & $14.6 \to 12.2$ & $301 \to 178$ \\
+s4 d10 m1 & $-5.0 \to +3.0$ & $0.056 \to 0.023$ & $2.87 \to 2.21$ & $11.6 \to 10.8$ & $234 \to 144$ \\
+\midrule
+\multicolumn{2}{l}{mean relative damage} & (see text) & $+32\%$ & $+21\%$ & $+78\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every score is worse under reflection --- the inflated $|\lambda|$ widens the
+\emph{marginal} forecast at every lead, and no proper score rewards
+overdispersion. The ordering, though, is the opposite of the intuition above:
+the energy score is the \emph{most} robust ($+21\%$), the pure-dependence
+variogram the least ($+78\%$), and CRPS sits between ($+32\%$). The Brier
+score is damaged too, and most sharply exactly where it matters: on the three
+easy datasets (s4 d5, d10) whose healthy fit gets the tail nearly right, the
+reflected chain multiplies the Brier error several-fold ($0.002 \to 0.021$,
+$0.003 \to 0.027$, $0.023 \to 0.056$). On the two hard datasets (s5 d3, s4 d6),
+where even the healthy fit scores poorly, an overdispersed forecast happens to
+hedge, so the Brier barely moves or even improves --- which is not a reprieve
+but a warning: a broken fit can win a single validation window by luck, so the
+score itself cannot be used to detect the pathology. \emph{Focusing on the
+Brier score does not make the identification problem ignorable; it only makes
+it intermittent and harder to see.}
+
+\subsection{The same default still lurks in a sibling backend}
+
+The bug's root cause --- a signature default that maps to
+$\operatorname{hn.cop}(0,\sigma) = -\infty$ --- was fixed in \code{ar2} but
+survives as \code{z.init = 0} in the \code{prop} backend
+(\code{code/R/prop/mcmc\_prop.R}). It is currently harmless: \code{prop}
+refuses temporal-$z$ blocks with a \code{stop()} guard, and its non-temporal
+Gibbs update overwrites the initial value on the first sweep. But it is a
+dormant landmine. Enabling temporal $z$ there --- the obvious first step for a
+future extension --- would re-arm the original freeze exactly; a direct test
+(same shared \code{updateZTS\_AR2} machinery, \code{z.init = 0}) reproduces it
+on contact: $z$ frozen, $\phi_z$ variance $0$, \code{NaN} warnings by the
+hundred. We have synced the default to \code{NULL} $\mapsto$ the half-normal
+median, so the trap is disarmed before anyone steps on it.
 
 \section{The real lesson}
 
