@@ -11,10 +11,23 @@
 #
 # Optional parameters:
 #     -Settings 16,19     which settings to fill (default 16,19)
-#     -Workers 8          PSOCK workers for run-settings.R (default 8)
+#     -Workers 0          PSOCK workers for run-settings.R.
+#                         0 (default) = AUTO: logical cores - 1, additionally
+#                         capped at floor(RAM_GB / 3) so each worker has
+#                         ~3 GB headroom. Pass an explicit number to override.
 #     -MsThreads 2        max-stable threads (unused here, default 2)
 #     -MinFreeGB 25       abort a setting if free space below this
 #     -KeepFits           do NOT delete fits after scoring
+#     -SkipEnvCheck       skip env_check.R (packages/Rtools/compile test)
+#     -SkipTest           skip the single-fit serial test run
+#
+# Startup sequence (fail fast, nothing destructive before the real run):
+#   1. env_check.R  -- packages present (auto-installs), Rtools/make works,
+#                      C++ kernel compiles, ar2 pipeline loads.
+#   2. test run     -- ONE fit, serial (1 worker): first setting, dataset 4,
+#                      method 1, K=0.  Catches data/path/compile issues in
+#                      ~6 min instead of failing 8 workers deep.
+#   3. full run     -- the parallel increment per setting, as planned.
 #
 # Per setting it (a) fits only the INCREMENT over the existing pilot
 # (datasets 1:3 x K{0,30,40,50} already on disk are reused, not refit --
@@ -26,14 +39,28 @@
 
 param(
     [int[]] $Settings  = @(16, 19),
-    [int]   $Workers   = 8,
+    [int]   $Workers   = 0,        # 0 = auto-detect from this machine's CPU/RAM
     [int]   $MsThreads = 2,
     [int]   $MinFreeGB = 25,
-    [switch] $KeepFits
+    [switch] $KeepFits,
+    [switch] $SkipEnvCheck,
+    [switch] $SkipTest
 )
 
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot                       # = code/analysis/simstudy
+
+if ($Workers -lt 1) {
+    # Auto-size to THIS machine: one PSOCK worker per logical core, minus one
+    # core for the OS/master process, capped so each worker keeps ~3 GB RAM.
+    $cores  = [Environment]::ProcessorCount
+    $ramGB  = 64   # assume plenty if RAM cannot be queried
+    try {
+        $ramGB = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
+    } catch {}
+    $Workers = [math]::Max(1, [math]::Min($cores - 1, [math]::Floor($ramGB / 3)))
+    Write-Host "auto workers: $Workers  (logical cores = $cores, RAM = ${ramGB} GB)" -ForegroundColor Yellow
+}
 
 $data       = 'simdata_nonsta.RData'
 $resultsDir = Join-Path $PSScriptRoot 'results_nonsta'
@@ -45,7 +72,25 @@ $scoreK     = 'c(0,3,5,8,10,12,15,20,25,30,40,50)'
 
 function Get-FreeGB {
     # results_nonsta is a subdir of the script dir, i.e. same volume.
-    [math]::Round((Get-PSDrive (Get-Item $PSScriptRoot).PSDrive.Name).Free / 1GB, 0)
+    # Works for drive letters AND UNC paths (\\server\share\...): PSDrive has
+    # no Free for UNC, so fall back to the Win32 GetDiskFreeSpaceEx via .NET.
+    try {
+        $d = (Get-Item $PSScriptRoot).PSDrive
+        if ($null -ne $d -and $null -ne $d.Free) { return [math]::Round($d.Free / 1GB, 0) }
+    } catch {}
+    try {
+        $free = 0L; $total = 0L; $totalFree = 0L
+        $sig = @'
+[System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+public static extern bool GetDiskFreeSpaceEx(string lpDirectoryName, out long lpFreeBytesAvailable, out long lpTotalNumberOfBytes, out long lpTotalNumberOfFreeBytes);
+'@
+        $k32 = Add-Type -MemberDefinition $sig -Name 'DiskFree' -Namespace 'Win32' -PassThru
+        if ($k32::GetDiskFreeSpaceEx($PSScriptRoot, [ref]$free, [ref]$total, [ref]$totalFree)) {
+            return [math]::Round($free / 1GB, 0)
+        }
+    } catch {}
+    Write-Warning "cannot determine free space for $PSScriptRoot -- skipping the disk guard."
+    return [int]::MaxValue
 }
 function Rrun([string]$label, [string[]]$rargs) {
     Write-Host "[$(Get-Date -Format HH:mm:ss)] $label" -ForegroundColor Cyan
@@ -55,6 +100,24 @@ function Rrun([string]$label, [string[]]$rargs) {
 
 if (-not (Get-Command Rscript -ErrorAction SilentlyContinue)) {
     throw "Rscript not found on PATH."
+}
+
+# ---- 1. environment check (packages, Rtools, compile, pipeline load) ----
+if (-not $SkipEnvCheck) {
+    Rrun "environment check (env_check.R)" @('env_check.R')
+}
+
+# ---- 2. single-fit serial test run --------------------------------------
+# One real fit (first setting, dataset 4, method 1, K=0) with 1 worker.
+# It is part of the needed set anyway; the full run refits it with the same
+# seed, so the only cost is ~6 minutes -- cheap insurance before going wide.
+if (-not $SkipTest) {
+    $s0 = $Settings[0]
+    Rrun "TEST RUN: setting $s0, dataset 4, method 1, K=0, serial" `
+        @('run-settings.R', "--data=$data", "--setting=$s0", '4', '1', "$MsThreads", '1')
+    $probe = Join-Path $resultsDir "$s0-1-4.RData"
+    if (-not (Test-Path $probe)) { throw "test run produced no output ($probe missing)." }
+    Write-Host "TEST RUN OK -> $probe  (proceeding to the parallel run)" -ForegroundColor Green
 }
 
 foreach ($s in $Settings) {

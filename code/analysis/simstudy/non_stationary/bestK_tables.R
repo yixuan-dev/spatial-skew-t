@@ -95,7 +95,7 @@ best_cell <- function(r, m) {
 }
 
 header <- paste0(
-  "\\setlength{\\tabcolsep}{4pt}\n",
+  "\\setlength{\\tabcolsep}{3.7pt}\n",
   "\\begin{tabular}{clcccccc}\n\\toprule\n",
   "ID & non-stationarity & $n$ & Gaussian & Skew-$t$ K1 & Sym-$t$ K1 T & ",
   "Skew-$t$ K5 & Sym-$t$ K5 T \\\\\n\\midrule"

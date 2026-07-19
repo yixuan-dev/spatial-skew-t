@@ -24,7 +24,8 @@ if (length(script_arg) > 0) {
 stopifnot(requireNamespace("scoringRules", quietly = TRUE))
 
 settings <- c(5, 7)
-datasets <- 1:10
+datasets <- 1:30              # scan wide; missing files are skipped
+n_target <- 10L              # take the first n_target three-way-clean datasets
 methods <- c(1, 2, 4)                       # iid, AR(2), AR(1)
 mlab <- c(`1` = "iid", `2` = "AR2", `4` = "AR1")
 H <- 15L
@@ -72,12 +73,14 @@ for (st in settings) {
     }
   }
 
-  clean <- which(apply(pass, 1, all))     # datasets clean under all three methods
+  clean_all <- which(apply(pass, 1, all)) # datasets clean under all three methods
+  clean <- head(clean_all, n_target)      # first n_target by dataset index
   cat(sprintf("\n=================== setting %d ===================\n", st))
   cat("guard pass by (dataset x method):\n")
-  print(pass)
-  cat(sprintf("three-way clean datasets: %s  (n = %d)\n",
-              paste(datasets[clean], collapse = ","), length(clean)))
+  print(pass[apply(!is.na(pass), 1, any), , drop = FALSE])
+  cat(sprintf("three-way clean available: %s  (n = %d); using first %d: %s\n",
+              paste(datasets[clean_all], collapse = ","), length(clean_all),
+              length(clean), paste(datasets[clean], collapse = ",")))
   if (length(clean) < 3) { cat("too few clean datasets for tests\n"); next }
 
   # per-lead three-way means (over clean datasets)

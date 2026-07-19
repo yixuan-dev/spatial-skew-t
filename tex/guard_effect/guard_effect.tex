@@ -243,4 +243,130 @@ leaderboard. The value of assertion-guarded refitting is that its selections
 are defensible before the validation data are opened.
 \end{quote}
 
+\appendix
+
+\section{Literature-search prompt}
+\label{app:prompt}
+
+The following self-contained prompt packs the reflected-ridge phenomenon of
+the companion note \code{tex/lambda\_phiz\_ridge} and the empirical evidence
+of this note into a form that can be pasted into a textbook database, a
+search engine, or another assistant, to locate the established terminology
+and standard treatments of the problem. It is deliberately written in plain
+ASCII with no project-specific jargon.
+
+{\small
+\begin{verbatim}
+I observed the following phenomenon in a Bayesian hierarchical
+skew-t spatio-temporal model and want to connect it to the
+established literature. Please give me (a) the canonical /
+professional names of each part of the phenomenon, (b) textbook or
+review-paper treatments, (c) the same problem in other model
+classes, and (d) the named standard remedies.
+
+MODEL. Observations
+    y_{st} = beta0 + x'beta + lambda * z_t + eps_{st}/sqrt(tau_t),
+where z_t >= 0 is a latent half-normal factor, z_t ~ HN(0,
+tau_t^{-1/2}), given AR(2) temporal dynamics through a Gaussian
+copula; lambda is a scalar skewness loading with a diffuse
+sign-symmetric prior N(0, 20). Simulation truth: lambda = +3,
+beta0 = 10. Fitting is by MCMC (Gibbs/Metropolis), 20k iterations.
+
+CORE GEOMETRY. The likelihood depends on (beta0, lambda, {z_t})
+only through the sum m_t = beta0 + lambda * z_t. For any fitted
+trajectory {m_t}, every pair (beta0*, lambda*) with the
+reassignment z_t* = (m_t - beta0*)/lambda* reproduces the
+likelihood EXACTLY, provided z_t* >= 0. The likelihood is flat on
+this two-parameter family; identification comes only from the
+prior structure on z (its half-normal marginal and its temporal
+smoothness). The family has two branches:
+  - positive branch (lambda* > 0): z path keeps its shape;
+    posterior mass near the truth;
+  - reflected branch (lambda* < 0): z path is flipped upside
+    down, and beta0* must rise above max_t m_t to keep z* >= 0.
+
+OBSERVED CONSEQUENCES (evidence from 25 + 40 controlled refits on
+simulated data with known truth):
+ 1. A subset of chains (7/25, later 13/40) settle on the reflected
+    branch: lambda flips sign to -4..-15, beta0 rises to 19..35
+    against a data mean of ~14.5, so beta0 + lambda * mean(z)
+    still reproduces the data mean exactly.
+ 2. On that branch the temporal variation of z shrinks like
+    1/|lambda|, so the fitted latent path is far too smooth for
+    its own half-normal marginal; the AR coefficients drift to a
+    near-unit root, which makes the over-smooth path cheap under
+    the prior (the dynamics "absorb" the violation).
+ 3. A first-moment check on z (mean of z vs its model-implied
+    value) PASSES on every reflected fit -- the ridge preserves
+    the first moment by construction. A second-temporal-moment
+    check, sd_t(z) / (sigma * sqrt(1 - 2/pi)), separates cleanly:
+    healthy fits 1.04..1.17, pathological fits 0.57..0.77.
+ 4. Out-of-sample forecasts amplify the hidden inconsistency:
+    max predictive SD = 1.49 * |lambda_hat| (R^2 = 0.987 through
+    the origin, healthy and pathological fits on the same line),
+    because forecasting redraws z from the model law at full
+    temporal variance and multiplies by the inflated |lambda|.
+ 5. The posterior is bimodal and the chain cannot switch modes:
+    leaving the reflected branch requires moving lambda across
+    zero AND dropping beta0 by ~20 AND re-inverting the whole z
+    path simultaneously; every one-coordinate move is
+    individually catastrophic for the likelihood.
+ 6. Restarting the SAME data with a new RNG seed rescues most
+    cases (10/13), showing the capture is chain-level, i.e. decided
+    by initialization during burn-in. In a few short-window
+    datasets the failure REPRODUCES across four seeds with lambda
+    stable to three decimals: there the training window realized a
+    nearly flat latent path and lambda is genuinely
+    under-identified by the data, not by the sampler.
+ 7. Guarding the study with pre-registered consistency assertions
+    (computable from fit + training data only, never validation
+    scores) and refitting failed cells with deterministic new
+    seeds repaired the study; in one cell the pathological fit
+    accidentally SCORED BETTER out of sample than its healthy
+    replacement, which is why the guard must select on model
+    consistency, not on outcomes.
+
+WHAT I SUSPECT THIS RELATES TO (please confirm, correct, and name
+precisely):
+  - sign/reflection non-identifiability of factor loadings in
+    factor analysis (lambda, z) -> (-lambda, -z), here modified by
+    the positivity constraint z >= 0 into (lambda, beta0, z) ->
+    (-lambda, beta0 + shift, flipped z);
+  - likelihood ridges / flat directions; weak identification;
+    aliasing; additive confounding of intercept and latent level
+    (as in spatial confounding?);
+  - skew-normal / skew-t identifiability problems (Azzalini;
+    singular information at lambda = 0, centered vs direct
+    parameterization);
+  - label switching in mixtures (an analogous discrete symmetry,
+    but for component labels rather than a sign);
+  - multimodal posteriors and mode capture / poor mixing between
+    symmetric modes; tempering and mode-jumping proposals;
+  - anchoring / sign constraints / positive-loading
+    identification conventions in Bayesian factor models;
+  - non-centered vs centered parameterizations of hierarchical
+    models.
+
+QUESTIONS.
+ 1. What is the accepted name for the joint sign-reflection +
+    compensating-location-shift invariance above, in the factor
+    analysis / skew-elliptical literature? Which textbook treats
+    it most directly?
+ 2. Is there an established name/theory for diagnostics that lie
+    ALONG a ridge (blind to it) versus TRANSVERSE to it (detect
+    it) -- i.e. for choosing model-checking statistics relative
+    to a non-identified direction?
+ 3. What are the named remedies and their trade-offs: sign
+    constraints/anchoring, asymmetric priors, reparameterization,
+    mode-relabeling in post-processing, mode-jumping MCMC?
+ 4. Is there literature on the validity of restart/reseed-until-
+    consistent policies (selection on model consistency rather
+    than on outcomes), and on the selection bias induced if one
+    instead restarts until the score improves?
+ 5. Is the empirical linear law "predictive SD proportional to
+    |loading|" a known signature of loading-inflation
+    pathologies in latent factor forecasts?
+\end{verbatim}
+}
+
 \end{document}

@@ -46,6 +46,7 @@ getflag <- function(name, default) {
 settings <- eval(parse(text = paste0("c(", getflag("settings", "4,5"), ")")))
 datasets <- eval(parse(text = getflag("datasets", "1:10")))
 method_ids <- eval(parse(text = getflag("methods", "1:2")))
+workers <- as.integer(getflag("workers", "1"))
 
 iters <- 20000
 burn <- 10000
@@ -56,109 +57,128 @@ catalog <- get_tbf_method_catalog()
 
 dir.create("results", showWarnings = FALSE)
 
+# ---- one guarded cell: fit -> forecast -> guard/reseed -> save ---------
+# Self-contained so it can run inside a PSOCK worker. Reads globals
+# (y, x, s, blk, block_H, catalog, iters, burn, update, max_attempts,
+# phi.path, setting.label); returns a one-line status string.
+run_one_cell <- function(setting, m, d) {
+  outfile <- sprintf("results/blk1-%d-%d-%d.RData", setting, m, d)
+  if (file.exists(outfile)) return(sprintf("s%d d%d m%d: exists, skip", setting, d, m))
+  marginal_sd <- sd(y[, , , setting])
+  truth <- list(lambda = 3, beta0 = 10)   # B uses lambda/beta0 only
+  spec <- catalog[catalog$method_id == m, , drop = FALSE]
+  y.train <- y[, blk$train_times, d, setting]
+  x.train <- x[, blk$train_times, , drop = FALSE]
+  x.block <- x[, blk$test_times, , drop = FALSE]
+  y.val <- y[, blk$test_times, d, setting]
+  tic <- proc.time()
+
+  # Early stop for REPRODUCIBLE failures: if two consecutive attempts land on
+  # the same lambda (within 15%) and both fail, the failure is data-level (a
+  # flat long-memory z realization under-identifies lambda in a 50-day window)
+  # -- reseeding cannot fix it. Never changes which fits PASS.
+  chk <- NULL
+  yhat <- NULL
+  lam_prev <- NA_real_
+  for (attempt in 0:(max_attempts - 1L)) {
+    seed <- get_tbf_seed(setting, m, d) + 7919L * attempt
+    set.seed(seed)
+    fit <- mcmc(
+      y = y.train, x = x.train, s = s,
+      method = "t", skew = isTRUE(spec$skew[1]),
+      thresh.all = 0, thresh.quant = TRUE,
+      nknots = spec$nknots[1],
+      iterplot = FALSE, iters = iters, burn = burn, update = update,
+      min.s = c(0, 0), max.s = c(10, 10),
+      temporalw = isTRUE(spec$temporal[1]),
+      temporaltau = isTRUE(spec$temporal[1]),
+      temporalz = isTRUE(spec$temporal[1]),
+      ar2_w = isTRUE(spec$ar2[1]),
+      ar2_tau = isTRUE(spec$ar2[1]),
+      ar2_z = isTRUE(spec$ar2[1]),
+      rho.upper = 15, nu.upper = 10
+    )
+    yhat <- forecast_block(
+      fit = fit, seam = blk$seam, H = block_H,
+      x_block = x.block, s = s,
+      ar2 = isTRUE(spec$ar2[1]),
+      ar1 = isTRUE(spec$temporal[1]) && !isTRUE(spec$ar2[1]))
+    chk <- check_fit_consistency(fit, yhat, truth, marginal_sd,
+                                 data_mean = mean(y.train))
+    chk <- cbind(setting = setting, method = m, dataset = d,
+                 attempt = attempt, seed = seed,
+                 pass = isTRUE(chk$B_truth) && isTRUE(chk$C_spread), chk)
+    rm(fit)
+    gc()
+    if (chk$pass) break
+    if (!is.na(lam_prev) &&
+        abs(chk$lambda - lam_prev) < 0.15 * max(abs(lam_prev), 0.5)) break
+    lam_prev <- chk$lambda
+  }
+
+  elapsed <- unname((proc.time() - tic)[3])
+  res <- list(setting = setting, method_id = m, dataset = d,
+              seam = blk$seam, leads = blk$leads, test_times = blk$test_times,
+              yhat = yhat, y_val = y.val, chk = chk, elapsed_sec = elapsed)
+  save(res, file = outfile)
+  rm(res, yhat)
+  gc()
+  sprintf("s%d d%d m%d saved (%.0f s, %d attempt(s), lam %+.2f pass=%s)",
+          setting, d, m, elapsed, chk$attempt + 1L, chk$lambda, chk$pass)
+}
+
+# ---- build the pending-cell grid (skip existing) ----------------------
+grid <- expand.grid(setting = settings, m = method_ids, d = datasets,
+                    KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+grid <- grid[order(grid$setting, grid$d, grid$m), ]
+grid$file <- sprintf("results/blk1-%d-%d-%d.RData", grid$setting, grid$m, grid$d)
+pending <- grid[!file.exists(grid$file), , drop = FALSE]
+
 cat(sprintf(
   "block1 positive control: settings=%s methods=%s datasets=%s\n",
   paste(settings, collapse = ","), paste(method_ids, collapse = ","),
   paste(range(datasets), collapse = "..")
 ))
-cat(sprintf("block 1: train t=1..%d, forecast t=%d..%d (H=%d)\n\n",
+cat(sprintf("block 1: train t=1..%d, forecast t=%d..%d (H=%d)\n",
             blk$seam, blk$seam + 1L, blk$seam + block_H, block_H))
+cat(sprintf("cells: %d total, %d pending; workers = %d\n\n",
+            nrow(grid), nrow(pending), workers))
 
-for (setting in settings) {
-  marginal_sd <- sd(y[, , , setting])
-  pp <- phi.path[[setting]]
-  truth <- list(lambda = 3, beta0 = 10)   # B uses lambda/beta0 only
-  temporal_desc <- if (identical(pp$type, "arfima")) {
-    sprintf("ARFIMA d = %.2f (Hurst %.2f)", pp$d, pp$hurst)
-  } else {
-    sprintf("phi = (%.2f, %.2f)", pp$phi_pair[1], pp$phi_pair[2])
-  }
-  cat(sprintf("=== setting %d (%s): %s, marginal sd %.2f ===\n",
-              setting, setting.label[setting], temporal_desc, marginal_sd))
-
-  for (d in datasets) {
-    y.train <- y[, blk$train_times, d, setting]
-    x.train <- x[, blk$train_times, , drop = FALSE]
-    x.block <- x[, blk$test_times, , drop = FALSE]
-    y.val <- y[, blk$test_times, d, setting]
-
-    for (m in method_ids) {
-      outfile <- sprintf("results/blk1-%d-%d-%d.RData", setting, m, d)
-      if (file.exists(outfile)) {
-        cat(sprintf("s%d d%d m%d: exists, skip\n", setting, d, m))
-        next
-      }
-      spec <- catalog[catalog$method_id == m, , drop = FALSE]
-      tic <- proc.time()
-
-      # Early stop for REPRODUCIBLE failures: if two consecutive attempts
-      # land on the same lambda (within 15%) and both fail, the failure is
-      # data-level (e.g. a flat long-memory z realization under-identifies
-      # lambda in a 50-day window) -- reseeding cannot fix it, and further
-      # attempts risk trading a stable near-miss for a reflected chain.
-      # This never changes which fits PASS; it only stops futile reseeds.
-      chk <- NULL
-      yhat <- NULL
-      lam_prev <- NA_real_
-      for (attempt in 0:(max_attempts - 1L)) {
-        seed <- get_tbf_seed(setting, m, d) + 7919L * attempt
-        set.seed(seed)
-        fit <- mcmc(
-          y = y.train, x = x.train, s = s,
-          method = "t", skew = isTRUE(spec$skew[1]),
-          thresh.all = 0, thresh.quant = TRUE,
-          nknots = spec$nknots[1],
-          iterplot = FALSE, iters = iters, burn = burn, update = update,
-          min.s = c(0, 0), max.s = c(10, 10),
-          temporalw = isTRUE(spec$temporal[1]),
-          temporaltau = isTRUE(spec$temporal[1]),
-          temporalz = isTRUE(spec$temporal[1]),
-          ar2_w = isTRUE(spec$ar2[1]),
-          ar2_tau = isTRUE(spec$ar2[1]),
-          ar2_z = isTRUE(spec$ar2[1]),
-          rho.upper = 15, nu.upper = 10
-        )
-        yhat <- forecast_block(
-          fit = fit, seam = blk$seam, H = block_H,
-          x_block = x.block, s = s,
-          ar2 = isTRUE(spec$ar2[1]),
-          ar1 = isTRUE(spec$temporal[1]) && !isTRUE(spec$ar2[1]))
-        chk <- check_fit_consistency(fit, yhat, truth, marginal_sd,
-                                     data_mean = mean(y.train))
-        chk <- cbind(setting = setting, method = m, dataset = d,
-                     attempt = attempt, seed = seed,
-                     pass = isTRUE(chk$B_truth) && isTRUE(chk$C_spread), chk)
-        rm(fit)
-        gc()
-        cat(sprintf(
-          "s%d d%d m%d att%d: lam %+7.2f beta0 %6.2f sdzr %.2f SDmax %6.2f %s\n",
-          setting, d, m, attempt, chk$lambda, chk$beta0, chk$sdz_ratio,
-          chk$sd_lead_max,
-          if (chk$pass) "PASS" else "FAIL -> reseed"
-        ))
-        if (chk$pass) break
-        if (!is.na(lam_prev) &&
-            abs(chk$lambda - lam_prev) < 0.15 * max(abs(lam_prev), 0.5)) {
-          cat(sprintf(
-            "s%d d%d m%d: reproducible failure (lam stable) -> stop reseeding\n",
-            setting, d, m))
-          break
-        }
-        lam_prev <- chk$lambda
-      }
-
-      elapsed <- unname((proc.time() - tic)[3])
-      res <- list(setting = setting, method_id = m, dataset = d,
-                  seam = blk$seam, leads = blk$leads,
-                  test_times = blk$test_times,
-                  yhat = yhat, y_val = y.val,
-                  chk = chk, elapsed_sec = elapsed)
-      save(res, file = outfile)
-      rm(res, yhat)
-      gc()
-      cat(sprintf("s%d d%d m%d saved (%.0f s, %d attempt(s), pass=%s)\n",
-                  setting, d, m, elapsed, chk$attempt + 1L, chk$pass))
-    }
+if (nrow(pending) == 0L) {
+  cat("nothing to do (all cells exist)\n")
+} else if (workers > 1L) {
+  wk <- min(workers, nrow(pending))
+  cl <- parallel::makeCluster(wk, type = "PSOCK", outfile = "")
+  on.exit(try(parallel::stopCluster(cl), silent = TRUE), add = TRUE)
+  wd <- getwd()
+  parallel::clusterExport(cl, "wd", envir = environment())
+  parallel::clusterEvalQ(cl, {
+    setwd(wd)
+    source("../../simstudy/ar2_load.R", chdir = TRUE)
+    source("../simstudy/time_block_helpers.R")
+    source("../simstudy/fit_diag_utils.R")
+    load("../simstudy/simdata.RData", envir = .GlobalEnv)
+    options(warn = 1)
+    blk <- tbf_blocks(block_seams, block_H, nt)[[1]]
+    catalog <- get_tbf_method_catalog()
+    NULL
+  })
+  parallel::clusterExport(cl, c("iters", "burn", "update", "max_attempts",
+                                "run_one_cell"), envir = environment())
+  # Pass each cell's coords as the iterated argument -- do NOT reference the
+  # master-side `pending` inside the worker (PSOCK resolves free names against
+  # the worker's own global env, where it is unbound).
+  cells <- lapply(seq_len(nrow(pending)), function(i) {
+    c(setting = pending$setting[i], m = pending$m[i], d = pending$d[i])
+  })
+  res <- parallel::parLapply(cl, cells, function(cell) {
+    run_one_cell(cell[["setting"]], cell[["m"]], cell[["d"]])
+  })
+  parallel::stopCluster(cl)
+  cat(paste(unlist(res), collapse = "\n"), "\n")
+} else {
+  for (i in seq_len(nrow(pending))) {
+    cat(run_one_cell(pending$setting[i], pending$m[i], pending$d[i]), "\n")
   }
 }
 cat("\nall requested fits finished\n")

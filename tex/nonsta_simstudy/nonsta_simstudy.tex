@@ -16,8 +16,9 @@
 \title{Non-stationary simulation study:\\
 what a mean-only MRTS augmentation can and cannot buy}
 \author{}
-\date{July 2026 --- interim report v3 (settings 1--12, the
-threshold-vs-symmetry disambiguation, and the $K \ge 30$ extension)}
+\date{July 2026 --- interim report v4 (settings 1--12, the
+threshold-vs-symmetry disambiguation, the $K \ge 30$ extension, and the
+non-$t$ extension pilots 13--21)}
 
 \begin{document}
 \maketitle
@@ -53,6 +54,9 @@ simple-surface setting~11, extended to the same $K = 50$, never turns
 positive --- its Brier ratio only decays back to parity ($1.09 \to 1.00$) ---
 so the reversal requires mean structure that only a fine basis can resolve,
 not merely a large $K$.
+New in v4: the nine non-$t$ extension settings (13--21; Gaussian-GP errors,
+so the skew-$t$ error law is misspecified) are fitted at pilot scale
+($n=3$) and included in the score tables; their analysis is deferred.
 \end{abstract}
 
 \section{Design}
@@ -78,8 +82,10 @@ any pooled-$\beta$ mean basis). Settings 13--21 form a \emph{non-$t$ extension}:
 they drop the skew-$t$ generator entirely in favour of a nonlinear mean surface
 (sd 11) with Gaussian-GP errors ($\sigma_g = 4$, same $C_{\mathrm{exp}}$), so
 that the mean channel is tested without the crutch of a correctly specified
-error law at large $K$. Their fitting is in progress; the design tables list
-all 21 settings, while the score tables report settings that have been fitted.
+error law at large $K$. All nine are fitted and scored at pilot scale
+($n = 3$, $\Kmrts \in \{0, 30, 40, 50\}$) and appear in the score tables;
+Section~\ref{sec:spotlight} introduces four of them in detail, and the
+systematic analysis is deferred to the next revision.
 
 \begin{table}[ht]
 \centering\small
@@ -121,7 +127,7 @@ ID & \texttt{surf\_type} & non-stationarity & route & $n$ \\
 20 & transform\_mix & mean, log $+$ exp-decay $+$ ratio terms    & mean & 3 \\
 21 & nonsmooth      & mean, hinge $+\,|\cdot|$ ($C^0$ creases)   & mean & 3 \\
 \bottomrule
-\multicolumn{5}{p{0.92\textwidth}}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables. $^{b}$ settings 13--21 use the grid $\Kmrts \in \{0,30,40,50\}$; fitting is in progress (setting 13 complete at time of writing).}
+\multicolumn{5}{p{0.92\textwidth}}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables. $^{b}$ settings 13--21 use the grid $\Kmrts \in \{0,30,40,50\}$; all nine are fitted and scored ($n=3$).}
 \end{tabular}
 \end{table}
 
@@ -183,10 +189,10 @@ the $K$-column \texttt{autoFRK::mrts} basis built on the \emph{training} sites
 only (column 1 = intercept, 2--3 linear, $4{:}K$ thin-plate-spline
 eigenfunctions; $K=3$ spans the baseline). MCMC: 20{,}000 iterations, 10{,}000
 burn-in. The random seed is shared across $\Kmrts$ within each
-(method, dataset), so all $K$-comparisons are \emph{paired}. The grid is
-being extended by $\Kmrts \in \{30, 40, 50\}$ setting by setting (complete
-for settings 1, 4, 11, 12 at the time of writing; Table~\ref{tab:brierK}
-shows exactly which cells exist).
+(method, dataset), so all $K$-comparisons are \emph{paired}. The
+$\Kmrts \in \{30, 40, 50\}$ extension is now complete for every fitted
+skew-$t$ setting (1, 3--12), so the full 12-point grid
+$\{0, 3, \dots, 50\}$ underlies all their tables.
 
 \paragraph{Scoring.}
 The last 44 of the 144 sites are held out entirely; all scores are computed
@@ -489,20 +495,197 @@ ceiling --- a higher-frequency mean component (3 cycles per axis) is
 \emph{rises} with $K$), i.e.\ MRTS's usable resolution is capped by site
 density, and the six-bump surface sits just inside that cap.
 
+\section{The non-$t$ spotlight quartet: settings 16, 19, 20, 21}
+\label{sec:spotlight}
+
+\subsection*{Shared construction}
+
+\begin{itemize}
+\item All four settings draw
+\begin{equation}
+Y_t(\bs) \;=\; 10 \;+\; g(\bs) \;+\; \sigma_g\,\varepsilon_t(\bs),
+\qquad \varepsilon_t \stackrel{iid}{\sim} N(\boldsymbol 0,\, C_{\mathrm{exp}}),
+\quad \sigma_g = 4,\quad t = 1,\dots,50,
+\label{eq:nontdgp}
+\end{equation}
+so the marginal law is Gaussian and every $t$-based error model is
+misspecified. Methods, holdout and scoring are as in Section~1; the fitted
+grid is $\Kmrts \in \{0, 30, 40, 50\}$ with $n = 3$ (the $n = 10$ / full-$K$
+upgrade of settings 16 and 19 is running).
+\item Each mean surface is the image of a raw field
+$\tilde g \in \R^{144}$ under the orthogonalise-and-standardise map
+\begin{equation}
+g \;=\; 11\,\frac{(I - P_X)\,\tilde g}
+{\widehat{\mathrm{sd}}\{(I - P_X)\tilde g\}},
+\qquad P_X = X(X^\top X)^{-1}X^\top,\quad
+X = [\boldsymbol 1,\, s_1,\, s_2] \in \R^{144 \times 3},
+\label{eq:orthostd}
+\end{equation}
+so that $g \perp \operatorname{col}(X)$ and
+$\widehat{\mathrm{sd}}(g) = 11$ exactly. Hence the $K = 0$ design spans
+\emph{none} of $g$; composite raw terms are standardised to unit sd before
+summing, written $\mathrm{std}\{\cdot\}$ below.
+\item Recoverability is quantified before any MCMC by the noise-free
+out-of-sample projection error
+\begin{equation}
+e(K) \;=\;
+\frac{\lVert B_K^{\mathrm{te}}\hat\beta_K - g^{\mathrm{te}}\rVert_2}
+     {\lVert g^{\mathrm{te}} - \bar g^{\mathrm{te}}\rVert_2},
+\qquad
+\hat\beta_K \;=\; \operatorname*{arg\,min}_{\beta \in \R^{K}}
+\lVert B_K^{\mathrm{tr}}\beta - g^{\mathrm{tr}}\rVert_2,
+\label{eq:projerr}
+\end{equation}
+where $B_K$ is the $K$-column MRTS basis built on the 100 training sites
+(superscripts: evaluated at the training / 44 test sites).
+Table~\ref{tab:spotlight} reports $e(K)$ together with the oracle Brier
+floor $R^\star$ recomputed under \eqref{eq:nontdgp}.
+\end{itemize}
+
+\begin{table}[ht]
+\centering\small
+\caption{The spotlight quartet: noise-free projection error $e(K)$ of
+\eqref{eq:projerr} and oracle Brier floor $R^\star$ (Monte Carlo, Gaussian
+error, $\sigma_g = 4$; \texttt{nont\_precheck.R}).}
+\label{tab:spotlight}
+\begin{tabular}{llccccl c}
+\toprule
+ID & \texttt{surf\_type} & $e(5)$ & $e(15)$ & $e(30)$ & $e(50)$ &
+$K \to \infty$ behaviour & $R^\star$ \\
+\midrule
+16 & sigmoid\_front & 0.591 & 0.250 & 0.131 & 0.094 & $\downarrow$, elbow at $K \approx 40$--$50$ & 0.559 \\
+19 & poly2          & 0.226 & 0.054 & 0.030 & 0.015 & $\downarrow$, saturated by $K \approx 12$   & 0.286 \\
+20 & transform\_mix & 0.895 & 0.506 & 0.272 & 0.214 & $\downarrow$, slowest decay                & 0.396 \\
+21 & nonsmooth      & 0.469 & 0.159 & 0.074 & 0.063 & plateau $\approx 0.063 > 0$                & 0.431 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Setting 16 (\texttt{sigmoid\_front}): the steepest recoverable
+front}
+
+\begin{itemize}
+\item With $r(\bs) = \lVert \bs - (2,2) \rVert_2$ and width $w = 1$,
+\begin{equation}
+\tilde g_{16}(\bs) \;=\; \tanh\!\big(w^{-1}\{r(\bs) - 4.5\}\big).
+\label{eq:g16}
+\end{equation}
+\item Since $\lVert \nabla \tilde g_{16} \rVert
+= w^{-1}\operatorname{sech}^2\!\big(w^{-1}\{r - 4.5\}\big) \le w^{-1}$, the
+transition is confined to the annulus $|r - 4.5| \lesssim w$, of width
+$\approx 2w = 2$ units. The width is calibrated to the site-density
+resolution cap of Section~5: $e(K)$ decays monotonically with no
+extrapolation blow-up (Table~\ref{tab:spotlight}).
+\item Role: the sharpest \emph{smooth} localised structure the 100-site
+training density supports --- the fine-$K$ stress test for mean recovery
+under a misspecified error law.
+\end{itemize}
+
+\subsection*{Setting 19 (\texttt{poly2}): the easy-end control}
+
+\begin{itemize}
+\item With rescaled coordinates $(x_1, x_2) = \bs / 10$,
+\begin{equation}
+\tilde g_{19}(\bs) \;=\;
+\mathrm{std}\big\{(x_1 - \tfrac12)^2 + (x_2 - \tfrac12)^2\big\}
+\;+\; \mathrm{std}\big\{(x_1 - \tfrac12)(x_2 - \tfrac12)\big\}.
+\label{eq:g19}
+\end{equation}
+\item $\tilde g_{19}$ lies in the 6-dimensional space $\mathcal P_2$ of
+quadratic polynomials, and $(I - P_X)$ quotients out its affine part, so the
+target is the 3-dimensional pure-quadratic component
+$\operatorname{span}\{s_1^2, s_1 s_2, s_2^2\} \bmod \operatorname{col}(X)$.
+Accordingly $e(K)$ collapses fastest of all nine non-$t$ surfaces
+($0.23 \to 0.05 \to 0.015$ at $K = 5, 15, 50$).
+\item Role: control setting --- a method that fails here fails for
+likelihood or sampler reasons, not basis-resolution reasons.
+\end{itemize}
+
+\subsection*{Setting 20 (\texttt{transform\_mix}): boundary-concentrated
+curvature}
+
+\begin{itemize}
+\item
+\begin{equation}
+\tilde g_{20}(\bs) \;=\; \mathrm{std}\{\log(1 + s_1)\}
+\;+\; \mathrm{std}\{e^{-s_1/2}\}
+\;+\; \mathrm{std}\{s_1 / (1 + s_2)\}.
+\label{eq:g20}
+\end{equation}
+\item Every term is monotone in $s_1$ with curvature maximal on the domain
+boundary, e.g.\ $\partial^2_{s_1} \log(1 + s_1) = -(1 + s_1)^{-2}$, largest
+at $s_1 = 0$ --- exactly where the uniform site draw is sparsest. Hence the
+slowest $e(K)$ decay of the quartet ($0.21$ at $K = 50$).
+\item Role: the transformations an applied modeller actually writes down
+(log, exponential decay, ratio); MRTS must spend its resolution where the
+data density is lowest.
+\end{itemize}
+
+\subsection*{Setting 21 (\texttt{nonsmooth}): structural
+non-representability}
+
+\begin{itemize}
+\item With $(x)_+ = \max(x, 0)$,
+\begin{equation}
+\tilde g_{21}(\bs) \;=\; \mathrm{std}\{(s_1 - 5)_+\}
+\;+\; \mathrm{std}\{|s_2 - 4|\}.
+\label{eq:g21}
+\end{equation}
+\item $\tilde g_{21} \in C^0 \setminus C^1$: its gradient jumps across the
+crease lines $\{s_1 = 5\}$ and $\{s_2 = 4\}$, while every MRTS column is a
+$C^\infty$ thin-plate-spline eigenfunction. The projection error therefore
+\emph{plateaus} instead of vanishing:
+$e(30) = 0.074$, $e(40) = 0.064$, $e(50) = 0.063$.
+\item Role: the mean-channel counterpart of the dependence settings 3--8 ---
+structure that \emph{no} $K$ can fully represent, bounding the best MRTS fit
+away from the oracle at every $K$.
+\end{itemize}
+
+\subsection*{What the $n = 3$ pilots already show}
+
+\begin{itemize}
+\item The unthresholded methods post consistent gains on all four settings:
+best energy ratios $0.93$--$0.97$, variogram $0.90$--$0.97$, Brier
+$0.88$--$0.94$
+(Tables~\ref{tab:energy}--\ref{tab:vario}, \ref{tab:brierKc}), with skew-$t$
+K5 on setting 20 the standout ($0.71$ energy, $0.60$ Brier). Under a
+misspecified error law the mean channel finally moves all three scores in
+the same direction --- unlike the skew-$t$-core settings, where the
+unthresholded methods were flat.
+\item The thresholded methods \emph{invert} their skew-$t$-core role: on
+settings 16 and 21 their best-over-$K$ energy ratios exceed 1 (respectively
+$1.53$/$1.72$ and $1.05$/$1.21$ for the K1/K5 variants), and on 19 the K1
+variant loses too ($1.34$). Setting 20 is the lone exception ($0.60$ K1,
+$0.45$ K5) --- the only spotlight surface where the censored likelihood
+still profits from a mean basis.
+\item Yet the same thresholded fits \emph{improve} their Brier scores
+everywhere ($0.85$--$0.91$), so their failure is a predictive-field
+(energy/variogram) phenomenon, not a tail-probability one. The realised
+gains also do not follow the $e(K)$ ordering, and every Brier ratio stays
+far above its floor $R^\star$ --- both consistent with Finding~3's
+sharpness--extrapolation account.
+\end{itemize}
+
 \section{In progress}
 
 \begin{enumerate}
-\item \textbf{Non-$t$ extension (settings 13--21)}: all settings so far share
-the skew-$t$ core, so at large $K$ the fitted skew-$t$ is \emph{correctly
-specified} --- a confound for every ``MRTS helps/hurts'' conclusion. The
-extension drops the skew-$t$ generator entirely: nine nonlinear mean surfaces
-(Franke, curved ridge, annulus, sigmoid front, GP draw, polynomial, transform
-mixtures, non-smooth hinges; orthogonalised against the $K=0$ design and
-standardised to sd 11) with Gaussian-GP errors, calibrated so that
-$R^\star \approx 0.45$ throughout. Data generation in
-\texttt{setup\_nonsta.R} $\to$ \texttt{simdata\_nonsta\_ext.RData}.
-\item \textbf{$n$ upgrade}: settings 4--12 are $n=3$ pilots; the headline
-contrasts (11, 12, and the disambiguation) merit $n = 10$.
+\item \textbf{Non-$t$ extension analysis (settings 13--21)}: the extension
+exists because all earlier settings share the skew-$t$ core, so at large $K$
+the fitted skew-$t$ is \emph{correctly specified} --- a confound for every
+``MRTS helps/hurts'' conclusion. Its nine settings are now fitted and scored
+at pilot scale ($n=3$; Tables~\ref{tab:energy}--\ref{tab:vario} and
+\ref{tab:brierKc}; four settings introduced in
+Section~\ref{sec:spotlight}), but the systematic write-up --- in
+particular why the
+thresholded methods, the carriers of every skew-$t$-core gain, \emph{lose}
+under several misspecified-error surfaces (energy ratios up to $2.9$,
+settings 14--17) while the unthresholded methods post steady 4--7\% gains ---
+is still to be done.
+\item \textbf{$n$ upgrade}: settings 4--12 and the non-$t$ block are $n=3$
+pilots; the headline contrasts (11, 12, and the disambiguation) merit
+$n = 10$. An automated fill script
+(\texttt{fill\_16\_19.ps1}: fit increment $\to$ re-score $\to$ verify
+overlap $\to$ delete fits) is running settings 16 and 19 first.
 \end{enumerate}
 
 \end{document}
