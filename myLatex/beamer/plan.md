@@ -1,7 +1,7 @@
 # Defense Slides Plan (page by page)
 
 Thesis: **Extending the Spatio-Temporal Skew-t Process for Threshold Exceedance Prediction: AR(2) Temporal Priors and Multi-Resolution Spline Basis Functions**
-Student: Yi-Hsuan Hsieh   Advisor: Prof. Hao-Yun Huang
+Student: Yi-Xuan Xie   Advisor: Prof. Hao-Yun Huang
 
 - File: [slides.tex](slides.tex)   Compile: XeLaTeX → biber → XeLaTeX ×2
 - Target length: ~20 minutes (~1–1.5 min per page)

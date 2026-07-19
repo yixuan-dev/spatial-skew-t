@@ -83,41 +83,64 @@ fmt <- function(r, m, K) {
 }
 
 ncol.tot <- 2 + length(K.all)
-L <- c(
-  "\\begin{table}[p]",
-  "\\centering\\footnotesize",
-  "\\setlength{\\tabcolsep}{3.5pt}",
-  paste0("\\caption{\\textbf{Relative Brier score at every $\\Kmrts$} (vs the same",
-         " method's own $K=0$, mean over datasets; $^{*}$ marks $|\\bar R - 1| >",
-         " 2\\,\\widehat{\\mathrm{SE}}$). Setting 2 is excluded ($K=0$ only);",
-         " a dash means that $K$ was not fitted for that setting (settings",
-         " 13--21 use only $K \\in \\{30,40,50\\}$). Isolated large values of",
-         " Sym-$t$ K5 T are the exponential-fallback outliers discussed in the",
-         " Caveats and are reported as-is.}"),
-  "\\label{tab:brierK}",
-  paste0("\\begin{tabular}{cc", paste(rep("c", length(K.all)), collapse = ""), "}"),
-  "\\toprule",
-  paste0("ID & $n$ & ", paste0("$K{=}", K.all, "$", collapse = " & "), " \\\\")
-)
-for (m in 1:5) {
-  L <- c(L, "\\midrule",
-         sprintf("\\multicolumn{%d}{l}{\\emph{%s}} \\\\[1pt]", ncol.tot, mlab.tex[m]))
-  nont_marked <- FALSE
-  for (s in settings) {
-    if (!nont_marked && s >= first_nont) {
-      L <- c(L, sprintf("\\multicolumn{%d}{l}{\\quad\\footnotesize non-$t$ ext.\\ (Gaussian-GP)} \\\\", ncol.tot))
-      nont_marked <- TRUE
-    }
-    r <- res[[as.character(s)]]
-    L <- c(L, paste0(s, " & ", r$n, " & ",
-                     paste(vapply(K.all, function(K) fmt(r, m, K), ""), collapse = " & "),
-                     " \\\\"))
-  }
-}
-L <- c(L, "\\bottomrule", "\\end{tabular}", "\\end{table}")
 
-writeLines(L, "../../../tex/nonsta_simstudy/brier_byK_table.tex")
-cat("written: tex/nonsta_simstudy/brier_byK_table.tex +",
+# Build one K-profile table over a chosen subset of method panels AND a chosen
+# subset of settings.  The full grid is split three ways so each table fits a
+# page: the K1-knot methods are split by setting block (skew-t settings vs the
+# non-t extension), and the K5-knot methods form a third table.
+build_brierK_table <- function(methods, sett, label, panel_group, block_note) {
+  cap <- paste0(
+    "\\caption{\\textbf{Relative Brier score at every $\\Kmrts$}, ",
+    panel_group, ", ", block_note, " (vs the same method's own $K=0$, mean ",
+    "over datasets; $^{*}$ marks $|\\bar R - 1| > 2\\,\\widehat{\\mathrm{SE}}$). ",
+    "A dash means that $K$ was not fitted for that setting (settings 13--21 use ",
+    "only $K \\in \\{30,40,50\\}$). Isolated large values of Sym-$t$ K5 T are the ",
+    "exponential-fallback outliers discussed in the Caveats and are reported ",
+    "as-is.}")
+  out <- c(
+    "\\begin{table}[p]",
+    "\\centering\\footnotesize",
+    "\\setlength{\\tabcolsep}{3.5pt}",
+    cap,
+    sprintf("\\label{%s}", label),
+    paste0("\\begin{tabular}{cc", paste(rep("c", length(K.all)), collapse = ""), "}"),
+    "\\toprule",
+    paste0("ID & $n$ & ", paste0("$K{=}", K.all, "$", collapse = " & "), " \\\\")
+  )
+  for (m in methods) {
+    out <- c(out, "\\midrule",
+             sprintf("\\multicolumn{%d}{l}{\\emph{%s}} \\\\[1pt]", ncol.tot, mlab.tex[m]))
+    for (s in sett) {
+      r <- res[[as.character(s)]]
+      out <- c(out, paste0(s, " & ", r$n, " & ",
+                           paste(vapply(K.all, function(K) fmt(r, m, K), ""), collapse = " & "),
+                           " \\\\"))
+    }
+  }
+  c(out, "\\bottomrule", "\\end{tabular}", "\\end{table}")
+}
+
+sk_sett   <- settings[settings <  first_nont]   # skew-t settings (1, 3-12)
+nont_sett <- settings[settings >= first_nont]   # non-t extension (13-21)
+
+# Table 6 split in two by setting block; table for K5-knot methods unchanged.
+writeLines(
+  build_brierK_table(1:3, sk_sett, "tab:brierK",
+                     "K1-knot methods (Gaussian, Skew-$t$ K1, Sym-$t$ K1 T)",
+                     "skew-$t$ settings"),
+  "../../../tex/nonsta_simstudy/brier_byK_table.tex")
+writeLines(
+  build_brierK_table(1:3, nont_sett, "tab:brierKc",
+                     "K1-knot methods (Gaussian, Skew-$t$ K1, Sym-$t$ K1 T)",
+                     "non-$t$ extension (Gaussian-GP errors)"),
+  "../../../tex/nonsta_simstudy/brier_byK_table_c.tex")
+writeLines(
+  build_brierK_table(4:5, settings, "tab:brierKb",
+                     "K5-knot methods (Skew-$t$ K5, Sym-$t$ K5 T)",
+                     "all settings"),
+  "../../../tex/nonsta_simstudy/brier_byK_table_b.tex")
+cat("written: brier_byK_table.tex (K1/skew-t) + brier_byK_table_c.tex",
+    "(K1/non-t) + brier_byK_table_b.tex (K5/all) +",
     "output/brier_byK_table.csv (", nrow(csv), "rows )\n")
 
 # sanity anchors (values already reported elsewhere)
