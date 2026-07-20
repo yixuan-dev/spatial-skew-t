@@ -716,7 +716,33 @@ Overall, the simulation study indicates that both extensions enlarge the usable 
 
 \textcite{morris_space-time_2017} introduced the spatio-temporal \skewt (STP) process to predict high-threshold ground-level ozone exceedances from U.S. EPA monitoring data.  We return to that same data here, asking not for a new model class but whether enlarging the STP candidate class along the two axes developed in this thesis, an AR(2) temporal prior and an MRTS spatial-mean term, yields better held-out tail prediction.  The comparison is therefore designed to identify the exceedance levels, if any, at which the enlarged candidate class improves on the STP baseline, rather than to select a single overall-best model.
 
-The response is the daily maximum 8-hour ozone concentration for the $31$ days of July 2005 at United States Air Quality System (AQS) monitoring sites, with the co-located Community Multi-scale Air Quality (CMAQ) model output as the sole covariate.  Following \textcite{morris_space-time_2017}, the regression component is $\bX_t(\bs) = [1,\text{CMAQ}_t(\bs)]^\top$, so that each model acts as a statistical calibration of CMAQ against the monitor observations.  
+The response is the daily maximum 8-hour ozone concentration for the $31$ days of July 2005 at United States Air Quality System (AQS) monitoring sites, with the co-located Community Multi-scale Air Quality (CMAQ) model output as the sole covariate.  \fref{fig:ozone-maps} summarizes the two data sources through the EPA design value, the fourth-highest daily maximum 8-hour average of the month.  The AQS monitors are irregularly spaced, covering the eastern United States and California densely but leaving large gaps in the interior west, whereas CMAQ provides complete gridded coverage of the conterminous United States.  CMAQ reproduces the broad spatial pattern of the observations but not their level at individual monitors, which motivates using it as a regression covariate to be calibrated rather than as a substitute for the observations.  Following \textcite{morris_space-time_2017}, the regression component is $\bX_t(\bs) = [1,\text{CMAQ}_t(\bs)]^\top$, so that each model acts as a statistical calibration of CMAQ against the monitor observations.
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}{\textwidth}
+\centering
+\includegraphics[width=0.8\textwidth]{../pdf/map_aqs.pdf}
+\caption{AQS monitor observations}
+\end{subfigure}
+
+\begin{subfigure}{\textwidth}
+\centering
+\includegraphics[width=0.8\textwidth]{../pdf/map_cmaq.pdf}
+\caption{CMAQ model output}
+\end{subfigure}
+\caption{July 2005 ozone design value (fourth-highest daily maximum 8-hour average, in ppb): (a)~at the $1{,}089$ AQS monitoring sites missing at most $50\%$ of the $31$ days; (b)~on the full CMAQ grid.}
+\label{fig:ozone-maps}
+\end{figure}
+
+The distributional features of these data are what motivate the \skewt marginal in the first place.  Regressing the observations on CMAQ at the $1{,}089$ sites above and pooling the residuals across sites and days, the QQ plot against the Normal distribution departs from the diagonal in both tails, with the upper tail by far the heavier (\fref{fig:qq-lm-ozone}); the largest standardized residuals reach eight standard deviations, far beyond what a Gaussian model can accommodate.  A skew-$t$ distribution fit to the pooled residuals by maximum likelihood, with slant $\hat\alpha = 0.23$ and $\hat\nu = 15.7$ degrees of freedom, straightens the plot except for a handful of extreme points.  The residual ozone variation is thus heavy-tailed and right-skewed exactly in the region that exceedance prediction cares about, and a \skewt process is a natural candidate class for it.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{../pdf/qq-res-lm-2panel.pdf}
+\caption{QQ plots of the pooled residuals from the linear regression of ozone on CMAQ at the $1{,}089$ AQS sites, against the Normal distribution (left) and the ML-fitted skew-$t$ distribution with $\hat\alpha = 0.23$ and $\hat\nu = 15.7$ (right).}
+\label{fig:qq-lm-ozone}
+\end{figure}
 
 \subsection{Model comparisons}
 
