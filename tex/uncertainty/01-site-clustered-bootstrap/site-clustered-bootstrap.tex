@@ -1,0 +1,197 @@
+% !TEX program = xelatex
+% Compile:  xelatex site-clustered-bootstrap.tex
+% ---------------------------------------------------------------------------
+% Teaching note: quantifying the uncertainty of held-out Brier-score
+% comparisons by a site-clustered (block) bootstrap.
+% Companion to  code/analysis/ozone/US-all-auto/brier_bootstrap.R
+% ---------------------------------------------------------------------------
+\documentclass[12pt]{article}
+
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\setCJKmainfont[AutoFakeSlant=.2, AutoFakeBold=3]{AR PL KaitiM Big5}   % 與論文一致的標楷體
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!45!black, urlcolor=blue!45!black}
+
+\newcommand{\BS}{\mathrm{BS}}
+\newcommand{\Phat}{\widehat{P}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{\textbf{以「站層 bootstrap」量化門檻超標\\Brier 分數比較的不確定性}}
+\author{方法說明（配 \code{brier\_bootstrap.R}）}
+\date{2026 年 7 月}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+論文以樣本外 Brier 分數排名候選模型，但表格中 Rank 1--4 常讀到相同的
+$0.030$，也就是名次落在第四位小數以後、埋在雜訊裡。本文說明：（一）要量化的
+不是單一 Brier，而是兩模型的\textbf{配對差} $\Delta = \BS_A - \BS_B$；（二）
+它的不確定性有三個來源，主力是「哪些站落入驗證集」；（三）為什麼比較必須先
+\textbf{配對}再算變異；（四）用\textbf{站層（cluster）bootstrap} 給 $\Delta$ 一條
+信賴區間與檢定 $p$ 值。最後把方法套在臭氧 $200/200$ split 的兩個配對比較上，
+用真實數字說明結論：加了不確定性之後，AR(2) 與 MRTS 兩項延伸在整條上尾都
+\emph{無法與其配對基準區分}。
+\end{abstract}
+
+\section{問題：名次落在雜訊裡}
+
+評分程式 \code{autoselect.R} 用 \emph{pooled} Brier 排名，把所有驗證「站
+$\times$ 日」壓成一個數：
+\begin{equation}
+  \overline{\BS}_A \;=\; \frac{1}{N}\sum_{i=1}^{N} b_i^A,
+  \qquad
+  b_i^A \;=\; \bigl(\,I(y_i > L) - \Phat_A(Y_i > L)\,\bigr)^2 ,
+  \label{eq:pooled}
+\end{equation}
+其中 $i$ 跑遍驗證的（站,\,日），$L$ 是超標門檻，$\Phat_A$ 是模型 $A$ 的後驗
+預測超標機率。問題在於：$\overline{\BS}_A$ 只是一個\textbf{估計值}，它在估計
+一個母體量（模型 $A$ 對門檻 $L$ 的\emph{期望} Brier）。換一批驗證站、換一組
+資料、換一段 MCMC，它就會抖動。若不報這個抖動的大小，就無從判斷
+$0.0305$ 與 $0.0305$ 的名次是不是真的。
+
+\section{要量化的是「差」，不是各自的分數}
+
+論文的科學主張是「$A$ 比 $B$ 好」，這是對\textbf{差}的主張。所以要量化的對象是
+\begin{equation}
+  \Delta \;=\; \overline{\BS}_A - \overline{\BS}_B ,
+  \qquad \Delta < 0 \iff A \text{ 較佳.}
+  \label{eq:delta}
+\end{equation}
+不確定性有三個來源，務必分開看：
+\begin{center}
+\begin{tabular}{@{}p{3.4cm}p{7.2cm}p{2.3cm}@{}}
+\toprule
+來源 & 什麼在隨機 & 通常大小 \\
+\midrule
+(a) 評估／測試集 & 哪些站、哪些日落入 held-out & \textbf{最大宗} \\
+(b) 複製 & 抽到哪幾組資料（模擬才有） & 中 \\
+(c) 後驗 Monte Carlo & MCMC 抽樣讓 $\Phat$ 本身有誤差 & 通常最小 \\
+\bottomrule
+\end{tabular}
+\end{center}
+實證的主力是 (a)。至於 (c)：本例每個擬合都保留 $5000$ 個後驗抽樣，
+$\Phat_i$ 的 Monte Carlo 誤差約 $\sqrt{p_i(1-p_i)/5000}$，遠小於 (a)，可忽略。
+
+\section{關鍵觀念：先配對，再算變異}
+
+$A$ 與 $B$ 是在\textbf{同一批} held-out 觀測上評分，兩者分數高度正相關（某個
+站本來就難預測，兩模型的 $b_i$ 會一起變大）。因此
+\begin{equation}
+  \mathrm{Var}(\Delta)
+  \;=\; \mathrm{Var}(\overline{\BS}_A) + \mathrm{Var}(\overline{\BS}_B)
+        - 2\,\mathrm{Cov}(\overline{\BS}_A, \overline{\BS}_B) ,
+  \label{eq:varDelta}
+\end{equation}
+其中 $-2\,\mathrm{Cov}$ 會把差的變異壓得\textbf{遠小於}兩邊際變異之和。實務後果：
+\begin{itemize}
+  \item \textcolor{red}{錯}：給 $A$ 一條 CI、給 $B$ 一條 CI，看它們重不重疊。這
+        丟掉了相關性，嚴重高估 $\Delta$ 的不確定性，讓你永遠測不出差異。
+  \item \textcolor{blue}{對}：先算\textbf{逐站差} $d_j = b^A_j - b^B_j$，再對它估
+        不確定性。共同的「難易度」自動抵消。順序不能反。
+\end{itemize}
+
+\section{站層 bootstrap：獨立單位是「站」}
+
+\paragraph{獨立單位。}空間 CV 裡，同一站不同日高度相關，鄰近站也相關。真正
+近似獨立、可重抽的單位是\textbf{驗證站}。因此我們對站\emph{有放回}重抽，並把
+被抽中的站\textbf{連同它所有日}一起帶走（block / cluster bootstrap）。
+
+\paragraph{比值估計量。}pooled Brier \eqref{eq:pooled} 是一個比值
+$\sum_{\text{站}}\mathrm{SSE}/\sum_{\text{站}}\text{天數}$，其中
+$\mathrm{SSE}_j = \sum_{t}(I - \Phat)^2$ 是站 $j$ 的平方誤差和、
+$n_j$ 是站 $j$ 的非缺失天數。配對差寫成
+\begin{equation}
+  \Delta \;=\; \frac{\sum_j \bigl(\mathrm{SSE}^A_j - \mathrm{SSE}^B_j\bigr)}
+                     {\sum_j n_j} .
+  \label{eq:ratio}
+\end{equation}
+
+\paragraph{演算法。}對 $b = 1,\dots,B$（本文 $B=2000$）：
+\begin{enumerate}
+  \item 從 $n_{\mathrm{site}}$ 個站中有放回抽出同數量的站，得索引集 $\mathcal{I}_b$；
+  \item 只用 $\mathcal{I}_b$ 內的站重算 \eqref{eq:ratio}，得 $\Delta^{*}_b$。
+\end{enumerate}
+$\{\Delta^*_b\}$ 的 $2.5\%,97.5\%$ 分位數即 $95\%$ 信賴區間；雙尾 $p$ 值取
+$2\min\{\,\Pr(\Delta^*\le 0),\ \Pr(\Delta^*\ge 0)\,\}$。這正是
+\code{brier\_bootstrap.R} 中 \code{boot\_pair()} 做的事，per-site 的 $\mathrm{SSE}$
+直接沿用既有的 \code{BrierScoreSite()}。
+
+\section{臭氧實例（$200/200$ split）}
+
+我們挑\textbf{配對比較}：只差一個因素的兩個模型，讓每條 CI 直接回答「這個延伸
+有沒有用」。
+\begin{itemize}
+  \item \textbf{AR(2) 效果}：setting 111（skew-$t$, $K{=}7$, $T{=}50$, \textbf{AR2}）
+        對 setting 61（同 $K,T$，但 \textbf{AR1}）。
+  \item \textbf{MRTS 效果}：setting 204（$K{=}1$, $T{=}0$, TS, \textbf{MRTS}$=10$）
+        對 setting 51（同設定，\textbf{無 MRTS}）。
+\end{itemize}
+表 \ref{tab:boot} 的 $\Delta$ 與 CI 以 $10^{-3}$ 為單位。\code{n\_exceed} 是該
+門檻背後\textbf{真正的超標事件數}。
+
+\begin{table}[htbp]
+\centering
+\caption{配對 Brier 差 $\Delta=\BS_A-\BS_B$（負$=A$較佳），$95\%$ 站層
+bootstrap CI（$B{=}2000$）。$\Delta$、CI 以 $10^{-3}$ 計。星號 $=$ CI 不含 $0$。}
+\label{tab:boot}
+\small
+\begin{tabular}{@{}llrrrrr r@{}}
+\toprule
+比較 & $L$ 分位 & $\BS_A$ & $\BS_B$ & $\Delta$ & \multicolumn{1}{c}{$95\%$ CI} & $p$ & $n_{\mathrm{exc}}$ \\
+\midrule
+AR(2) vs AR(1) & 0.90  & 0.0505 & 0.0504 & $+0.099$ & $[-0.351,\,+0.544]$ & 0.661 & 630 \\
+               & 0.95  & 0.0305 & 0.0305 & $-0.062$ & $[-0.420,\,+0.288]$ & 0.753 & 319 \\
+               & 0.98  & 0.0151 & 0.0151 & $-0.089$ & $[-0.252,\,+0.085]$ & 0.310 & 129 \\
+               & 0.99  & 0.0078 & 0.0078 & $+0.024$ & $[-0.087,\,+0.176]$ & 0.777 & 56  \\
+               & 0.995 & 0.0043 & 0.0043 & $-0.034$ & $[-0.084,\,+0.023]$ & 0.245 & 27  \\
+\midrule
+MRTS vs none   & 0.90  & 0.0504 & 0.0505 & $-0.071$ & $[-0.479,\,+0.347]$ & 0.749 & 630 \\
+               & 0.95  & 0.0309 & 0.0310 & $-0.079$ & $[-0.341,\,+0.167]$ & 0.521 & 319 \\
+               & 0.98  & 0.0152 & 0.0153 & $-0.114$ & $[-0.252,\,+0.002]$ & 0.056 & 129 \\
+               & 0.99  & 0.0078 & 0.0079 & $-0.050$ & $[-0.122,\,+0.012]$ & 0.126 & 56  \\
+               & 0.995 & 0.0043 & 0.0043 & $-0.028$ & $[-0.057,\,-0.004]^{*}$ & 0.018 & 27 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{結論：差異埋在雜訊裡。}看數量級即可：$\Delta$ 約 $10^{-4}$，而 CI 半寬約
+$3\text{–}5\times10^{-4}$，差異比自身不確定性小一個數量級。除最後一列外，\textbf{每個
+CI 都跨過 $0$、$p$ 值落在 $0.25$--$0.78$}。加了不確定性之後，AR(2) 五個 level
+\emph{沒有一個}顯著，MRTS 也只有一個邊界例外。這用數字證實了：把 $0.030$ 對
+$0.030$ 排名次，是在讀雜訊。
+
+\paragraph{唯一的星號是一堂反例課。}MRTS 在 $q=0.995$ 的 CI 剛好不含 $0$
+（$p=0.018$），但不應採信，理由有三，且恰好指向後續兩個問題：
+\begin{enumerate}
+  \item \textbf{事件太稀疏}：此 level 只有 $n_{\mathrm{exc}}=27$ 個超標事件（對比
+        $0.90$ 有 $630$）。最不穩的 level 反而「顯著」，是稀疏事件的典型假象。
+  \item \textbf{多重比較}：本表做了 $10$ 個比較，$\alpha=0.05$ 下\emph{期望}就有
+        約 $0.5$ 個假陽性；跳出來的偏偏是最極端門檻——教科書級的 multiplicity
+        artifact。（這是「不確定性量化」之後必接的下一步：多重性校正。）
+  \item \textbf{效果量可忽略}：$-2.8\times10^{-5}$ 對上基準 $4.3\times10^{-3}$，
+        相對差僅 $0.7\%$，即便為真也無實務意義。
+\end{enumerate}
+
+\section{怎麼寫進論文}
+
+把「Rank 1--4 都是 0.030」的名次表，改為（或增列）配對 $\Delta\pm$CI，並在文中
+直接寫：\emph{「在所有 tail level，AR(2) 與 MRTS 相對於各自配對基準的 Brier 差
+異，其 $95\%$ 站層 bootstrap 信賴區間均涵蓋 $0$（唯一例外出現在最稀疏的
+$q=0.995$，$n=27$，且在 $10$ 個比較的多重性下不足採信）。」}這一句把 null
+result 從弱點轉為有嚴謹推論支撐的發現。
+
+\paragraph{可重用。}\code{brier\_bootstrap.R}：換 split 設
+\code{\$env:US\_ALL\_VAL\_RESULTS\_DIR='fits-300-100'} 並改 \code{setup\_file}；換
+對照改頂端 \code{pairs}；輸出存於
+\code{output/us-all-auto/tables/brier\_bootstrap\_pairs\_<split>.csv}。
+
+\end{document}
