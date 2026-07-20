@@ -18,7 +18,7 @@ what a mean-only MRTS augmentation can and cannot buy}
 \author{}
 \date{July 2026 --- interim report v4 (settings 1--12, the
 threshold-vs-symmetry disambiguation, the $K \ge 30$ extension, and the
-non-$t$ extension pilots 13--21)}
+non-$t$ extension 13--21; settings 16 and 20 at $n = 10$)}
 
 \begin{document}
 \maketitle
@@ -55,8 +55,9 @@ positive --- its Brier ratio only decays back to parity ($1.09 \to 1.00$) ---
 so the reversal requires mean structure that only a fine basis can resolve,
 not merely a large $K$.
 New in v4: the nine non-$t$ extension settings (13--21; Gaussian-GP errors,
-so the skew-$t$ error law is misspecified) are fitted at pilot scale
-($n=3$) and included in the score tables; their analysis is deferred.
+so the skew-$t$ error law is misspecified) are fitted and included in the
+score tables --- settings 16 and 20 at $n = 10$ on the full $K$ grid, the
+other seven as $n = 3$ pilots; their systematic analysis is deferred.
 \end{abstract}
 
 \section{Design}
@@ -82,8 +83,9 @@ any pooled-$\beta$ mean basis). Settings 13--21 form a \emph{non-$t$ extension}:
 they drop the skew-$t$ generator entirely in favour of a nonlinear mean surface
 (sd 11) with Gaussian-GP errors ($\sigma_g = 4$, same $C_{\mathrm{exp}}$), so
 that the mean channel is tested without the crutch of a correctly specified
-error law at large $K$. All nine are fitted and scored at pilot scale
-($n = 3$, $\Kmrts \in \{0, 30, 40, 50\}$) and appear in the score tables;
+error law at large $K$. All nine are fitted and scored and appear in the score
+tables --- settings 16 and 20 at $n = 10$ on the full $K$ grid, the other seven
+as $n = 3$ pilots ($\Kmrts \in \{0, 30, 40, 50\}$);
 Section~\ref{sec:spotlight} introduces four of them in detail, and the
 systematic analysis is deferred to the next revision.
 
@@ -127,7 +129,7 @@ ID & \texttt{surf\_type} & non-stationarity & route & $n$ \\
 20 & transform\_mix & mean, log $+$ exp-decay $+$ ratio terms    & mean & 3 \\
 21 & nonsmooth      & mean, hinge $+\,|\cdot|$ ($C^0$ creases)   & mean & 3 \\
 \bottomrule
-\multicolumn{5}{p{0.92\textwidth}}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables. $^{b}$ settings 13--21 use the grid $\Kmrts \in \{0,30,40,50\}$; all nine are fitted and scored ($n=3$).}
+\multicolumn{5}{p{0.92\textwidth}}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables. $^{b}$ settings 13--21: settings 16 and 20 at $n=10$ on the full $K$ grid, the other seven as $n=3$ pilots on $\Kmrts \in \{0,30,40,50\}$.}
 \end{tabular}
 \end{table}
 
@@ -510,8 +512,8 @@ Y_t(\bs) \;=\; 10 \;+\; g(\bs) \;+\; \sigma_g\,\varepsilon_t(\bs),
 \end{equation}
 so the marginal law is Gaussian and every $t$-based error model is
 misspecified. Methods, holdout and scoring are as in Section~1; the fitted
-grid is $\Kmrts \in \{0, 30, 40, 50\}$ with $n = 3$ (the $n = 10$ / full-$K$
-upgrade of settings 16 and 19 is running).
+grid is $\Kmrts \in \{0, 30, 40, 50\}$ with $n = 3$, except settings 16 and 20,
+which are at $n = 10$ on the full $K$ grid $\{0,3,5,8,10,12,15,20,25,30,40,50\}$.
 \item Each mean surface is the image of a raw field
 $\tilde g \in \R^{144}$ under the orthogonalise-and-standardise map
 \begin{equation}
@@ -641,28 +643,34 @@ structure that \emph{no} $K$ can fully represent, bounding the best MRTS fit
 away from the oracle at every $K$.
 \end{itemize}
 
-\subsection*{What the $n = 3$ pilots already show}
+\subsection*{What the spotlight settings show}
+
+Settings 16 and 20 are now fitted at $n = 10$ on the full $K$ grid; 19 and 21
+remain $n = 3$ pilots. The $n = 10$ pair carries the weight of what follows.
 
 \begin{itemize}
-\item The unthresholded methods post consistent gains on all four settings:
-best energy ratios $0.93$--$0.97$, variogram $0.90$--$0.97$, Brier
-$0.88$--$0.94$
-(Tables~\ref{tab:energy}--\ref{tab:vario}, \ref{tab:brierKc}), with skew-$t$
-K5 on setting 20 the standout ($0.71$ energy, $0.60$ Brier). Under a
-misspecified error law the mean channel finally moves all three scores in
-the same direction --- unlike the skew-$t$-core settings, where the
-unthresholded methods were flat.
-\item The thresholded methods \emph{invert} their skew-$t$-core role: on
-settings 16 and 21 their best-over-$K$ energy ratios exceed 1 (respectively
-$1.53$/$1.72$ and $1.05$/$1.21$ for the K1/K5 variants), and on 19 the K1
-variant loses too ($1.34$). Setting 20 is the lone exception ($0.60$ K1,
-$0.45$ K5) --- the only spotlight surface where the censored likelihood
-still profits from a mean basis.
-\item Yet the same thresholded fits \emph{improve} their Brier scores
-everywhere ($0.85$--$0.91$), so their failure is a predictive-field
-(energy/variogram) phenomenon, not a tail-probability one. The realised
-gains also do not follow the $e(K)$ ordering, and every Brier ratio stays
-far above its floor $R^\star$ --- both consistent with Finding~3's
+\item \textbf{Unthresholded methods gain across the board.} On both $n = 10$
+settings the Gaussian and skew-$t$ methods reduce all three scores: setting 16
+to $0.94$--$0.96$ (energy/variogram) and $0.93$--$0.95$ (Brier); setting 20
+more strongly, with skew-$t$ K5 the standout ($0.70$ energy, $0.63$ variogram,
+$0.60$ Brier) (Tables~\ref{tab:energy}--\ref{tab:vario}, \ref{tab:brierKc}).
+Under a misspecified error law the mean channel finally moves every score in
+the same direction --- unlike the skew-$t$-core settings, where these methods
+were flat.
+\item \textbf{The thresholded methods split by surface --- and the $n = 3$
+``inversion'' was largely small-sample noise.} At $n = 10$ the censored
+methods are \emph{flat} on setting 16 (energy $1.00$/$1.00$, variogram
+$1.00$/$1.00$ for the K1/K5 variants) --- \emph{not} the $1.5$--$1.7$ energy
+\emph{loss} the $n = 3$ pilot had reported --- yet gain \emph{strongly} on
+setting 20 (energy $0.53$/$0.53$, variogram $0.42$/$0.43$). The discriminator
+is where the surface puts its curvature: setting 20 concentrates it where the
+uniform sites are sparsest, and there the mean basis rescues the censored
+likelihood; the smoother sigmoid front of setting 16 leaves nothing to rescue.
+The larger energy-ratio excursions still visible at $n = 3$ (settings 14, 15,
+17, up to $2.9$) should be read with that same small-$n$ caution.
+\item \textbf{Brier improves for every method on both $n = 10$ settings}
+($0.60$--$0.95$); the realised gains do not follow the $e(K)$ ordering and
+stay far above the floor $R^\star$, both consistent with Finding~3's
 sharpness--extrapolation account.
 \end{itemize}
 
@@ -673,19 +681,21 @@ sharpness--extrapolation account.
 exists because all earlier settings share the skew-$t$ core, so at large $K$
 the fitted skew-$t$ is \emph{correctly specified} --- a confound for every
 ``MRTS helps/hurts'' conclusion. Its nine settings are now fitted and scored
-at pilot scale ($n=3$; Tables~\ref{tab:energy}--\ref{tab:vario} and
-\ref{tab:brierKc}; four settings introduced in
-Section~\ref{sec:spotlight}), but the systematic write-up --- in
-particular why the
-thresholded methods, the carriers of every skew-$t$-core gain, \emph{lose}
-under several misspecified-error surfaces (energy ratios up to $2.9$,
-settings 14--17) while the unthresholded methods post steady 4--7\% gains ---
-is still to be done.
-\item \textbf{$n$ upgrade}: settings 4--12 and the non-$t$ block are $n=3$
-pilots; the headline contrasts (11, 12, and the disambiguation) merit
-$n = 10$. An automated fill script
-(\texttt{fill\_16\_19.ps1}: fit increment $\to$ re-score $\to$ verify
-overlap $\to$ delete fits) is running settings 16 and 19 first.
+($n = 10$ on the full $K$ grid for settings 16 and 20; $n = 3$ pilots for the
+other seven; Tables~\ref{tab:energy}--\ref{tab:vario} and \ref{tab:brierKc};
+four settings introduced in Section~\ref{sec:spotlight}), but the systematic
+write-up --- in particular why the thresholded methods, the carriers of every
+skew-$t$-core gain, \emph{lose} under some misspecified-error surfaces (energy
+ratios up to $2.9$ at $n = 3$, settings 14, 15, 17) yet are flat on setting 16
+and gain sharply on setting 20 at $n = 10$, while the unthresholded methods
+post steady gains throughout --- is still to be done. Bringing the remaining
+seven settings to $n = 10$ is the next step.
+\item \textbf{$n$ upgrade}: settings 4--12 and seven of the non-$t$ block are
+$n = 3$ pilots (settings 16 and 20 are already at $n = 10$); the headline
+contrasts (11, 12, and the disambiguation) merit $n = 10$. An automated fill
+script (fit increment $\to$ re-score $\to$ verify overlap against the pilot
+cells $\to$ delete fits) performs each upgrade; it resumes cleanly after an
+interruption by re-inventorying the missing $(m, d, K)$ cells.
 \end{enumerate}
 
 \end{document}
