@@ -362,11 +362,11 @@ Daily temporal dependence is introduced on the latent parameters that drive the 
 \end{align}
 where $\Phi$ is the standard normal distribution function, $\mathrm{HN}$ is the half-normal distribution function, and $\mathrm{IG}$ is the inverse-gamma distribution function with parameters $(a/2, b/2)$.  After transformation, each $\bw^*_{tk}, z^*_{tk}, \sigma^{2*}_{tk}$ has a standard normal marginal distribution, and \textcite{morris_space-time_2017} place a stationary AR(1) time series on each of them:
 \begin{align}
-  \bw^*_{tk} \mid \bw^*_{t-1, k} &\sim N_2\!\left(\phi_w\, \bw^*_{t-1, k},\; (1 - \phi_w^2)\, \bI_2\right), \label{eq:ar1-w}\\
-  z^*_{tk} \mid z^*_{t-1, k} &\sim N\!\left(\phi_z\, z^*_{t-1, k},\; 1 - \phi_z^2\right), \label{eq:ar1-z}\\
-  \sigma^{2*}_{tk} \mid \sigma^{2*}_{t-1, k} &\sim N\!\left(\phi_\sigma\, \sigma^{2*}_{t-1, k},\; 1 - \phi_\sigma^2\right), \label{eq:ar1-sigma}
+  \bw^*_{tk} \mid \bw^*_{t-1, k} &\sim N_2\!\left(\phi^{(w)}\, \bw^*_{t-1, k},\; (1 - (\phi^{(w)})^2)\, \bI_2\right), \label{eq:ar1-w}\\
+  z^*_{tk} \mid z^*_{t-1, k} &\sim N\!\left(\phi^{(z)}\, z^*_{t-1, k},\; 1 - (\phi^{(z)})^2\right), \label{eq:ar1-z}\\
+  \sigma^{2*}_{tk} \mid \sigma^{2*}_{t-1, k} &\sim N\!\left(\phi^{(\sigma)}\, \sigma^{2*}_{t-1, k},\; 1 - (\phi^{(\sigma)})^2\right), \label{eq:ar1-sigma}
 \end{align}
-with $|\phi_w|, |\phi_z|, |\phi_\sigma| < 1$, and initial values $\bw^*_{1k} \sim N_2(\bZero, \bI_2)$, $z^*_{1k} \sim N(0, 1)$, $\sigma^{2*}_{1k} \sim N(0, 1)$.  Transforming back through \eref{eq:wstar}--\eref{eq:sigmastar} gives $\bw_{tk} \sim \mathrm{Unif}(\calD)$, $z_{tk} \sim \mathrm{HN}(0, 1)$, and $\sigma^2_{tk} \sim \mathrm{IG}(a/2, b/2)$ at every $t$, so that the spatial \skewt structure of \eref{eq:fullmodel} is preserved at each day.
+with $|\phi^{(w)}|, |\phi^{(z)}|, |\phi^{(\sigma)}| < 1$, and initial values $\bw^*_{1k} \sim N_2(\bZero, \bI_2)$, $z^*_{1k} \sim N(0, 1)$, $\sigma^{2*}_{1k} \sim N(0, 1)$.  Transforming back through \eref{eq:wstar}--\eref{eq:sigmastar} gives $\bw_{tk} \sim \mathrm{Unif}(\calD)$, $z_{tk} \sim \mathrm{HN}(0, 1)$, and $\sigma^2_{tk} \sim \mathrm{IG}(a/2, b/2)$ at every $t$, so that the spatial \skewt structure of \eref{eq:fullmodel} is preserved at each day.
 
 \subsection{Extremal dependence}\label{sec:extdep}
 
@@ -542,12 +542,12 @@ The second design moves the non-stationarity into the dependence, to expose the 
 \begin{itemize}
   \item Two fixed cosine fields with centres $\bc_1 = (0, 10)^\top$, $\bc_2 = (7.5, 2.5)^\top$ and native wavenumbers $\kappa_1 = \pi/10$, $\kappa_2 = \pi/5$,
     \begin{align}
-      \phi_j(\bs) = \cos\!\big(\kappa_j \, \| \bs - \bc_j \|\big), \qquad j = 1, 2.
+      g_j(\bs) = \cos\!\big(\kappa_j \, \| \bs - \bc_j \|\big), \qquad j = 1, 2.
       \label{eq:nsdep-basis}
     \end{align}
   \item The random effect superposes them with independent, daily redrawn Gaussian weights,
     \begin{align}
-      u_t(\bs) = \sum_{j=1}^{2} \xi_{tj}\, \phi_j(\bs), \qquad \xi_{tj} \iid N(0, \tau_j^2), \quad (\tau_1, \tau_2) = (5, 3),
+      u_t(\bs) = \sum_{j=1}^{2} \xi_{tj}\, g_j(\bs), \qquad \xi_{tj} \iid N(0, \tau_j^2), \quad (\tau_1, \tau_2) = (5, 3),
       \label{eq:nsdep-re}
     \end{align}
     independently across $j$ and across days $t$.
@@ -559,7 +559,7 @@ The response adds $u_t$ to the 1-knot \skewt model,
   \label{eq:nsdep-gen}
 \end{align}
 
-Marginalising over $\xi$ gives a zero-mean random effect whose pointwise variance $\sum_j \tau_j^2\, \phi_j(\bs)^2$ varies with location (Appendix~\ref{app:nsdep-cov}), so the dependence is non-stationary while the marginal mean stays constant at $10$.
+Marginalising over $\xi$ gives a zero-mean random effect whose pointwise variance $\sum_j \tau_j^2\, g_j(\bs)^2$ varies with location (Appendix~\ref{app:nsdep-cov}), so the dependence is non-stationary while the marginal mean stays constant at $10$.
 
 These two designs leave the time-averaged mean without exploitable structure: the five-knot design has a constant mean by construction, and the random effect $u_t$ is mean-zero.  To probe the complementary regime, in which the non-stationarity lives entirely in the first moment, two further designs carry a fixed nonlinear mean surface and drop the \skewt generator altogether,
 \begin{align}
@@ -889,13 +889,13 @@ in which all three prior factors must appear; omitting the lag-2 factor distorts
 
 \subsection{Marginal covariance of the non-stationary-dependence design}\label{app:nsdep-cov}
 
-The second MRTS design of \sref{sec:sim-mrts-design} superposes two fixed cosine fields \eref{eq:nsdep-basis} with daily-redrawn Gaussian weights $\xi_{tj} \iid N(0, \tau_j^2)$ \eref{eq:nsdep-re}.  Marginalising over the weights, $u_t(\bs) = \sum_{j} \xi_{tj}\, \phi_j(\bs)$ has zero mean, $\mathrm{E}[u_t(\bs)] = \sum_j \phi_j(\bs)\, \mathrm{E}[\xi_{tj}] = 0$, and, by the independence of $\xi_{t1}$ and $\xi_{t2}$, the low-rank covariance
+The second MRTS design of \sref{sec:sim-mrts-design} superposes two fixed cosine fields \eref{eq:nsdep-basis} with daily-redrawn Gaussian weights $\xi_{tj} \iid N(0, \tau_j^2)$ \eref{eq:nsdep-re}.  Marginalising over the weights, $u_t(\bs) = \sum_{j} \xi_{tj}\, g_j(\bs)$ has zero mean, $\mathrm{E}[u_t(\bs)] = \sum_j g_j(\bs)\, \mathrm{E}[\xi_{tj}] = 0$, and, by the independence of $\xi_{t1}$ and $\xi_{t2}$, the low-rank covariance
 \begin{align}
   \mathrm{Cov}\big(u_t(\bs), u_t(\bs')\big)
-    \;=\; \sum_{j=1}^{2} \tau_j^2\, \phi_j(\bs)\, \phi_j(\bs').
+    \;=\; \sum_{j=1}^{2} \tau_j^2\, g_j(\bs)\, g_j(\bs').
   \label{eq:nsdep-cov}
 \end{align}
-The pointwise variance $\mathrm{Var}\big(u_t(\bs)\big) = \sum_{j} \tau_j^2\, \phi_j(\bs)^2$ depends on location, so the dependence is non-stationary while the marginal mean stays constant at $10$.
+The pointwise variance $\mathrm{Var}\big(u_t(\bs)\big) = \sum_{j} \tau_j^2\, g_j(\bs)^2$ depends on location, so the dependence is non-stationary while the marginal mean stays constant at $10$.
 
 
 % --------------------------------------------------------------
