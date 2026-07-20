@@ -54,15 +54,35 @@ if (!dir.exists(out_dir)) {
 
 # ---- shared method styling + drawing helpers (mirror plots.R) ---------
 # One entry per Morris method id 1..10 (vectors indexed by method_id).
+# lty/pch are shared; colours come as two palettes, as in plots.R:
+#  - style_ar2 (colour = temporal class; AR(2) red + thick, AR(1) blue,
+#    rest muted) for Figure 1, the AR(2) experiment, so AR(2) stands out;
+#  - style_legacy (colour = family; Skew-t red / Sym-t blue) for Figure 2,
+#    the MRTS experiment, where skew vs symmetric is the story.
 mlty <- c(1, 1, 1, 3, 3, 6, 1, 3, 1, 3)
 mpch <- c(21, 22, 22, 22, 22, 23, 3, 3, 4, 4)
-mcol <- c(
-  "gray30", "firebrick4", "dodgerblue4", "firebrick4", "dodgerblue4",
-  "darkgreen", "firebrick4", "firebrick4", "firebrick4", "firebrick4"
+ar2_ids <- c(7L, 8L)
+style_legacy <- list(
+  col = c(
+    "gray30", "firebrick4", "dodgerblue4", "firebrick4", "dodgerblue4",
+    "darkgreen", "firebrick4", "firebrick4", "firebrick4", "firebrick4"
+  ),
+  bg = c(
+    "gray70", "firebrick2", "dodgerblue2", "firebrick2", "dodgerblue2",
+    "lightgreen", "firebrick2", "firebrick2", "firebrick2", "firebrick2"
+  ),
+  lwd = rep(1, 10)
 )
-mbg <- c(
-  "gray70", "firebrick2", "dodgerblue2", "firebrick2", "dodgerblue2",
-  "lightgreen", "firebrick2", "firebrick2", "firebrick2", "firebrick2"
+style_ar2 <- list(
+  col = c(
+    "gray55", "gray25", "slategray", "gray25", "slategray",
+    "gray70", "firebrick3", "firebrick3", "dodgerblue3", "dodgerblue3"
+  ),
+  bg = c(
+    "gray80", "gray50", "lightsteelblue1", "gray50", "lightsteelblue1",
+    "gray85", "firebrick1", "firebrick1", "dodgerblue1", "dodgerblue1"
+  ),
+  lwd = ifelse(seq_len(10) %in% ar2_ids, 2.5, 1)
 )
 
 # Bare method labels (no "id:" prefix) for the paper legend.
@@ -73,30 +93,39 @@ label_for_id <- function(m) {
 }
 
 # draw_series(): plot the first series, overlay the rest. Columns of `ymat`
-# align positionally with `method_ids`; each series is styled by its method id.
-draw_series <- function(x, ymat, method_ids, ...) {
+# align positionally with `method_ids`; each series is styled by its method id
+# via `style` (one of style_legacy / style_ar2). AR(2) is drawn last so its
+# curves sit on top of overlapping ones.
+draw_series <- function(x, ymat, method_ids, style, ...) {
+  ord <- order(method_ids %in% ar2_ids) # stable: keeps order, AR(2) last
+  ymat <- ymat[, ord, drop = FALSE]
+  method_ids <- method_ids[ord]
   m1 <- method_ids[1]
   plot(x, ymat[, 1],
     type = "o",
-    pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1], ...
+    pch = mpch[m1], lty = mlty[m1], col = style$col[m1], bg = style$bg[m1],
+    lwd = style$lwd[m1], ...
   )
   for (j in seq_along(method_ids)[-1]) {
     m <- method_ids[j]
-    lines(x, ymat[, j], lty = mlty[m], col = mcol[m])
-    points(x, ymat[, j], pch = mpch[m], col = mcol[m], bg = mbg[m])
+    lines(x, ymat[, j], lty = mlty[m], col = style$col[m], lwd = style$lwd[m])
+    points(x, ymat[, j],
+      pch = mpch[m], col = style$col[m], bg = style$bg[m], lwd = style$lwd[m]
+    )
   }
 }
 
 # draw_legend_region(): region 5 blank, then the shared vertical legend in
 # region 6. Call once, after the four panels, with the union of drawn ids.
-draw_legend_region <- function(method_ids) {
+draw_legend_region <- function(method_ids, style) {
   par(mar = c(0, 0, 0, 0))
   plot.new() # region 5 (row 3, col 1): intentionally blank
   plot.new() # region 6 (row 3, col 2): shared legend
   legend("center",
     legend = vapply(method_ids, label_for_id, character(1)),
     lty = mlty[method_ids], pch = mpch[method_ids],
-    col = mcol[method_ids], pt.bg = mbg[method_ids],
+    col = style$col[method_ids], pt.bg = style$bg[method_ids],
+    lwd = style$lwd[method_ids],
     ncol = 1, cex = 1.25, bty = "n"
   )
 }
@@ -146,7 +175,7 @@ make_fig_rel_by_quantile <- function() {
     mat <- matrix(e$bs_rel_mean[, , ki], nrow = length(probs), ncol = length(methods))
     ymat <- mat[, draw_cols, drop = FALSE]
     # Range over the drawn (non-Gaussian) series; keep 1 in view for the ref line.
-    draw_series(probs, ymat, draw_ids,
+    draw_series(probs, ymat, draw_ids, style_ar2,
       ylim = c(min(ymat, 1, na.rm = TRUE), max(ymat, 1, na.rm = TRUE)),
       xlab = "Threshold quantile",
       ylab = "Relative Brier score",
@@ -154,7 +183,7 @@ make_fig_rel_by_quantile <- function() {
     )
     abline(h = 1, lty = 2, col = "gray60")
   }
-  draw_legend_region(draw_ids)
+  draw_legend_region(draw_ids, style_ar2)
   dev.off()
   cat(sprintf("Wrote %s\n", normalizePath(out_file, winslash = "/", mustWork = FALSE)))
 }
@@ -179,7 +208,7 @@ make_fig_mean_vs_K <- function() {
     stopifnot(length(qi) == 1L, length(mrts_ks) >= 2L)
     # method x mrts_k, then transpose so columns align with method_ids.
     mat <- matrix(e$bs_mean[qi, , ], nrow = length(methods), ncol = length(mrts_ks))
-    draw_series(mrts_ks, t(mat), methods,
+    draw_series(mrts_ks, t(mat), methods, style_legacy,
       ylim = range(mat, na.rm = TRUE),
       xlab = "Number of MRTS basis functions",
       ylab = bquote("Brier score," ~ q == .(sprintf("%.3f", p$q))),
@@ -187,7 +216,7 @@ make_fig_mean_vs_K <- function() {
     )
     legend_ids <- union(legend_ids, methods)
   }
-  draw_legend_region(sort(legend_ids))
+  draw_legend_region(sort(legend_ids), style_legacy)
   dev.off()
   cat(sprintf("Wrote %s\n", normalizePath(out_file, winslash = "/", mustWork = FALSE)))
 }

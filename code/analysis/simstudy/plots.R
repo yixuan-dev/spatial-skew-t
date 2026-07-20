@@ -205,22 +205,44 @@ dgp_title <- function(suffix_expr = NULL) {
 }
 
 # One entry per Morris method id 1..10 (palette[methods[j]], not palette[j]).
-# Systematic encoding: colour = family (Skew-t red / Sym-t blue),
-# lty = knots (K=1 solid / K=5 dotted), pch = base vs temporal (baseline
-# filled square; AR(2) "+"; AR(1) "x" -- open marks so the baseline square
-# underneath is not obscured). methods 1 (Gaussian) / 6 (max-stable) are
-# outside the family x K scheme; 6 uses a filled diamond so "x" is free for
-# AR(1).
+# Shared encoding: lty = knots (K=1 solid / K=5 dotted), pch = base vs
+# temporal (baseline filled square; AR(2) "+"; AR(1) "x" -- open marks so the
+# baseline square underneath is not obscured). methods 1 (Gaussian) / 6
+# (max-stable) are outside the family x K scheme; 6 uses a filled diamond so
+# "x" is free for AR(1).
+#
+# Two colour palettes, routed per results file:
+#  - AR(2) highlight (colour = temporal class): AR(2) red + thick, AR(1)
+#    blue, everything else muted greys. Chosen from the output/plots/trail
+#    v3 draft; active whenever methods 7/8 are in the results so the AR(2)
+#    curves stand out.
+#  - legacy (colour = family): Skew-t red / Sym-t blue; kept for results
+#    without AR(2) methods (e.g. the MRTS experiments, methods 1-5), where
+#    the skew vs symmetric contrast is the story.
 mlty <- c(1, 1, 1, 3, 3, 6, 1, 3, 1, 3)
 mpch <- c(21, 22, 22, 22, 22, 23, 3, 3, 4, 4)
-mcol <- c(
-  "gray30", "firebrick4", "dodgerblue4", "firebrick4", "dodgerblue4",
-  "darkgreen", "firebrick4", "firebrick4", "firebrick4", "firebrick4"
-)
-mbg <- c(
-  "gray70", "firebrick2", "dodgerblue2", "firebrick2", "dodgerblue2",
-  "lightgreen", "firebrick2", "firebrick2", "firebrick2", "firebrick2"
-)
+ar2_ids <- c(7L, 8L)
+if (any(ar2_ids %in% methods)) {
+  mcol <- c(
+    "gray55", "gray25", "slategray", "gray25", "slategray",
+    "gray70", "firebrick3", "firebrick3", "dodgerblue3", "dodgerblue3"
+  )
+  mbg <- c(
+    "gray80", "gray50", "lightsteelblue1", "gray50", "lightsteelblue1",
+    "gray85", "firebrick1", "firebrick1", "dodgerblue1", "dodgerblue1"
+  )
+  mlwd <- ifelse(seq_along(mlty) %in% ar2_ids, 2.5, 1)
+} else {
+  mcol <- c(
+    "gray30", "firebrick4", "dodgerblue4", "firebrick4", "dodgerblue4",
+    "darkgreen", "firebrick4", "firebrick4", "firebrick4", "firebrick4"
+  )
+  mbg <- c(
+    "gray70", "firebrick2", "dodgerblue2", "firebrick2", "dodgerblue2",
+    "lightgreen", "firebrick2", "firebrick2", "firebrick2", "firebrick2"
+  )
+  mlwd <- rep(1, length(mlty))
+}
 # Style vectors are indexed positionally by method_id (mlty[methods[j]]). Guard
 # against an out-of-range id silently falling through to NA (default styling).
 stopifnot(all(methods >= 1L & methods <= length(mlty)))
@@ -231,23 +253,39 @@ stopifnot(all(methods >= 1L & methods <= length(mlty)))
 # is oriented one column per method (callers with method-as-row pass t(mat)).
 # `idx` selects which method positions to draw; `...` is forwarded to plot().
 add_method_series <- function(x, ymat, idx, ...) {
+  # AR(2) drawn last so its curves sit on top of overlapping ones.
+  idx <- c(idx[!(methods[idx] %in% ar2_ids)], idx[methods[idx] %in% ar2_ids])
   m1 <- methods[idx[1]]
   plot(x, ymat[, idx[1]],
     type = "o",
-    pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1], ...
+    pch = mpch[m1], lty = mlty[m1], col = mcol[m1], bg = mbg[m1],
+    lwd = mlwd[m1], ...
   )
   for (j in idx[-1]) {
     mj <- methods[j]
-    lines(x, ymat[, j], lty = mlty[mj], col = mcol[mj])
-    points(x, ymat[, j], pch = mpch[mj], col = mcol[mj], bg = mbg[mj])
+    lines(x, ymat[, j], lty = mlty[mj], col = mcol[mj], lwd = mlwd[mj])
+    points(x, ymat[, j],
+      pch = mpch[mj], col = mcol[mj], bg = mbg[mj], lwd = mlwd[mj]
+    )
   }
 }
-add_method_legend <- function(pos, idx = seq_len(n_methods)) {
-  legend(pos,
+# The per-method plots put the legend in its own panel right of the curves
+# (an in-panel legend overlapped them): open_series_device() sets up the
+# two-region layout, add_method_legend() fills the right-hand region.
+open_series_device <- function(pdf_file) {
+  pdf(pdf_file, width = 9, height = 5)
+  layout(matrix(1:2, nrow = 1), widths = c(2.6, 1.15))
+  par(mar = c(4.5, 4.5, 3, 0.6))
+}
+add_method_legend <- function(idx = seq_len(n_methods)) {
+  par(mar = c(0, 0, 0, 0))
+  plot.new()
+  legend("left",
     legend = method_label[idx],
     lty = mlty[methods[idx]], pch = mpch[methods[idx]],
     col = mcol[methods[idx]], pt.bg = mbg[methods[idx]],
-    cex = 0.7, bty = "n"
+    lwd = mlwd[methods[idx]],
+    cex = 0.8, bty = "n"
   )
 }
 
@@ -264,7 +302,7 @@ plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
         file_prefix, set_tag, mrts_ks[ki]
       )
     )
-    pdf(pdf_file, width = 7, height = 5)
+    open_series_device(pdf_file)
     ymin <- min(mat, 1, na.rm = TRUE)
     ymax <- max(mat, 1, na.rm = TRUE)
     add_method_series(probs, mat, seq_len(n_methods),
@@ -274,7 +312,7 @@ plot_rel_vs_quantile <- function(arr_rel, score_lab, file_prefix) {
       main = dgp_title()
     )
     abline(h = 1, lty = 2, col = "gray60")
-    add_method_legend("topleft")
+    add_method_legend()
     dev.off()
   }
 }
@@ -299,7 +337,7 @@ if (n_ks >= 2) {
           file_prefix, set_tag, round(probs[qi] * 1000)
         )
       )
-      pdf(pdf_file, width = 7, height = 5)
+      open_series_device(pdf_file)
       mat <- matrix(arr_mean[qi, , , drop = FALSE],
         nrow = n_methods, ncol = n_ks
       )
@@ -312,7 +350,7 @@ if (n_ks >= 2) {
           q == .(sprintf("%.3f", probs[qi]))),
         main = dgp_title()
       )
-      add_method_legend("topright")
+      add_method_legend()
       dev.off()
     }
   }
@@ -337,7 +375,7 @@ if ((has_multivar || has_pred_rmse || has_recovery) && n_ks >= 2) {
       file_prefix,
       sprintf("%s_mean_vs_K-%s.pdf", file_prefix, set_tag)
     )
-    pdf(pdf_file, width = 7, height = 5)
+    open_series_device(pdf_file)
     ymin <- min(mat[keep, ], na.rm = TRUE)
     ymax <- max(mat[keep, ], na.rm = TRUE)
     add_method_series(mrts_ks, t(mat), keep,
@@ -346,7 +384,7 @@ if ((has_multivar || has_pred_rmse || has_recovery) && n_ks >= 2) {
       ylab = ylab,
       main = dgp_title()
     )
-    add_method_legend("topright", keep)
+    add_method_legend(keep)
     dev.off()
   }
   if (has_multivar) {
