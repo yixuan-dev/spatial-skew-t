@@ -501,7 +501,7 @@ In this section, we present the results from a simulation study to investigate h
 
 \subsection{Design}\label{sec:sim-design}
 
-All simulation designs generate data from the hierarchical model of \sref{sec:meth-hier} on $n_s = 144$ sites, drawn uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ days ($n_t = 200$ in the time-block forecast arm of the persistence experiment below).  In the data generation the regression mean is held constant, $\bX^\top \bbeta = 10$ (the MRTS experiment below adds a mean-zero non-stationary random effect to one design, which leaves the regression mean at $10$), while every fitted model includes an intercept and a first-order spatial trend.  For each design we simulate $10$ data sets, each split into $100$ training sites and $44$ withheld test sites, and run every MCMC chain for $20,000$ iterations with a burn-in period of $10,000$ iterations.  Throughout, $q(0.80)$ denotes the $80$th sample quantile of the data,   and the five baseline analysis models are
+All simulation designs generate data from the hierarchical model of \sref{sec:meth-hier} on $n_s = 144$ sites, drawn uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ days ($n_t = 200$ in the time-block forecast arm of the persistence experiment below); the single exception is the pair of nonlinear-mean designs of the MRTS experiment, which replace the \skewt error process with a Gaussian one.  In the data generation the regression mean is held constant, $\bX^\top \bbeta = 10$ (the MRTS experiment below adds a mean-zero non-stationary random effect to one design, which leaves the regression mean at $10$, and a fixed nonlinear mean surface to its two Gaussian-error designs), while every fitted model includes an intercept and a first-order spatial trend.  For each design we simulate $10$ data sets ($3$ for the transform-mix pilot of the MRTS experiment), each split into $100$ training sites and $44$ withheld test sites, and run every MCMC chain for $20,000$ iterations with a burn-in period of $10,000$ iterations.  Throughout, $q(0.80)$ denotes the $80$th sample quantile of the data,   and the five baseline analysis models are
 \begin{enumerate}[leftmargin=3em]
   \item Gaussian marginal, $K = 1$ knot;
   \item \Skewt marginal, $K = 1$ knot, no thresholding;
@@ -532,7 +532,7 @@ Each design is evaluated in two arms.  The \emph{spatial hold-out arm} repeats t
 
 \paragraph{Experiment for MRTS extension.}\label{sec:sim-mrts-design}
 
-This experiment enriches the regression component with the MRTS basis functions $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We use two generating designs:
+This experiment enriches the regression component with the MRTS basis functions $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We use four generating designs; the first two share the \skewt core:
 \begin{enumerate}
   \item \Skewt, $K = 5$ knots, $\lambda = 3$, with the constant mean $\bX^\top \bbeta = 10$;
   \item \Skewt, $K = 1$ knot, $\lambda = 3$, with an additive non-stationary spatial random effect $u_t(\bs)$ (specified below).
@@ -561,7 +561,18 @@ The response adds $u_t$ to the 1-knot \skewt model,
 
 Marginalising over $\xi$ gives a zero-mean random effect whose pointwise variance $\sum_j \tau_j^2\, \phi_j(\bs)^2$ varies with location (Appendix~\ref{app:nsdep-cov}), so the dependence is non-stationary while the marginal mean stays constant at $10$.
 
-Each of the five baseline models is fit across MRTS basis sizes $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$, where $K_{\mathrm{MRTS}} = 0$ recovers the no-MRTS baseline.
+These two designs leave the time-averaged mean without exploitable structure: the five-knot design has a constant mean by construction, and the random effect $u_t$ is mean-zero.  To probe the complementary regime, in which the non-stationarity lives entirely in the first moment, two further designs carry a fixed nonlinear mean surface and drop the \skewt generator altogether,
+\begin{align}
+  Y_t(\bs) \;=\; 10 \;+\; g(\bs) \;+\; \sigma_g\, \varepsilon_t(\bs), \qquad \sigma_g = 4,
+  \label{eq:nont-gen}
+\end{align}
+where the errors $\varepsilon_t$ are standard Gaussian processes with the \Matern correlation \eref{eq:matern} at the generating values used throughout ($\gamma = 0.9$, $\nu = 1/2$, $\varphi = 1$), drawn independently across days.  The marginal law is therefore Gaussian, so every $t$-family analysis model is misspecified in its error law and the mean channel is tested without the assistance of a correctly specified margin.  Each raw surface $\tilde g$ is orthogonalized against the baseline design $[1, s_1, s_2]$ and standardized to a spatial standard deviation of $11$, so the $K_{\mathrm{MRTS}} = 0$ design spans none of the resulting $g$.  The two surfaces are:
+\begin{enumerate}[leftmargin=3em]
+  \item arc front: $\tilde g(\bs) = \tanh\{\lVert \bs - (2, 2)^\top \rVert - 4.5\}$, a smoothed circular step whose transition band of width ${\approx}2$ is the steepest smooth localized structure the $100$-site training density can resolve;
+  \item transform mix: $\tilde g(\bs) = \mathrm{std}\{\log(1 + s_1)\} + \mathrm{std}\{e^{-s_1/2}\} + \mathrm{std}\{s_1 / (1 + s_2)\}$, with $\mathrm{std}\{\cdot\}$ standardizing each term to unit spatial standard deviation: the nonlinear regression terms an applied modeler actually writes down, whose curvature concentrates near the domain boundary, exactly where the uniform site draw is sparsest.
+\end{enumerate}
+
+Each of the five baseline models is fit across a grid of MRTS basis sizes, $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$, where $K_{\mathrm{MRTS}} = 0$ recovers the no-MRTS baseline; on the arc-front design the grid is extended by $\{30, 40, 50\}$, since the front is resolved only by a fine basis.  The arc-front design is run at the full scale of $10$ data sets, while the transform-mix design is a pilot, fitted on $3$ data sets at $K_{\mathrm{MRTS}} \in \{0, 30, 40, 50\}$, and its results are read as indicative.
 
 \subsection{Cross validation}\label{sec:sim-scoring}
 
@@ -653,7 +664,7 @@ ARFIMA, $d = 0.45$     & $1$--$15$ & 0.0620 & 0.0584 & 0.0579 & $-0.0041$ & $-0.
 
 \subsection{Results on MRTS comparison}\label{sec:sim-mrts-results}
 
-In general, augmenting the regression component with MRTS basis functions does not deliver a stable improvement in upper-tail scores (\fref{fig:bs-mean-vs-K-mrts}).  As with the AR(2) comparison, the data-generating knot count dominates the ranking: the matching five-knot \skewt model is best on the five-knot setting, and the one-knot model is best on the random-effect process.
+On the two \skewt-core designs, augmenting the regression component with MRTS basis functions does not deliver a stable improvement in upper-tail scores (\fref{fig:bs-mean-vs-K-mrts}).  As with the AR(2) comparison, the data-generating knot count dominates the ranking: the matching five-knot \skewt model is best on the five-knot setting, and the one-knot model is best on the random-effect process.
 
 Enlarging the MRTS basis does not lower the mean Brier score on either setting.  On the five-knot setting every curve is essentially flat in $K_{\mathrm{MRTS}}$.  On the additive non-stationary spatial random-effect process the curves are likewise flat, with over-specified models destabilising at large $K_{\mathrm{MRTS}}$.  This second setting is the decisive one: the non-stationarity lives in the second moment (a daily-redrawn random effect $u_t$), whereas the MRTS basis enters only the fixed-effect mean.  Because $u_t$ has zero time-average, the time-pooled coefficient $\bbeta^*$ has no first-moment structure to recover, so the Brier- and recovery-versus-$K$ curves stay flat by construction, not for want of signal, since $u_t$ contributes substantial (spatially non-stationary) variance.  The MRTS mean term therefore yields no reliable tail-score gain: a fixed-effect mean cannot represent a non-stationary second-moment feature, and so the spatial mean is not the binding constraint on upper-tail prediction.
 
@@ -664,7 +675,42 @@ Enlarging the MRTS basis does not lower the mean Brier score on either setting. 
 \label{fig:bs-mean-vs-K-mrts}
 \end{figure}
 
-Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The AR(2) prior provides temporal flexibility and the MRTS covariates enrich the spatial regression component, yet their empirical benefits depend on the data-generating mechanism and on the target exceedance level.  The persistence experiment sharpens this conclusion into a statement about the prediction task itself: even under near-unit-root and long-memory dependence, with the temporal coefficients well identified, spatial hold-out prediction is insensitive to the autoregressive order, whereas modest but consistent gains from richer temporal pooling emerge once the task requires extrapolating beyond the observed record.  The AR(2) extension is therefore best regarded as a forecasting device rather than an interpolation device.  Whether the same pattern holds on real environmental data (and, if so, what it implies for practitioners choosing among the candidate settings) is the question taken up in the Data analysis section, where AR(2) and MRTS variants are treated as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
+The two nonlinear-mean designs probe the complementary regime (\fref{fig:bs-mean-vs-K-nont}; Table~\ref{tab:mrts-nont-brier}).  On the arc-front design the Brier score finally responds to the mean basis, but only once the basis is fine enough to resolve the front.  At the $0.95$ threshold quantile the profiles are flat up to $K_{\mathrm{MRTS}} = 8$, deteriorate by $2$--$4\%$ around $K_{\mathrm{MRTS}} = 10$--$12$, and only then improve, reaching their minima at $K_{\mathrm{MRTS}} = 25$--$50$ with gains of $3$--$4\%$ for the unthresholded models and $5$--$6\%$ for the thresholded ones ($8$--$9\%$ and $6\%$, respectively, at the $0.98$ quantile).  The mid-$K$ dip is the signature of a too-coarse basis: a partially fitted mean sharpens the predictive distribution while leaving a residual surface error that extrapolates to the held-out sites, and the net effect on the Brier score is negative until the basis actually resolves the front.
+
+The transform-mix pilot shows the same mechanism operating from a much worse starting point.  The mismatched five-knot partition (compounded, for the thresholded variant, by censoring) leaves the $K_{\mathrm{MRTS}} = 0$ baselines of the two five-knot models ($0.0199$ and $0.0119$ at the $0.95$ quantile) far above those of the one-knot models ($0.0067$--$0.0085$), and the mean basis buys most of that damage back: every model improves at the $0.95$ quantile (relative Brier $0.20$--$0.64$), and at its best basis size each model converges to nearly the same absolute score (about $0.004$).  The rescue is not uniform across levels, however: at the $0.98$ quantile the three one-knot fits come out $18$--$23\%$ \emph{worse} than their $K_{\mathrm{MRTS}} = 0$ baselines, a reminder that with $3$ data sets and exceedances this rare the pilot profiles are indicative only.  Both surfaces were chosen, by an oracle calculation performed before any fitting, to leave genuine Brier headroom: replacing the fitted mean by the true surface $g$ under the true Gaussian error law caps the level-averaged relative Brier score at $0.56$ (arc front) and $0.40$ (transform mix).  The realized gains convert only a small part of that headroom, which is consistent with the sharpness--extrapolation account above: the Brier score improves only where the residual basis error is small relative to the predictive spread.
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../pdf/brier_score_mean_vs_K-set16_20_nonsta.pdf}
+\caption{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ on the two nonlinear-mean designs of \eref{eq:nont-gen} ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~arc front ($10$ data sets, full $K_{\mathrm{MRTS}}$ grid); (c,d)~transform mix ($3$-data-set pilot, fitted at $K_{\mathrm{MRTS}} \in \{0, 30, 40, 50\}$).  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
+\label{fig:bs-mean-vs-K-nont}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Nonlinear-mean designs: Brier score at the $0.95$ threshold quantile relative to the same model's own $K_{\mathrm{MRTS}} = 0$ fit (lower is better).  Best is the smallest ratio over $K_{\mathrm{MRTS}} > 0$, with the minimizing basis size in parentheses; $\mathrm{BS}_0$ is the absolute Brier score at $K_{\mathrm{MRTS}} = 0$; thr.\ denotes the POT threshold $T = q(0.80)$.  The arc-front design uses $10$ data sets on the full grid; the transform-mix design is a $3$-data-set pilot fitted at $K_{\mathrm{MRTS}} \in \{0, 30, 40, 50\}$.}
+\label{tab:mrts-nont-brier}
+\scriptsize
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+Generating design & Analysis model & $K{=}30$ & $K{=}40$ & $K{=}50$ & Best ($K$) & $\mathrm{BS}_0$ \\
+\midrule
+Arc front     & Gaussian                      & 0.970 & 0.967 & 0.966 & 0.966 (50) & 0.0232 \\
+Arc front     & \Skewt, $K = 1$               & 0.969 & 0.967 & 0.967 & 0.966 (25) & 0.0233 \\
+Arc front     & Symmetric-$t$, $K = 1$, thr.  & 0.943 & 0.949 & 0.949 & 0.941 (25) & 0.0240 \\
+Arc front     & \Skewt, $K = 5$               & 0.960 & 0.956 & 0.956 & 0.956 (50) & 0.0235 \\
+Arc front     & Symmetric-$t$, $K = 5$, thr.  & 0.944 & 0.951 & 0.974 & 0.944 (25) & 0.0239 \\
+\midrule
+Transform mix & Gaussian                      & 0.644 & 0.621 & 0.597 & 0.597 (50) & 0.0067 \\
+Transform mix & \Skewt, $K = 1$               & 0.628 & 0.605 & 0.582 & 0.582 (50) & 0.0068 \\
+Transform mix & Symmetric-$t$, $K = 1$, thr.  & 0.463 & 0.479 & 0.546 & 0.463 (30) & 0.0085 \\
+Transform mix & \Skewt, $K = 5$               & 0.252 & 0.211 & 0.203 & 0.203 (50) & 0.0199 \\
+Transform mix & Symmetric-$t$, $K = 5$, thr.  & 0.311 & 0.369 & 0.282 & 0.282 (50) & 0.0119 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The AR(2) prior provides temporal flexibility and the MRTS covariates enrich the spatial regression component, yet their empirical benefits depend on the data-generating mechanism and on the target exceedance level.  The persistence experiment sharpens this conclusion into a statement about the prediction task itself: even under near-unit-root and long-memory dependence, with the temporal coefficients well identified, spatial hold-out prediction is insensitive to the autoregressive order, whereas modest but consistent gains from richer temporal pooling emerge once the task requires extrapolating beyond the observed record.  The AR(2) extension is therefore best regarded as a forecasting device rather than an interpolation device.  The MRTS experiments admit an equally structural summary: the mean term is inert when the non-stationarity lives in the second moment, and under genuine nonlinear mean structure it pays off only once the basis is fine enough to resolve the surface, converting a small fraction of the oracle headroom.  Whether the same pattern holds on real environmental data (and, if so, what it implies for practitioners choosing among the candidate settings) is the question taken up in the Data analysis section, where AR(2) and MRTS variants are treated as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
 
 \section{Real data analysis}\label{sec:realdata}
 

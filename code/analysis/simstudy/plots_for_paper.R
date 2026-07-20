@@ -40,6 +40,19 @@
 #   aggregate table used for the thesis table tab:timeblock-brier.
 #   (a) tbf set5 near-unit-root   (b) tbf set7 ARFIMA d=0.45
 #
+# Figure 5 - mean Brier score vs number of MRTS basis functions, non-t
+#   mean-surface DGPs (setup_nonsta.R settings 16 & 20: nonlinear mean
+#   surface, sd 11, orthogonal to [1, s1, s2], plus stationary
+#   Gaussian-GP error, so every t-family error law is misspecified).
+#   Same conventions as Figure 2. Also writes the thesis table numbers
+#   (relative Brier vs the same method's own K=0, q=0.95) to
+#   output/tables/nont_thesis_table.csv.
+#   (a) set16_nonsta q=0.95  tanh arc front, n=10, full 12-point K grid
+#   (b) set16_nonsta q=0.98
+#   (c) set20_nonsta q=0.95  log/exp/ratio transforms, n=3 pilot,
+#       K in {0,30,40,50}
+#   (d) set20_nonsta q=0.98
+#
 # Usage (from code/analysis/simstudy/, via PowerShell Rscript.exe):
 #   Rscript.exe plots_for_paper.R
 #
@@ -48,8 +61,11 @@
 #   brier_score_mean_vs_K.pdf
 #   bs_rel_gauss_by_quantile-set16_19-K0.pdf
 #   bs_q95_by_lead-blk1-set5_7.pdf
+#   brier_score_mean_vs_K-set16_20_nonsta.pdf
 # Output (time_block_forecast/block1_positive_control/output/tables):
 #   blk1_thesis_table.csv
+# Output (output/tables):
+#   nont_thesis_table.csv
 #########################################################################
 
 rm(list = ls())
@@ -358,7 +374,88 @@ make_fig_brier_by_lead_blk1 <- function() {
   print(tab, digits = 4)
 }
 
+# ---- Figure 5: mean Brier vs MRTS K, non-t mean-surface DGPs ----------
+# setup_nonsta.R settings 16 (tanh arc front, n=10, full 12-point K grid)
+# and 20 (log/exp/ratio transforms, n=3 pilot, K in {0,30,40,50}): a
+# nonlinear mean surface plus stationary Gaussian-GP error. Same panel
+# conventions as Figure 2; the per-panel K grids differ, so each panel
+# draws its own mrts_ks. Alongside the figure, writes the thesis table
+# numbers (relative Brier vs the same method's own K=0 fit at q=0.95,
+# K in {30,40,50}, plus best-over-K for the full-grid setting 16) to
+# output/tables/nont_thesis_table.csv.
+make_fig_mean_vs_K_nont <- function() {
+  panels <- list(
+    list(setting = 16L, q = 0.95, tag = "(a)"),
+    list(setting = 16L, q = 0.98, tag = "(b)"),
+    list(setting = 20L, q = 0.95, tag = "(c)"),
+    list(setting = 20L, q = 0.98, tag = "(d)")
+  )
+  out_file <- file.path(out_dir, "brier_score_mean_vs_K-set16_20_nonsta.pdf")
+  open_panel_device(out_file)
+  legend_ids <- integer(0)
+  rows <- list()
+  for (p in panels) {
+    e <- load_sim(p$setting, "_nonsta")
+    qi <- which(abs(e$probs - p$q) < 1e-9)
+    stopifnot(length(qi) == 1L, length(e$mrts_ks) >= 2L)
+    mat <- matrix(e$bs_mean[qi, , ],
+      nrow = length(e$methods), ncol = length(e$mrts_ks)
+    )
+    draw_series(e$mrts_ks, t(mat), e$methods, style_legacy,
+      ylim = range(mat, na.rm = TRUE),
+      xlab = "Number of MRTS basis functions",
+      ylab = bquote("Brier score," ~ q == .(sprintf("%.3f", p$q))),
+      main = p$tag
+    )
+    legend_ids <- union(legend_ids, e$methods)
+
+    # Thesis table rows (q = 0.95 panels only): Brier relative to the
+    # same method's own K=0 fit.
+    if (abs(p$q - 0.95) < 1e-9) {
+      k0i <- which(e$mrts_ks == 0L)
+      stopifnot(length(k0i) == 1L)
+      relm <- sweep(mat[, -k0i, drop = FALSE], 1, mat[, k0i], "/")
+      ks_pos <- e$mrts_ks[-k0i]
+      col_ks <- c(30L, 40L, 50L)
+      reli <- match(col_ks, ks_pos)
+      stopifnot(!anyNA(reli))
+      n_datasets <- length(e$datasets)
+      for (j in seq_along(e$methods)) {
+        m <- e$methods[j]
+        rows[[length(rows) + 1L]] <- data.frame(
+          setting = p$setting,
+          n = n_datasets,
+          method = m,
+          label = label_for_id(m),
+          abs_K0 = mat[j, k0i],
+          rel_K30 = relm[j, reli[1]],
+          rel_K40 = relm[j, reli[2]],
+          rel_K50 = relm[j, reli[3]],
+          best_rel = min(relm[j, ]),
+          best_K = ks_pos[which.min(relm[j, ])]
+        )
+      }
+    }
+  }
+  draw_legend_region(sort(legend_ids), style_legacy)
+  dev.off()
+  cat(sprintf(
+    "Wrote %s\n",
+    normalizePath(out_file, winslash = "/", mustWork = FALSE)
+  ))
+
+  tab <- do.call(rbind, rows)
+  tab_file <- file.path("output/tables", "nont_thesis_table.csv")
+  write.csv(tab, tab_file, row.names = FALSE)
+  cat(sprintf(
+    "Wrote %s\n",
+    normalizePath(tab_file, winslash = "/", mustWork = FALSE)
+  ))
+  print(tab, digits = 4)
+}
+
 make_fig_rel_by_quantile()
 make_fig_mean_vs_K()
 make_fig_rel_by_quantile_persist()
 make_fig_brier_by_lead_blk1()
+make_fig_mean_vs_K_nont()

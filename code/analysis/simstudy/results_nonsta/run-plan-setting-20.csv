@@ -1,3 +1,2 @@
 "method_id","method_key","label","runner","method","skew","thresh_all","thresh_quant","nknots","use_exponential_fallback","temporaltau","temporalz","temporalw","ar2_tau","ar2_z","ar2_w","mrts_k","output_tag","plan_id"
-4,"4+mrts8","Skew-t, K=5 + MRTS(8)","mcmc","t",TRUE,0,TRUE,5,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,8,"mrts8",1
-5,"5+mrts8","Sym-t, K=5, T=q(0.80) + MRTS(8)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,8,"mrts8",2
+5,"5+mrts10","Sym-t, K=5, T=q(0.80) + MRTS(10)","mcmc","t",FALSE,0.8,TRUE,5,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,10,"mrts10",1
