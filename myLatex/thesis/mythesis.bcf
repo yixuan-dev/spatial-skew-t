@@ -2398,11 +2398,14 @@
     <bcf:citekey order="22" intorder="1">tzeng_resolution_2018</bcf:citekey>
     <bcf:citekey order="23" intorder="1">morris_space-time_2017</bcf:citekey>
     <bcf:citekey order="24" intorder="1">morris_space-time_2017</bcf:citekey>
-    <bcf:citekey order="25" intorder="1">gneiting_strictly_2007</bcf:citekey>
-    <bcf:citekey order="26" intorder="1">morris_space-time_2017</bcf:citekey>
-    <bcf:citekey order="27" intorder="1">morris_space-time_2017</bcf:citekey>
+    <bcf:citekey order="25" intorder="1">granger_introduction_1980</bcf:citekey>
+    <bcf:citekey order="25" intorder="2">hosking_fractional_1981</bcf:citekey>
+    <bcf:citekey order="26" intorder="1">davies_tests_1987</bcf:citekey>
+    <bcf:citekey order="27" intorder="1">gneiting_strictly_2007</bcf:citekey>
     <bcf:citekey order="28" intorder="1">morris_space-time_2017</bcf:citekey>
     <bcf:citekey order="29" intorder="1">morris_space-time_2017</bcf:citekey>
+    <bcf:citekey order="30" intorder="1">morris_space-time_2017</bcf:citekey>
+    <bcf:citekey order="31" intorder="1">morris_space-time_2017</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nyt">

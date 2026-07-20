@@ -1,0 +1,168 @@
+scored: setting 5 method iid dataset 1
+scored: setting 5 method AR2 dataset 1
+scored: setting 5 method AR1 dataset 1
+scored: setting 5 method iid dataset 2
+scored: setting 5 method AR2 dataset 2
+scored: setting 5 method AR1 dataset 2
+scored: setting 5 method iid dataset 3
+scored: setting 5 method AR2 dataset 3
+scored: setting 5 method AR1 dataset 3
+scored: setting 5 method iid dataset 4
+scored: setting 5 method AR2 dataset 4
+scored: setting 5 method AR1 dataset 4
+scored: setting 5 method iid dataset 5
+scored: setting 5 method AR2 dataset 5
+scored: setting 5 method AR1 dataset 5
+scored: setting 5 method iid dataset 6
+scored: setting 5 method AR2 dataset 6
+scored: setting 5 method AR1 dataset 6
+scored: setting 5 method iid dataset 7
+scored: setting 5 method AR2 dataset 7
+scored: setting 5 method AR1 dataset 7
+scored: setting 5 method iid dataset 8
+scored: setting 5 method AR2 dataset 8
+scored: setting 5 method AR1 dataset 8
+scored: setting 5 method iid dataset 9
+scored: setting 5 method AR2 dataset 9
+scored: setting 5 method AR1 dataset 9
+scored: setting 5 method iid dataset 10
+scored: setting 5 method AR2 dataset 10
+scored: setting 5 method AR1 dataset 10
+scored: setting 5 method iid dataset 11
+scored: setting 5 method AR2 dataset 11
+scored: setting 5 method AR1 dataset 11
+scored: setting 5 method iid dataset 12
+scored: setting 5 method AR2 dataset 12
+scored: setting 5 method AR1 dataset 12
+scored: setting 5 method iid dataset 13
+scored: setting 5 method AR2 dataset 13
+scored: setting 5 method AR1 dataset 13
+scored: setting 5 method iid dataset 14
+scored: setting 5 method AR2 dataset 14
+scored: setting 5 method AR1 dataset 14
+scored: setting 5 method iid dataset 15
+scored: setting 5 method AR2 dataset 15
+scored: setting 5 method AR1 dataset 15
+scored: setting 5 method iid dataset 16
+scored: setting 5 method AR2 dataset 16
+scored: setting 5 method AR1 dataset 16
+scored: setting 7 method iid dataset 1
+scored: setting 7 method AR2 dataset 1
+scored: setting 7 method AR1 dataset 1
+scored: setting 7 method iid dataset 2
+scored: setting 7 method AR2 dataset 2
+scored: setting 7 method AR1 dataset 2
+scored: setting 7 method iid dataset 3
+scored: setting 7 method AR2 dataset 3
+scored: setting 7 method AR1 dataset 3
+scored: setting 7 method iid dataset 4
+scored: setting 7 method AR2 dataset 4
+scored: setting 7 method AR1 dataset 4
+scored: setting 7 method iid dataset 5
+scored: setting 7 method AR2 dataset 5
+scored: setting 7 method AR1 dataset 5
+scored: setting 7 method iid dataset 6
+scored: setting 7 method AR2 dataset 6
+scored: setting 7 method AR1 dataset 6
+scored: setting 7 method iid dataset 7
+scored: setting 7 method AR2 dataset 7
+scored: setting 7 method AR1 dataset 7
+scored: setting 7 method iid dataset 8
+scored: setting 7 method AR2 dataset 8
+scored: setting 7 method AR1 dataset 8
+scored: setting 7 method iid dataset 9
+scored: setting 7 method AR2 dataset 9
+scored: setting 7 method AR1 dataset 9
+scored: setting 7 method iid dataset 10
+scored: setting 7 method AR2 dataset 10
+scored: setting 7 method AR1 dataset 10
+scored: setting 7 method iid dataset 11
+scored: setting 7 method AR2 dataset 11
+scored: setting 7 method AR1 dataset 11
+scored: setting 7 method iid dataset 12
+scored: setting 7 method AR2 dataset 12
+scored: setting 7 method AR1 dataset 12
+scored: setting 7 method iid dataset 13
+scored: setting 7 method AR2 dataset 13
+scored: setting 7 method AR1 dataset 13
+scored: setting 7 method iid dataset 14
+scored: setting 7 method AR2 dataset 14
+scored: setting 7 method AR1 dataset 14
+scored: setting 7 method iid dataset 15
+scored: setting 7 method AR2 dataset 15
+scored: setting 7 method AR1 dataset 15
+scored: setting 7 method iid dataset 16
+scored: setting 7 method AR2 dataset 16
+scored: setting 7 method AR1 dataset 16
+scored: setting 7 method iid dataset 17
+scored: setting 7 method AR2 dataset 17
+scored: setting 7 method AR1 dataset 17
+scored: setting 7 method iid dataset 18
+scored: setting 7 method AR2 dataset 18
+scored: setting 7 method AR1 dataset 18
+scored: setting 7 method iid dataset 19
+scored: setting 7 method AR2 dataset 19
+scored: setting 7 method AR1 dataset 19
+scored: setting 7 method iid dataset 20
+scored: setting 7 method AR2 dataset 20
+scored: setting 7 method AR1 dataset 20
+scored: setting 7 method iid dataset 21
+scored: setting 7 method AR2 dataset 21
+scored: setting 7 method AR1 dataset 21
+scored: setting 7 method iid dataset 22
+scored: setting 7 method AR2 dataset 22
+scored: setting 7 method AR1 dataset 22
+scored: setting 7 method iid dataset 23
+scored: setting 7 method AR2 dataset 23
+scored: setting 7 method AR1 dataset 23
+scored: setting 7 method iid dataset 24
+scored: setting 7 method AR2 dataset 24
+scored: setting 7 method AR1 dataset 24
+
+Wrote D:/Github/spatial-skew-t/code/analysis/time_block_forecast/block1_positive_control/output/tables/blk1_brier_cache.RData
+
+=================== setting 5 ===================
+three-way clean available: 3,4,5,6,7,9,10,12,13,14 (n = 10); using first 10: 3,4,5,6,7,9,10,12,13,14
+
+-- Brier q95 by lead (iid / AR1 / AR2) --
+h        iid     AR1     AR2 |  AR1-iid  AR2-iid  AR2-AR1
+1     0.0476  0.0458  0.0469 |  -0.0018  -0.0008  +0.0010
+2     0.1036  0.1000  0.0864 |  -0.0036  -0.0172  -0.0136
+3     0.0526  0.0553  0.0617 |  +0.0027  +0.0091  +0.0064
+4     0.0268  0.0264  0.0307 |  -0.0004  +0.0039  +0.0043
+5     0.0744  0.0746  0.0757 |  +0.0002  +0.0013  +0.0011
+6     0.0279  0.0289  0.0293 |  +0.0010  +0.0014  +0.0004
+7     0.0555  0.0568  0.0507 |  +0.0013  -0.0048  -0.0061
+8     0.0333  0.0356  0.0367 |  +0.0023  +0.0034  +0.0011
+9     0.1148  0.1186  0.1147 |  +0.0037  -0.0001  -0.0039
+10    0.0748  0.0769  0.0697 |  +0.0020  -0.0051  -0.0072
+11    0.0276  0.0311  0.0278 |  +0.0035  +0.0002  -0.0033
+12    0.0463  0.0495  0.0456 |  +0.0032  -0.0007  -0.0039
+13    0.0183  0.0222  0.0191 |  +0.0039  +0.0009  -0.0030
+14    0.0310  0.0340  0.0336 |  +0.0030  +0.0026  -0.0004
+15    0.0128  0.0165  0.0136 |  +0.0037  +0.0009  -0.0028
+leads 1-5 mean: iid 0.0610  AR1 0.0604  AR2 0.0603  (AR2-iid -0.0007, AR2-AR1 -0.0001)
+leads 1-15 mean: iid 0.0498  AR1 0.0515  AR2 0.0495  (AR2-iid -0.0003, AR2-AR1 -0.0020)
+
+=================== setting 7 ===================
+three-way clean available: 3,5,6,7,10,12,14,17,18,20,23,24 (n = 12); using first 10: 3,5,6,7,10,12,14,17,18,20
+
+-- Brier q95 by lead (iid / AR1 / AR2) --
+h        iid     AR1     AR2 |  AR1-iid  AR2-iid  AR2-AR1
+1     0.0398  0.0444  0.0422 |  +0.0046  +0.0024  -0.0022
+2     0.0494  0.0461  0.0507 |  -0.0033  +0.0012  +0.0045
+3     0.0631  0.0521  0.0422 |  -0.0110  -0.0209  -0.0100
+4     0.0430  0.0378  0.0349 |  -0.0052  -0.0081  -0.0029
+5     0.1011  0.0968  0.0923 |  -0.0043  -0.0088  -0.0045
+6     0.0489  0.0482  0.0552 |  -0.0007  +0.0063  +0.0070
+7     0.0573  0.0532  0.0553 |  -0.0042  -0.0020  +0.0021
+8     0.1051  0.1009  0.0994 |  -0.0042  -0.0057  -0.0015
+9     0.0407  0.0363  0.0363 |  -0.0045  -0.0044  +0.0000
+10    0.0562  0.0542  0.0536 |  -0.0020  -0.0026  -0.0005
+11    0.0699  0.0658  0.0663 |  -0.0041  -0.0036  +0.0005
+12    0.0866  0.0821  0.0826 |  -0.0044  -0.0039  +0.0005
+13    0.0262  0.0230  0.0245 |  -0.0032  -0.0018  +0.0014
+14    0.0566  0.0524  0.0514 |  -0.0042  -0.0052  -0.0010
+15    0.0855  0.0828  0.0817 |  -0.0027  -0.0038  -0.0011
+leads 1-5 mean: iid 0.0593  AR1 0.0555  AR2 0.0524  (AR2-iid -0.0068, AR2-AR1 -0.0030)
+leads 1-15 mean: iid 0.0620  AR1 0.0584  AR2 0.0579  (AR2-iid -0.0041, AR2-AR1 -0.0005)

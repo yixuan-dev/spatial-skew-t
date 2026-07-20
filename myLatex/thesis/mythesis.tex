@@ -501,7 +501,7 @@ In this section, we present the results from a simulation study to investigate h
 
 \subsection{Design}\label{sec:sim-design}
 
-All simulation designs generate data from the hierarchical model of \sref{sec:meth-hier} on $n_s = 144$ sites, drawn uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ independent days.  In the data generation the regression mean is held constant, $\bX^\top \bbeta = 10$ (the MRTS experiment below adds a mean-zero non-stationary random effect to one design, which leaves the regression mean at $10$), while every fitted model includes an intercept and a first-order spatial trend.  For each design we simulate $10$ data sets, each split into $100$ training sites and $44$ withheld test sites, and run every MCMC chain for $20,000$ iterations with a burn-in period of $10,000$ iterations.  Throughout, $q(0.80)$ denotes the $80$th sample quantile of the data,   and the five baseline analysis models are
+All simulation designs generate data from the hierarchical model of \sref{sec:meth-hier} on $n_s = 144$ sites, drawn uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ days ($n_t = 200$ in the time-block forecast arm of the persistence experiment below).  In the data generation the regression mean is held constant, $\bX^\top \bbeta = 10$ (the MRTS experiment below adds a mean-zero non-stationary random effect to one design, which leaves the regression mean at $10$), while every fitted model includes an intercept and a first-order spatial trend.  For each design we simulate $10$ data sets, each split into $100$ training sites and $44$ withheld test sites, and run every MCMC chain for $20,000$ iterations with a burn-in period of $10,000$ iterations.  Throughout, $q(0.80)$ denotes the $80$th sample quantile of the data,   and the five baseline analysis models are
 \begin{enumerate}[leftmargin=3em]
   \item Gaussian marginal, $K = 1$ knot;
   \item \Skewt marginal, $K = 1$ knot, no thresholding;
@@ -519,7 +519,16 @@ This experiment embeds a fixed AR(2) mechanism into the \skewt generating proces
   \item $K = 5$ knots, strong dependence $(\phi_1, \phi_2) = (0.80, -0.35)$;
   \item $K = 5$ knots, weak dependence $(\phi_1, \phi_2) = (0.12, -0.05)$.
 \end{enumerate}
-Both coefficient pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  Each data set is fit by nine analysis models: the five baseline models above, together with four temporal variants: \skewt models with AR(1) and AR(2) time-varying coefficients (following \eref{eq:ar2-w}--\eref{eq:ar2-sigma}) at $K = 1$ and $K = 5$ knots. 
+Both coefficient pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  Each data set is fit by nine analysis models: the five baseline models above, together with four temporal variants: \skewt models with AR(1) and AR(2) time-varying coefficients (following \eref{eq:ar2-w}--\eref{eq:ar2-sigma}) at $K = 1$ and $K = 5$ knots.
+
+\paragraph{Experiment for persistent and long-memory dependence.}\label{sec:sim-persist-design}
+
+The four fixed-AR(2) designs above all have short memory: their autocorrelations decay geometrically within a few days.  This experiment probes the two persistence regimes in which the autoregressive order could plausibly matter.  Both designs are \skewt with $K = 1$ knot and $\lambda = 3$, with the dependence imposed on the same transformed latent processes as above:
+\begin{enumerate}[leftmargin=3em]
+  \item near-unit-root AR(2), $(\phi_1, \phi_2) = (0.15, 0.80)$: the pair lies inside the stationarity triangle \eref{eq:stab-triangle}, but the dominant root of the characteristic polynomial is $0.973$, so shocks persist for roughly a hundred days rather than a few; the dependence is dominated by the second lag ($\phi_2 \gg \phi_1$), the one feature an AR(1) model cannot represent;
+  \item long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$: the fractionally differenced process $(1 - B)^{d} \xi_t = \epsilon_t$, where $B$ is the backshift operator \parencite{granger_introduction_1980,hosking_fractional_1981}, has hyperbolically decaying, non-summable autocorrelations, $\rho(h) \sim h^{2d-1}$, so no finite-order autoregression reproduces it and both the AR(1) and the AR(2) analysis models are misspecified by construction; sample paths are generated exactly by circulant embedding \parencite{davies_tests_1987}.
+\end{enumerate}
+Each design is evaluated in two arms.  The \emph{spatial hold-out arm} repeats the cross-validation design above ($n_t = 50$; $10$ data sets; $100$ training and $44$ test sites), fitting the Gaussian model and the \skewt $K = 1$ models with AR(1) and AR(2) structure.  The \emph{time-block forecast arm} generates longer records ($n_t = 200$) on the same $144$ sites, fits each model to days $1$--$50$ at all sites, and predicts days $51$--$65$, i.e., forecast leads $h = 1, \dots, 15$; the fitted models are the \skewt $K = 1$ variants with the latent processes i.i.d.\ in time, with AR(1) structure, and with AR(2) structure.  Fits failing a pre-specified consistency check (recovery of $\lambda$ and the intercept, and a bounded predictive spread) are re-run with a fresh seed and excluded if they fail again; scores are compared on the first $10$ data sets whose fits pass under all three models.
 
 \paragraph{Experiment for MRTS extension.}\label{sec:sim-mrts-design}
 
@@ -561,7 +570,11 @@ Models are compared using cross validation, with $100$ sites used as training si
   \mathrm{BS}(L) \;=\; \big\{\, I(y > L) \;-\; \widehat{P}(Y > L) \,\big\}^2,
   \label{eq:brier-score}
 \end{align}
-where $y$ is the held-out observation, $I(y > L)$ is the exceedance indicator, and $\widehat{P}(Y > L)$ is the posterior predictive probability of exceeding $L$.  We average the Brier scores over all test sites and days; lower values indicate better exceedance prediction. 
+where $y$ is the held-out observation, $I(y > L)$ is the exceedance indicator, and $\widehat{P}(Y > L)$ is the posterior predictive probability of exceeding $L$.  We average the Brier scores over all test sites and days; lower values indicate better exceedance prediction.
+
+\paragraph{Time-block forecast validation.}\label{sec:sim-timeblock-cv}
+
+The site-splitting scheme above scores interpolation: when a withheld site is predicted, every day of the record is observed at the training sites.  The time-block arm of the persistence experiment scores temporal extrapolation instead: all $144$ sites are observed for days $1$--$50$, and predictions are evaluated at the same sites on the following $15$ days.  For each forecast lead $h$ the Brier score \eref{eq:brier-score} is computed with $L$ set to the empirical $0.95$ quantile of the validation block (the same threshold for every model), averaged over sites, and then over data sets; models are compared pairwise within each data set.
 
 \subsection{Results on AR(2) comparison}\label{sec:sim-ar2-results}
 
@@ -601,6 +614,43 @@ $(0.12,-0.05)$ & 5 & 5 & -0.001(0.072)& -0.017(0.137) & 0.010(0.075) & -0.010(0.
 \end{tabular}
 \end{table}
 
+\subsection{Results under persistent and long-memory dependence}\label{sec:sim-persist-results}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{../pdf/bs_rel_gauss_by_quantile-set16_19-K0.pdf}
+\caption{Spatial hold-out arm of the persistence experiment: relative Brier score versus the Gaussian model by threshold quantile (Gaussian is the reference $\equiv 1$, shown as the dashed line; values below it are better).  Data-generating settings: (a)~near-unit-root AR(2), $(\phi_1, \phi_2) = (0.15, 0.80)$; (b)~long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.  Both are \skewt ($K = 1$, $\lambda = 3$).}
+\label{fig:bs-rel-persist-spatial}
+\end{figure}
+
+In the spatial hold-out arm the two persistence designs repeat, in sharper form, the null pattern of the fixed-AR(2) settings (\fref{fig:bs-rel-persist-spatial}).  Both temporal variants improve on the Gaussian model by only one to two percent, and they are indistinguishable from each other: at the $0.95$ threshold quantile the relative Brier scores of the AR(2) and AR(1) fits are $0.986$ versus $0.988$ under the near-unit-root design and $0.9837$ versus $0.9838$ under long memory, and no quantile separates the two by more than a fraction of a percent.  This insensitivity is not for want of signal.  Under the near-unit-root design the AR(2) fit recovers the generating coefficients well, with posterior means $(\hat\phi_1, \hat\phi_2) = (0.11, 0.74)$ for the scale process and $(0.17, 0.73)$ for the skewness process against the truth $(0.15, 0.80)$, while the AR(1) fit compresses the same persistence into a single lag ($\hat\phi_1 = 0.33$ and $0.53$, respectively); under long memory the AR(2) fit likewise picks up a clearly positive second lag ($\hat\phi_2 \approx 0.20$ on the scale process), the signature of the best finite-order approximation to the hyperbolic autocorrelation.  The temporal parameters are identified, yet the spatial hold-out score barely moves: with every day of the record observed at the training sites, predicting a withheld site is an interpolation problem, and the daily cross-sectional information dominates whatever the autoregressive order contributes.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{../pdf/bs_q95_by_lead-blk1-set5_7.pdf}
+\caption{Time-block forecast arm of the persistence experiment: mean Brier score at the $0.95$ threshold quantile by forecast lead (10 data sets; lower is better; the dotted vertical line marks the lead $1$--$5$ window).  Data-generating settings: (a)~near-unit-root AR(2), $(\phi_1, \phi_2) = (0.15, 0.80)$; (b)~long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.}
+\label{fig:bs-lead-timeblock}
+\end{figure}
+
+The time-block forecast arm asks the question the spatial split cannot: whether the fitted temporal structure improves genuine forward-in-time prediction (\fref{fig:bs-lead-timeblock}, Table~\ref{tab:timeblock-brier}).  Under long memory the answer is affirmative.  The AR(2) model attains the lowest Brier score at $12$ of the $15$ leads, improving on the i.i.d.-in-time fit by about $12\%$ over leads $1$--$5$ ($0.0524$ versus $0.0593$) and by about $7\%$ over the full horizon, with the AR(1) model in between; this ordering is an order of magnitude larger than any difference the spatial arm produced.  Under the near-unit-root design the per-lead profile is noisier (each lead contributes a single binary exceedance event per site and day) and the three models are close over the first five leads; pooled over all $15$ leads the AR(2) fit is nevertheless the best of the three ($0.0495$, against $0.0498$ for i.i.d.\ and $0.0515$ for AR(1)).  With $10$ data sets none of the paired Brier differences reaches statistical significance, so these results should be read as directional: the gains are modest, but they appear exactly where the structure of the task predicts them, namely in temporal extrapolation under strong persistence, and they are largest in the regime where the second lag improves the finite-order approximation.
+
+\begin{table}[htbp]
+\centering
+\caption{Time-block forecast arm: mean Brier score at the $0.95$ threshold quantile by lead window (10 data sets; lower is better).  The fitted models are the \skewt $K = 1$ variants with i.i.d., AR(1), and AR(2) latent temporal structure.}
+\label{tab:timeblock-brier}
+\scriptsize
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+Generating design & Leads & i.i.d. & AR(1) & AR(2) & AR(2)$-$i.i.d. & AR(2)$-$AR(1) \\
+\midrule
+Near-unit-root AR(2)   & $1$--$5$  & 0.0610 & 0.0604 & 0.0603 & $-0.0007$ & $-0.0001$ \\
+Near-unit-root AR(2)   & $1$--$15$ & 0.0498 & 0.0515 & 0.0495 & $-0.0003$ & $-0.0020$ \\
+ARFIMA, $d = 0.45$     & $1$--$5$  & 0.0593 & 0.0555 & 0.0524 & $-0.0068$ & $-0.0030$ \\
+ARFIMA, $d = 0.45$     & $1$--$15$ & 0.0620 & 0.0584 & 0.0579 & $-0.0041$ & $-0.0005$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Results on MRTS comparison}\label{sec:sim-mrts-results}
 
 In general, augmenting the regression component with MRTS basis functions does not deliver a stable improvement in upper-tail scores (\fref{fig:bs-mean-vs-K-mrts}).  As with the AR(2) comparison, the data-generating knot count dominates the ranking: the matching five-knot \skewt model is best on the five-knot setting, and the one-knot model is best on the random-effect process.
@@ -614,7 +664,7 @@ Enlarging the MRTS basis does not lower the mean Brier score on either setting. 
 \label{fig:bs-mean-vs-K-mrts}
 \end{figure}
 
-Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The AR(2) prior provides temporal flexibility and the MRTS covariates enrich the spatial regression component, yet their empirical benefits depend on the data-generating mechanism and on the target exceedance level.  Whether the same pattern holds on real environmental data (and, if so, what it implies for practitioners choosing among the candidate settings) is the question taken up in the Data analysis section, where AR(2) and MRTS variants are treated as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
+Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The AR(2) prior provides temporal flexibility and the MRTS covariates enrich the spatial regression component, yet their empirical benefits depend on the data-generating mechanism and on the target exceedance level.  The persistence experiment sharpens this conclusion into a statement about the prediction task itself: even under near-unit-root and long-memory dependence, with the temporal coefficients well identified, spatial hold-out prediction is insensitive to the autoregressive order, whereas modest but consistent gains from richer temporal pooling emerge once the task requires extrapolating beyond the observed record.  The AR(2) extension is therefore best regarded as a forecasting device rather than an interpolation device.  Whether the same pattern holds on real environmental data (and, if so, what it implies for practitioners choosing among the candidate settings) is the question taken up in the Data analysis section, where AR(2) and MRTS variants are treated as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
 
 \section{Real data analysis}\label{sec:realdata}
 
