@@ -1,7 +1,14 @@
 # Thesis figure: two-panel QQ plot of the lm(ozone ~ CMAQ) residuals against
-# Normal and an ML-fitted skew-t. Reuses `res` saved by autofrk_full_qq.R
+# Normal and the skew-t with lambda = 1, a = 10 (thesis/STP notation; sn's
+# direct parameters alpha = lambda, nu = a) used for the same diagnostic in
+# Morris et al. (2017). Reuses `res` saved by autofrk_full_qq.R
 # (autofrk_full_fit.RData) so lm/autoFRK do not need to be refit.
 # Writes directly to myLatex/pdf/ (same precedent as myLatex/pdf/plots_map.R).
+#
+# Both axes are on the unit-variance scale: the residuals are standardized by
+# their sample mean/sd, and the skew-t quantiles by the analytic mean/sd of
+# st(0, 1, alpha = 1, nu = 10). (The Morris et al. original centered the
+# skew-t quantiles but left their scale at omega = 1.)
 #
 # Run: Rscript code/analysis/ozone/qq_lm_2panel_thesis.R
 
@@ -25,22 +32,16 @@ qq.prep <- function(r) {
   )
 }
 
-llike.st <- function(params, y) {
-  ll <- dst(y,
-    xi = params[1], omega = exp(params[2]),
-    alpha = params[3], nu = params[4], log = TRUE
-  )
-  return(sum(-ll, na.rm = TRUE))
-}
-fit.st <- function(r) {
-  est <- optim(par = c(0, 1, 0, 3), fn = llike.st, y = r)$par
-  c(xi = est[1], omega = exp(est[2]), alpha = est[3], nu = est[4])
+# analytic mean/sd of st(xi = 0, omega = 1, alpha, nu)
+st.moments <- function(alpha, nu) {
+  delta <- alpha / sqrt(1 + alpha^2)
+  b.nu <- sqrt(nu / pi) * exp(lgamma((nu - 1) / 2) - lgamma(nu / 2))
+  m <- b.nu * delta
+  c(mean = m, sd = sqrt(nu / (nu - 2) - m^2))
 }
 
 qq.lm <- qq.prep(res)
-st.lm <- fit.st(qq.lm$res)
-cat("skew-t ML on lm residuals: xi =", st.lm[1], " omega =", st.lm[2],
-    " alpha =", st.lm[3], " nu =", st.lm[4], "\n")
+st.mom <- st.moments(alpha = 1, nu = 10)
 
 qq.panel <- function(xplot, qq, main) {
   plot(xplot, qq$res[qq$these],
@@ -52,13 +53,12 @@ qq.panel <- function(xplot, qq, main) {
 
 out <- "../../../myLatex/pdf/qq-res-lm-2panel.pdf"
 pdf(out, width = 9, height = 4.5)
-par(mfrow = c(1, 2), mar = c(5.1, 4.7, 4.1, 2.1))
+par(mfrow = c(1, 2), mar = c(5.1, 4.7, 4.1, 2.1), font.main = 1)
 qq.panel(qnorm(qq.lm$p[qq.lm$these]), qq.lm, "Normal")
 qq.panel(
-  qst(qq.lm$p[qq.lm$these],
-    xi = st.lm[1], omega = st.lm[2], alpha = st.lm[3], nu = st.lm[4]
-  ),
-  qq.lm, "Fitted skew-t"
+  (qst(qq.lm$p[qq.lm$these], alpha = 1, nu = 10) - st.mom["mean"]) / st.mom["sd"],
+  qq.lm,
+  expression(paste("Skew-", italic(t), " (", lambda == 1, ", ", italic(a) == 10, ")"))
 )
 dev.off()
 cat("saved", out, "\n")

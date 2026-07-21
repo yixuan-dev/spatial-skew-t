@@ -26,8 +26,9 @@ cell <- function(r) {
 getr <- function(st, lv, con) d[d$setting == st & abs(d$level - lv) < 1e-6 &
                                   startsWith(trimws(d$contrast), con), ]
 
-settings <- c(9, 10, 11, 12)
-sdesc <- c(`9` = "K{=}1 strong", `10` = "K{=}1 weak", `11` = "K{=}5 strong", `12` = "K{=}5 weak")
+settings <- c(9, 10, 11, 12, 16, 19)
+sdesc <- c(`9` = "K{=}1 strong", `10` = "K{=}1 weak", `11` = "K{=}5 strong", `12` = "K{=}5 weak",
+           `16` = "K{=}1 $(0.15,0.80)$", `19` = "K{=}1 ARFIMA $d{=}0.45$")
 levels_u <- sort(unique(d$level))
 
 lines <- c(
@@ -47,6 +48,8 @@ lines <- c(
   "\\small",
   "\\begin{tabular}{@{}ll cc@{}}",
   "\\toprule",
+  "& & \\multicolumn{2}{c}{$\\Delta\\times10^{3}$ [95\\% CI]} \\\\",
+  "\\cmidrule(lr){3-4}",
   "Setting & $L$ quantile & AR(2) $-$ no-TS & AR(2) $-$ AR(1) \\\\",
   "\\midrule"
 )

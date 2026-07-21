@@ -28,7 +28,7 @@ if (length(script_arg) > 0) {
   if (dir.exists(script_dir)) setwd(script_dir)
 }
 
-settings <- c(5L, 7L)
+settings <- c(4L, 5L, 7L)     # 4 = strong short-memory control (iid/AR2 only)
 datasets <- 1:30              # scan wide; missing files are skipped
 n_target <- 10L
 methods <- c(1L, 2L, 4L)      # iid, AR(2), AR(1)
@@ -83,7 +83,10 @@ cat(sprintf("\nWrote %s\n",
 # the tables in timeblock_score_report.tex (tab:expB5brier, tab:expC7brier).
 for (si in seq_along(settings)) {
   st <- settings[si]
-  clean_all <- which(apply(pass[, , si], 1, all))
+  # clean = every method actually fit on the dataset passed the guard
+  # (setting 4 has no AR(1) fits, so its NA column is ignored)
+  clean_all <- which(apply(pass[, , si], 1,
+                           function(r) any(!is.na(r)) && all(r[!is.na(r)])))
   clean <- head(clean_all, n_target)
   cat(sprintf("\n=================== setting %d ===================\n", st))
   cat(sprintf("three-way clean available: %s (n = %d); using first %d: %s\n",

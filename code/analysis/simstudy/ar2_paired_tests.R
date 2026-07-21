@@ -26,8 +26,9 @@ rm(list = ls())
 })
 setwd(.this)
 
-settings     <- c(9, 10, 11, 12)
-setting_desc <- c(`9` = "K=1 strong", `10` = "K=1 weak", `11` = "K=5 strong", `12` = "K=5 weak")
+settings     <- c(9, 10, 11, 12, 16, 19)
+setting_desc <- c(`9` = "K=1 strong", `10` = "K=1 weak", `11` = "K=5 strong", `12` = "K=5 weak",
+                  `16` = "K=1 (0.15,0.80)", `19` = "K=1 ARFIMA d=0.45")
 target_probs <- c(0.90, 0.95, 0.98)
 
 # matched contrasts: c(A_id, B_id, label)
@@ -40,6 +41,9 @@ contrasts_k5 <- list(
   c(8, 4, "AR(2) vs no-TS  (K=5)"),
   c(8, 10, "AR(2) vs AR(1)  (K=5)"),
   c(10, 4, "AR(1) vs no-TS  (K=5)")
+)
+contrasts_ar_only <- list(          # setting 19 fit only the AR(1)/AR(2) variants
+  c(7, 9, "AR(2) vs AR(1)  (K=1)")
 )
 
 paired <- function(d) {                       # d = per-dataset Brier difference (A - B)
@@ -61,7 +65,7 @@ for (st in settings) {
   probs <- e$probs
   methods <- e$methods                        # integer ids in dim-3 order
   pos <- function(id) match(id, methods)
-  kk <- if (st %in% c(9, 10)) contrasts_k1 else contrasts_k5
+  kk <- if (st == 19) contrasts_ar_only else if (st %in% c(9, 10, 16)) contrasts_k1 else contrasts_k5
 
   for (pr in target_probs) {
     pi <- which.min(abs(probs - pr))

@@ -30,14 +30,15 @@ settings <- e$settings; n_target <- e$n_target
 mlab <- c(iid = "iid", AR2 = "AR2", AR1 = "AR1")   # dim-4 order in the cache
 qi <- which.min(abs(probs - 0.95))                 # q95 index
 windows <- list(`1-5` = 1:5, `1-15` = 1:15)
-setting_desc <- c(`5` = "near-unit-root", `7` = "ARFIMA d=0.45")
+setting_desc <- c(`4` = "AR(2) (0.80,-0.35)", `5` = "near-unit-root", `7` = "ARFIMA d=0.45")
 
 # contrast c(A, B): Delta = BS_A - BS_B, negative => A better (temporal wins)
-contrasts <- list(
+contrasts_full <- list(
   c("AR1", "iid", "AR(1) - iid"),
   c("AR2", "iid", "AR(2) - iid"),
   c("AR2", "AR1", "AR(2) - AR(1)")
 )
+contrasts_iid_only <- list(c("AR2", "iid", "AR(2) - iid"))  # setting 4: no AR(1) fits
 
 paired <- function(d) {
   d <- d[is.finite(d)]; n <- length(d)
@@ -50,7 +51,10 @@ paired <- function(d) {
 rows <- list()
 for (si in seq_along(settings)) {
   st <- settings[si]
-  clean <- head(which(apply(pass[, , si], 1, all)), n_target)   # first n_target all-pass
+  # clean = every method actually fit on the dataset passed (setting 4 lacks AR(1))
+  clean <- head(which(apply(pass[, , si], 1,
+                            function(r) any(!is.na(r)) && all(r[!is.na(r)]))), n_target)
+  contrasts <- if (st == 4) contrasts_iid_only else contrasts_full
   for (wn in names(windows)) {
     hs <- windows[[wn]]
     # per-dataset window-mean Brier at q95 for each method (over clean datasets)
@@ -62,7 +66,9 @@ for (si in seq_along(settings)) {
       r <- paired(d)
       rows[[length(rows) + 1]] <- data.frame(
         setting = st, desc = setting_desc[as.character(st)], leads = wn,
-        contrast = ct[3], n = r$n, Delta = r$mean, CI_lo = r$lo, CI_hi = r$hi,
+        contrast = ct[3], n = r$n,
+        BS_A = mean(wm[, ct[1]]), BS_B = mean(wm[, ct[2]]),
+        Delta = r$mean, CI_lo = r$lo, CI_hi = r$hi,
         t_p_2sided = r$t_p2, wilcox_p_1sided = r$w_p1, stringsAsFactors = FALSE)
     }
   }
