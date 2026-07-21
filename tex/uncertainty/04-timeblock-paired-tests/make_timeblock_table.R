@@ -24,11 +24,13 @@ crps_f <- file.path(tdir, "blk1_paired_ci_crps.csv")
 crps <- if (file.exists(crps_f)) read.csv(crps_f, stringsAsFactors = FALSE) else NULL
 if (is.null(crps)) message("NOTE: CRPS csv not found yet; emitting Brier-only columns.")
 
-# cell in given scale (Brier x1e3, CRPS x1) with CI and one-sided-Wilcoxon star
+# cell in given scale (Brier x1e3, CRPS x1) with CI and Wilcoxon star
+# (Brier csv carries a two-sided Wilcoxon p, CRPS csv a one-sided one)
 cellf <- function(df, st, ld, con, scale) {
   r <- df[df$setting == st & df$leads == ld & df$contrast == con, ]
   if (nrow(r) == 0) return("\\multicolumn{1}{c}{--}")
-  star <- if (isTRUE(r$wilcox_p_1sided < 0.05)) "^{*}" else ""
+  wp <- if (!is.null(r$wilcox_p_2sided)) r$wilcox_p_2sided else r$wilcox_p_1sided
+  star <- if (isTRUE(wp < 0.05)) "^{*}" else ""
   sprintf("$%+.2f%s$ {\\scriptsize $[%+.2f,%+.2f]$}",
           scale * r$Delta, star, scale * r$CI_lo, scale * r$CI_hi)
 }
@@ -45,8 +47,9 @@ lines <- c(
   "\\caption{Time-block forecast arm: paired differences over the $10$ clean",
   "data sets, temporal model minus reference (negative favours the temporal",
   "model), with $95\\%$ paired-$t$ CIs. Brier at $q_{95}$ in units of $10^{-3}$;",
-  "CRPS in native units. Stars mark a one-sided Wilcoxon $p<0.05$ (H$_1$:",
-  "temporal model better). The AR(2) gain is invisible on single-threshold",
+  "CRPS in native units. Stars mark a Wilcoxon $p<0.05$ (two-sided for Brier;",
+  "one-sided for CRPS, H$_1$: temporal model better). The AR(2) gain is",
+  "invisible on single-threshold",
   "Brier but reaches (marginal) significance on CRPS, whose whole-distribution",
   "scoring carries far more information per forecast.}",
   "\\label{tab:timeblock-paired}",

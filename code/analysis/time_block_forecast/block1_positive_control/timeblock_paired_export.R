@@ -4,8 +4,7 @@
 # Table 4 / persistence experiment). The 10 clean data sets are the
 # independent replicates; for each setting x lead-window x contrast we take the
 # per-dataset difference of window-mean q95 Brier and run a paired t-test
-# (two-sided 95% CI) plus a one-sided Wilcoxon signed-rank test in the
-# pre-registered direction (H1: the temporal model is better, Delta < 0).
+# (two-sided 95% CI) plus a two-sided Wilcoxon signed-rank test.
 #
 # Reads the Brier-only cache (no slow CRPS re-scoring):
 #   output/tables/blk1_brier_cache.RData
@@ -43,9 +42,9 @@ contrasts_iid_only <- list(c("AR2", "iid", "AR(2) - iid"))  # setting 4: no AR(1
 paired <- function(d) {
   d <- d[is.finite(d)]; n <- length(d)
   tt <- t.test(d)                                   # two-sided CI
-  w1 <- suppressWarnings(wilcox.test(d, alternative = "less", exact = FALSE))  # H1: Delta<0
+  w2 <- suppressWarnings(wilcox.test(d, exact = FALSE))  # two-sided
   list(n = n, mean = mean(d), lo = tt$conf.int[1], hi = tt$conf.int[2],
-       t_p2 = tt$p.value, w_p1 = w1$p.value)
+       t_p2 = tt$p.value, w_p2 = w2$p.value)
 }
 
 rows <- list()
@@ -69,7 +68,7 @@ for (si in seq_along(settings)) {
         contrast = ct[3], n = r$n,
         BS_A = mean(wm[, ct[1]]), BS_B = mean(wm[, ct[2]]),
         Delta = r$mean, CI_lo = r$lo, CI_hi = r$hi,
-        t_p_2sided = r$t_p2, wilcox_p_1sided = r$w_p1, stringsAsFactors = FALSE)
+        t_p_2sided = r$t_p2, wilcox_p_2sided = r$w_p2, stringsAsFactors = FALSE)
     }
   }
 }
@@ -78,13 +77,13 @@ out <- do.call(rbind, rows)
 fmt <- out
 for (c0 in c("Delta", "CI_lo", "CI_hi")) fmt[[c0]] <- sprintf("%+.5f", out[[c0]])
 fmt$t_p_2sided <- sprintf("%.3f", out$t_p_2sided)
-fmt$wilcox_p_1sided <- sprintf("%.3f", out$wilcox_p_1sided)
-fmt$sig1 <- ifelse(out$wilcox_p_1sided < 0.05, "*", "")   # one-sided Wilcoxon
+fmt$wilcox_p_2sided <- sprintf("%.3f", out$wilcox_p_2sided)
+fmt$sig2 <- ifelse(out$wilcox_p_2sided < 0.05, "*", "")   # two-sided Wilcoxon
 cat("=== Time-block forecast: paired tests over clean n=10 datasets (q95 Brier) ===\n")
 cat("=== Delta = BS_A - BS_B (negative => temporal better); CI = two-sided paired-t ===\n")
-cat("=== wilcox_p = ONE-sided (H1: Delta<0); '*' one-sided p<0.05 ===\n\n")
+cat("=== wilcox_p = TWO-sided; '*' two-sided p<0.05 ===\n\n")
 print(fmt[, c("setting", "desc", "leads", "contrast", "n", "Delta",
-              "CI_lo", "CI_hi", "t_p_2sided", "wilcox_p_1sided", "sig1")],
+              "CI_lo", "CI_hi", "t_p_2sided", "wilcox_p_2sided", "sig2")],
       row.names = FALSE)
 
 write.csv(out, "output/tables/blk1_paired_ci.csv", row.names = FALSE)
