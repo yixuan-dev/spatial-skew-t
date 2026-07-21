@@ -6,18 +6,25 @@
 # output/results/simresults<set><suffix>.RData (produced by tables.R) and writes
 # the combined PDFs straight into the thesis figure dir (myLatex/pdf).
 #
-# Shared paper-format conventions (all figures): 3 rows x 2 cols layout; four
-# (a)-(d) panels in regions 1-4; region 5 (row 3, col 1) left blank; a single
-# shared legend in region 6 (row 3, col 2) as one vertical column with bare
-# method labels; enlarged fonts; no per-panel legends.
+# Shared paper-format conventions: 4-panel figures use a 3 rows x 2 cols
+# layout with panels (a)-(d) in regions 1-4, region 5 (row 3, col 1) left
+# blank, and a single shared legend in region 6 (row 3, col 2) as one
+# vertical column with bare method labels; the 6-panel figure fills rows
+# 1-3 with panels (a)-(f) and spans the legend across the bottom row.
+# Enlarged fonts; no per-panel legends.
 #
-# Figure 1 - relative Brier score vs threshold quantile (AR(2) settings 9-12).
-#   Relative to the Gaussian model, so Gaussian (method 1) is the dashed y = 1
-#   reference and is omitted from the curves/legend.
+# Figure 1 - relative Brier score vs threshold quantile, spatial hold-out
+#   evaluation (AR(2) settings 9-12 plus persistence DGPs 16 & 19).
+#   Relative to the Gaussian model, so Gaussian (method 1) is the dashed
+#   y = 1 reference and is omitted from the curves/legend.
 #   (a) set9  Skew-t K=1, lambda=3, AR(2) strong phi=(0.80,-0.35)
 #   (b) set10 Skew-t K=1, lambda=3, AR(2) weak   phi=(0.12,-0.05)
 #   (c) set11 Skew-t K=5, lambda=3, AR(2) strong phi=(0.80,-0.35)
 #   (d) set12 Skew-t K=5, lambda=3, AR(2) weak   phi=(0.12,-0.05)
+#   (e) set16 Skew-t K=1, lambda=3, AR(2) phi=(0.15,0.80)
+#   (f) set19 Skew-t K=1, lambda=3, ARFIMA(0,d,0) d=0.45
+#   Panel (f) draws only the AR(1)/AR(2) K=1 skew-t fits, the only
+#   methods fit on set19; every other panel draws the full catalog.
 #
 # Figure 2 - mean Brier score vs number of MRTS basis functions (MRTS probe).
 #   Absolute score, so Gaussian (method 1) is kept as a real curve.
@@ -26,13 +33,7 @@
 #   (c) set3_nonsta  q=0.95   Skew-t K=1, lambda=3, additive non-stationary spatial random effect
 #   (d) set3_nonsta  q=0.98
 #
-# Figure 3 - relative Brier score vs threshold quantile, persistence DGPs,
-#   spatial hold-out arm. Two panels; only the AR(1)/AR(2) K=1 skew-t
-#   fits are drawn (Gaussian is the dashed y = 1 reference).
-#   (a) set16 near-unit-root AR(2) phi=(0.15,0.80)
-#   (b) set19 ARFIMA(0,d,0) d=0.45
-#
-# Figure 4 - mean Brier score at q95 by forecast lead, time-block arm
+# Figure 3 - mean Brier score at q95 by forecast lead, time-block arm
 #   (block 1: fit days 1-50, forecast 51-65). Reads the cache written by
 #   time_block_forecast/block1_positive_control/cache_blk1_brier.R and
 #   averages over the first 10 datasets that pass the guard under all
@@ -40,7 +41,7 @@
 #   aggregate table used for the thesis table tab:timeblock-brier.
 #   (a) tbf set5 near-unit-root   (b) tbf set7 ARFIMA d=0.45
 #
-# Figure 5 - mean Brier score vs number of MRTS basis functions, non-t
+# Figure 4 - mean Brier score vs number of MRTS basis functions, non-t
 #   mean-surface DGPs (setup_nonsta.R settings 16 & 20: nonlinear mean
 #   surface, sd 11, orthogonal to [1, s1, s2], plus stationary
 #   Gaussian-GP error, so every t-family error law is misspecified).
@@ -57,9 +58,8 @@
 #   Rscript.exe plots_for_paper.R
 #
 # Outputs (myLatex/pdf):
-#   bs_rel_gauss_by_quantile-set9_to_12-K0.pdf
+#   bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf
 #   brier_score_mean_vs_K.pdf
-#   bs_rel_gauss_by_quantile-set16_19-K0.pdf
 #   bs_q95_by_lead-blk1-set5_7.pdf
 #   brier_score_mean_vs_K-set16_20_nonsta.pdf
 # Output (time_block_forecast/block1_positive_control/output/tables):
@@ -178,14 +178,14 @@ open_panel_device_2 <- function(out_file) {
   par(mar = c(4.6, 4.8, 2.4, 1.0), cex.axis = 1.1, cex.lab = 1.35, cex.main = 1.5)
 }
 
-draw_legend_span <- function(labels, ids, style) {
+draw_legend_span <- function(labels, ids, style, ncol = length(ids)) {
   par(mar = c(0, 0, 0, 0))
   plot.new()
   legend("center",
     legend = labels,
     lty = mlty[ids], pch = mpch[ids],
     col = style$col[ids], pt.bg = style$bg[ids], lwd = style$lwd[ids],
-    ncol = length(ids), cex = 1.25, bty = "n"
+    ncol = ncol, cex = 1.25, bty = "n"
   )
 }
 
@@ -201,42 +201,57 @@ load_sim <- function(setting_id, suffix = "") {
   e
 }
 
-# ---- Figure 1: relative Brier vs quantile, AR(2) settings 9-12 --------
+# ---- Figure 1: relative Brier vs quantile, spatial hold-out -----------
+# Six panels sharing one format: (a)-(e) draw every non-Gaussian method
+# fit on the setting (the fixed-AR(2) settings 9-12 and the persistent
+# AR(2) DGP 16), while (f), the ARFIMA DGP 19, fit only the skew-t K=1
+# AR(2)/AR(1) variants beside the Gaussian reference. Gaussian (method 1)
+# is the relative reference (== 1, shown as dashed line).
 make_fig_rel_by_quantile <- function() {
-  sets <- c(9L, 10L, 11L, 12L)
-  tags <- c("(a)", "(b)", "(c)", "(d)")
+  panels <- list(
+    list(setting = 9L, tag = "(a)", ids = NULL),
+    list(setting = 10L, tag = "(b)", ids = NULL),
+    list(setting = 11L, tag = "(c)", ids = NULL),
+    list(setting = 12L, tag = "(d)", ids = NULL),
+    list(setting = 16L, tag = "(e)", ids = NULL),
+    list(setting = 19L, tag = "(f)", ids = c(7L, 9L))
+  )
   k0 <- 0L
-  envs <- lapply(sets, load_sim)
-  probs <- envs[[1]]$probs
-  methods <- envs[[1]]$methods
-  for (e in envs) {
-    stopifnot(
-      identical(e$methods, methods),
-      isTRUE(all.equal(e$probs, probs)),
-      k0 %in% e$mrts_ks
-    )
-  }
-  # Gaussian (method 1) is the relative reference (== 1, shown as dashed line).
-  draw_cols <- which(methods != 1L)
-  draw_ids <- methods[draw_cols]
-
-  out_file <- file.path(out_dir, "bs_rel_gauss_by_quantile-set9_to_12-K0.pdf")
-  open_panel_device(out_file)
-  for (i in seq_along(sets)) {
-    e <- envs[[i]]
+  out_file <- file.path(out_dir, "bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf")
+  # Height keeps the full-page float within the A4 text block (3cm margins,
+  # linespread 1.25) with room for the six-setting caption.
+  pdf(out_file, width = 9, height = 10.3)
+  layout(matrix(c(1, 2, 3, 4, 5, 6, 7, 7), nrow = 4, byrow = TRUE),
+    heights = c(1, 1, 1, 0.45)
+  )
+  par(mar = c(4.6, 4.8, 2.4, 1.0), cex.axis = 1.1, cex.lab = 1.35, cex.main = 1.5)
+  legend_ids <- integer(0)
+  for (p in panels) {
+    e <- load_sim(p$setting)
+    stopifnot(k0 %in% e$mrts_ks)
+    draw_ids <- if (is.null(p$ids)) e$methods[e$methods != 1L] else p$ids
+    draw_cols <- match(draw_ids, e$methods)
+    stopifnot(!anyNA(draw_cols))
     ki <- which(e$mrts_ks == k0)
-    mat <- matrix(e$bs_rel_mean[, , ki], nrow = length(probs), ncol = length(methods))
+    mat <- matrix(e$bs_rel_mean[, , ki],
+      nrow = length(e$probs), ncol = length(e$methods)
+    )
     ymat <- mat[, draw_cols, drop = FALSE]
     # Range over the drawn (non-Gaussian) series; keep 1 in view for the ref line.
-    draw_series(probs, ymat, draw_ids, style_ar2,
+    draw_series(e$probs, ymat, draw_ids, style_ar2,
       ylim = c(min(ymat, 1, na.rm = TRUE), max(ymat, 1, na.rm = TRUE)),
       xlab = "Threshold quantile",
       ylab = "Relative Brier score",
-      main = tags[i]
+      main = p$tag
     )
     abline(h = 1, lty = 2, col = "gray60")
+    legend_ids <- union(legend_ids, draw_ids)
   }
-  draw_legend_region(draw_ids, style_ar2)
+  legend_ids <- sort(legend_ids)
+  draw_legend_span(vapply(legend_ids, label_for_id, character(1)),
+    legend_ids, style_ar2,
+    ncol = 2
+  )
   dev.off()
   cat(sprintf("Wrote %s\n", normalizePath(out_file, winslash = "/", mustWork = FALSE)))
 }
@@ -274,43 +289,7 @@ make_fig_mean_vs_K <- function() {
   cat(sprintf("Wrote %s\n", normalizePath(out_file, winslash = "/", mustWork = FALSE)))
 }
 
-# ---- Figure 3: relative Brier vs quantile, persistence DGPs 16 & 19 ---
-# Method sets differ between the two settings (set16 has the full catalog,
-# set19 only 1/7/9), so columns are matched per panel instead of asserting
-# identical method vectors as make_fig_rel_by_quantile() does.
-make_fig_rel_by_quantile_persist <- function() {
-  sets <- c(16L, 19L)
-  tags <- c("(a)", "(b)")
-  draw_ids <- c(7L, 9L) # skew-t K=1 AR(2), AR(1); Gaussian is the y=1 reference
-  k0 <- 0L
-  out_file <- file.path(out_dir, "bs_rel_gauss_by_quantile-set16_19-K0.pdf")
-  open_panel_device_2(out_file)
-  for (i in seq_along(sets)) {
-    e <- load_sim(sets[i])
-    stopifnot(k0 %in% e$mrts_ks)
-    draw_cols <- match(draw_ids, e$methods)
-    stopifnot(!anyNA(draw_cols))
-    ki <- which(e$mrts_ks == k0)
-    mat <- matrix(e$bs_rel_mean[, , ki],
-      nrow = length(e$probs), ncol = length(e$methods)
-    )
-    ymat <- mat[, draw_cols, drop = FALSE]
-    draw_series(e$probs, ymat, draw_ids, style_ar2,
-      ylim = c(min(ymat, 1, na.rm = TRUE), max(ymat, 1, na.rm = TRUE)),
-      xlab = "Threshold quantile",
-      ylab = "Relative Brier score",
-      main = tags[i]
-    )
-    abline(h = 1, lty = 2, col = "gray60")
-  }
-  draw_legend_span(vapply(draw_ids, label_for_id, character(1)),
-    draw_ids, style_ar2
-  )
-  dev.off()
-  cat(sprintf("Wrote %s\n", normalizePath(out_file, winslash = "/", mustWork = FALSE)))
-}
-
-# ---- Figure 4: Brier q95 by forecast lead, time-block block 1 ----------
+# ---- Figure 3: Brier q95 by forecast lead, time-block block 1 ----------
 # Cache layout (cache_blk1_brier.R): brier[lead, prob, dataset, method,
 # setting] with methods (iid, AR2, AR1) and settings (5, 7); pass[dataset,
 # method, setting]. Curves are styled by borrowing Morris method ids:
@@ -374,7 +353,7 @@ make_fig_brier_by_lead_blk1 <- function() {
   print(tab, digits = 4)
 }
 
-# ---- Figure 5: mean Brier vs MRTS K, non-t mean-surface DGPs ----------
+# ---- Figure 4: mean Brier vs MRTS K, non-t mean-surface DGPs ----------
 # setup_nonsta.R settings 16 (tanh arc front, n=10, full 12-point K grid)
 # and 20 (log/exp/ratio transforms, n=3 pilot, K in {0,30,40,50}): a
 # nonlinear mean surface plus stationary Gaussian-GP error. Same panel
@@ -456,6 +435,5 @@ make_fig_mean_vs_K_nont <- function() {
 
 make_fig_rel_by_quantile()
 make_fig_mean_vs_K()
-make_fig_rel_by_quantile_persist()
 make_fig_brier_by_lead_blk1()
 make_fig_mean_vs_K_nont()
