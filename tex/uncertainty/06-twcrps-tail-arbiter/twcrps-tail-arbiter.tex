@@ -56,10 +56,16 @@ plain CRPS 因為被 bulk 主導而偵測到它；但在超標尾部，AR(2) 與
   \item \textbf{twCRPS 也不等於 plain CRPS。}它\emph{對口目標}（尾部加權），能把
         bulk 效應濾掉。這正是它在本例裡與 plain CRPS 分道揚鑣的原因。
   \item \textbf{對論文的結論}：內插任務上，AR(2) 對尾部超標預測\textbf{無益也無害}
-        ——這個虛無現在由\emph{兩個}尾部分數（單門檻 Brier 與高檢定力的 twCRPS）
-        共同支撐，比單靠 Brier 強得多；而 time-block 外推上 AR(2) 的增益仍然成立。
-        「AR(2) 是外推工具、非內插工具」的敘述至此最為乾淨。
+        ——這個虛無由\emph{兩個}尾部分數（單門檻 Brier 與高檢定力的 twCRPS）共同
+        支撐，比單靠 Brier 強得多。
 \end{enumerate}
+
+\paragraph{兩點後續修正（folder 07/08）。}其一，本頁把 plain-CRPS 的「AR(2) 較差」
+當作真實的 bulk 效應；folder 08 進一步顯示它\textbf{連統計上都不穩健}——空間 block
+bootstrap 下 $p$ 由 $0.03$ 升到 $0.08$--$0.11$、CI 含 $0$，故無論對口與否都不承載
+結論。其二，folder 07 把同樣的尾部檢驗補到 time-block，發現連\emph{外推}的 AR(2)
+增益也在 bulk；因此最終結論不是「AR(2) 是外推工具」，而是\textbf{AR(2) 在任何情境
+都不改變尾部超標技巧}。
 
 \medskip
 \noindent\footnotesize 程式：\verb|ozone/US-all-auto/twcrps_bootstrap.R|

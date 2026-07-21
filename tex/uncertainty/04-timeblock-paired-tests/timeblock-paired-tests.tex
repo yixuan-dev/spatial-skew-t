@@ -27,7 +27,9 @@ time-block forecast arm 是整個研究裡 AR(2) \emph{唯一}出現方向性增
 （論文 Table~4：ARFIMA 設定下 AR(2) 相對 iid 於 leads 1--5 約 $12\%$）。論文自己
 也寫「none of the paired Brier differences reaches statistical significance」。
 本文把這句話量化，並揭示一個更深的問題：\textbf{論文選的指標（單門檻 Brier）對
-它想偵測的訊號檢定力最弱}。
+它想偵測的訊號檢定力最弱}。（\emph{但請一併讀 \S\,發現~3 與 folder 07 的修正}：
+plain CRPS 確有訊號，卻是 bulk 效應；檢定力更高的\emph{尾部}分數 twCRPS 同樣
+測不到，故此增益對超標目標並不成立。）
 
 方法與前幾份一致：$10$ 組乾淨資料是獨立複製，對每組取 lead-window 平均分數，
 逐組相減，做配對 $t$（$95\%$ CI）與單尾 Wilcoxon（H$_1$：時間模型較佳）。數字由
@@ -47,20 +49,28 @@ $[-33,+20]\times10^{-3}$ 的巨大 CI，$p_W=0.70$。也就是說：那個「$12
 少數資料組的大增益拉出來的\textbf{平均},其\emph{中位數}方向並不一致——這比
 「不顯著」更精確地說明了論文為何只能寫「directional」。
 
-\paragraph{2. CRPS 上訊號才浮現。}同樣的 fits、同樣的資料組，改用 CRPS（評分
-整個預測分布，而非單一門檻的二元事件）後，AR(2) 的預測增益在近單位根設定下
-達到（邊界）顯著。這完全符合統計直覺：$q_{95}$ Brier 把每個預測壓成一個罕見
-二元事件，變異極大、檢定力極低；CRPS 用上整條預測分布，每個預測攜帶的資訊
-多得多。\textbf{結論不是「AR(2) 沒用」，而是「Brier 這把尺太鈍」。}
+\paragraph{2. plain CRPS 上有訊號浮現。}同樣的 fits、同樣的資料組，改用 plain
+CRPS（評分整個預測分布，而非單一門檻的二元事件）後，AR(2) 的增益在近單位根
+設定下達到（邊界）顯著。$q_{95}$ Brier 把每個預測壓成一個罕見二元事件、變異
+極大、檢定力極低；plain CRPS 用上整條預測分布，每個預測攜帶的資訊多得多。
+
+\paragraph{3.（後續修正，見 folder 07）但那個增益在 bulk，不在尾部。}把 CRPS
+限制到尾部帶（twCRPS，$\int_{q_{.90}}^{q_{.99}}\mathrm{BS}(z)\,dz$，檢定力遠高於
+單門檻 Brier）後，AR(2) 的增益\textbf{掉回 $\Delta\approx0$}（$p_W\approx0.46$），
+與單門檻 Brier 一致。也就是說，plain CRPS 偵測到的是\textbf{分布主體（未來日的
+水準）}改善，\textbf{不是門檻超標}的改善。所以更正的結論是：Brier 的 null \emph{並非}
+「尺太鈍」，而是\emph{真的}——檢定力更高的尾部帶 twCRPS 同樣測不到。AR(2) 靠
+持續性改善的是 level，與本論文的超標目標無關。
 
 \section*{對論文的建議}
 
-論文 persistence 小節目前是 Brier-only。建議：（1）在該節\textbf{並列 CRPS}，
-因為「AR(2) 是預測（外推）工具」這個核心論點，靠 CRPS 才有顯著證據支撐；
-（2）把 Table~4 換成本表格式（$\Delta\pm$CI），把「directional」改寫為引用
-Table~\ref{tab:timeblock-paired} 的區間與 $p$ 值；（3）加一句多重性提醒：
-共 $12$ 個比較，邊界星號需保守解讀。這樣既誠實面對 Brier 的 null，又用 CRPS
-把真正的訊號立起來——比原本單靠 Brier 的敘事強得多。
+論文 persistence 小節目前是 Brier-only。建議：（1）在該節\textbf{並列 plain CRPS
+與尾部帶 twCRPS}，並據 folder 07 誠實陳述：plain CRPS 的 AR(2) 增益是 \emph{bulk}
+效應，兩個尾部分數（Brier 與 twCRPS）一律測不到，故對「門檻超標預測」這個目標
+\textbf{不成立}；（2）把 Table~4 換成本表格式（$\Delta\pm$CI），把「directional」
+改寫為引用 Table~\ref{tab:timeblock-paired} 的區間與 $p$ 值；（3）加一句多重性
+提醒：共 $12$ 個比較，邊界星號需保守解讀。這樣把 bulk-vs-tail 的分解講清楚，
+比單靠 Brier 或單靠 plain CRPS 的敘事都更精確、也更誠實。
 
 \medskip
 \noindent\footnotesize 資料：\verb|blk1_paired_ci.csv|、\verb|blk1_paired_ci_crps.csv|

@@ -78,8 +78,12 @@ $0.0305$ 與 $0.0305$ 的名次是不是真的。
 \bottomrule
 \end{tabular}
 \end{center}
-實證的主力是 (a)。至於 (c)：本例每個擬合都保留 $5000$ 個後驗抽樣，
-$\Phat_i$ 的 Monte Carlo 誤差約 $\sqrt{p_i(1-p_i)/5000}$，遠小於 (a)，可忽略。
+實證的主力是 (a)。至於 (c)：本例每個擬合保留 $5000$ 個後驗抽樣。\emph{（後續
+實測修正，見 folder 09：}用 batch-means 實測後，(c) 對 Brier／twCRPS 只佔評估
+不確定性的 $19\%$／$26\%$——次要，null 不受影響；但對 \textbf{plain CRPS 高達
+$70\%$、不可忽略}。故先前「可忽略」的斷言對 CRPS 是錯的，這也是 CRPS 顯著格
+不可信的原因之一。$\sqrt{p_i(1-p_i)/M}$ 的樸素公式低估了 CRPS 這種連續分數的
+MC 誤差。$)$
 
 \section{關鍵觀念：先配對，再算變異}
 

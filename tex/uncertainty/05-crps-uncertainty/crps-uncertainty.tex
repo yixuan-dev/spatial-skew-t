@@ -45,30 +45,38 @@ bootstrap}，模擬與 time-block 用 $10$ 組資料的\textbf{複製層配對�
 在 $q_{95}$ Brier 上，臭氧的 AR(2)$-$AR(1) 差異 CI 涵蓋 $0$（測不出）。改用 CRPS
 後，AR(2) 相對 AR(1) 的 CRPS \textbf{顯著較差}，且在 $200/200$ 與 $300/100$ 兩個
 split 都成立（$p\approx0.03$）。效果雖小（CRPS $\approx 5$ ppb，差 $0.02$--$0.04$），
-但方向一致、可複現：在真實資料的空間內插裡，多加第二階只是增添估計雜訊，輕微
-拖累整條預測分布。MRTS 則在 CRPS 上仍與基準無法區分。
+但方向一致、可複現：多加第二階輕微拖累\emph{整條}預測分布。MRTS 則在 CRPS 上
+仍與基準無法區分。（\emph{兩點修正，見 folder 06/07/08}：此「較差」既屬
+\textbf{bulk} 效應——尾部的 Brier 與 twCRPS 皆 ns；又對站間空間相依\textbf{不穩健}
+——空間 block bootstrap 下 $p$ 由 $0.03$ 升到 $0.08$--$0.11$、CI 含 $0$。故無論
+對口與否或統計穩健與否，它都不承載結論。）
 
-\paragraph{外推（time-block forecast）：AR(2) 顯著較佳。}同一個模型，換到需要
-向前預測的任務，AR(2) 相對 iid 與相對 AR(1) 的 CRPS 改善在近單位根設定下達
-（單尾）顯著（$p_W\approx0.03$）。
+\paragraph{外推（time-block forecast）：plain CRPS 較佳，但（修正後）是 bulk。}
+同一個模型換到向前預測的任務，AR(2) 相對 iid 與 AR(1) 的 \emph{plain} CRPS 改善
+在近單位根設定下達（單尾）顯著（$p_W\approx0.03$）。\textbf{但 folder 07 的尾部帶
+twCRPS 顯示此增益同樣在 bulk}：一約束到尾部，$\Delta$ 掉回 $\approx0$
+（$p_W\approx0.46$），與單門檻 Brier 一致。AR(2) 改善的是未來日的\emph{水準}，
+不是超標機率。
 
-\paragraph{合起來，是論文核心論點的最強版本。}CRPS 的額外檢定力把
-「內插 vs 外推」的對比\textbf{推到顯著}：
+\paragraph{合起來（修正後）：尾部一律測不到。}folder 06/07 用尾部帶 twCRPS 把
+兩邊的 plain-CRPS 訊號都打回 bulk。用論文真正在乎的\textbf{尾部}分數（單門檻
+Brier 與檢定力更高的 twCRPS）衡量：
 \[
-  \text{內插：AR(2) 較差／持平} \qquad\Longleftrightarrow\qquad
-  \text{外推：AR(2) 較佳.}
+  \text{內插：尾部 ns} \qquad\text{且}\qquad \text{外推：尾部 ns.}
 \]
-這比原本「AR(2) 是預測工具、非內插工具」的敘述更決斷——而且只有在用了比
-Brier 更有力的 CRPS 之後才浮現。
+也就是說，\textbf{AR(2) 在所有情境都不改變門檻超標的預測技巧}；plain CRPS 的差異
+（臭氧較差、time-block 較佳）都是分布主體（level）效應，與超標目標無關。這比
+原本「AR(2) 是外推工具」的敘述更保守，卻由\emph{兩個}尾部分數、跨\emph{三個}
+arm 一致支撐，證據力更強。
 
 \section*{兩點但書}
 
 \begin{enumerate}
   \item \textbf{plain CRPS vs threshold-weighted CRPS。}臭氧模型是 censored（只配
-        尾部）。plain CRPS 對整條分布等權；若要完全對齊「超標預測」目標、也更貼合
-        censored 設定，應改用 twCRPS $=\int \mathrm{Brier}_L\,w(L)\,dL$（尾部加權）。
-        不確定性量化方式完全相同，只換權重 $w(L)$。本文先用 plain CRPS 取其檢定力
-        與跨 arm 一致性。
+        尾部）。plain CRPS 對整條分布等權、故被 bulk 主導；對齊「超標預測」目標的是
+        twCRPS $=\int \mathrm{Brier}_L\,w(L)\,dL$（尾部加權）。\textbf{folder 06/07 已
+        建好 twCRPS} 並以它做出上述 bulk-vs-tail 修正；量化方式與 plain CRPS 完全
+        相同，只換權重 $w(L)$。
   \item \textbf{多重性。}跨 arm 已累積數個邊界星號；正式寫入論文時應做多重比較
         校正（審查 \#2），對最極端／最稀疏的顯著格保守解讀。
 \end{enumerate}
