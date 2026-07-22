@@ -2,8 +2,9 @@
 % !TeX root = slides.tex
 % =====================================================================
 %  Master's Thesis Defense Slides (Beamer)
-%  Compile: XeLaTeX -> biber -> XeLaTeX -> XeLaTeX
-%  Relative paths; shares img, references, mycommands with thesis/
+%  Structure follows P-0.1 (22 core pages + 4 backup pages);
+%  spoken script in P-0.2.  Compile: XeLaTeX -> biber -> XeLaTeX x2
+%  Shares img/pdf assets, references, and math macros with thesis/
 % =====================================================================
 \documentclass[12pt, aspectratio=169]{beamer}
 
@@ -13,21 +14,17 @@
 \usetheme{Madrid}
 \usecolortheme{whale}
 \useinnertheme{circles}
-\setbeamertemplate{navigation symbols}{}     % remove navigation icons
+\setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{caption}[numbered]
-\setbeamertemplate{bibliography item}[text]
 
-% NDHU blue palette (adjust as you like)
+% NDHU blue palette
 \definecolor{NDHUblue}{RGB}{0, 60, 120}
 \setbeamercolor{structure}{fg=NDHUblue}
 
-% -------------------------------
 % Top "point flow" bar: horizontal section navigation on every frame
-% current section highlighted, others shaded
-% -------------------------------
 \setbeamertemplate{headline}{%
   \begin{beamercolorbox}[wd=\paperwidth, ht=3ex, dp=1.25ex, leftskip=1.5ex, rightskip=1.5ex]{section in head/foot}%
-    \hbox to\hsize{\hfil\insertsectionnavigationhorizontal{0.98\paperwidth}{}{}\hfil}%
+    \hbox to\hsize{\hfil\insertsectionnavigationhorizontal{0.9\paperwidth}{}{}\hfil}%
   \end{beamercolorbox}%
 }
 
@@ -48,9 +45,9 @@
 \usepackage{makecell}
 \usepackage{array}
 \usepackage{tikz}
-\usetikzlibrary{shapes, arrows}
+\usetikzlibrary{shapes, arrows.meta, positioning}
 
-% Thesis math macros (\skewt, \bomega, \blambda, ...), shared with thesis/
+% Thesis math macros (\skewt, \bs, \bbeta, ...), shared with thesis/
 \input{../thesis/mycommands.sty}
 
 % -------------------------------
@@ -60,153 +57,472 @@
 \addbibresource{../references/references.bib}
 \DeclareDelimFormat{nameyeardelim}{\addcomma\space}
 
+% Backup slides do not advance the visible frame count
+\newcommand{\backupbegin}{%
+  \newcounter{framenumberappendix}%
+  \setcounter{framenumberappendix}{\value{framenumber}}}
+\newcommand{\backupend}{%
+  \addtocounter{framenumberappendix}{-\value{framenumber}}%
+  \addtocounter{framenumber}{\value{framenumberappendix}}}
+
 % -------------------------------
 % Thesis metadata
 % -------------------------------
-\title[ST skew-t Extension]{Extending the Spatio-Temporal Skew-$t$ Process for Threshold Exceedance Prediction}
+\title[STP extensions for exceedance prediction]{Extending the Spatio-Temporal Skew-$t$ Process\\ for Threshold Exceedance Prediction}
 \subtitle{AR(2) Temporal Priors and Multi-Resolution Spline Basis Functions}
-\author[Y.-H.\ Hsieh]{Yi-Hsuan Hsieh \\ Advisor: Prof.\ Hao-Yun Huang}
+\author[Y.-X.\ Xie]{Yi-Xuan Xie\\[0.4em] {\small Advisor: Prof.\ Hao-Yun Huang}}
 \institute[NDHU]{Department of Applied Mathematics\\ National Dong Hwa University}
 \date{July 2026}
 
 % =====================================================================
 \begin{document}
 
-% ---- Title page (no top bar) ----
+% =====================================================================
+% Act 0 | Opening (p1--p2)
+% =====================================================================
+
+% ---- p1: Title ----
 {\setbeamertemplate{headline}{}
 \begin{frame}[plain]
   \titlepage
 \end{frame}}
 
-% ---- Outline ----
-\begin{frame}[plain]{Outline}
+% ---- p2: Outline ----
+\begin{frame}{Outline}
   \tableofcontents
+  % \vskip0pt plus 1filll
 \end{frame}
 
 % =====================================================================
 \section{Motivation}
 % =====================================================================
-\begin{frame}{Motivation}
-  \begin{itemize}
-    \item \textbf{Threshold exceedance} events in air pollution (e.g., ozone) are spatially dependent and heavy-tailed.
-    \item Gaussian processes cannot jointly capture \textbf{skewness} and \textbf{tail dependence}.
-    \item This work extends the spatio-temporal \skewt process with:
-      \begin{enumerate}
-        \item AR(2) temporal priors, for richer temporal dynamics;
-        \item Multi-resolution spline basis functions, for non-stationary spatial structure.
-      \end{enumerate}
-  \end{itemize}
 
-  \begin{block}{Goal}
-    Quantify the predictive gain of these extensions for \textbf{threshold exceedance prediction} (CRPS, Brier score).
-  \end{block}
+% ---- p3: Problem background ----
+\begin{frame}{Problem background}
+  \begin{itemize}
+    \item Monitoring networks: limited coverage $\to$ statistical
+          extrapolation, with quantified confidence
+    \item Monitoring and compliance
+    \item Target: $\Pr(Y > L)$ at \alert{unmonitored} sites ---
+          the upper tail, not the mean field
+  \end{itemize}
+  \bigskip
+  \begin{center}
+    \begin{tabular}{@{}lccc@{}}
+      \toprule
+      Ozone NAAQS (ppb) & 1997 & 2008 & 2015 (current) \\
+      \midrule
+      Annual 4th-highest daily max 8-hr avg., 3-year mean & 80 & 75 & 70 \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
 \end{frame}
 
-\begin{frame}{Related Work}
+% ---- p4: Why standard methods fall short ----
+\begin{frame}{Why standard spatial methods fall short}
+  \begin{enumerate}
+    \item \textbf{Margin} --- Gaussian: light-tailed, symmetric;
+          ozone maxima: \alert{heavy-tailed, right-skewed}
+    \item \textbf{Dependence at high levels} \parencite{Coles1999}:
+  \end{enumerate}
+  \begin{equation*}
+    \chi(h) = \lim_{c \to c^*} \Pr[\,Y(\bs + h) > c \mid Y(\bs) > c\,],
+    \qquad \text{Gaussian: } \chi(h) = 0 \ \ \forall h
+  \end{equation*}
   \begin{itemize}
-    \item \skewt processes and tail-dependence models.
-    \item Temporal priors in spatio-temporal models.
-    \item Basis-function expansions and autoFRK.
+    \item Data: nearby monitors high on the \emph{same} days
   \end{itemize}
-  \vfill
-  % Citation example (needs matching key in references.bib):
-  % \footnotesize See \textcite{key1}, \textcite{key2}.
+  \bigskip
+  \begin{center}
+    heavy tails $+$ asymmetry $+$ asymptotic dependence
+    $\;\Rightarrow\;$ \alert{skew-$t$ process}
+  \end{center}
+\end{frame}
+
+% ---- p5: Why not EVT / max-stable ----
+\begin{frame}{Why not max-stable or EVT threshold models}
+  \begin{itemize}
+    \item Max-stable likelihood: infeasible at $1{,}089$ stations
+    \item 75 ppb $\approx$ \alert{$0.92$ sample quantile} --- not the far tail in EVT sense
+    \item \alert{Subasymptotic} setting \parencite{huser_advances_2022}:
+          joint tail at high but \emph{finite} levels
+    \item Skew-$t$ = location-scale mixture of GPs $\in$ this family
+  \end{itemize}
 \end{frame}
 
 % =====================================================================
-\section{Methods}
+\section{Model}
 % =====================================================================
-\begin{frame}{Model Setup}
-  Let $Y(\bs, t)$ be the observation at location $\bs$ and time $t$:
-  \begin{equation}
-    Y(\bs, t) = \bx(\bs, t)^\top \bbeta + \bB(\bs)^\top \bomega_t + \varepsilon(\bs, t),
-  \end{equation}
-  where
+
+% ---- p6: Baseline STP ----
+\begin{frame}{Baseline: the spatio-temporal skew-$t$ process (STP)}
+  \textcite{morris_space-time_2017}:
+  \begin{equation*}
+    Y_t(\bs) \;=\; \bX_t(\bs)^\top \bbeta
+      \;+\; \lambda\, \sigma_t(\bs)\, |z_t(\bs)|
+      \;+\; \sigma_t(\bs)\, v_t(\bs),
+    \qquad v_t \sim \text{GP with \Matern correlation}
+  \end{equation*}
+  \bigskip
+  \begin{enumerate}
+    \item \textbf{Skew-$t$ margin} --- location-scale mixing of GPs
+    \item \textbf{Random partition}, redrawn daily ---
+          $z_{tk} \sim N(0,1)$, $\sigma^2_{tk} \sim \mathrm{IG}(a/2, b/2)$
+          $\to$ \alert{local} asymptotic dependence
+    \item \textbf{Censored likelihood} at $T \le L$ --- upper-tail focus
+    \item \textbf{PIT $\to$ AR(1)} on the latent parameters
+  \end{enumerate}
+\end{frame}
+
+% ---- p7: Two-axis overview ----
+\begin{frame}{Two candidate extensions}
+  \begin{center}
+    \begin{tikzpicture}[every node/.style={align=center}, node distance=0.7cm]
+      \node[draw=NDHUblue, rounded corners, fill=NDHUblue!8,
+            minimum width=4.4cm, minimum height=1.5cm] (base)
+        {\textbf{STP baseline}\\ \footnotesize \cite{morris_space-time_2017}};
+      \node[draw=NDHUblue, rounded corners, fill=NDHUblue!20,
+            minimum width=6.6cm, right=1.6cm of base, yshift=1.15cm] (ar2)
+        {\textbf{Temporal axis}: AR(1) $\to$ standardized AR(2)\\
+         \footnotesize longer-range dependence in the record};
+      \node[draw=NDHUblue, rounded corners, fill=NDHUblue!20,
+            minimum width=6.6cm, right=1.6cm of base, yshift=-1.15cm] (mrts)
+        {\textbf{Spatial axis}: MRTS basis in the fixed-effect mean\\
+         \footnotesize large-scale variation to the basis, small-scale to \Matern};
+      \draw[-{Stealth}, thick, NDHUblue] (base) -- (ar2.west);
+      \draw[-{Stealth}, thick, NDHUblue] (base) -- (mrts.west);
+    \end{tikzpicture}
+  \end{center}
+  \bigskip
+  \begin{center}
+    \alert{candidate options, not replacements} --- held-out scores decide
+  \end{center}
+\end{frame}
+
+% ---- p8: Extension 1, standardized AR(2) ----
+\begin{frame}{Extension 1: a standardized AR(2) prior}
+  On the PIT-transformed Gaussian scale:
+  \begin{equation*}
+    Y_t = \phi_1 Y_{t-1} + \phi_2 Y_{t-2} + \epsilon_t,
+    \qquad (\phi_1, \phi_2) \in \text{stationarity triangle}
+  \end{equation*}
+  Inverse PIT needs $\gamma_0 = \mathrm{Var}(Y_t) = 1$
+  $\;\Rightarrow\;$ $\sigma^2_\epsilon$ \alert{not free} (Yule--Walker):
+  \begin{equation*}
+    \gamma_1 = \frac{\phi_1}{1 - \phi_2}, \qquad
+    \gamma_2 = \phi_1 \gamma_1 + \phi_2, \qquad
+    \sigma^2_\epsilon = 1 - \phi_1 \gamma_1 - \phi_2 \gamma_2
+  \end{equation*}
+  \bigskip
   \begin{itemize}
-    \item $\bB(\bs)$: multi-resolution spline basis functions;
-    \item $\bomega_t$: temporal coefficients with an AR(2) prior
-      \[
-        \bomega_t = \phi_1 \bomega_{t-1} + \phi_2 \bomega_{t-2} + \bfe_t;
-      \]
-    \item $\varepsilon(\bs, t)$: \skewt error with skewness parameter $\blambda$.
+    \item Initial pair $(Y_1, Y_2)$: stationary bivariate Gaussian,
+          correlation $\gamma_1$
+    \item $\phi_2 = 0 \Rightarrow$ AR(1): \alert{strictly nests} the baseline
+    \item Identical margins across i.i.d.\ / AR(1) / AR(2)
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Inference \& Evaluation}
-  \begin{columns}[T]
-    \begin{column}{0.5\textwidth}
-      \textbf{Bayesian inference}
-      \begin{itemize}
-        \item MCMC sampling.
-        \item Identifiability check for $\phi_\tau$.
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.5\textwidth}
-      \textbf{Predictive scoring}
-      \begin{itemize}
-        \item CRPS.
-        \item Brier score (threshold exceedance).
-      \end{itemize}
-    \end{column}
-  \end{columns}
+% ---- p9: Extension 2, MRTS ----
+\begin{frame}{Extension 2: MRTS basis functions in the mean}
+  MRTS \parencite{tzeng_resolution_2018}:
+  \begin{itemize}
+    \item Ordered \alert{coarse $\to$ fine}: $f_1 = 1$; $f_2, f_3$ =
+          coordinates; $k \ge 4$: eigenvectors of the TPS kernel,
+          eigenvalues decreasing
+    \item Closed form at \emph{new} locations $\to$ predictive covariate
+  \end{itemize}
+  \bigskip
+  \begin{equation*}
+    \bX^*_t(\bs) = \big[\bff(\bs)^\top, \bX_t(\bs)^\top\big]^\top,
+    \qquad
+    Y_t(\bs) = \bX^*_t(\bs)^\top \bbeta^* + \lambda\,\sigma_t(\bs)\,|z_t(\bs)|
+               + \sigma_t(\bs)\, v_t(\bs)
+  \end{equation*}
+  \bigskip
+  \begin{itemize}
+    \item Claim: non-stationary \alert{mean} only ---
+          \Matern keeps small-scale dependence
+  \end{itemize}
+\end{frame}
+
+% ---- p10: Hierarchical model ----
+\begin{frame}{Hierarchical model and inference}
+  Three stages \parencite{berliner_hierarchical_1996}:
+  \begin{description}
+    \item[Stage 1] censored data:
+      $\widetilde{Y}_t(\bs_i) = \max\{Y_t(\bs_i), T\}$
+    \item[Stage 2] Gaussian field $\cdot$ partition $\cdot$ latent AR(2)
+      dynamics
+    \item[Stage 3] priors; $(\phi_1, \phi_2) \sim$ Unif(stationarity triangle)
+  \end{description}
+  \begin{equation*}
+    \big[\bY_{\mathrm{cens}}, \calZ, \btheta \mid \widetilde{\bY}\big]
+    \;\propto\;
+    \prod_{t=1}^{n_t}
+    \big[\widetilde{\bY}_t \mid \bY_t\big]
+    \big[\bY_t \mid \calZ_t, \btheta\big]\;
+    \big[\calZ_{1:n_t} \mid \btheta\big]\,
+    \big[\btheta\big]
+  \end{equation*}
+  \bigskip
+  \begin{itemize}
+    \item Gibbs-within-MH; AR(2) full conditionals: appendix
+    \item $K$ fixed $=$ \alert{candidate model index}, chosen by held-out Brier
+  \end{itemize}
 \end{frame}
 
 % =====================================================================
 \section{Simulation}
 % =====================================================================
-\begin{frame}{Simulation Design}
-  \begin{table}
-    \centering
-    \begin{tabular}{lcc}
+
+% ---- p11: Simulation design ----
+\begin{frame}{Simulation design}
+  \begin{center}
+    $144$ sites on $[0,10]^2$ \; $\cdot$ \; $50$ days \; $\cdot$ \;
+    $10$ data sets \; $\cdot$ \; $100$ train / $44$ test
+  \end{center}
+  \bigskip
+  \begin{center}
+    \begin{tabular}{@{}ll@{}}
       \toprule
-      Scenario & Parameters & Description \\
+      Analysis models & Gaussian; \skewt ($K{=}1,5$);
+                        sym-$t$, $T{=}q(0.80)$ ($K{=}1,5$) \\
       \midrule
-      Strong     & $(\phi_1, \phi_2) = (\cdot, \cdot)$ & strong temporal dependence \\
-      Near-unit  & $(0.15,\ 0.80)$ & near unit root \\
+      AR(2) designs   & $(0.80, -0.35)$, $(0.12, -0.05)$ at $K = 1, 5$; \\
+                      & persistent $(0.15, 0.80)$; ARFIMA $d = 0.45$ \\
+      \addlinespace
+      MRTS designs    & $2 \times$ \alert{second-moment} non-stationarity; \\
+                      & $2 \times$ \alert{nonlinear mean} surface \\
       \bottomrule
     \end{tabular}
-    \caption{Simulation scenarios (illustrative).}
-  \end{table}
+  \end{center}
+\end{frame}
+
+% ---- p12: Evaluation protocol ----
+\begin{frame}{Evaluation protocols}
+  Scoring \parencite{gneiting_strictly_2007}:
+  \begin{equation*}
+    \mathrm{BS}(L) = \big\{ I(y > L) - \widehat{P}(Y > L) \big\}^2
+    \qquad \text{(lower is better)}
+  \end{equation*}
+  \bigskip
+  \begin{center}
+    \begin{tabular}{@{}llll@{}}
+      \toprule
+      Protocol & Observed & Predicted & Task \\
+      \midrule
+      Spatial hold-out & training sites, full record & unseen sites &
+        \alert{interpolation} \\
+      Time-block forecast & all sites, days $1$--$50$ & same sites, next $15$
+        days & \alert{extrapolation} \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \bigskip
   \begin{itemize}
-    \item Key finding: the AR(2) advantage emerges in the near-unit scenario.
+    \item Uncertainty: \textbf{paired} differences $\cdot$ $95\%$ CI $\cdot$
+          Wilcoxon
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Simulation Results}
-  % Figure example:
-  % \begin{figure}
-  %   \centering
-  %   \includegraphics[width=0.7\linewidth]{../img/your_figure.png}
-  %   \caption{Simulation results.}
-  % \end{figure}
-  \centering
-  \emph{(Place simulation result figures/tables here.)}
+% ---- p13: AR(2) result 1, interpolation ----
+\begin{frame}{AR(2), interpolation: temporal structure barely moves the scores}
+  \begin{center}
+    \includegraphics[width=\linewidth, height=0.68\textheight,
+      keepaspectratio]{../pdf/slides-bs_rel_gauss-set9_11_16.pdf}
+  \end{center}
+  \bigskip
+  \begin{center}
+    $32/33$ paired intervals cover zero \hfill {\small(all six settings:
+    backup)}
+  \end{center}
 \end{frame}
 
-% =====================================================================
-\section{Application}
-% =====================================================================
-\begin{frame}{Ozone Data Analysis}
+% ---- p14: AR(2) result 2, identified vs unmoved ----
+\begin{frame}{AR(2): coefficients identified, scores still unmoved}
+  \begin{center}
+    \begin{tabular}{@{}lcccc@{}}
+      \toprule
+      & \multicolumn{2}{c}{$\hat\bphi^{(\sigma)}$}
+      & \multicolumn{2}{c}{$\hat\bphi^{(z)}$} \\
+      \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+      Generating design & $\hat\phi_1$ & $\hat\phi_2$
+                        & $\hat\phi_1$ & $\hat\phi_2$ \\
+      \midrule
+      Persistent $(0.15,\, 0.80)$ & $0.112\,(0.132)$ & $\mathbf{0.742}\,(0.117)$
+        & $0.175\,(0.152)$ & $\mathbf{0.728}\,(0.112)$ \\
+      ARFIMA, $d = 0.45$ & $0.502\,(0.237)$ & $\mathbf{0.200}\,(0.239)$
+        & $0.365\,(0.249)$ & $\mathbf{0.156}\,(0.169)$ \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \bigskip
   \begin{itemize}
-    \item Data source and preprocessing.
-    \item After removing the autoFRK spatial structure, residuals become \textbf{heavier-tailed} ($\nu$: 15.7 $\to$ 3.8).
-    \item Heavy tails are a feature of the data, not a lack of fit.
+    \item Second lag \alert{recovered} --- even under long memory
+    \item Hold-out scores: still unmoved $\;\to\;$ the \alert{task}, not the
+          model
+  \end{itemize}
+\end{frame}
+
+% ---- p15: AR(2) result 3, extrapolation ----
+\begin{frame}{AR(2), extrapolation: directional gains where predicted}
+  \begin{center}
+    \includegraphics[width=\linewidth, height=0.62\textheight,
+      keepaspectratio]{../pdf/bs_q95_by_lead-blk1-set5_7.pdf}
+  \end{center}
+  \bigskip
+  \begin{itemize}
+    \item Long memory: AR(2) lowest at almost every lead; short-memory
+          control: ties
+    \item All differences n.s.\ $\to$ \alert{directional}
+          \ {\small(largest $-0.0068$, CI $[-0.033, 0.020]$)}
+  \end{itemize}
+\end{frame}
+
+% ---- p16: MRTS results ----
+\begin{frame}{MRTS: inert against second moments, paid off once resolved}
+  \begin{center}
+    \includegraphics[width=\linewidth, height=0.62\textheight,
+      keepaspectratio]{../pdf/slides-brier_vs_K-set16_20_nonsta-q95.pdf}
+  \end{center}
+  \bigskip
+  \begin{itemize}
+    \item Second-moment designs: flat --- \alert{no first moment to recover}
+          \ {\small(backup)}
+    \item Nonlinear mean: pays only once the basis \alert{resolves} the
+          surface; mid-size dip
   \end{itemize}
 \end{frame}
 
 % =====================================================================
-\section{Conclusion}
+\section{Ozone data}
 % =====================================================================
-\begin{frame}{Conclusion \& Contributions}
-  \begin{enumerate}
-    \item AR(2) temporal priors yield significant predictive gains in the near-unit regime.
-    \item Multi-resolution spline bases capture non-stationary spatial structure.
-    \item $\phi_\tau$ is identifiable: the posterior concentrates well beyond the prior.
-  \end{enumerate}
-  \vfill
-  \begin{block}{Future Work}
-    Higher-dimensional space-time, more threshold settings, and real-time prediction.
-  \end{block}
+
+% ---- p17: Data & diagnostics ----
+\begin{frame}{Ozone data and motivating diagnostics}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \begin{itemize}
+        \item July 2005 $\cdot$ AQS daily max 8-h ozone $\cdot$
+              \alert{CMAQ} covariate
+        \item Models \alert{calibrate CMAQ} at the monitors
+      \end{itemize}
+      \medskip
+      \begin{center}
+        \includegraphics[width=0.49\linewidth, height=0.24\textheight,
+          keepaspectratio]{../pdf/map_aqs.pdf}\hfill
+        \includegraphics[width=0.49\linewidth, height=0.24\textheight,
+          keepaspectratio]{../pdf/map_cmaq.pdf}
+      \end{center}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \begin{center}
+        \includegraphics[width=\linewidth, height=0.42\textheight,
+          keepaspectratio]{../pdf/qq-res-lm-2panel.pdf}
+      \end{center}
+      \begin{itemize}
+        \item Residuals: heavy-tailed, right-skewed --- max $\approx$
+              \alert{8 SD}
+        \item Skew-$t$ reference ($\lambda = 1$, $a = 10$): straightens
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---- p18: Candidate set & validation ----
+\begin{frame}{Candidate set and validation design}
+  \begin{itemize}
+    \item Baseline grid \parencite{morris_space-time_2017}:
+          $\{$Gaussian, \skewt$\}$ $\times$ $K \in \{1, \ldots, 15\}$
+          $\times$ $T \in \{0, 50, 75\}$ ppb $\times$ $\{$TS, no TS$\}$
+    \item Extensions: AR(2) prior; MRTS with $K_{\mathrm{MRTS}} = 10$
+          \alert{pre-specified}
+    \item $1{,}089 \to 800$ \alert{region-stratified} sites $\cdot$
+          two-fold CV ($400/400$) $\cdot$ splits $300/100$, $200/200$
+    \item MCMC: $30{,}000$ iterations, $25{,}000$ burn-in
+  \end{itemize}
+\end{frame}
+
+% ---- p19: Main results & robustness ----
+\begin{frame}{Results: scattered wins, but systematic}
+  \begin{center}
+    \scriptsize
+    \begin{tabular}{@{}lll@{}}
+      \toprule
+      Level $L$ & Rank 1 model & Rank 2 model \\
+      \midrule
+      0.900 & \textbf{MRTS} \skewt, $K{=}1$, $T{=}0$, AR(1), $K_{\mathrm{MRTS}}{=}10$ & \skewt, $K{=}1$, $T{=}0$, AR(1) \\
+      0.950 & \textbf{AR2} \skewt, $K{=}7$, $T{=}50$ & \textbf{AR2} \skewt, $K{=}10$, $T{=}50$ \\
+      0.980 & \skewt, $K{=}6$, $T{=}50$, AR(1) & \skewt, $K{=}5$, $T{=}50$, AR(1) \\
+      0.990 & symmetric-$t$, $K{=}9$, $T{=}75$, AR(1) & \skewt, $K{=}5$, $T{=}50$ \\
+      0.995 & \textbf{AR2} symmetric-$t$, $K{=}15$, $T{=}75$ & symmetric-$t$, $K{=}9$, $T{=}75$, AR(1) \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \bigskip
+  \begin{itemize}
+    \item Deeper tail $\to$ higher censoring, larger $K$
+    \item Pattern reproduces on the $300/100$ and $200/200$ splits
+  \end{itemize}
+\end{frame}
+
+% ---- p20: UQ verdict ----
+\begin{frame}{Uncertainty: the two axes part ways}
+  Site-clustered bootstrap ($B = 2000$, by fold), $400/400$ split,
+  $\Delta \times 10^{3}$ [$95\%$ CI]:
+  \medskip
+  \begin{center}
+    \begin{tabular}{@{}lcc@{}}
+      \toprule
+      $L$ quantile & AR(2) $-$ AR(1) & MRTS $-$ none \\
+      \midrule
+      $0.900$ & $-0.15$ {\tiny $[-0.38, +0.08]$} & $-0.03$ {\tiny $[-0.13, +0.07]$} \\
+      $0.950$ & $-0.12$ {\tiny $[-0.29, +0.04]$} & $\mathbf{-0.08^{*}}$ {\tiny $[-0.14, -0.02]$} \\
+      $0.980$ & $+0.03$ {\tiny $[-0.08, +0.14]$} & $-0.04$ {\tiny $[-0.07, +0.00]$} \\
+      $0.990$ & $-0.06$ {\tiny $[-0.14, +0.03]$} & $\mathbf{-0.03^{*}}$ {\tiny $[-0.05, -0.00]$} \\
+      $0.995$ & $-0.03$ {\tiny $[-0.08, +0.02]$} & $-0.01$ {\tiny $[-0.02, +0.01]$} \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \bigskip
+  \begin{itemize}
+    \item AR(2): every interval covers zero (all splits)
+    \item MRTS: negative everywhere; stars survive \alert{block resampling};
+          $\approx 3$--$4 \times 10^{-3}$ of baseline
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\section{Conclusions}
+% =====================================================================
+
+% ---- p21: Conclusions ----
+\begin{frame}{Conclusions}
+  \begin{itemize}
+    \item \textbf{Temporal axis}: divides along the task ---
+          identified yet inert in interpolation;
+          gains only in \alert{forecasting}, never significant
+    \item \textbf{Spatial axis}: \alert{real, though modest} ---
+          needs mean-level structure, and a basis fine enough to resolve it
+    \item \textbf{Contribution}: STP baseline $\to$ \alert{candidate model
+          class}, selected by held-out threshold prediction
+  \end{itemize}
+\end{frame}
+
+% ---- p22: Limitations & future work ----
+\begin{frame}{Limitations and future work}
+  \textbf{Limitations}
+  \begin{itemize}
+    \item One month, one pollutant $\cdot$ single forecast origin
+  \end{itemize}
+  \bigskip
+  \textbf{Future work}
+  \begin{itemize}
+    \item \alert{Random-coefficient} MRTS (fixed-rank kriging) $\to$
+          the second-moment layer
+    \item Reparameterized $z$ $\cdot$ longer records $\cdot$
+          \alert{rolling forecast origin}
+  \end{itemize}
 \end{frame}
 
 % ---- References ----
@@ -223,5 +539,144 @@
   {\large Questions \& Comments Welcome}
   \vfill
 \end{frame}}
+
+% =====================================================================
+% Backup (Q&A)
+% =====================================================================
+\backupbegin
+
+{\setbeamertemplate{headline}{}
+\begin{frame}[plain]
+  \centering
+  \vfill
+  {\LARGE\color{NDHUblue} Backup}
+  \vfill
+\end{frame}}
+
+% ---- B1: lambda-z reflection ridge & screening ----
+\begin{frame}{Backup: $\lambda$--$z$ reflection ridge and forecast screening}
+  \begin{itemize}
+    \item A reflection-type non-identifiability links $\lambda$ and $z$:
+          short-record fits can land on the \alert{reflected ridge}, where the
+          skewness parameter and the intercept fail to separate and the
+          predictive spread inflates.
+    \item The screening rule is public and stated with the forecast protocol:
+          fits whose $\lambda$ and intercept fail to separate, or whose
+          predictive spread is unbounded, are removed \emph{before} scoring.
+    \item Root fix --- a sign-anchored reparameterization of $z$ --- is listed
+          as future work.
+  \end{itemize}
+\end{frame}
+
+% ---- B2: AR(2) derivations ----
+\begin{frame}{Backup: AR(2) stationary moments and full conditionals}
+  \begin{itemize}
+    \item Yule--Walker under $\gamma_0 = 1$:
+          $\gamma_h = \phi_1 \gamma_{h-1} + \phi_2 \gamma_{h-2}$ for
+          $h \ge 1$ gives $\gamma_1 = \phi_1 / (1 - \phi_2)$,
+          $\gamma_2 = \phi_1 \gamma_1 + \phi_2$, and
+          $\sigma^2_\epsilon = 1 - \phi_1 \gamma_1 - \phi_2 \gamma_2$.
+    \item Gibbs-within-MH: the full conditional of $Y_t$ carries \alert{three}
+          prior factors,
+          \begin{equation*}
+            \pi(Y_t \mid Y_{-t}, \bY) \propto L(\bY \mid Y_t)\,
+            \underbrace{p(Y_t \mid Y_{t-1}, Y_{t-2})}_{\text{self}}\,
+            \underbrace{p(Y_{t+1} \mid Y_t, Y_{t-1})}_{\text{lag-1}}\,
+            \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{\text{lag-2}};
+          \end{equation*}
+          omitting the lag-2 factor distorts the stationary distribution.
+    \item Head of the series ($t = 1, 2$): the stationary initial-pair density
+          replaces the self factor.  Proposals: symmetric Gaussian random walk
+          tuned to $0.3$--$0.4$ acceptance; $(\phi_1, \phi_2)$ updated jointly
+          under the uniform prior on the stationarity triangle.
+  \end{itemize}
+\end{frame}
+
+% ---- B3: MRTS second-moment design details ----
+\begin{frame}{Backup: second-moment design --- ``inert'' is not ``no signal''}
+  \begin{itemize}
+    \item The random effect superposes two fixed cosine fields with
+          daily-redrawn Gaussian weights:
+          \begin{equation*}
+            u_t(\bs) = \sum_{j=1}^{2} \xi_{tj}\, g_j(\bs), \quad
+            \xi_{tj} \iid N(0, \tau_j^2), \quad
+            (\tau_1, \tau_2) = (5, 3),
+          \end{equation*}
+          giving the location-dependent covariance
+          $\mathrm{Cov}\{u_t(\bs), u_t(\bs')\}
+           = \sum_j \tau_j^2 g_j(\bs) g_j(\bs')$.
+    \item Zero time-average $\Rightarrow$ the pooled coefficient has
+          \alert{no first-moment structure to recover}, while $u_t$ still
+          contributes substantial non-stationary variance: structurally out of
+          reach for a fixed-effect mean, not absent signal.
+    \item The two nonlinear-mean surfaces were confirmed by an \alert{oracle
+          calculation before any fitting} to leave genuine Brier headroom.
+  \end{itemize}
+\end{frame}
+
+% ---- B4: censoring pairing & MCMC ----
+\begin{frame}{Backup: censoring pairing and MCMC settings}
+  \begin{itemize}
+    \item Why symmetric-$t$ with censoring: once the lower tail is censored,
+          the skewness parameter is only \alert{weakly identified}, so
+          censored settings pair with a symmetric-$t$ marginal, following
+          \textcite{morris_space-time_2017}.
+    \item Thresholds: the censor level $T = 75$ ppb sits below the era
+          standard $L = 80$ ppb ($T \le L$), and every evaluation level lies
+          above $T$; the degrees of freedom $a$ control the tail thickness.
+    \item Burn-in $25{,}000$ of $30{,}000$ ($\approx 83\%$): mixing is slowed
+          by censoring imputation and the latent volume; traces were
+          inspected, and the long burn-in is a conservative choice.
+  \end{itemize}
+\end{frame}
+
+% ---- B5: full spatial hold-out grid (thesis Figure 1) ----
+\begin{frame}{Backup: spatial hold-out, all six generating settings}
+  \begin{columns}[T]
+    \begin{column}{0.62\textwidth}
+      \begin{center}
+        \includegraphics[width=\linewidth, height=0.75\textheight,
+          keepaspectratio]{../pdf/bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf}
+      \end{center}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \footnotesize
+      Relative Brier score vs.\ the Gaussian reference ($\equiv 1$, dashed).
+      \begin{itemize}
+        \footnotesize
+        \item (a)--(d): fixed AR(2) designs, $K \in \{1, 5\}$,
+              $(\phi_1, \phi_2) = (0.80, -0.35)$ or $(0.12, -0.05)$.
+        \item (e): persistent $(0.15, 0.80)$.
+        \item (f): ARFIMA, $d = 0.45$ (only the $K{=}1$ AR(1)/AR(2) fits).
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ---- B6: full MRTS nonlinear-mean grid (thesis Figure 4) ----
+\begin{frame}{Backup: MRTS nonlinear-mean designs, full grid}
+  \begin{columns}[T]
+    \begin{column}{0.62\textwidth}
+      \begin{center}
+        \includegraphics[width=\linewidth, height=0.75\textheight,
+          keepaspectratio]{../pdf/brier_score_mean_vs_K-set16_20_nonsta.pdf}
+      \end{center}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \footnotesize
+      Brier score vs.\ $K_{\mathrm{MRTS}}$ ($K_{\mathrm{MRTS}} = 0$ is the
+      no-MRTS baseline).
+      \begin{itemize}
+        \footnotesize
+        \item (a, b): arc front, $q = 0.95$ / $0.98$.
+        \item (c, d): transform mix, $q = 0.95$ / $0.98$.
+        \item At $q = 0.98$ the gain is carried by the five-knot models ---
+              the sharpness--extrapolation signature.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\backupend
 
 \end{document}

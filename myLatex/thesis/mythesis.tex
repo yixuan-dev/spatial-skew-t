@@ -210,7 +210,33 @@ candidate model class selected by held-out threshold predictive performance.
 \newpage
 \thispagestyle{empty}                   % 不顯示頁碼
 \WatermarkOff                           % 不要浮水印
-~ 
+~
+
+%% 圖目錄頁
+\newpage
+\setcounter{page}{6}                    % 將頁碼重設為 6
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+\WatermarkOn                            % 浮水印
+
+%% 空白頁
+\newpage
+\thispagestyle{empty}                   % 不顯示頁碼
+\WatermarkOff                           % 不要浮水印
+~
+
+%% 表目錄頁
+\newpage
+\setcounter{page}{7}                    % 將頁碼重設為 7
+\addcontentsline{toc}{section}{List of Tables}
+\listoftables
+\WatermarkOn                            % 浮水印
+
+%% 空白頁
+\newpage
+\thispagestyle{empty}                   % 不顯示頁碼
+\WatermarkOff                           % 不要浮水印
+~
 
 % --------------------------------------------------------------
 %% 正文
@@ -670,7 +696,7 @@ The persistent and long-memory designs (5 and 6) are evaluated under both protoc
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{../pdf/bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf}
-\caption{Spatial hold-out evaluation: relative Brier score versus the Gaussian model by threshold quantile (Gaussian is the reference $\equiv 1$, shown as the dashed line; values below it are better).  All data-generating settings are \skewt with $\lambda = 3$: (a)~$K=1$, AR(2) $(\phi_1, \phi_2) = (0.80, -0.35)$; (b)~$K=1$, AR(2) $(0.12, -0.05)$; (c)~$K=5$, AR(2) $(0.80, -0.35)$; (d)~$K=5$, AR(2) $(0.12, -0.05)$; (e)~$K=1$, AR(2) $(0.15, 0.80)$; (f)~$K=1$, long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.  Panel (f) draws only the one-knot AR(1) and AR(2) fits, the only models fit under the long-memory design.}
+\caption[Spatial hold-out evaluation: relative Brier score by threshold quantile]{Spatial hold-out evaluation: relative Brier score versus the Gaussian model by threshold quantile (Gaussian is the reference $\equiv 1$, shown as the dashed line; values below it are better).  All data-generating settings are \skewt with $\lambda = 3$: (a)~$K=1$, AR(2) $(\phi_1, \phi_2) = (0.80, -0.35)$; (b)~$K=1$, AR(2) $(0.12, -0.05)$; (c)~$K=5$, AR(2) $(0.80, -0.35)$; (d)~$K=5$, AR(2) $(0.12, -0.05)$; (e)~$K=1$, AR(2) $(0.15, 0.80)$; (f)~$K=1$, long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.  Panel (f) draws only the one-knot AR(1) and AR(2) fits, the only models fit under the long-memory design.}
 \label{fig:bs-rel-spatial}
 \end{figure}
 
@@ -681,7 +707,7 @@ In the spatial hold-out evaluation, predictive ranking is governed by the margin
 \centering
 % Generated from ar2_paired_tests.csv (code/analysis/simstudy/ar2_paired_tests.R);
 % regenerate via tex/uncertainty/03-simulation-paired-tests/make_ar2_sim_table.R.
-\caption{Spatial hold-out evaluation of the AR(2) experiment: paired Brier differences over the $10$ data sets, $\Delta = \mathrm{BS}_A - \mathrm{BS}_B$ with $95\%$ paired-$t$ confidence intervals. A star marks an interval that excludes zero.}
+\caption[Spatial hold-out evaluation of the AR(2) experiment: paired Brier differences]{Spatial hold-out evaluation of the AR(2) experiment: paired Brier differences over the $10$ data sets, $\Delta = \mathrm{BS}_A - \mathrm{BS}_B$ with $95\%$ paired-$t$ confidence intervals. A star marks an interval that excludes zero.}
 \label{tab:ar2-sim-paired}
 \scriptsize
 \begin{tabular}{@{}ll cc@{}}
@@ -721,7 +747,7 @@ Coefficient recovery separates the two possible readings of this insensitivity (
 
 \begin{table}[htbp]
 \centering
-\caption{Posterior mean (SD) of the recovered AR(2) coefficients across the generating designs of the AR(2) experiment: the four fixed-AR(2) settings (upper block), the persistent AR(2) design $(0.15, 0.80)$, and the long-memory ARFIMA design $d = 0.45$ (lower block).  Gen~$K$ is the data-generating knot count and Fit~$K$ the analysis-model knot count; $\hat\phi^{(\sigma)}$, $\hat\phi^{(z)}$, $\hat\phi^{(w)}$ are the estimated AR(2) coefficients of the scale, skewness, and knot-location processes (\eref{eq:ar2-w}--\eref{eq:ar2-sigma}).}
+\caption{Posterior mean (SD) of the recovered AR(2) coefficients}
 \label{tab:ar2-coef-recovery}
 \scriptsize
 \begin{tabular}{@{}lcc cc cc cc@{}}
@@ -748,7 +774,7 @@ ARFIMA, $d{=}0.45$ & 1 & 1 & 0.502(0.237) & 0.200(0.239) & 0.365(0.249) & 0.156(
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{../pdf/bs_q95_by_lead-blk1-set5_7.pdf}
-\caption{Time-block forecast evaluation of the persistence experiment: mean Brier score at the $0.95$ threshold quantile by forecast lead (10 data sets; lower is better; the dotted vertical line marks the lead $1$--$5$ window).  Data-generating settings: (a)~AR(2), $(\phi_1, \phi_2) = (0.15, 0.80)$; (b)~long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.}
+\caption[Time-block forecast evaluation of the AR(2) experiment: Brier score by forecast lead]{Time-block forecast evaluation of the AR(2) experiment: mean Brier score at the $0.95$ threshold quantile by forecast lead (10 data sets; lower is better; the dotted vertical line marks the lead $1$--$5$ window).  Data-generating settings: (a)~AR(2), $(\phi_1, \phi_2) = (0.15, 0.80)$; (b)~long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.}
 \label{fig:bs-lead-timeblock}
 \end{figure}
 
@@ -758,7 +784,7 @@ The time-block forecast evaluation addresses the question the spatial split cann
 \centering
 % Difference columns and CIs generated from blk1_paired_ci.csv
 % (code/analysis/time_block_forecast/block1_positive_control/timeblock_paired_export.R).
-\caption{Time-block forecast evaluation: mean Brier score at the $0.95$ threshold quantile by lead window (10 data sets; lower is better).  The fitted models are the \skewt $K = 1$ variants with i.i.d., AR(1), and AR(2) latent temporal structure; the short-memory design $(0.80, -0.35)$ fit only the i.i.d.\ and AR(2) variants, marked `--'.  The difference columns carry $95\%$ paired-$t$ confidence intervals over the $10$ data sets.}
+\caption[Time-block forecast evaluation of the AR(2) experiment: Brier scores by lead window]{Time-block forecast evaluation of the AR(2) experiment: mean Brier score at the $0.95$ threshold quantile by lead window, and paired differences with $95\%$ paired-$t$ confidence intervals over the $10$ data sets (lower is better).  The fitted models are the \skewt $K = 1$ variants with i.i.d., AR(1), and AR(2) latent temporal structure.}
 \label{tab:timeblock-brier}
 \scriptsize
 \begin{tabular}{@{}llccccc@{}}
@@ -804,7 +830,7 @@ On the two \skewt-core designs, augmenting the regression component with MRTS ba
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{../pdf/brier_score_mean_vs_K.pdf}
-\caption{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~\skewt ($K=5$, $\lambda=3$); (c,d)~\skewt ($K=1$, $\lambda=3$) with an additive non-stationary spatial random effect.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
+\caption[Brier score versus the MRTS basis size, \skewt designs]{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~\skewt ($K=5$, $\lambda=3$); (c,d)~\skewt ($K=1$, $\lambda=3$) with an additive non-stationary spatial random effect.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
 \label{fig:bs-mean-vs-K-mrts}
 \end{figure}
 
@@ -815,13 +841,13 @@ The transform-mix design shows the same mechanism operating from a much worse st
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{../pdf/brier_score_mean_vs_K-set16_20_nonsta.pdf}
-\caption{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ on the two nonlinear-mean designs of \eref{eq:nont-gen} ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~arc front; (c,d)~transform mix.  Both use $10$ data sets on the full $K_{\mathrm{MRTS}}$ grid.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
+\caption[Brier score versus the MRTS basis size, nonlinear-mean designs]{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ on the two nonlinear-mean designs of \eref{eq:nont-gen} ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~arc front; (c,d)~transform mix.  Both use $10$ data sets on the full $K_{\mathrm{MRTS}}$ grid.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
 \label{fig:bs-mean-vs-K-nont}
 \end{figure}
 
 \begin{table}[htbp]
 \centering
-\caption{Nonlinear-mean designs: Brier score at the $0.95$ threshold quantile relative to the same model's own $K_{\mathrm{MRTS}} = 0$ fit (lower is better).  Best is the smallest ratio over $K_{\mathrm{MRTS}} > 0$, with the minimizing basis size in parentheses; $\mathrm{BS}_0$ is the absolute Brier score at $K_{\mathrm{MRTS}} = 0$; thr.\ denotes the POT threshold $T = q(0.80)$.  Both designs use $10$ data sets on the full $K_{\mathrm{MRTS}}$ grid; the $K = 30, 40, 50$ columns are shown for comparability, and Best ranges over the whole grid.}
+\caption[Nonlinear-mean designs: relative Brier score by MRTS basis size]{Nonlinear-mean designs: Brier score at the $0.95$ threshold quantile relative to the same model's own $K_{\mathrm{MRTS}} = 0$ fit (lower is better).  Best is the smallest ratio over $K_{\mathrm{MRTS}} > 0$, with the minimizing basis size in parentheses; $\mathrm{BS}_0$ is the absolute Brier score at $K_{\mathrm{MRTS}} = 0$; thr.\ denotes the POT threshold $T = q(0.80)$.}
 \label{tab:mrts-nont-brier}
 \scriptsize
 \begin{tabular}{@{}llccccc@{}}
@@ -868,7 +894,7 @@ The response is the daily maximum 8-hour ozone concentration for the $31$ days o
 \includegraphics[width=0.8\textwidth]{../pdf/map_cmaq.pdf}
 \caption{CMAQ model output}
 \end{subfigure}
-\caption{July 2005 ozone design value (fourth-highest daily maximum 8-hour average, in ppb): (a)~at the $1{,}089$ AQS monitoring sites missing at most $50\%$ of the $31$ days; (b)~on the full CMAQ grid.}
+\caption[July 2005 ozone design value at the AQS sites and on the CMAQ grid]{July 2005 ozone design value (fourth-highest daily maximum 8-hour average, in ppb): (a)~at the $1{,}089$ AQS monitoring sites missing at most $50\%$ of the $31$ days; (b)~on the full CMAQ grid.}
 \label{fig:ozone-maps}
 \end{figure}
 
@@ -877,7 +903,7 @@ These data motivate the \skewt marginal directly.  Regressing the observations o
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{../pdf/qq-res-lm-2panel.pdf}
-\caption{QQ plots of the pooled residuals from the linear regression of ozone on CMAQ at the $1{,}089$ AQS sites, against the Normal distribution (left) and the skew-$t$ distribution with skewness $\lambda = 1$ and $a = 10$ degrees of freedom of \textcite{morris_space-time_2017} (right).  Both reference distributions are standardized to zero mean and unit variance.}
+\caption[QQ plots of the pooled ozone-on-CMAQ regression residuals]{QQ plots of the pooled ozone-on-CMAQ regression residuals against the Normal (left) and the skew-$t$ with $\lambda = 1$ and $a = 10$ (right) reference distributions, both standardized to zero mean and unit variance.}
 \label{fig:qq-lm-ozone}
 \end{figure}
 
@@ -895,7 +921,7 @@ Across the upper tail, the proposed extensions appear among the best models at s
 
 \begin{table}[htbp]
 \centering
-\caption{Top two performing models for predicting ozone exceedance of level $L$ with Brier score.}
+\caption[Top two Brier score models for ozone exceedance]{Top two performing models for predicting ozone exceedance of level $L$ with Brier score.}
 \label{tab:ozone-top2-brier}
 \scriptsize
 \begin{tabular}{@{}p{1cm}p{6.2cm}p{4.8cm}@{}}
@@ -913,7 +939,7 @@ Level $L$ & Rank 1 model & Rank 2 model \\
 
 \begin{table}[htbp]
 \centering
-\caption{Top four Brier score models for the 300/100 split.  Baseline denotes any other model carrying neither proposed extension; AR2 and MRTS denote the proposed temporal and spatial-mean extensions.}
+\caption[Top four Brier score models for the 300/100 split]{Top four Brier score models for the 300/100 split.  Baseline denotes any other model carrying neither proposed extension; AR2 and MRTS denote the proposed temporal and spatial-mean extensions.}
 \label{tab:ozone-top4-quantile-300-100}
 \scriptsize
 \begin{tabular}{@{}ccccc@{}}
@@ -932,7 +958,7 @@ Level $L$ & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
 
 \begin{table}[htbp]
 \centering
-\caption{Top four Brier score models for the 200/200 split.  Baseline denotes any other model carrying neither proposed extension; AR2 and MRTS denote the proposed temporal and spatial-mean extensions.}
+\caption[Top four Brier score models for the 200/200 split]{Top four Brier score models for the 200/200 split.  Baseline denotes any other model carrying neither proposed extension; AR2 and MRTS denote the proposed temporal and spatial-mean extensions.}
 \label{tab:ozone-top4-quantile-200-200}
 \scriptsize
 \begin{tabular}{@{}ccccc@{}}
@@ -957,7 +983,7 @@ The ranking tables also overstate how much the tail separates these models, sinc
 % Generated from brier_bootstrap_pairs_{400-400,300-100,200-200}.csv
 % (US-all/brier_bootstrap_400.R and US-all-auto/brier_bootstrap.R); block
 % sensitivity in US-all/block_check_400.R.
-\caption{Paired held-out Brier differences for each extension against its matched baseline, $\Delta = \mathrm{BS}_{\text{ext}} - \mathrm{BS}_{\text{base}}$ in units of $10^{-3}$ (negative favors the extension), with $95\%$ site-clustered bootstrap confidence intervals.  The AR(2) pair is \skewt\ with $K{=}7$ and $T{=}50$; the MRTS pair is \skewt\ with $K{=}1$, $T{=}0$, a latent time series, and $K_{\mathrm{MRTS}} = 10$; the MRTS pair was not fit under the 300/100 split.  $n_{\mathrm{exc}}$ counts the exceedance events behind each score; a star marks an interval that excludes zero.}
+\caption[Paired held-out Brier differences for the two extensions]{Paired held-out Brier differences for each extension against its matched baseline, with $95\%$ site-clustered bootstrap confidence intervals.  The AR(2) pair is \skewt\ with $K{=}7$ and $T{=}50$; the MRTS pair is \skewt\ with $K{=}1$, $T{=}0$, a latent time series, and $K_{\mathrm{MRTS}} = 10$.  $n_{\mathrm{exc}}$ counts the exceedance events behind each score; a star marks an interval that excludes zero.}
 \label{tab:ozone-brier-ci}
 \scriptsize
 \begin{tabular}{@{}ll r@{\ }l r@{\ }l r@{\ }l@{}}
@@ -1025,7 +1051,7 @@ Several letters carry more than one meaning in this thesis.  Table~\ref{tab:nota
 
 {\renewcommand{\arraystretch}{1.25}
 \begin{longtable}{@{}p{0.30\textwidth} p{0.62\textwidth}@{}}
-\caption{Symbols that reuse a letter or shape, with their distinct meanings.}\label{tab:notation}\\
+\caption[Symbols that reuse a letter or shape]{Symbols that reuse a letter or shape, with their distinct meanings.}\label{tab:notation}\\
 \toprule
 Symbol & Meaning \\
 \midrule
