@@ -157,7 +157,7 @@
 \section*{摘要}
 \addcontentsline{toc}{section}{摘要}
 
-在環境風險治理中，決策關心的通常不是平均濃度，而是未設站位置超越高門檻的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，系統檢驗其可改進空間：在時間軸上，將潛在參數的 AR(1) 先驗擴充為符合 Yule--Walker 標準化條件的 AR(2) 先驗；在空間軸上，於迴歸均值加入多尺度薄板樣條 (MRTS) 基底，以提升大尺度空間變異的表達能力。評估分為模擬研究與實證分析。模擬研究涵蓋四組固定 AR(2) 生成設定與一組刻意設計的非定態隨機效應情境；實證分析使用 2005 年 7 月美國 AQS 臭氧資料與 CMAQ 共變數。模型比較以樣本外 Brier 分數為核心指標，聚焦門檻超標預測表現。結果顯示，AR(2) 延伸在多數情境下未帶來穩定增益，且參數可識別性有限；MRTS 延伸僅在部分門檻與設定出現零散改善，未形成一致優勢。整體而言，兩項延伸的主要價值不在於取代 STP 基準，而在於將其擴展為可由樣本外門檻分數進行資料驅動選擇的候選模型類。
+在環境風險治理中，決策關心的通常不是平均濃度，而是未設站位置超越高門檻的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，沿兩軸檢驗其可改進空間：潛在參數的標準化 AR(2) 先驗，與迴歸均值中的多尺度薄板樣條 (MRTS) 基底。模型比較以樣本外 Brier 分數為核心指標，於模擬與 2005 年 7 月美國 AQS 臭氧資料（CMAQ 共變數）上進行。時間軸的結果依預測任務而分：即使係數被完整回收，空間內插仍對自迴歸階數不敏感；只有當任務需要外推至觀測紀錄之外，較豐富的時間 pooling 才帶來從未顯著的增益。MRTS 均值項在非定態確實位於均值曲面、且基底足以解析它時可改善預測；於臭氧資料上其增益真實，惟幅度不大。因此本文的貢獻在於將 STP 基準擴展為可由樣本外門檻預測表現進行資料驅動選擇的候選模型類。
 
 \textbf{關鍵字}：時空 \skewt 過程、門檻超標預測、AR(2) 先驗、多尺度薄板樣條、Brier 分數、臭氧
 
@@ -177,20 +177,19 @@
 In environmental risk regulation, the inferential target is often not the field
 mean but the probability of exceeding a high threshold at unmonitored
 locations. We take the spatio-temporal \skewt process (STP) of Morris et al.
-(2017) as baseline and examine where predictive improvement remains possible
-along two axes. On the temporal axis, we extend the latent AR(1) prior to a
-standardized AR(2) prior constrained by Yule--Walker moments. On the spatial
-axis, we augment the regression mean with multi-resolution thin-plate spline
-(MRTS) basis functions to capture large-scale spatial variation. Evaluation
-combines simulation and real-data analysis. The simulation study includes four
-fixed AR(2) generating settings and a deliberately constructed nonstationary
-random-effect scenario. The real-data study uses July 2005 U.S. AQS ozone
-observations with CMAQ as covariates. Models are compared by held-out Brier
-scores focused on threshold exceedance prediction. Across settings, AR(2)
-provides little stable gain and shows limited coefficient recoverability; MRTS
-yields occasional improvements but no uniform advantage. Thus the main
-contribution is to enlarge the STP baseline into a candidate model class
-selected by held-out threshold predictive performance.
+(2017) as a baseline and examine where predictive improvement remains possible
+along two axes: a standardized AR(2) prior on the latent parameters and
+multi-resolution thin-plate spline (MRTS) basis functions in the regression
+mean. Models are compared by held-out Brier scores in simulation and on July
+2005 U.S. AQS ozone data with CMAQ covariates. The temporal axis divides along
+the prediction task: spatial interpolation is insensitive to the autoregressive
+order even where the coefficients are recovered closely, and richer temporal
+pooling helps only when the task requires extrapolating beyond the observed
+record, by margins never significant. The MRTS mean improves prediction where
+the non-stationarity lies in a genuine mean surface and the basis is fine
+enough to resolve it; on the ozone data its gain is real, though modest in
+magnitude. The contribution is therefore to enlarge the STP baseline into a
+candidate model class selected by held-out threshold predictive performance.
 
 \textbf{Keywords}: spatio-temporal \skewt process; threshold exceedance prediction; AR(2) prior; multi-resolution thin-plate splines; Brier score; ozone
 
@@ -297,7 +296,7 @@ functions that carry the spatial dependence. Their construction renders inferenc
 feasible for large datasets and, as a by-product, dispenses with the assumption
 of stationarity.
 
-In this paper we build on the spatial \skewt process of
+In this thesis we build on the spatial \skewt process of
 \textcite{morris_space-time_2017}. This process is not max-stable, yet it retains
 extremal dependence. Their model has four components. A \skewt margin, built by
 location-scale mixing of Gaussian processes, supplies heavy tails and asymmetry.
@@ -322,12 +321,13 @@ the two extensions in turn (the standardized AR(2) prior on the latent dynamics
 and the MRTS basis functions in the mean), and assembles them into a single
 hierarchical model together with the MCMC algorithm used for inference.
 \sref{sec:simulation} evaluates each extension on synthetic data, describing the
-generating designs, the cross-validation scheme, and the held-out Brier
-score, and reports the comparisons for the AR(2) and MRTS extensions separately.
+shared simulation design and the validation protocols, with the uncertainty
+attached to each score comparison, and reporting the AR(2) and MRTS experiments
+in turn.
 \sref{sec:ozonedata} applies the models to the ozone monitoring data, comparing the
 baseline against the two extensions in their ability to predict threshold
 exceedances. \sref{sec:discussion} concludes and outlines directions for further
-work. Technical derivations for the AR(2) prior are collected in the appendices.
+work. Technical derivations and design details are collected in the appendix.
 
 \section{Methodology}\label{sec:methodology}
 
@@ -481,7 +481,7 @@ where $\mathrm{X}_j(\bs, t)$ represents the $j$-th exogenous covariate of $\bX_t
   Y_t(\bs) \;=\; \bX^*_t(\bs)^\top \bbeta^* \;+\; \lambda\, \sigma_t(\bs)\, |z_t(\bs)| \;+\; \sigma_t(\bs)\, v_t(\bs),
   \label{eq:fullmodel-mrts}
 \end{align}
-which is identical to the STP model \eref{eq:fullmodel} on all components other than the mean, with $\bbeta^* \in \calR^{K_{\mathrm{MRTS}} + p}$.  Because the MRTS basis functions depend only on location, each site $\bs$ shares the same ordered set of basis values $\bff(\bs)$ at every day $t$.  The number of basis functions $K_{\mathrm{MRTS}}$ is the practical tuning parameter.  \sref{sec:sim-design} compares $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$ across its simulation designs.
+which is identical to the STP model \eref{eq:fullmodel} on all components other than the mean, with $\bbeta^* \in \calR^{K_{\mathrm{MRTS}} + p}$.  Because the MRTS basis functions depend only on location, each site $\bs$ shares the same ordered set of basis values $\bff(\bs)$ at every day $t$.  The number of basis functions $K_{\mathrm{MRTS}}$ is the practical tuning parameter.  \sref{sec:sim-mrts-design} compares $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$ across its simulation designs.
 
 \subsection{Hierarchical model}\label{sec:meth-hier}
 
@@ -613,11 +613,11 @@ unmonitored sites follow from the conditional Gaussian structure of
 
 \section{Simulation study}\label{sec:simulation}
 
-This simulation study measures how the AR(2) latent structure and the MRTS basis size affect held-out exceedance prediction, benchmarked against Gaussian fits and against matched models without each extension.
+This simulation study examines whether, and under which data-generating settings, the AR(2) and MRTS extensions improve held-out exceedance prediction.  \sref{sec:sim-design} gives the design shared by all experiments and \sref{sec:sim-scoring} the validation protocols, including the uncertainty attached to every score comparison.  \sref{sec:sim-ar2-design} evaluates the AR(2) extension under autoregressive, highly persistent, and long-memory temporal dynamics; \sref{sec:sim-mrts-design} evaluates the MRTS extension under second-moment and first-moment spatial non-stationarity.  Throughout, both extensions are assessed as candidate options, benchmarked against Gaussian fits and against matched models without each extension.
 
-\subsection{Design}\label{sec:sim-design}
+\subsection{Common simulation design}\label{sec:sim-design}
 
-All simulation designs generate data from the hierarchical model of \sref{sec:meth-hier} on $n_s = 144$ sites, drawn uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ days ($n_t = 200$ in the time-block forecast evaluation of the persistence experiment below); the single exception is the pair of nonlinear-mean designs of the MRTS experiment, which replace the \skewt error process with a Gaussian one.  In the data generation the regression mean is held constant, $\bX^\top \bbeta = 10$ (the MRTS experiment below adds a mean-zero non-stationary random effect to one design, which leaves the regression mean at $10$, and a fixed nonlinear mean surface to its two Gaussian-error designs), while every fitted model includes an intercept and a first-order spatial trend.  For each design we simulate $10$ data sets, each split into $100$ training sites and $44$ withheld test sites, and run every MCMC chain for $20,000$ iterations with a burn-in period of $10,000$ iterations.  Throughout, $q(0.80)$ denotes the $80$th sample quantile of the data,   and the five baseline analysis models are
+All simulation designs generate data from the hierarchical model of \sref{sec:meth-hier} on $n_s = 144$ sites, drawn uniformly on $[0,10] \times [0,10]$, over $n_t = 50$ days ($n_t = 200$ in the time-block forecast evaluation of \sref{sec:sim-ar2-design}); the single exception is the pair of nonlinear-mean designs of \sref{sec:sim-mrts-design}, which replace the \skewt error process with a Gaussian one.  The \Matern correlation \eref{eq:matern} is generated at $\eta = 0.9$, $\nu = 1/2$, and $\varphi = 1$ in every design.  In the data generation the regression mean is held constant, $\bX^\top \bbeta = 10$ (\sref{sec:sim-mrts-design} adds a mean-zero non-stationary random effect to one design, which leaves the regression mean at $10$, and a fixed nonlinear mean surface to its two Gaussian-error designs), while every fitted model includes an intercept and a first-order spatial trend.  For each design we simulate $10$ data sets, each split into $100$ training sites and $44$ withheld test sites, and run every MCMC chain for $20{,}000$ iterations with a burn-in period of $10{,}000$ iterations.  Throughout, $q(0.80)$ denotes the $80$th sample quantile of the data, and the five baseline analysis models are
 \begin{enumerate}[leftmargin=3em]
   \item Gaussian marginal, $K = 1$ knot;
   \item \Skewt marginal, $K = 1$ knot, no thresholding;
@@ -626,8 +626,34 @@ All simulation designs generate data from the hierarchical model of \sref{sec:me
   \item Symmetric-$t$ marginal, $K = 5$ knots, threshold $T = q(0.80)$.
 \end{enumerate}
 
-\paragraph{Experiment for AR(2) extension.}\label{sec:sim-ar2-design}
+Censoring is paired with the symmetric-$t$ marginal because the skewness parameter is only weakly identified once the lower tail is censored, following \textcite{morris_space-time_2017}.
 
+\subsection{Validation protocols and uncertainty}\label{sec:sim-scoring}
+
+\paragraph{Spatial hold-out validation.}
+Models are compared on held-out sites, with $100$ training sites fitting each setting and $44$ withheld sites scoring its predictions on each replicate.  Because the target is exceedance of a high level, we compare models by the Brier score \parencite{gneiting_strictly_2007}.  For an exceedance level $L$, the Brier score is
+\begin{align}
+  \mathrm{BS}(L) \;=\; \big\{\, I(y > L) \;-\; \widehat{P}(Y > L) \,\big\}^2,
+  \label{eq:brier-score}
+\end{align}
+where $y$ is the held-out observation, $I(y > L)$ is the exceedance indicator, and $\widehat{P}(Y > L)$ is the posterior predictive probability of exceeding $L$.  We average the Brier scores over all test sites and days; lower values indicate better exceedance prediction, and $L$ ranges over the sample quantiles reported with each figure.
+
+\paragraph{Time-block forecast validation.}\label{sec:sim-timeblock-cv}
+
+The site-splitting scheme above scores interpolation.  When a withheld site is predicted, every day of the record is observed at the training sites.  The time-block forecast evaluation of \sref{sec:sim-ar2-design} scores temporal extrapolation instead, with all $144$ sites observed for days $1$--$50$ and predictions evaluated at the same sites on the following $15$ days.  For each forecast lead $h$ the Brier score \eref{eq:brier-score} is computed with $L$ set to the empirical $0.95$ quantile of the validation block (the same threshold for every model), averaged over sites, and then over data sets; models are compared pairwise within each data set.  Short-record fits whose skewness parameter and intercept fail to separate, or whose predictive spread is unbounded, are screened before scoring.
+
+\paragraph{Uncertainty of score comparisons.}\label{sec:sim-uq}
+
+A mean Brier score is an estimate, and two such estimates computed on the same held-out sites are strongly positively correlated, since a site that is hard to predict is hard for every model.  We therefore attach uncertainty to the \emph{paired difference} of scores.  For a matched pair of models $A$ and $B$ and an exceedance level $L$, the estimand is
+\begin{align}
+  \Delta(L) \;=\; \mathrm{E}\big[\mathrm{BS}_A(L)\big] \;-\; \mathrm{E}\big[\mathrm{BS}_B(L)\big],
+  \label{eq:delta-estimand}
+\end{align}
+estimated by forming the difference site by site on the shared held-out set, so that the common hard-site variation cancels, and assessing its sampling variability over the $10$ simulated data sets.  Each comparison tests $H_0\!: \Delta(L) = 0$ against the two-sided alternative, summarized by a $95\%$ paired-$t$ confidence interval and a Wilcoxon signed-rank test, which does not assume normal differences; with $10$ replicates the Wilcoxon $p$-values move on a coarse grid whose smallest attainable two-sided value is $2^{-9} \approx 0.002$.  Each pair varies only the factor under test, with the analysis knot count matched to the generating design.  In the tables that follow, a star marks an interval that excludes zero; among the dozens of paired comparisons reported in this thesis, an isolated borderline star is within what chance alone would produce, and an interval that covers zero means the data fail to reject $H_0$, not that the two models have been shown equal.  In the ozone study of \sref{sec:ozonedata} there is a single data set and hence no replicate layer, so the resampling unit is instead the validation site, as described there.
+
+\subsection{The AR(2) experiment}\label{sec:sim-ar2-design}
+
+\paragraph{Design.}
 To test the AR(2) analysis model against data with a known autoregressive structure, the six generating designs are \skewt ($\lambda = 3$) with temporal dependence imposed on the latent $\sigma^2$, $\bw$, and $z$ processes.  The first five evolve through a fixed AR(2) recursion \eref{eq:ar2-w}--\eref{eq:ar2-sigma}; the sixth replaces it with a long-memory ARFIMA$(0, d, 0)$ process:
 \begin{enumerate}[leftmargin=3em]
   \item $K = 1$ knot, strong dependence $(\phi_1, \phi_2) = (0.80, -0.35)$;
@@ -637,79 +663,9 @@ To test the AR(2) analysis model against data with a known autoregressive struct
   \item $K = 1$ knot, persistent AR(2) $(\phi_1, \phi_2) = (0.15, 0.80)$;
   \item $K = 1$ knot, long-memory ARFIMA$(0, d, 0)$, $d = 0.45$ \parencite{davies_tests_1987}.
 \end{enumerate}
-All three AR(2) coefficient pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  Each of the first four designs is fit by nine analysis models, namely the five baselines above and four temporal variants, the \skewt models with AR(1) and AR(2) coefficients at $K = 1$ and $K = 5$ knots.
+All three AR(2) coefficient pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  Each of the first four designs is fit by nine analysis models, namely the five baselines and the \skewt models with AR(1) and AR(2) coefficients at $K = 1$ and $K = 5$ knots.
 
-The last two designs are instead evaluated in two ways.  The spatial hold-out evaluation repeats the cross-validation design above ($n_t = 50$; $10$ data sets; $100$ training and $44$ test sites), fitting the Gaussian model and the \skewt $K = 1$ models with AR(1) and AR(2) structure.  The time-block forecast evaluation generates longer records ($n_t = 200$) on the same $144$ sites, fits each model to days $1$--$50$ at all sites, and predicts days $51$--$65$, i.e., forecast leads $h = 1, \dots, 15$; the fitted models are the \skewt $K = 1$ variants with the latent processes i.i.d.\ in time, with AR(1) structure, and with AR(2) structure.  As a short-memory control, the fixed-AR(2) design with $(\phi_1, \phi_2) = (0.80, -0.35)$, whose autocorrelation decays within a few days, is run under the same forecast protocol with the i.i.d.\ and AR(2) variants.
-
-\paragraph{Experiment for MRTS extension.}\label{sec:sim-mrts-design}
-
-This experiment enriches the regression component with the MRTS basis functions $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  We use four generating designs; the first two share the \skewt core:
-\begin{enumerate}
-  \item \Skewt, $K = 5$ knots, $\lambda = 3$, with the constant mean $\bX^\top \bbeta = 10$;
-  \item \Skewt, $K = 1$ knot, $\lambda = 3$, with an additive non-stationary spatial random effect $u_t(\bs)$ (specified below).
-\end{enumerate}
-
-The second design moves the non-stationarity into the dependence, to expose the structural limit of a fixed-effect mean basis.  It adds a mean-zero, per-day random effect built from the cosine basis on the $[0,10]^2$ domain:
-\begin{itemize}
-  \item Two fixed cosine fields with centers $\bc_1 = (0, 10)^\top$, $\bc_2 = (7.5, 2.5)^\top$ and native wavenumbers $\kappa_1 = \pi/10$, $\kappa_2 = \pi/5$,
-    \begin{align}
-      g_j(\bs) = \cos\!\big(\kappa_j \, \| \bs - \bc_j \|\big), \qquad j = 1, 2.
-      \label{eq:nsdep-basis}
-    \end{align}
-  \item The random effect superposes them with independent, daily redrawn Gaussian weights,
-    \begin{align}
-      u_t(\bs) = \sum_{j=1}^{2} \xi_{tj}\, g_j(\bs), \qquad \xi_{tj} \iid N(0, \tau_j^2), \quad (\tau_1, \tau_2) = (5, 3),
-      \label{eq:nsdep-re}
-    \end{align}
-    independently across $j$ and across days $t$.
-\end{itemize}
-
-The response adds $u_t$ to the 1-knot \skewt model,
-\begin{align}
-  Y_t(\bs) = 10 + \lambda \, \sigma_t(\bs) \, |z_t(\bs)| + \sigma_t(\bs) \, v_t(\bs) + u_t(\bs).
-  \label{eq:nsdep-gen}
-\end{align}
-
-Marginalizing over $\xi$ gives a zero-mean random effect whose pointwise variance $\sum_j \tau_j^2\, g_j(\bs)^2$ varies with location (Appendix~\ref{app:nsdep-cov}), so the dependence is non-stationary while the marginal mean stays constant at $10$.
-
-These two designs leave the time-averaged mean without exploitable structure.  The five-knot design has a constant mean by construction, and the random effect $u_t$ is mean-zero.  To examine the complementary case, in which the non-stationarity resides entirely in the first moment, two further designs carry a fixed nonlinear mean surface and dispense with the \skewt generator altogether,
-\begin{align}
-  Y_t(\bs) \;=\; 10 \;+\; g(\bs) \;+\; \sigma_g\, \varepsilon_t(\bs), \qquad \sigma_g = 4,
-  \label{eq:nont-gen}
-\end{align}
-where the errors $\varepsilon_t$ are standard Gaussian processes with the \Matern correlation \eref{eq:matern} at the generating values used throughout ($\eta = 0.9$, $\nu = 1/2$, $\varphi = 1$), drawn independently across days.  The marginal law is therefore Gaussian, so every $t$-family analysis model is misspecified in its error law and the mean component is tested without the benefit of a correctly specified margin.  Each raw surface $\tilde g$ is orthogonalized against the baseline design $[1, s_1, s_2]$ and standardized to a spatial standard deviation of $11$, so the $K_{\mathrm{MRTS}} = 0$ design spans none of the resulting $g$.  The two surfaces are:
-\begin{enumerate}[leftmargin=3em]
-  \item arc front: $\tilde g(\bs) = \tanh\{\lVert \bs - (2, 2)^\top \rVert - 4.5\}$, a smoothed circular step whose transition band of width ${\approx}2$ is the steepest smooth localized structure the $100$-site training density can resolve;
-  \item transform mix: $\tilde g(\bs) = \mathrm{std}\{\log(1 + s_1)\} + \mathrm{std}\{e^{-s_1/2}\} + \mathrm{std}\{s_1 / (1 + s_2)\}$, with $\mathrm{std}\{\cdot\}$ standardizing each term to unit spatial standard deviation, the nonlinear regression terms an applied modeler actually writes down, whose curvature concentrates near the domain boundary, exactly where the uniform site draw is sparsest.
-\end{enumerate}
-
-Each of the five baseline models is fit across a grid of MRTS basis sizes, $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$, where $K_{\mathrm{MRTS}} = 0$ recovers the no-MRTS baseline; on both nonlinear-mean designs the grid is extended by $\{30, 40, 50\}$, since the finer surfaces are resolved only by a fine basis.  Both are run at the full scale of $10$ data sets.
-
-\subsection{Cross validation}\label{sec:sim-scoring}
-
-Models are compared by cross validation, with $100$ training sites fitting each setting and $44$ withheld sites scoring its predictions on each replicate.  Because the target is exceedance of a high level, we compare models by the Brier score \parencite{gneiting_strictly_2007}.  For an exceedance level $L$, the Brier score is
-\begin{align}
-  \mathrm{BS}(L) \;=\; \big\{\, I(y > L) \;-\; \widehat{P}(Y > L) \,\big\}^2,
-  \label{eq:brier-score}
-\end{align}
-where $y$ is the held-out observation, $I(y > L)$ is the exceedance indicator, and $\widehat{P}(Y > L)$ is the posterior predictive probability of exceeding $L$.  We average the Brier scores over all test sites and days; lower values indicate better exceedance prediction.
-
-\paragraph{Time-block forecast validation.}\label{sec:sim-timeblock-cv}
-
-The site-splitting scheme above scores interpolation.  When a withheld site is predicted, every day of the record is observed at the training sites.  The time-block forecast evaluation of the persistence experiment scores temporal extrapolation instead, with all $144$ sites observed for days $1$--$50$ and predictions evaluated at the same sites on the following $15$ days.  For each forecast lead $h$ the Brier score \eref{eq:brier-score} is computed with $L$ set to the empirical $0.95$ quantile of the validation block (the same threshold for every model), averaged over sites, and then over data sets; models are compared pairwise within each data set.
-
-\paragraph{Uncertainty of score comparisons.}\label{sec:sim-uq}
-
-A mean Brier score is an estimate, and two such estimates computed on the same held-out cells are strongly positively correlated, since a site that is hard to predict is hard for every model.  We therefore attach uncertainty to the \emph{paired difference} of scores rather than to each score separately.  For a matched pair of models $A$ and $B$ and an exceedance level $L$, the estimand is the expected difference in held-out Brier score,
-\begin{align}
-  \Delta(L) \;=\; \mathrm{E}\big[\mathrm{BS}_A(L)\big] \;-\; \mathrm{E}\big[\mathrm{BS}_B(L)\big],
-  \label{eq:delta-estimand}
-\end{align}
-and every comparison below tests the null hypothesis $H_0\!: \Delta(L) = 0$ of equal exceedance-prediction skill against the two-sided alternative $H_1\!: \Delta(L) \neq 0$.  The difference is formed first, cell by cell on the shared held-out set, so that the common hard-site variation cancels, and only then is its sampling variability assessed over approximately independent units.  In the simulation study that unit is the simulated data set.  For each pair we compute the per-replicate differences $d_1, \ldots, d_{10}$ of mean Brier scores, whose average estimates $\Delta(L)$, and summarize them by a $95\%$ paired-$t$ confidence interval for $\Delta(L)$, together with a two-sided Wilcoxon signed-rank test of $H_0$; with $10$ replicates the Wilcoxon null distribution is discrete, so its $p$-values move on a coarse grid whose smallest attainable two-sided value is $2^{-9} \approx 0.002$.
-
-The tables display the intervals, and the Wilcoxon $p$-values are reported in the text as ranges; the ten differences need not be normally distributed, and the signed-rank test guards the interval-based reading against that assumption.  Each pair holds every model component fixed except the factor under test, and the analysis knot count is matched to that of the generating design, the layer most favorable to detecting a temporal effect, since a mismatched partition would bury it.  In the tables that follow, a star marks an interval that excludes zero; among the dozens of paired comparisons reported in this thesis, an isolated borderline star is within what chance alone would produce.  A confidence interval that covers zero means the data fail to reject $H_0$ at that level, not that the two models have been shown equal.  In the ozone study of \sref{sec:ozonedata} there is a single data set and hence no replicate layer, so the Wilcoxon test does not apply, and the resampling unit is instead the validation site, as described there.
-
-\subsection{Results on AR(2) comparison}\label{sec:sim-ar2-results}
+The persistent and long-memory designs (5 and 6) are evaluated under both protocols of \sref{sec:sim-scoring}.  The spatial hold-out evaluation fits the Gaussian model and the $K = 1$ \skewt models with AR(1) and AR(2) structure; the time-block forecast evaluation fits the $K = 1$ \skewt variants with the latent processes i.i.d.\ in time, with AR(1) structure, and with AR(2) structure.  As a short-memory control, the fixed-AR(2) design with $(\phi_1, \phi_2) = (0.80, -0.35)$, whose autocorrelation decays within a few days, is run under the same forecast protocol with the i.i.d.\ and AR(2) variants.
 
 \begin{figure}[p]
 \centering
@@ -718,11 +674,8 @@ The tables display the intervals, and the Wilcoxon $p$-values are reported in th
 \label{fig:bs-rel-spatial}
 \end{figure}
 
-The methods whose marginal matches the generating truth give the largest improvement over the Gaussian model, whereas a mismatched model can perform worse than Gaussian, particularly in the far tail (\fref{fig:bs-rel-spatial}(a)--(d)).  The preferred knot count tracks the data-generating truth rather than the strength of the temporal dependence.  The one-knot models are best when the data are generated with one knot, and the five-knot models are best when the data are generated with five knots, with the AR(2) coefficients shifting the magnitude of the scores but not their ordering.
-
-Adding AR(2) (or AR(1)) temporal structure does not help.  Even on data explicitly generated with an AR(2) recursion (the most favorable possible setting for the temporal extension), the temporal curves are essentially indistinguishable from their non-temporal counterparts at every quantile and in every setting.  Predictive accuracy is governed by the flexibility of the marginal and the spatial partition, namely the \skewt margin and the number of knots, rather than by the autoregressive order of the latent coefficients.
-
-Table~\ref{tab:ar2-sim-paired} quantifies this null result with the paired intervals of \sref{sec:sim-uq}, covering the four fixed-AR(2) settings together with the two persistence designs introduced below.  Of the $33$ intervals, $32$ cover zero, and the single exception ($K=5$, $(0.80, -0.35)$, at the $0.90$ quantile) favors the \emph{non-temporal} baseline and sits at the edge of significance, an isolated borderline result of the kind chance alone produces among this many comparisons.  The two-sided Wilcoxon $p$-values agree, ranging from $0.05$, at that same starred cell, to $1.00$ across the $33$ comparisons.  The visual impression that the temporal curves lie on top of their non-temporal counterparts is thus confirmed by the paired tests.
+\paragraph{Results.}\label{sec:sim-ar2-results}
+In the spatial hold-out evaluation, predictive ranking is governed by the marginal and the spatial partition.  The methods whose marginal matches the generating truth give the largest improvement over the Gaussian model, a mismatched marginal can perform worse than Gaussian in the far tail, and the preferred knot count tracks the generating truth (\fref{fig:bs-rel-spatial}(a)--(d)).  The temporal structure barely moves these scores.  The AR(2) and AR(1) curves are essentially indistinguishable from their non-temporal counterparts at every quantile and in every setting, and the paired intervals of Table~\ref{tab:ar2-sim-paired} confirm the visual impression; $32$ of the $33$ intervals cover zero, the single starred exception ($K=5$, $(0.80, -0.35)$, at the $0.90$ quantile) favors the \emph{non-temporal} baseline and sits at the edge of significance, within what chance alone produces among this many comparisons, and the two-sided Wilcoxon $p$-values, ranging from $0.05$ to $1.00$, agree.
 
 \begin{table}[htbp]
 \centering
@@ -764,7 +717,7 @@ ARFIMA, $d = 0.45$ & $0.90$ & \multicolumn{1}{c}{--} & $-0.01$ {\tiny $[-0.04,\,
 \end{tabular}
 \end{table}
 
-The recovery of the AR(2) coefficients points to the same conclusion (Table~\ref{tab:ar2-coef-recovery}).  Only the scale process is recovered with any fidelity, and only under strong dependence at a matched one-knot fit; the skewness process is recovered only partially and the knot-location process is essentially noise.  Recovery deteriorates as the knot count grows and as the dependence weakens, so even on AR(2)-generated data the temporal signal is only weakly identified.  In summary, the AR(2) structure should be treated as a candidate option rather than a default improvement.
+Coefficient recovery separates the two possible readings of this insensitivity (Table~\ref{tab:ar2-coef-recovery}).  In the four fixed designs the temporal signal is only weakly identified; the scale process alone is recovered with any fidelity, under strong dependence at a matched one-knot fit, and recovery deteriorates as the knot count grows and the dependence weakens.  In the persistent and long-memory designs (5 and 6) the signal is identified; the matched fit recovers the generating dynamics closely, in particular the dominant second lag that an AR(1) can only compress into a single lag, and even under long memory the AR(2) fit picks up a clearly positive second lag.  Yet the hold-out scores of these two designs repeat the null pattern in sharper form (\fref{fig:bs-rel-spatial}(e)--(f); Table~\ref{tab:ar2-sim-paired}, lower block).  Identified temporal parameters with unmoved scores point to the task rather than the model, exactly the interpolation dominance that the protocol distinction of \sref{sec:sim-scoring} anticipates.
 
 \begin{table}[htbp]
 \centering
@@ -792,10 +745,6 @@ ARFIMA, $d{=}0.45$ & 1 & 1 & 0.502(0.237) & 0.200(0.239) & 0.365(0.249) & 0.156(
 \end{tabular}
 \end{table}
 
-Two further designs stress the temporal extension where it is meant to help.  The first is a highly persistent AR(2) with $(\phi_1, \phi_2) = (0.15, 0.80)$, whose dominant characteristic root is $0.973$, so shocks persist for roughly a hundred days and the second lag carries dependence an AR(1) cannot represent.  The second is a long-memory ARFIMA$(0, d, 0)$ with $d = 0.45$ \parencite{granger_introduction_1980,hosking_fractional_1981}, whose fractional differencing $(1 - B)^d$ produces non-summable, hyperbolically decaying autocorrelations $\rho(h) \sim h^{2d-1}$ that no finite-order autoregression reproduces, so both the AR(1) and AR(2) fits are misspecified by construction.
-
-In the spatial hold-out evaluation the two persistence designs repeat, in sharper form, the null pattern of the fixed-AR(2) settings (\fref{fig:bs-rel-spatial}(e)--(f); Table~\ref{tab:ar2-sim-paired}, lower block).  Both temporal variants improve on the Gaussian model only marginally, and the AR(2) and AR(1) curves are indistinguishable from each other across the whole range of threshold quantiles, sitting on top of the non-temporal one-knot \skewt fit wherever the latter is available.  This insensitivity is not for want of signal (Table~\ref{tab:ar2-coef-recovery}, lower block).  Under the AR(2) $(0.15, 0.80)$ design the matched one-knot fit recovers the generating persistence closely, in particular the dominant second lag, while the AR(1) fit can only compress that persistence into a single lag; even under long memory the AR(2) fit picks up a clearly positive second lag, the signature of the best finite-order approximation to the hyperbolic autocorrelation.  The temporal parameters are thus identified, yet the spatial hold-out score barely moves.  With every day of the record observed at the training sites, predicting a withheld site is an interpolation problem, and the daily cross-sectional information dominates whatever the autoregressive order contributes.
-
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{../pdf/bs_q95_by_lead-blk1-set5_7.pdf}
@@ -803,7 +752,7 @@ In the spatial hold-out evaluation the two persistence designs repeat, in sharpe
 \label{fig:bs-lead-timeblock}
 \end{figure}
 
-The time-block forecast evaluation addresses the question the spatial split cannot answer, namely whether the fitted temporal structure improves genuine forward-in-time prediction (\fref{fig:bs-lead-timeblock}, Table~\ref{tab:timeblock-brier}).  Under long memory the answer is affirmative.  The AR(2) model attains the lowest Brier score at almost every forecast lead, improving on the i.i.d.-in-time fit over both the short-lead window and the full horizon, with the AR(1) model falling in between, and this separation is far larger than any the spatial evaluation produced.  Under the AR(2) $(0.15, 0.80)$ design the per-lead profile is noisier, since each lead contributes a single binary exceedance event per site and day, and the three models track one another over the early leads; pooled over the full horizon the AR(2) fit is nevertheless the best of the three.  Under the short-memory control $(0.80, -0.35)$ the two fits tie at both windows, the expected outcome once the autocorrelation has decayed within a few days of the forecast origin.  None of the paired Brier differences reaches statistical significance.  The largest gain, that of AR(2) over the i.i.d.\ fit under long memory at leads $1$--$5$, is $-0.0068$ with a $95\%$ paired-$t$ interval of $(-0.033, 0.020)$, and the two-sided Wilcoxon $p$-values for the ten comparisons of Table~\ref{tab:timeblock-brier} range from $0.31$ to $1.00$, so these results should be read as directional.  The gains are modest, but they appear exactly where the structure of the task predicts them, namely in temporal extrapolation under strong persistence, and they are largest where the second lag improves the finite-order approximation.
+The time-block forecast evaluation addresses the question the spatial split cannot answer, namely whether the fitted temporal structure improves genuine forward-in-time prediction (\fref{fig:bs-lead-timeblock}, Table~\ref{tab:timeblock-brier}).  Under long memory the answer is affirmative.  The AR(2) model attains the lowest Brier score at almost every forecast lead, improving on the i.i.d.-in-time fit over both the short-lead window and the full horizon, with the AR(1) model falling in between, and this separation is far larger than any the spatial evaluation produced.  Under the persistent design the per-lead profile is noisier, since each lead contributes a single binary exceedance event per site and day, and the three models track one another over the early leads; pooled over the full horizon the AR(2) fit is nevertheless the best of the three.  Under the short-memory control $(0.80, -0.35)$ the two fits tie at both windows, the expected outcome once the autocorrelation has decayed within a few days of the forecast origin.  None of the paired Brier differences reaches statistical significance.  The largest gain, that of AR(2) over the i.i.d.\ fit under long memory at leads $1$--$5$, is $-0.0068$ with a $95\%$ paired-$t$ interval of $(-0.033, 0.020)$, and the Wilcoxon $p$-values for the ten comparisons of Table~\ref{tab:timeblock-brier} range from $0.31$ to $1.00$, so these results should be read as directional.  The gains are modest, but they appear exactly where the structure of the task predicts them, namely in temporal extrapolation under strong persistence, and they are largest where the second lag improves the finite-order approximation.
 
 \begin{table}[htbp]
 \centering
@@ -829,11 +778,28 @@ ARFIMA, $d = 0.45$     & $1$--$15$ & 0.0620 & 0.0584 & 0.0579 & $-0.0041$ {\tiny
 \end{tabular}
 \end{table}
 
-\subsection{Results on MRTS comparison}\label{sec:sim-mrts-results}
+\subsection{The MRTS experiment}\label{sec:sim-mrts-design}
 
-On the two \skewt-core designs, augmenting the regression component with MRTS basis functions does not deliver a stable improvement in upper-tail scores (\fref{fig:bs-mean-vs-K-mrts}).  As with the AR(2) comparison, the data-generating knot count dominates the ranking.  The matching five-knot \skewt model is best on the five-knot setting, and the one-knot model is best on the random-effect process.
+\paragraph{Design.}
+This experiment enriches the regression component with the MRTS basis functions $f_1(\bs), \ldots, f_{K_{\mathrm{MRTS}}}(\bs)$ of \sref{sec:meth-mrts}.  The four generating designs place the non-stationarity first where the mean basis cannot reach it (designs 1--2) and then where it can (designs 3--4):
+\begin{enumerate}[leftmargin=3em]
+  \item \Skewt, $K = 5$ knots, $\lambda = 3$, with the constant mean $\bX^\top \bbeta = 10$;
+  \item \Skewt, $K = 1$ knot, $\lambda = 3$, with an additive mean-zero non-stationary spatial random effect $u_t(\bs)$, redrawn daily from two fixed cosine fields (Appendix~\ref{app:nsdep-cov}), so the non-stationarity lies in the second moment while the marginal mean stays at $10$;
+  \item Gaussian, arc front: the nonlinear-mean model \eref{eq:nont-gen} with $\tilde g(\bs) = \tanh\{\lVert \bs - (2, 2)^\top \rVert - 4.5\}$, a smoothed circular step;
+  \item Gaussian, transform mix: the nonlinear-mean model \eref{eq:nont-gen} with $\tilde g(\bs) = \mathrm{std}\{\log(1 + s_1)\} + \mathrm{std}\{e^{-s_1/2}\} + \mathrm{std}\{s_1 / (1 + s_2)\}$, with $\mathrm{std}\{\cdot\}$ standardizing each term to unit spatial standard deviation, whose curvature concentrates near the domain boundary, where the uniform site draw is sparsest.
+\end{enumerate}
 
-Enlarging the MRTS basis does not lower the mean Brier score on either setting.  On the five-knot setting every curve is essentially flat in $K_{\mathrm{MRTS}}$.  On the additive non-stationary spatial random-effect process the curves are likewise flat, with over-specified models destabilizing at large $K_{\mathrm{MRTS}}$.  This second setting is the decisive one.  The non-stationarity lives in the second moment (a daily-redrawn random effect $u_t$), whereas the MRTS basis enters only the fixed-effect mean.  Because $u_t$ has zero time-average, the time-pooled coefficient $\bbeta^*$ has no first-moment structure to recover, so the Brier- and recovery-versus-$K$ curves stay flat by construction, not for want of signal, since $u_t$ contributes substantial (spatially non-stationary) variance.  The MRTS mean term therefore yields no reliable tail-score gain.  A fixed-effect mean cannot represent a non-stationary second-moment feature, and so the spatial mean is not the binding constraint on upper-tail prediction.
+The nonlinear-mean designs replace the \skewt generator with Gaussian errors,
+\begin{align}
+  Y_t(\bs) \;=\; 10 \;+\; g(\bs) \;+\; \sigma_g\, \varepsilon_t(\bs), \qquad \sigma_g = 4,
+  \label{eq:nont-gen}
+\end{align}
+where the errors $\varepsilon_t$ are standard Gaussian processes with the \Matern correlation \eref{eq:matern} at the generating values of \sref{sec:sim-design}, drawn independently across days; every $t$-family analysis model is therefore misspecified in its error law.  Each raw surface $\tilde g$ is orthogonalized against the baseline design $[1, s_1, s_2]$ and standardized to a spatial standard deviation of $11$, so the $K_{\mathrm{MRTS}} = 0$ design spans none of the resulting $g$.
+
+Each of the five baseline models is fit across a grid of MRTS basis sizes, $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$, where $K_{\mathrm{MRTS}} = 0$ recovers the no-MRTS baseline; on both nonlinear-mean designs the grid is extended by $\{30, 40, 50\}$, since the finer surfaces are resolved only by a fine basis.  All four designs are run with $10$ data sets.
+
+\paragraph{Results.}\label{sec:sim-mrts-results}
+On the two \skewt-core designs, augmenting the regression component with MRTS basis functions does not deliver a stable improvement in upper-tail scores, and enlarging the basis does not lower the average Brier score on either setting (\fref{fig:bs-mean-vs-K-mrts}).  On the five-knot setting every curve is essentially flat in $K_{\mathrm{MRTS}}$; on the additive non-stationary random-effect process the curves are likewise flat, with over-specified models destabilizing at large $K_{\mathrm{MRTS}}$.  As in the AR(2) experiment, the generating knot count dominates the ranking.  The second setting is the decisive one.  The non-stationarity lives in the second moment (a daily-redrawn random effect $u_t$), whereas the MRTS basis enters only the fixed-effect mean.  Because $u_t$ has zero time-average, the time-pooled coefficient $\bbeta^*$ has no first-moment structure to recover, so the Brier- and recovery-versus-$K$ curves stay flat by construction rather than through absence of signal, since $u_t$ contributes substantial (spatially non-stationary) variance.  The MRTS mean term therefore yields no reliable tail-score gain.  A fixed-effect mean cannot represent a non-stationary second-moment feature, and so, in these designs, the spatial mean is not the binding constraint on upper-tail prediction.
 
 \begin{figure}[p]
 \centering
@@ -877,13 +843,17 @@ Transform mix & Symmetric-$t$, $K = 5$, thr.  & 0.374 & 0.446 & 0.367 & 0.367 (5
 \end{tabular}
 \end{table}
 
-Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The AR(2) prior provides temporal flexibility and the MRTS covariates enrich the spatial regression component, yet their empirical benefits depend on the data-generating mechanism and on the target exceedance level.  The persistence experiment sharpens this conclusion into a statement about the prediction task itself.  Even under highly persistent and long-memory dependence, with the temporal coefficients well identified, spatial hold-out prediction is insensitive to the autoregressive order, whereas modest gains from richer temporal pooling, directionally consistent though never statistically significant, emerge once the task requires extrapolating beyond the observed record.  Whatever promise the AR(2) extension retains therefore lies in forecasting rather than interpolation.  The MRTS experiments admit an equally structural summary.  The mean term is inert when the non-stationarity lives in the second moment, and under genuine nonlinear mean structure it pays off only once the basis is fine enough to resolve the surface, converting a small fraction of the oracle headroom.  Whether the same pattern holds on real environmental data (and, if so, what it implies for practitioners choosing among the candidate settings) is the question taken up in the Data analysis section, where AR(2) and MRTS variants are treated as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
+\subsection{Summary of the simulation study}\label{sec:sim-summary}
+
+Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The persistence experiment sharpens this conclusion into a statement about the prediction task itself.  Even under highly persistent and long-memory dependence, with the temporal coefficients well identified, spatial hold-out prediction is insensitive to the autoregressive order; modest gains from richer temporal pooling, directionally consistent though never statistically significant, emerge only once the task requires extrapolating beyond the observed record.  Whatever promise the AR(2) extension retains therefore lies in forecasting rather than interpolation.  The MRTS experiments admit an equally structural summary.  The mean term is inert when the non-stationarity lives in the second moment, and under genuine nonlinear mean structure it pays off only once the basis is fine enough to resolve the surface, converting a small fraction of the oracle headroom.  Whether the same pattern holds on real environmental data is the question taken up in \sref{sec:ozonedata}, where the AR(2) and MRTS variants enter as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
 
 \section{Ozone data analysis}\label{sec:ozonedata}
 
-\textcite{morris_space-time_2017} introduced the spatio-temporal \skewt (STP) process to predict high-threshold ground-level ozone exceedances from U.S. EPA monitoring data.  We return to the same data, asking not whether a new model class is needed but whether enlarging the STP candidate class along the two axes of this thesis, the AR(2) temporal prior and the MRTS spatial-mean term, yields better held-out tail prediction.  The comparison is therefore designed to identify the exceedance levels, if any, at which the enlarged candidate class improves on the STP baseline, rather than to select a single overall-best model.
+\textcite{morris_space-time_2017} introduced the spatio-temporal \skewt (STP) process to predict high-threshold ground-level ozone exceedances from U.S. EPA monitoring data.  We return to the same July 2005 data, asking not whether a new model class is needed but whether enlarging the STP candidate class along the two axes of this thesis, the AR(2) temporal prior and the MRTS spatial-mean term, yields better held-out tail prediction.  The comparison is therefore designed to identify the exceedance levels, if any, at which the enlarged candidate class improves on the STP baseline, rather than to select a single overall-best model.
 
-The response is the daily maximum 8-hour ozone concentration for the $31$ days of July 2005 at United States Air Quality System (AQS) monitoring sites, with the co-located Community Multi-scale Air Quality (CMAQ) model output as the sole covariate.  \fref{fig:ozone-maps} summarizes the two data sources through the EPA design value, the fourth-highest daily maximum 8-hour average of the month.  The AQS monitors are irregularly spaced, covering the eastern United States and California densely but leaving large gaps in the interior west, whereas CMAQ provides complete gridded coverage of the conterminous United States.  CMAQ reproduces the broad spatial pattern of the observations but not their level at individual monitors, which motivates using it as a regression covariate to be calibrated rather than as a substitute for the observations.  Following \textcite{morris_space-time_2017}, the regression component is $\bX_t(\bs) = [1,\text{CMAQ}_t(\bs)]^\top$, so that each model acts as a statistical calibration of CMAQ against the monitor observations.
+\subsection{Data}\label{sec:ozone-data-desc}
+
+The response is the daily maximum 8-hour ozone concentration for the $31$ days of July 2005 at U.S. EPA Air Quality System (AQS) monitoring sites, with the co-located Community Multi-scale Air Quality (CMAQ) model output as the sole covariate.  \fref{fig:ozone-maps} summarizes the two data sources through the EPA design value, the fourth-highest daily maximum 8-hour average of the month.  The AQS monitors are irregularly spaced, covering the eastern United States and California densely but leaving large gaps in the interior west, whereas CMAQ provides complete gridded coverage of the conterminous United States.  CMAQ reproduces the broad spatial pattern of the observations but not their level at individual monitors, which motivates using it as a regression covariate to be calibrated rather than as a substitute for the observations.  Following \textcite{morris_space-time_2017}, the regression component is $\bX_t(\bs) = [1,\text{CMAQ}_t(\bs)]^\top$, so that each model acts as a statistical calibration of CMAQ against the monitor observations.
 
 \begin{figure}[htbp]
 \centering
@@ -911,17 +881,17 @@ These data motivate the \skewt marginal directly.  Regressing the observations o
 \label{fig:qq-lm-ozone}
 \end{figure}
 
-\subsection{Model comparisons}
+\subsection{Candidate models and validation design}\label{sec:ozone-models}
 
 The baseline candidate set follows that of \textcite{morris_space-time_2017}.  We fit Gaussian and \skewt marginals over a range of partition sizes, $K \in \{1,5,6,7,8,9,10,15\}$, and censor the response at three levels to contrast no, moderate, and high censoring, namely no censoring ($T=0$), a moderate threshold ($T=50$ ppb, the $0.42$ sample quantile), and a high threshold ($T=75$ ppb, the $0.92$ sample quantile).  For settings censored at $T=75$ ppb, we use a symmetric-$t$ marginal, as in the simulation study.  Each setting is fit both with and without a latent time series.  
 
 On top of this baseline we add the two extensions developed in this thesis.  The first replaces the AR(1) latent dynamics with the standardized AR(2) prior of \sref{sec:ar2}; the second augments the regression component with MRTS basis functions, so that non-stationary spatial mean structure can be absorbed by multi-resolution thin-plate splines.  Unlike the simulation study, which sweeps a grid of basis sizes, the ozone candidate set fixes $K_{\mathrm{MRTS}} = 10$, so the MRTS comparison below is a pre-specified one rather than a best-over-$K_{\mathrm{MRTS}}$ selection.
 
-Each MCMC chain is run for $30{,}000$ iterations with a burn-in period of $25{,}000$ iterations. The comparison draws on $800$ monitoring sites and is evaluated by two-fold cross validation, with $400$ training and $400$ validation sites per fold, scored by the held-out Brier score of \sref{sec:sim-scoring}.
+Of the $1{,}089$ sites of \fref{fig:ozone-maps}, the comparison draws on a stratified sample of $800$, drawn to represent each region of the United States equally so that the interior west is not swamped by the dense eastern network.  Models are evaluated by two-fold cross validation, with the $800$ sites split at random into $400$ training and $400$ validation sites per fold, scored by the held-out Brier score of \sref{sec:sim-scoring}; robustness of the ranking to the split is examined with two further splits in \sref{sec:ozone-results}.  Each MCMC chain is run for $30{,}000$ iterations with a burn-in period of $25{,}000$ iterations.
 
-\subsection{Results}
+\subsection{Results}\label{sec:ozone-results}
 
-Across the upper tail, the proposed extensions appear among the best models at scattered exceedance levels rather than improving prediction uniformly, so no single extension, and no single setting, is best across the whole tail (Table~\ref{tab:ozone-top2-brier}).  The extensions nonetheless appear as the leading model at several levels; how much statistical weight that ranking carries is assessed below.
+Across the upper tail, the proposed extensions appear among the best models at scattered exceedance levels rather than improving prediction uniformly, so no single extension, and no single setting, is best across the whole tail (Table~\ref{tab:ozone-top2-brier}).  The scatter is nevertheless systematic.  The MRTS extension leads at the $0.900$ level, where the spatial mean still carries predictive signal; the AR(2) extension occupies both top ranks at $0.950$ and returns at the deepest level, $0.995$, where the best settings also shift toward high censoring and large partition sizes; the intermediate levels, $0.980$ and $0.990$, belong to the baseline family.  The extensions thus appear as the leading model at several levels; how much statistical weight that ranking carries is assessed below.
 
 \begin{table}[htbp]
 \centering
@@ -978,9 +948,9 @@ Level $L$ & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
 \end{tabular}
 \end{table}
 
-This picture is reproducible on smaller training samples.  Repeating the comparison under two further cross-validation splits, written $N_{\text{train}}/N_{\text{test}}$ for $N_{\text{train}}$ training and $N_{\text{test}}$ validation sites (the 300/100 and 200/200 splits; Tables~\ref{tab:ozone-top4-quantile-300-100} and~\ref{tab:ozone-top4-quantile-200-200}), recovers the same qualitative ranking.  The Baseline, AR(2), and MRTS families continue to share the top ranks across the tail, even as the exact best-ranked setting shifts with the split and the level.  That shifting is expected, since only a handful of validation sites exceed the highest thresholds and the fine ranking there is sensitive to the held-out draw; the persistence of the broad pattern across splits is what supports retaining AR(2) and MRTS as candidates.
+This picture is reproducible on smaller training samples.  Repeating the comparison under two further train/validation splits, written $N_{\text{train}}/N_{\text{test}}$ for $N_{\text{train}}$ training and $N_{\text{test}}$ validation sites (the 300/100 and 200/200 splits; Tables~\ref{tab:ozone-top4-quantile-300-100} and~\ref{tab:ozone-top4-quantile-200-200}), recovers the same qualitative ranking.  The Baseline, AR(2), and MRTS families continue to share the top ranks across the tail, even as the exact best-ranked setting shifts with the split and the level; that shifting is expected, since only a handful of validation sites exceed the highest thresholds (Table~\ref{tab:ozone-brier-ci} reports the exceedance counts) and the fine ranking there is sensitive to the held-out draw.
 
-The ranking tables also overstate how much the tail separates these models, since the leading scores agree to the displayed precision.  Table~\ref{tab:ozone-brier-ci} therefore attaches an uncertainty statement to two matched comparisons that each isolate one extension while holding everything else fixed, pairing the AR(2) model with its AR(1) counterpart at the same partition size and threshold, and the MRTS model with the same setting without basis functions.  Following \sref{sec:sim-uq}, the Brier difference is formed site by site on the shared validation set and then bootstrapped over validation sites, resampling each site together with all of its days so that within-site dependence is preserved ($B = 2000$ resamples); in the two-fold main comparison every site serves as a validation site exactly once, and the resampling is stratified by fold.  For the AR(2) pair every interval covers zero under all three splits, so the added lag neither improves nor degrades held-out tail prediction.  The MRTS pair shows a different pattern.  Under the main comparison, where the pooled folds supply $800$ validation sites, the difference is negative at every level and its interval excludes zero at the $0.95$ and $0.99$ levels; these two intervals stay away from zero when contiguous geographic blocks of sites are resampled in place of single sites, a variant that accounts for the spatial correlation between nearby monitors, so the effect is not an artifact of treating nearby sites as independent.  Its size, however, is three to four tenths of a percent of the baseline score, and the smaller splits cannot resolve a difference of that order; the lone starred interval of the $200/200$ split, at the sparsest level with $27$ exceedance events, fails the same block-resampling check and is the kind of isolated borderline result chance alone produces.  The two extensions thus part ways on the real data.  The AR(2) prior leaves tail prediction unchanged, while the MRTS mean term buys a real but practically negligible improvement that only the largest validation set can detect, and the case for retaining both extensions rests on the stability of the candidate class across splits and levels rather than on the size of any single gain.
+The ranking tables also overstate how much the tail separates these models, since the leading scores agree to the displayed precision.  Table~\ref{tab:ozone-brier-ci} therefore attaches an uncertainty statement to two matched comparisons, each isolating one extension while holding everything else fixed: the AR(2) model against its AR(1) counterpart, and the MRTS model against the same setting without basis functions.  Following \sref{sec:sim-uq}, the Brier difference is formed site by site and bootstrapped over validation sites, each site resampled together with all of its days to preserve within-site dependence ($B = 2000$, stratified by fold).  For the AR(2) pair every interval covers zero under all three splits, so the added lag neither improves nor degrades held-out tail prediction.  The MRTS pair differs.  In the main comparison the difference is negative at every level and excludes zero at $0.95$ and $0.99$, and both intervals survive resampling contiguous geographic blocks in place of single sites, so the effect is not an artifact of treating nearby monitors as independent.  Its size, however, is three to four tenths of a percent of the baseline score, which the smaller splits cannot resolve; the lone starred interval of the $200/200$ split, at the sparsest level with $27$ exceedance events, fails that block check and is the kind of isolated borderline result chance alone produces.  The two extensions thus part ways on the real data.  The AR(2) prior leaves tail prediction unchanged, while the MRTS mean term buys a real but practically negligible improvement that only the largest validation set can detect, and the case for retaining both rests on the stability of the candidate class across splits and levels rather than on the size of any single gain.
 
 \begin{table}[htbp]
 \centering
@@ -1017,55 +987,32 @@ MRTS $-$ none & $0.900$ & $-0.03$ {\tiny $[-0.13,\,+0.07]$} & 2382 & \multicolum
 
 This thesis asked not whether the spatio-temporal \skewt process predicts
 high-threshold exceedances well, which \textcite{morris_space-time_2017} already
-established, but where within its four components room for sharper
-upper-tail prediction remains.  To address this, we enlarged the model along two
-opposing axes, an AR(2) latent prior adding temporal memory and an MRTS mean term
-adding a flexible non-stationary mean (a spatial trend).  We scored both on held-out data rather
-than asserting either as a default.  The temporal axis yielded almost no usable
-signal.  Even on AR(2)-generated data the temporal curves were essentially indistinguishable from their
-non-temporal counterparts at every quantile, and the recovered coefficients
-(Table~\ref{tab:ar2-coef-recovery}) were only weakly identified.  Recovery was
-reliable mainly for the scale latent under strong dependence at matched low-$K$
-settings, while recovery for the skewness and knot-location latents was
-unstable, with large posterior standard deviations and attenuation toward zero,
-especially as $K$ increased or dependence weakened.  Tail prediction is set by
-how faithfully the marginal and the spatial partition capture the upper tail,
-not by the memory of the latent coefficients.  The
-spatial axis was more favorable but no more stable, with the MRTS basis improving
-selected scores yet failing to hold across families or quantile levels; and while
-the far-tail ranking is sensitive to the handful of sites exceeding the highest
-thresholds, so that the single best setting shifts with the split, the broad
-pattern in which the baseline, AR(2), and MRTS families recur among the top ranks
-persists across all splits, and it is that persistence that justifies retaining
-the extensions.
+established, but where within it room for sharper upper-tail prediction
+remains.  The temporal axis divides along the prediction task.  Added memory
+leaves spatial interpolation unchanged, and not for want of signal: under
+persistent and long-memory dynamics the coefficients were recovered closely and
+the held-out scores still did not move, because with the full record observed
+at the training sites the daily cross-sectional information dominates.  Only
+forecasting beyond the observed record rewarded richer temporal pooling, and
+then by margins never statistically significant.  The spatial axis is favorable
+but small, the MRTS mean term is inert against second-moment non-stationarity,
+and the real improvement it bought on the ozone data was one only the largest
+validation set could detect.  Two caveats bound these conclusions, the evidence
+covers a single month of a single pollutant, and the forecast evaluation used a
+single origin.
 
-A reflection non-identifiability between the skewness parameter $\lambda$
-and the latent skewness process $z$ underlies the temporal results.
-Because the skew contribution enters the model only through the product
-$\lambda\, \sigma_t(\bs)\, |z_t(\bs)|$, and its mean competes with the
-intercept, the data constrain $\lambda$ and $z$ far more tightly together
-than separately; the posterior can develop a reflected ridge, a
-sign-flipped configuration of $\lambda$, absorbed by the intercept and
-$z$, with nearly the same likelihood.  With the long records of the
-spatial hold-out evaluation this weak identifiability is harmless, but in
-the short records of the time-block forecast evaluation the sampler can
-drift onto the reflected ridge and inflate the predictive spread, so fits
-that failed to recover $\lambda$ and the intercept or that produced an
-unbounded predictive spread were screened before scoring.  Because the
-ridge is a property of the skew-$t$ location--scale mixing itself and not
-of the AR(2) prior, it limits how sharply latent temporal structure can
-be identified from short series, and a sign-anchored or otherwise
-reparameterized $z$ is a natural remedy for future work.
-
-The implication extends beyond ozone, since the same target, a spatial probability
-statement about the upper tail at unmonitored sites, arises for any heavy-tailed,
-asymmetric environmental field regulated by a high threshold, from precipitation
-extremes to heat warnings.  Temporal order and mean flexibility are not free
-improvements to such a model, but neither are they idle.  Rather than replacing
-the STP baseline, the standardized AR(2) prior and the MRTS mean enlarge it into
-a candidate class from which held-out tail scores can select the setting that
-fits the data at hand, giving practitioners who must predict high-threshold
-exceedances a broader, data-driven choice than any single fixed model can offer.
+The implication extends beyond ozone, since the same target, a spatial
+probability statement about the upper tail at unmonitored sites, arises for any
+heavy-tailed, asymmetric environmental field regulated by a high threshold.
+Temporal order and mean flexibility are not free improvements to such a model,
+but neither are they idle.  Rather than replacing the STP baseline, the
+standardized AR(2) prior and the MRTS mean enlarge it into a candidate class
+from which held-out tail scores can select the setting that fits the data at
+hand.  Where each axis fell short marks where to go next: entering the MRTS
+basis with random coefficients, as in fixed-rank kriging, would place the
+flexibility where the simulation showed the structure to be, while a
+reparameterized $z$, longer records, and a rolling forecast origin would test
+whether the extrapolation gains are real.
 
 % --------------------------------------------------------------
 %% Appendix
@@ -1096,7 +1043,7 @@ $\varphi$ & \Matern spatial range \\
 $\Phi$ & Standard normal distribution function \\
 $\psi_i(\bs),\ \bpsi(\bs),\ \bPsi$ & Thin-plate spline kernel, its vector, and $n \times n$ matrix \\
 \addlinespace[0.6em]
-$\gamma_h$ & AR stationary autocovariance, normalized so $\gamma_0 = 1$ \\
+$\gamma_h$ & AR stationary autocovariance, constrained so $\gamma_0 = 1$ \\
 $\eta$ & \Matern proportion of spatial variance, $\eta \in [0,1]$ \\
 $\Gamma(\cdot)$ & Gamma function (in the \Matern correlation) \\
 \addlinespace[0.6em]
@@ -1115,6 +1062,9 @@ $\sigma^2_\epsilon$ & AR innovation variance \\
 $\sigma^2_\beta,\ \sigma^2_\lambda$ & Prior variances of $\bbeta$ and $\lambda$ \\
 $\sigma_g$ & Error scale of the nonlinear-mean designs \\
 \addlinespace[0.6em]
+$Y_t,\ Y_t(\bs)$ & Generic scalar latent AR process in the Yule--Walker and MCMC derivations; $Y_t(\bs)$ is instead the observed response at site $\bs$ \\
+$z_{tk},\ z^*_{tk}$ & Latent skewness variable and its PIT-transformed value; $|z_t(\bs)|$ in \eref{eq:fullmodel} is the half-normal skew term \\
+\addlinespace[0.6em]
 $h$ & Spatial distance $\|\bs_1 - \bs_2\|$; also the temporal lag in the Yule--Walker context \\
 \addlinespace[0.6em]
 $g(\bs)$ & Fixed nonlinear mean surface \\
@@ -1130,7 +1080,7 @@ $n_s,\ n_t$ & Number of sites; number of days \\
 
 \subsection{Stationary moments of the standardized AR(2)}\label{app:ar2-moments}
 
-We derive the Yule--Walker moments \eref{eq:gamma12}--\eref{eq:sigeps} used to standardize the AR(2) prior \eref{eq:ar2-recursion} to unit marginal variance.  Let $\gamma_h = \mathrm{Cov}(Y_t, Y_{t-h})$ be the stationary autocovariances, normalized so that $\gamma_0 = \mathrm{Var}(Y_t) = 1$.  Multiplying the recursion \eref{eq:ar2-recursion} by $Y_{t-h}$ for $h \ge 1$ and taking expectations, and using that $\epsilon_t$ is independent of $Y_{t-h}$, yields the Yule--Walker recursion
+We derive the Yule--Walker moments \eref{eq:gamma12}--\eref{eq:sigeps} used to standardize the AR(2) prior \eref{eq:ar2-recursion} to unit marginal variance.  Let $\gamma_h = \mathrm{Cov}(Y_t, Y_{t-h})$ be the stationary autocovariances, constrained so that $\gamma_0 = \mathrm{Var}(Y_t) = 1$.  Multiplying the recursion \eref{eq:ar2-recursion} by $Y_{t-h}$ for $h \ge 1$ and taking expectations, and using that $\epsilon_t$ is independent of $Y_{t-h}$ for the causal stationary solution, yields the Yule--Walker recursion
 \begin{align}
   \gamma_h \;=\; \phi_1\, \gamma_{h-1} \;+\; \phi_2\, \gamma_{h-2}, \qquad h \ge 1. \label{eq:yw}
 \end{align}
@@ -1154,7 +1104,7 @@ with $p(Y_1, Y_2)$ given by \eref{eq:joint-init} and each conditional factor for
   \,\cdot\,
   \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{\text{lag-2}}, \label{eq:full-cond}
 \end{align}
-where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through the partition and Gaussian process structure of \eref{eq:fullmodel}.  The lag-2 factor is absent for $t = n_t - 1$ and both lag-1 and lag-2 factors are absent for $t = n_t$.  Under a symmetric Gaussian random-walk proposal $Y_t^{(c)} \sim N(Y_t, s^2)$, the Metropolis--Hastings acceptance ratio is
+where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through the partition and Gaussian process structure of \eref{eq:fullmodel}.  The lag-2 factor is absent for $t = n_t - 1$ and both lag-1 and lag-2 factors are absent for $t = n_t$.  At the head of the series the initial-pair density \eref{eq:joint-init} plays the role of the self factor: $Y_1$ enters only the initial-pair factor $p(Y_1, Y_2)$ and the conditional $p(Y_3 \mid Y_2, Y_1)$, while $Y_2$ enters $p(Y_1, Y_2)$, $p(Y_3 \mid Y_2, Y_1)$, and $p(Y_4 \mid Y_3, Y_2)$; in each case the factors referencing a non-existent time index are simply dropped.  Under a symmetric Gaussian random-walk proposal $Y_t^{(c)} \sim N(Y_t, s^2)$, with $s^2$ tuned to an acceptance rate near $0.3$--$0.4$, the Metropolis--Hastings acceptance ratio is
 \begin{align}
   R \;=\; \min\!\left(1,\; \frac{\pi(Y_t^{(c)} \mid Y_{-t}, \bY)}{\pi(Y_t \mid Y_{-t}, \bY)}\right), \label{eq:mh-ratio}
 \end{align}
@@ -1162,13 +1112,28 @@ in which all three prior factors must appear; omitting the lag-2 factor distorts
 
 \subsection{Marginal covariance of the non-stationary-dependence design}\label{app:nsdep-cov}
 
-The second MRTS design of \sref{sec:sim-mrts-design} superposes two fixed cosine fields \eref{eq:nsdep-basis} with daily-redrawn Gaussian weights $\xi_{tj} \iid N(0, \tau_j^2)$ \eref{eq:nsdep-re}.  Marginalizing over the weights, $u_t(\bs) = \sum_{j} \xi_{tj}\, g_j(\bs)$ has zero mean, $\mathrm{E}[u_t(\bs)] = \sum_j g_j(\bs)\, \mathrm{E}[\xi_{tj}] = 0$, and, by the independence of $\xi_{t1}$ and $\xi_{t2}$, the low-rank covariance
+The second MRTS design of \sref{sec:sim-mrts-design} places the non-stationarity in the dependence through a mean-zero random effect built from two fixed cosine fields on the $[0,10]^2$ domain.  With centers $\bc_1 = (0, 10)^\top$, $\bc_2 = (7.5, 2.5)^\top$ and wavenumbers $\kappa_1 = \pi/10$, $\kappa_2 = \pi/5$,
+\begin{align}
+  g_j(\bs) = \cos\!\big(\kappa_j \, \| \bs - \bc_j \|\big), \qquad j = 1, 2,
+  \label{eq:nsdep-basis}
+\end{align}
+and the random effect superposes them with independent, daily-redrawn Gaussian weights,
+\begin{align}
+  u_t(\bs) = \sum_{j=1}^{2} \xi_{tj}\, g_j(\bs), \qquad \xi_{tj} \iid N(0, \tau_j^2), \quad (\tau_1, \tau_2) = (5, 3),
+  \label{eq:nsdep-re}
+\end{align}
+independently across $j$ and across days $t$.  The response adds $u_t$ to the one-knot \skewt model,
+\begin{align}
+  Y_t(\bs) = 10 + \lambda \, \sigma_t(\bs) \, |z_t(\bs)| + \sigma_t(\bs) \, v_t(\bs) + u_t(\bs).
+  \label{eq:nsdep-gen}
+\end{align}
+Marginalizing over the weights, $u_t(\bs) = \sum_{j} \xi_{tj}\, g_j(\bs)$ has zero mean, $\mathrm{E}[u_t(\bs)] = \sum_j g_j(\bs)\, \mathrm{E}[\xi_{tj}] = 0$, and, by the independence of $\xi_{t1}$ and $\xi_{t2}$, the low-rank covariance
 \begin{align}
   \mathrm{Cov}\big(u_t(\bs), u_t(\bs')\big)
     \;=\; \sum_{j=1}^{2} \tau_j^2\, g_j(\bs)\, g_j(\bs').
   \label{eq:nsdep-cov}
 \end{align}
-The pointwise variance $\mathrm{Var}\big(u_t(\bs)\big) = \sum_{j} \tau_j^2\, g_j(\bs)^2$ depends on location, so the dependence is non-stationary while the marginal mean stays constant at $10$.
+The pointwise variance $\mathrm{Var}\big(u_t(\bs)\big) = \sum_{j} \tau_j^2\, g_j(\bs)^2$ depends on location, so the dependence is non-stationary while the marginal mean stays constant at $10$.  Because the weights are redrawn independently across days, $u_t$ carries no temporal dependence, keeping this design orthogonal to the AR(2) experiment.
 
 
 % --------------------------------------------------------------
