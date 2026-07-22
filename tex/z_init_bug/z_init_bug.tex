@@ -356,6 +356,24 @@ on contact: $z$ frozen, $\phi_z$ variance $0$, \code{NaN} warnings by the
 hundred. We have synced the default to \code{NULL} $\mapsto$ the half-normal
 median, so the trap is disarmed before anyone steps on it.
 
+\paragraph{Rev.\ 22 July 2026: a third sibling, and this one was live.} The
+\code{prop} landmine was dormant behind a guard. The \emph{legacy} backend
+(\code{code/R/mcmc\_cont\_lambda.R}), which runs the entire US-all ozone
+analysis via \code{package\_load.R}, had no guard: it carried
+\code{z.init = 0} in its signature and \emph{does} run the temporal-$z$ block
+whenever \code{skew = TRUE} and \code{temporalz = TRUE}. Every legacy
+skew-t$+$TS ozone fit to date (settings 51, 52, 54, \ldots, and the MRTS rows
+201--208) therefore ran with $z \equiv 0$ frozen for the whole chain and
+$\lambda$ wandering its prior --- effectively a symmetric-$t$ fit wearing a
+skew-$t$ label. (Predictions were not contaminated, since the skew channel
+enters only through $\lambda z_{g} = 0$.) An A/B rerun on a 120-site
+subproblem confirms both halves: with \code{z.init = 0} the chain reproduces
+the freeze exactly ($z$ all-zero, $\phi_z$ variance $0$, $\lambda$ SD
+$19.3$); with the synced default it lands on $\bar z / \E[z] = 0.97$ and
+$\lambda$ SD $0.12$. The default is now synced to \code{NULL} $\mapsto$ the
+half-normal median, and legacy skew-t$+$TS results produced before and after
+this date must not be compared as like for like.
+
 \section{The real lesson}
 
 The original bug was \textbf{loud}: $-\infty$, then \code{NaN}, then $\phi_z$

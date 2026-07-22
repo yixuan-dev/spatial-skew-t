@@ -34,7 +34,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                  cov.model = "matern",  # or "exponential"
                  rho.prior = "cont",    # or "disc"
                  # skew inits
-                 z.init = 0, lambda.init = NULL,
+                 z.init = NULL, lambda.init = NULL,
                  # skew priors
                  lambda.m = 0, lambda.s = 20, skew = T,
                  thresh.site.specific = FALSE, thresh.site = NULL,
@@ -190,8 +190,14 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
   }
 
   zg <- matrix(0, ns, nt)
+  # Sync with mcmc_ar2.R: the old default z.init = 0 gives hn.cop(0, sig) = -Inf,
+  # so the MH ratio in updateZTS_cont_lambda is NaN and every proposal is
+  # silently rejected -- z and phi.z stay stuck at 0 for the whole run.
+  if (is.null(z.init)) {
+    z.init <- 0.6745 / sqrt(tau.init)  # median of HN(1/sqrt(tau.init)) -> z.star = 0
+  }
   if (length(z.init) == 1 && skew) {
-    cat("\t initializing all z terms to", z.init, "\n")
+    cat("\t initializing all z terms to", round(z.init, 4), "\n")
   }
   z <- matrix(z.init, nknots, nt)
   for (t in 1:nt) {

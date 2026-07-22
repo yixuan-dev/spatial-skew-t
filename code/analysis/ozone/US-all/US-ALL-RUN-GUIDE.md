@@ -344,3 +344,30 @@ $env:US_ALL_RESULTS_DIR = "results_mrts_cov_dev"
 ```
 
 ---
+
+## 10) Cincinnati 地圖管線（setting 204，2026-07-22 新增）
+
+與 CV runner 分離的「全資料配適 → 網格預測 → 地圖」三段式，仿 `us-all-full-71.R` 系列：
+
+| 階段 | 腳本 | 輸出 |
+| --- | --- | --- |
+| 配適 | `us-all-full-204.R` | `results/us-all-full-204.RData`（含 `fit/S.o/X.o/S.p/X.p/mrts_meta/cincy`） |
+| 健康檢查 | `check-full-204.R` | 斷言失敗即 exit 1，**通過前不得進預測** |
+| 預測 | `predict-cincy-204.R` | `us-all-pred-cincy-204.RData` |
+| 地圖 | `make-map-cincy-204.R` | `plots/cincy-204-exceed75.pdf` |
+
+- 三支皆吃 `dev` 參數/`US_ALL_RUN_MODE=dev`，dev 檔案帶 `-dev` 後綴，不會覆寫正式檔。
+- 預測窗口：Cincinnati (1.0681, −0.0257) ±0.20（±200 km，34×34 網格）。
+- MRTS basis 由 `mrts_basis.R` 提供（自 `us-all-run.R` 抽出共用）；配適時一併建好
+  train/pred 兩側並存入 fit 檔，預測端**不重建**。
+
+### ⚠️ z.init 修正的可比性斷點（2026-07-22）
+
+`code/R/mcmc_cont_lambda.R`（legacy backend）的 `z.init` 預設值已從 `0` 修正為
+`NULL → 0.6745/sqrt(tau.init)`（同 `ar2`/`prop`；詳見 `tex/z_init_bug`）。
+在此之前所有 legacy 的 **skew-t + TS** 配適（settings 51、52、54…、201/202/204/205/207/208）
+z 全程凍結為 0、λ 隨先驗遊走，實質為對稱 t。**修正前後的 skew-t + TS 結果不可直接比較**；
+非 skew 或非 TS 的設定不受影響。另 `US_ALL_RESULTS_DIR` 過去未被 runner 讀取（寫死
+`results/`），現已生效——舊紀錄若聲稱寫到別的目錄，實際都在 `results/`。
+
+---
