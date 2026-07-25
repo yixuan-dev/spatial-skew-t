@@ -23,6 +23,7 @@
     
     % 標楷體、24 號、1.5 倍行高
     {\fontsize{24}{36}\selectfont 國立東華大學應用數學系\par}
+    {\fontsize{24}{36}\selectfont 統計碩士班\par}
     {\fontsize{24}{36}\selectfont 碩士論文\par}
     
     % 空 3 列，14 號、單行間距
@@ -39,7 +40,7 @@
     \vspace{3.0\baselineskip}
     
     % 校徽圖檔 5 cm * 5 cm
-    \includegraphics[width=5cm]{../img/NDHU_logo.png} \\
+    \includegraphics[width=5cm]{../img/pdf/NDHU_logo.pdf} \\
     \vspace{0.5cm} % 空 0.5 cm
     
     % 標楷體、22 號、單行間距
@@ -71,6 +72,7 @@
     
     % 標楷體、24 號、1.5 倍行高
     {\fontsize{24}{36}\selectfont 國立東華大學應用數學系\par}
+    {\fontsize{24}{36}\selectfont 統計碩士班\par}
     {\fontsize{24}{36}\selectfont 碩士論文\par}
     
     % 空 3 列，14 號、單行間距
@@ -87,7 +89,7 @@
     \vspace{2.0\baselineskip}
     
     % 書名頁校徽圖檔 5 cm * 5 cm
-    \tikz[opacity=0.2]{\node {\includegraphics[width=5cm]{../img/NDHU_logo.png}};} \\
+    \tikz[opacity=0.2]{\node {\includegraphics[width=5cm]{../img/pdf/NDHU_logo.pdf}};} \\
     \vspace{0.5cm} % 空 0.5 cm
     
     % 標楷體、22 號、單行間距
@@ -113,10 +115,10 @@
 \includepdf[pages={1}, scale=0.95, pagecommand={
     \begin{tikzpicture}[remember picture,overlay]
         \node[opacity=0.2] at (current page.center) 
-        {\includegraphics[width=5cm]{../img/NDHU_logo.png}};
+        {\includegraphics[width=5cm]{../img/pdf/NDHU_logo.pdf}};
     \end{tikzpicture}
     \setcounter{page}{1}                % 將頁碼重設為 1
-    }]{../pdf/學位考試委員會審定書.pdf}
+    }]{../img/pdf/學位考試委員會審定書.pdf}
 
 %% 空白頁
 \newpage
@@ -129,10 +131,10 @@
 \includepdf[pages={1}, pagecommand={
     \begin{tikzpicture}[remember picture,overlay]
         \node[opacity=0.2] at (current page.center) 
-        {\includegraphics[width=5cm]{../img/NDHU_logo.png}};
+        {\includegraphics[width=5cm]{../img/pdf/NDHU_logo.pdf}};
     \end{tikzpicture}
     \setcounter{page}{2}                % 將頁碼重設為 2
-    }]{../pdf/學位論文原創性聲明書.pdf}
+    }]{../img/pdf/學位論文原創性聲明書.pdf}
 
 %% 空白頁
 \newpage
@@ -695,7 +697,7 @@ The persistent and long-memory designs (5 and 6) are evaluated under both protoc
 
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{../pdf/bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf}
+\includegraphics[width=\textwidth]{../img/pdf/bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf}
 \caption[Spatial hold-out evaluation: relative Brier score by threshold quantile]{Spatial hold-out evaluation: relative Brier score versus the Gaussian model by threshold quantile (Gaussian is the reference $\equiv 1$, shown as the dashed line; values below it are better).  All data-generating settings are \skewt with $\lambda = 3$: (a)~$K=1$, AR(2) $(\phi_1, \phi_2) = (0.80, -0.35)$; (b)~$K=1$, AR(2) $(0.12, -0.05)$; (c)~$K=5$, AR(2) $(0.80, -0.35)$; (d)~$K=5$, AR(2) $(0.12, -0.05)$; (e)~$K=1$, AR(2) $(0.15, 0.80)$; (f)~$K=1$, long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.  Panel (f) draws only the one-knot AR(1) and AR(2) fits, the only models fit under the long-memory design.}
 \label{fig:bs-rel-spatial}
 \end{figure}
@@ -773,7 +775,7 @@ ARFIMA, $d{=}0.45$ & 1 & 1 & 0.502(0.237) & 0.200(0.239) & 0.365(0.249) & 0.156(
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{../pdf/bs_q95_by_lead-blk1-set5_7.pdf}
+\includegraphics[width=\textwidth]{../img/pdf/bs_q95_by_lead-blk1-set5_7.pdf}
 \caption[Time-block forecast evaluation of the AR(2) experiment: Brier score by forecast lead]{Time-block forecast evaluation of the AR(2) experiment: mean Brier score at the $0.95$ threshold quantile by forecast lead (10 data sets; lower is better; the dotted vertical line marks the lead $1$--$5$ window).  Data-generating settings: (a)~AR(2), $(\phi_1, \phi_2) = (0.15, 0.80)$; (b)~long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.}
 \label{fig:bs-lead-timeblock}
 \end{figure}
@@ -829,7 +831,7 @@ On the two \skewt-core designs, augmenting the regression component with MRTS ba
 
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{../pdf/brier_score_mean_vs_K.pdf}
+\includegraphics[width=\textwidth]{../img/pdf/brier_score_mean_vs_K.pdf}
 \caption[Brier score versus the MRTS basis size, \skewt designs]{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~\skewt ($K=5$, $\lambda=3$); (c,d)~\skewt ($K=1$, $\lambda=3$) with an additive non-stationary spatial random effect.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
 \label{fig:bs-mean-vs-K-mrts}
 \end{figure}
@@ -840,7 +842,7 @@ The transform-mix design shows the same mechanism operating from a much worse st
 
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{../pdf/brier_score_mean_vs_K-set16_20_nonsta.pdf}
+\includegraphics[width=\textwidth]{../img/pdf/brier_score_mean_vs_K-set16_20_nonsta.pdf}
 \caption[Brier score versus the MRTS basis size, nonlinear-mean designs]{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ on the two nonlinear-mean designs of \eref{eq:nont-gen} ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~arc front; (c,d)~transform mix.  Both use $10$ data sets on the full $K_{\mathrm{MRTS}}$ grid.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
 \label{fig:bs-mean-vs-K-nont}
 \end{figure}
@@ -885,13 +887,13 @@ The response is the daily maximum 8-hour ozone concentration for the $31$ days o
 \centering
 \begin{subfigure}{\textwidth}
 \centering
-\includegraphics[width=0.8\textwidth]{../pdf/map_aqs.pdf}
+\includegraphics[width=0.8\textwidth]{../img/pdf/map_aqs.pdf}
 \caption{AQS monitor observations}
 \end{subfigure}
 
 \begin{subfigure}{\textwidth}
 \centering
-\includegraphics[width=0.8\textwidth]{../pdf/map_cmaq.pdf}
+\includegraphics[width=0.8\textwidth]{../img/pdf/map_cmaq.pdf}
 \caption{CMAQ model output}
 \end{subfigure}
 \caption[July 2005 ozone design value at the AQS sites and on the CMAQ grid]{July 2005 ozone design value (fourth-highest daily maximum 8-hour average, in ppb): (a)~at the $1{,}089$ AQS monitoring sites missing at most $50\%$ of the $31$ days; (b)~on the full CMAQ grid.}
@@ -902,7 +904,7 @@ These data motivate the \skewt marginal directly.  Regressing the observations o
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{../pdf/qq-res-lm-2panel.pdf}
+\includegraphics[width=\textwidth]{../img/pdf/qq-res-lm-2panel.pdf}
 \caption[QQ plots of the pooled ozone-on-CMAQ regression residuals]{QQ plots of the pooled ozone-on-CMAQ regression residuals against the Normal (left) and the skew-$t$ with $\lambda = 1$ and $a = 10$ (right) reference distributions, both standardized to zero mean and unit variance.}
 \label{fig:qq-lm-ozone}
 \end{figure}
