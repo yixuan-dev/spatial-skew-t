@@ -19,6 +19,251 @@
 
 \refsection{0}
   \datalist[entry]{nyt/global//global/global/global}
+    \entry{berliner_hierarchical_1996}{incollection}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=5ef96c70e2e24beb011e0e345c71b116}{%
+           family={Berliner},
+           familyi={B\bibinitperiod},
+           given={L.\bibnamedelimi Mark},
+           giveni={L\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+      }
+      \name{editor}{2}{}{%
+        {{hash=8e7132f06933e0db34091a645fb65240}{%
+           family={Hanson},
+           familyi={H\bibinitperiod},
+           given={Kenneth\bibnamedelima M.},
+           giveni={K\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+        {{hash=e1ed9fc977e1fc2b24f3db83535a925f}{%
+           family={Silver},
+           familyi={S\bibinitperiod},
+           given={Richard\bibnamedelima N.},
+           giveni={R\bibinitperiod\bibinitdelim N\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Dordrecht}%
+      }
+      \list{publisher}{1}{%
+        {Springer}%
+      }
+      \strng{namehash}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{fullhash}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{fullhashraw}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{bibnamehash}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{authorbibnamehash}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{authornamehash}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{authorfullhash}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{authorfullhashraw}{5ef96c70e2e24beb011e0e345c71b116}
+      \strng{editorbibnamehash}{3dad0a82c91cf669d1e653f4976b9005}
+      \strng{editornamehash}{3dad0a82c91cf669d1e653f4976b9005}
+      \strng{editorfullhash}{3dad0a82c91cf669d1e653f4976b9005}
+      \strng{editorfullhashraw}{3dad0a82c91cf669d1e653f4976b9005}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Maximum {Entropy} and {Bayesian} {Methods}}
+      \field{series}{Fundamental {Theories} of {Physics}}
+      \field{title}{Hierarchical {Bayesian} time series models}
+      \field{volume}{79}
+      \field{year}{1996}
+      \field{pages}{15\bibrangedash 22}
+      \range{pages}{8}
+      \verb{doi}
+      \verb 10.1007/978-94-011-5430-7_3
+      \endverb
+    \endentry
+    \entry{Coles1999}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=cc948339cfc306ea654ef4c3c95c34d8}{%
+           family={Coles},
+           familyi={C\bibinitperiod},
+           given={Stuart},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0840f5c043772f37034882561900b6b5}{%
+           family={Heffernan},
+           familyi={H\bibinitperiod},
+           given={Janet},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=1,uniquepart=given,hash=7626f3f68e079d32236691d9fc2df0fb}{%
+           family={Tawn},
+           familyi={T\bibinitperiod},
+           given={Jonathan},
+           giveni={J\bibinitperiod},
+           givenun=1}}%
+      }
+      \strng{namehash}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \strng{fullhash}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \strng{fullhashraw}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \strng{bibnamehash}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \strng{authorbibnamehash}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \strng{authornamehash}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \strng{authorfullhash}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \strng{authorfullhashraw}{258fb1ba4e65182561aa08e4f1b6c2bf}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{issn}{1572-915X}
+      \field{journaltitle}{Extremes}
+      \field{number}{4}
+      \field{title}{Dependence {Measures} for {Extreme} {Value} {Analyses}}
+      \field{volume}{2}
+      \field{year}{1999}
+      \field{pages}{339\bibrangedash 365}
+      \range{pages}{27}
+      \verb{doi}
+      \verb 10.1023/A:1009963131610
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1023/A:1009963131610
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1023/A:1009963131610
+      \endverb
+    \endentry
+    \entry{davies_tests_1987}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=66a8848be2a750b5499289eba8735310}{%
+           family={Davies},
+           familyi={D\bibinitperiod},
+           given={R.\bibnamedelimi B.},
+           giveni={R\bibinitperiod\bibinitdelim B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ead5932cdb83e3069f0039a93f2ffb86}{%
+           family={Harte},
+           familyi={H\bibinitperiod},
+           given={D.\bibnamedelimi S.},
+           giveni={D\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{7811586ecdc0e025b7577d682cecc35f}
+      \strng{fullhash}{7811586ecdc0e025b7577d682cecc35f}
+      \strng{fullhashraw}{7811586ecdc0e025b7577d682cecc35f}
+      \strng{bibnamehash}{7811586ecdc0e025b7577d682cecc35f}
+      \strng{authorbibnamehash}{7811586ecdc0e025b7577d682cecc35f}
+      \strng{authornamehash}{7811586ecdc0e025b7577d682cecc35f}
+      \strng{authorfullhash}{7811586ecdc0e025b7577d682cecc35f}
+      \strng{authorfullhashraw}{7811586ecdc0e025b7577d682cecc35f}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Biometrika}
+      \field{number}{1}
+      \field{title}{Tests for {Hurst} effect}
+      \field{volume}{74}
+      \field{year}{1987}
+      \field{pages}{95\bibrangedash 101}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1093/biomet/74.1.95
+      \endverb
+    \endentry
+    \entry{Davison1990}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=2,uniquepart=given,hash=cea13b3418593a52bdfe130f4fe106e8}{%
+           family={Davison},
+           familyi={D\bibinitperiod},
+           given={Anthony\bibnamedelima C.},
+           giveni={A\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=2}}%
+        {{un=0,uniquepart=base,hash=f3291446e536e5416f7a4a9b6d812d4b}{%
+           family={Smith},
+           familyi={S\bibinitperiod},
+           given={R.\bibnamedelimi L.},
+           giveni={R\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{7012184290e126f16fce7a21f8ca1f36}
+      \strng{fullhash}{7012184290e126f16fce7a21f8ca1f36}
+      \strng{fullhashraw}{7012184290e126f16fce7a21f8ca1f36}
+      \strng{bibnamehash}{7012184290e126f16fce7a21f8ca1f36}
+      \strng{authorbibnamehash}{7012184290e126f16fce7a21f8ca1f36}
+      \strng{authornamehash}{7012184290e126f16fce7a21f8ca1f36}
+      \strng{authorfullhash}{7012184290e126f16fce7a21f8ca1f36}
+      \strng{authorfullhashraw}{7012184290e126f16fce7a21f8ca1f36}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We discuss the analysis of the extremes of data by modelling the sizes and occurrence of exceedances over high thresholds. The natural distribution for such exceedances, the generalized Pareto distribution, is described and its properties elucidated. Estimation and model-checking procedures for univariate and regression data are developed, and the influence of and information contained in the most extreme observations in a sample are studied. Models for seasonality and serial dependence in the point process of exceedances are described. Sets of data on river flows and wave heights are discussed, and an application to the siting of nuclear installations is described.}
+      \field{isbn}{00359246}
+      \field{issn}{00359246}
+      \field{journaltitle}{Journal of the Royal Statistical Society. Series B (Methodological)}
+      \field{number}{3}
+      \field{title}{{Models for exceedances over high thresholds (with Discussion)}}
+      \field{volume}{52}
+      \field{year}{1990}
+      \field{pages}{393\bibrangedash 442}
+      \range{pages}{50}
+      \verb{file}
+      \verb :Users/samorris/Dropbox/Mendeley/Journal of the Royal Statistical Society. Series B (Methodological)/Davison, Smith - 1990 - Models for exceedances over high thresholds (with Discussion).pdf:pdf
+      \endverb
+      \keyw{Generalized extreme value distribution,generalized pareto distribution,maximum likelihood,nuclear siting policy,peaks over threshold,point,process,profile likelihood,regression,return level,river flows,seasonality,statistics of extremes,wave heights}
+    \endentry
+    \entry{gelfand_handbook_2010}{book}{}{}
+      \name{editor}{4}{}{%
+        {{un=0,uniquepart=base,hash=1a2f2048485015cba339bca1e81af3c2}{%
+           family={Gelfand},
+           familyi={G\bibinitperiod},
+           given={Alan\bibnamedelima E.},
+           giveni={A\bibinitperiod\bibinitdelim E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=61825262c35ef138ae7eb2daa7dbf6ab}{%
+           family={Diggle},
+           familyi={D\bibinitperiod},
+           given={Peter\bibnamedelima J.},
+           giveni={P\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f5f8db5e4d659958875891f28745918c}{%
+           family={Fuentes},
+           familyi={F\bibinitperiod},
+           given={Montserrat},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4efcea1d95b04cab9a45fb2778fdf842}{%
+           family={Guttorp},
+           familyi={G\bibinitperiod},
+           given={Peter},
+           giveni={P\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Boca Raton, FL}%
+      }
+      \list{publisher}{1}{%
+        {CRC Press}%
+      }
+      \strng{namehash}{7206c6d659d76506ef359edd0956230c}
+      \strng{fullhash}{faf825e6c65d6fb04747345e0b703895}
+      \strng{fullhashraw}{faf825e6c65d6fb04747345e0b703895}
+      \strng{bibnamehash}{7206c6d659d76506ef359edd0956230c}
+      \strng{editorbibnamehash}{7206c6d659d76506ef359edd0956230c}
+      \strng{editornamehash}{7206c6d659d76506ef359edd0956230c}
+      \strng{editorfullhash}{faf825e6c65d6fb04747345e0b703895}
+      \strng{editorfullhashraw}{faf825e6c65d6fb04747345e0b703895}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{editor}
+      \field{labeltitlesource}{title}
+      \field{isbn}{978-1-4200-7287-7}
+      \field{series}{Chapman \& {Hall}/{CRC} {Handbooks} of {Modern} {Statistical} {Methods}}
+      \field{title}{Handbook of {Spatial} {Statistics}}
+      \field{year}{2010}
+    \endentry
     \entry{gneiting_strictly_2007}{article}{}{}
       \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=cf94799d213c0ab2fd2012473da7440b}{%
@@ -80,8 +325,158 @@
       \endverb
       \keyw{Bayes factor,Bregman divergence,Brier score,Coherent,Continuous ranked probability score,Cross-validation,Entropy,Kernel score,Loss function,Minimum contrast estimation,Negative definite function,Prediction interval,Predictive distribution,Quantile forecast,Scoring rule,Skill score,Strictly proper,Utility function}
     \endentry
-    \entry{morris_space-time_2017}{article}{}{}
-      \name{author}{4}{}{%
+    \entry{Huser2014}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=2,uniquepart=given,hash=1958e88b5f151aa1921d30cc9be15a9e}{%
+           family={Huser},
+           familyi={H\bibinitperiod},
+           given={R.},
+           giveni={R\bibinitperiod},
+           givenun=2}}%
+        {{un=2,uniquepart=given,hash=b218552bc9538d0bc933d3ae9c4575ac}{%
+           family={Davison},
+           familyi={D\bibinitperiod},
+           given={A.\bibnamedelimi C.},
+           giveni={A\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=2}}%
+      }
+      \strng{namehash}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \strng{fullhash}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \strng{fullhashraw}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \strng{bibnamehash}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \strng{authorbibnamehash}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \strng{authornamehash}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \strng{authorfullhash}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \strng{authorfullhashraw}{3e76d8ccadf105ba97aa57afda9c5bea}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Max-stable processes are the natural analogues of the generalized extreme-value distribution for the modelling of extreme events in space and time. Under suitable conditions, these processes are asymptotically justified models for maxima of independent replications of random fields, and they are also suitable for the modelling of joint individual extreme measurements over high thresholds. This paper extends a model of Schlather (2001) to the space-time framework, and shows how a pairwise censored likelihood can be used for consistent estimation under mild mixing conditions. Estimator efficiency is also assessed and the choice of pairs to be included in the pairwise likelihood is discussed based on computations for simple time series models. The ideas are illustrated by an application to hourly precipitation data over Switzerland.}
+      \field{eprinttype}{arXiv}
+      \field{issn}{13697412}
+      \field{journaltitle}{Journal of the Royal Statistical Society: Series B (Statistical Methodology)}
+      \field{month}{3}
+      \field{number}{2}
+      \field{title}{{Space-time modelling of extreme events}}
+      \field{volume}{76}
+      \field{year}{2014}
+      \field{pages}{439\bibrangedash 461}
+      \range{pages}{23}
+      \verb{eprint}
+      \verb 1201.3245
+      \endverb
+      \verb{file}
+      \verb :Users/samorris/Dropbox/Mendeley/Journal of the Royal Statistical Society Series B (Statistical Methodology)/Huser, Davison - 2014 - Space-time modelling of extreme events.pdf:pdf
+      \endverb
+      \keyw{composite likelihood,dom set,extremal coefficient,max-stable process,rainfall data,ran-,threshold-based inference}
+    \endentry
+    \entry{huser_advances_2022}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=2,uniquepart=given,hash=a999799dce6a407edc1ae0c3148fc8c8}{%
+           family={Huser},
+           familyi={H\bibinitperiod},
+           given={Raphaël},
+           giveni={R\bibinitperiod},
+           givenun=2}}%
+        {{un=0,uniquepart=base,hash=d5943e6bde8a0bcedc815b6e29b7f71a}{%
+           family={Wadsworth},
+           familyi={W\bibinitperiod},
+           given={Jennifer\bibnamedelima L.},
+           giveni={J\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{language}{1}{%
+        {en}%
+      }
+      \strng{namehash}{9200deb49c3b8247c9bd92fe19f959c5}
+      \strng{fullhash}{9200deb49c3b8247c9bd92fe19f959c5}
+      \strng{fullhashraw}{9200deb49c3b8247c9bd92fe19f959c5}
+      \strng{bibnamehash}{9200deb49c3b8247c9bd92fe19f959c5}
+      \strng{authorbibnamehash}{9200deb49c3b8247c9bd92fe19f959c5}
+      \strng{authornamehash}{9200deb49c3b8247c9bd92fe19f959c5}
+      \strng{authorfullhash}{9200deb49c3b8247c9bd92fe19f959c5}
+      \strng{authorfullhashraw}{9200deb49c3b8247c9bd92fe19f959c5}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{The classical modeling of spatial extremes relies on asymptotic models (i.e., max-stable or r-Pareto processes) for block maxima or peaks over high thresholds, respectively. However, at finite levels, empirical evidence often suggests that such asymptotic models are too rigidly constrained, and that they do not adequately capture the frequent situation where more severe events tend to be spatially more localized. In other words, these asymptotic models have a strong tail dependence that persists at increasingly high levels, while data usually suggest that it should weaken instead. Another well-known limitation of classical spatial extremes models is that they are either computationally prohibitive to fit in high dimensions, or they need to be fitted using less efficient techniques. In this review paper, we describe recent progress in the modeling and inference for spatial extremes, focusing on new models that have more flexible tail structures that can bridge asymptotic dependence classes, and that are more easily amenable to likelihood-based inference for large datasets. In particular, we discuss various types of random scale constructions, as well as the conditional spatial extremes model, which have recently been getting increasing attention within the statistics of extremes community. We illustrate some of these new spatial models on two different environmental applications. This article is categorized under: Data: Types and Structure {>} Image and Spatial Data Data: Types and Structure {>} Time Series, Stochastic Processes, and Functional Data Statistical Learning and Exploratory Methods of the Data Sciences {>} Modeling Methods}
+      \field{issn}{1939-0068}
+      \field{journaltitle}{WIREs Computational Statistics}
+      \field{note}{\_eprint: https://wires.onlinelibrary.wiley.com/doi/pdf/10.1002/wics.1537}
+      \field{number}{1}
+      \field{title}{Advances in statistical modeling of spatial extremes}
+      \field{urlday}{2}
+      \field{urlmonth}{7}
+      \field{urlyear}{2026}
+      \field{volume}{14}
+      \field{year}{2022}
+      \field{urldateera}{ce}
+      \field{pages}{e1537}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.1002/wics.1537
+      \endverb
+      \verb{file}
+      \verb Full Text PDF:C\:\\Users\\Yi-Xuan\\Zotero\\storage\\XGLAXXRL\\Huser和Wadsworth - 2022 - Advances in statistical modeling of spatial extremes.pdf:application/pdf;Snapshot:C\:\\Users\\Yi-Xuan\\Zotero\\storage\\FK5XIIIZ\\wics.html:text/html
+      \endverb
+      \verb{urlraw}
+      \verb https://onlinelibrary.wiley.com/doi/abs/10.1002/wics.1537
+      \endverb
+      \verb{url}
+      \verb https://onlinelibrary.wiley.com/doi/abs/10.1002/wics.1537
+      \endverb
+      \keyw{asymptotic dependence and independence,extreme-value theory,max-stable process,Pareto process,random scale mixture}
+    \endentry
+    \entry{Ledford1996}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=ae1fabe83f30d2d46db51583f716ff7e}{%
+           family={Ledford},
+           familyi={L\bibinitperiod},
+           given={Anthony\bibnamedelima W.},
+           giveni={A\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=1,uniquepart=given,hash=72c869378e68a398a30bef4b31fbd22e}{%
+           family={Tawn},
+           familyi={T\bibinitperiod},
+           given={Jonathan\bibnamedelima A.},
+           giveni={J\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=1}}%
+      }
+      \strng{namehash}{c4371d0c06ac6433438722377b03f547}
+      \strng{fullhash}{c4371d0c06ac6433438722377b03f547}
+      \strng{fullhashraw}{c4371d0c06ac6433438722377b03f547}
+      \strng{bibnamehash}{c4371d0c06ac6433438722377b03f547}
+      \strng{authorbibnamehash}{c4371d0c06ac6433438722377b03f547}
+      \strng{authornamehash}{c4371d0c06ac6433438722377b03f547}
+      \strng{authorfullhash}{c4371d0c06ac6433438722377b03f547}
+      \strng{authorfullhashraw}{c4371d0c06ac6433438722377b03f547}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We propose a multivariate extreme value threshold model for joint tail estimation which overcomes the problems encountered with existing techniques when the variables are near independence. We examine inference under the model and develop tests for independence of extremes of the marginal variables, both when the thresholds are fixed, and when they increase with the sample size. Motivated by results obtained from this model, we give a new and widely applicable characterisation of dependence in the joint tail which includes existing models as special cases. A new parameter which governs the form of dependence is of fundamental importance to this characterisation. By estimating this parameter, we develop a diagnostic test which assesses the applicability of bivariate extreme value joint tail models. The methods are demonstrated through simulation and by analysing two previously published data sets.}
+      \field{issn}{0006-3444}
+      \field{journaltitle}{Biometrika}
+      \field{title}{{Statistics for near independence in multivariate extreme values.}}
+      \field{volume}{83}
+      \field{year}{1996}
+      \field{pages}{169\bibrangedash 187}
+      \range{pages}{19}
+      \verb{file}
+      \verb :Users/samorris/Dropbox/Mendeley/Biometrika/Ledford, Tawn - 1996 - Statistics for near independence in multivariate extreme values.pdf:pdf
+      \endverb
+      \keyw{QA Mathematics}
+    \endentry
+    \entry{morris_exploration_2019}{article}{}{}
+      \name{author}{3}{}{%
         {{un=0,uniquepart=base,hash=fd7aebb0015b9113fe68ffdcb0fe9dc6}{%
            family={Morris},
            familyi={M\bibinitperiod},
@@ -94,12 +489,78 @@
            given={Brian\bibnamedelima J.},
            giveni={B\bibinitperiod\bibinitdelim J\bibinitperiod},
            givenun=0}}%
-        {{un=0,uniquepart=base,hash=8f231cf05a4d636c84fc109b3fe01297}{%
+        {{un=2,uniquepart=given,hash=8f231cf05a4d636c84fc109b3fe01297}{%
            family={Thibaud},
            familyi={T\bibinitperiod},
            given={Emeric},
            giveni={E\bibinitperiod},
+           givenun=2}}%
+      }
+      \list{language}{1}{%
+        {en}%
+      }
+      \strng{namehash}{915ebb176f1c6775ccb726c163f6760c}
+      \strng{fullhash}{915ebb176f1c6775ccb726c163f6760c}
+      \strng{fullhashraw}{915ebb176f1c6775ccb726c163f6760c}
+      \strng{bibnamehash}{915ebb176f1c6775ccb726c163f6760c}
+      \strng{authorbibnamehash}{915ebb176f1c6775ccb726c163f6760c}
+      \strng{authornamehash}{915ebb176f1c6775ccb726c163f6760c}
+      \strng{authorfullhash}{915ebb176f1c6775ccb726c163f6760c}
+      \strng{authorfullhashraw}{915ebb176f1c6775ccb726c163f6760c}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Statistical methods for inference on spatial extremes of large datasets are yet to be developed. Motivated by standard dimension reduction techniques used in spatial statistics, we propose an approach based on empirical basis functions to explore and model spatial extremal dependence. Based on a low-rank max-stable model, we propose a data-driven approach to estimate meaningful basis functions using empirical pairwise extremal coefficients. These spatial empirical basis functions can be used to visualize the main trends in extremal dependence. In addition to exploratory analysis, we describe how these functions can be used in a Bayesian hierarchical model to model spatial extremes of large datasets. We illustrate our methods on extreme precipitations in eastern USA.}
+      \field{issn}{1537-2693}
+      \field{journaltitle}{JABES}
+      \field{month}{12}
+      \field{number}{4}
+      \field{title}{Exploration and {Inference} in {Spatial} {Extremes} {Using} {Empirical} {Basis} {Functions}}
+      \field{urlday}{10}
+      \field{urlmonth}{2}
+      \field{urlyear}{2026}
+      \field{volume}{24}
+      \field{year}{2019}
+      \field{urldateera}{ce}
+      \field{pages}{555\bibrangedash 572}
+      \range{pages}{18}
+      \verb{doi}
+      \verb 10.1007/s13253-019-00359-1
+      \endverb
+      \verb{file}
+      \verb Full Text PDF:C\:\\Users\\Yi-Xuan\\Zotero\\storage\\QSFRTNLQ\\Morris …等 - 2019 - Exploration and Inference in Spatial Extremes Using Empirical Basis Functions.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1007/s13253-019-00359-1
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1007/s13253-019-00359-1
+      \endverb
+      \keyw{Dimension reduction,Max-stable process,Non-stationary data analysis}
+    \endentry
+    \entry{morris_space-time_2017}{article}{}{}
+      \name{author}{4}{ul=4}{%
+        {{un=0,uniquepart=base,hash=fd7aebb0015b9113fe68ffdcb0fe9dc6}{%
+           family={Morris},
+           familyi={M\bibinitperiod},
+           given={Samuel\bibnamedelima A.},
+           giveni={S\bibinitperiod\bibinitdelim A\bibinitperiod},
            givenun=0}}%
+        {{un=0,uniquepart=base,hash=07e2b57b1d5830aa04444bd2a4cba3d6}{%
+           family={Reich},
+           familyi={R\bibinitperiod},
+           given={Brian\bibnamedelima J.},
+           giveni={B\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=2,uniquepart=given,hash=8f231cf05a4d636c84fc109b3fe01297}{%
+           family={Thibaud},
+           familyi={T\bibinitperiod},
+           given={Emeric},
+           giveni={E\bibinitperiod},
+           givenun=2}}%
         {{un=0,uniquepart=base,hash=f0d3c070e26940d106aaabd7802db5a3}{%
            family={Cooley},
            familyi={C\bibinitperiod},
@@ -107,12 +568,12 @@
            giveni={D\bibinitperiod},
            givenun=0}}%
       }
-      \strng{namehash}{9c2671cca9bc85b07936877af4dcf616}
+      \strng{namehash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
       \strng{fullhash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
       \strng{fullhashraw}{e9f17b5f6bb6cd32729d9b4b9d20f841}
-      \strng{bibnamehash}{9c2671cca9bc85b07936877af4dcf616}
-      \strng{authorbibnamehash}{9c2671cca9bc85b07936877af4dcf616}
-      \strng{authornamehash}{9c2671cca9bc85b07936877af4dcf616}
+      \strng{bibnamehash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
+      \strng{authorbibnamehash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
+      \strng{authornamehash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
       \strng{authorfullhash}{e9f17b5f6bb6cd32729d9b4b9d20f841}
       \strng{authorfullhashraw}{e9f17b5f6bb6cd32729d9b4b9d20f841}
       \field{sortinit}{M}
@@ -147,6 +608,105 @@
       \verb{url}
       \verb https://doi.org/10.1111/biom.12644
       \endverb
+    \endentry
+    \entry{Padoan2010}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=5187c98ba4ab429057f9c18f4eff2ecd}{%
+           family={Padoan},
+           familyi={P\bibinitperiod},
+           given={S.\bibnamedelimi A.},
+           giveni={S\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b5c228b9ac490853ba015575f2aab340}{%
+           family={Ribatet},
+           familyi={R\bibinitperiod},
+           given={M.},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d28415fc64de4506345a4621346cccb9}{%
+           family={Sisson},
+           familyi={S\bibinitperiod},
+           given={S.\bibnamedelimi A.},
+           giveni={S\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{25d72ea173db060ebab846d147c29d58}
+      \strng{fullhash}{25d72ea173db060ebab846d147c29d58}
+      \strng{fullhashraw}{25d72ea173db060ebab846d147c29d58}
+      \strng{bibnamehash}{25d72ea173db060ebab846d147c29d58}
+      \strng{authorbibnamehash}{25d72ea173db060ebab846d147c29d58}
+      \strng{authornamehash}{25d72ea173db060ebab846d147c29d58}
+      \strng{authorfullhash}{25d72ea173db060ebab846d147c29d58}
+      \strng{authorfullhashraw}{25d72ea173db060ebab846d147c29d58}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{issn}{0162-1459}
+      \field{journaltitle}{Journal of the American Statistical Association}
+      \field{month}{3}
+      \field{number}{489}
+      \field{title}{{Likelihood-Based Inference for Max-Stable Processes}}
+      \field{volume}{105}
+      \field{year}{2010}
+      \field{pages}{263\bibrangedash 277}
+      \range{pages}{15}
+      \verb{file}
+      \verb :Users/samorris/Dropbox/Mendeley/Journal of the American Statistical Association/Padoan, Ribatet, Sisson - 2010 - Likelihood-Based Inference for Max-Stable Processes(2).pdf:pdf
+      \endverb
+      \keyw{Extreme value theory,Multivariate extreme analysis,Pseudo-likelihood,Rainfall,Spatial dependence,Spatial extremes,extreme value theory,multivariate extreme analysis,pseudo-likelihood,rainfall,spatial dependence,spatial extremes}
+    \endentry
+    \entry{Thibaud2013}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=2,uniquepart=given,hash=afb6d7e657784298aac238a282df5b57}{%
+           family={Thibaud},
+           familyi={T\bibinitperiod},
+           given={E.},
+           giveni={E\bibinitperiod},
+           givenun=2}}%
+        {{un=0,uniquepart=base,hash=96f7a20b7f03ae09efc3cc03befc3053}{%
+           family={Mutzner},
+           familyi={M\bibinitperiod},
+           given={R.},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=2,uniquepart=given,hash=b218552bc9538d0bc933d3ae9c4575ac}{%
+           family={Davison},
+           familyi={D\bibinitperiod},
+           given={A.\bibnamedelimi C.},
+           giveni={A\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=2}}%
+      }
+      \strng{namehash}{cb08a5798c53e3e78246eecc6e1be899}
+      \strng{fullhash}{cb08a5798c53e3e78246eecc6e1be899}
+      \strng{fullhashraw}{cb08a5798c53e3e78246eecc6e1be899}
+      \strng{bibnamehash}{cb08a5798c53e3e78246eecc6e1be899}
+      \strng{authorbibnamehash}{cb08a5798c53e3e78246eecc6e1be899}
+      \strng{authornamehash}{cb08a5798c53e3e78246eecc6e1be899}
+      \strng{authorfullhash}{cb08a5798c53e3e78246eecc6e1be899}
+      \strng{authorfullhashraw}{cb08a5798c53e3e78246eecc6e1be899}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We propose an approach to spatial modeling of extreme rainfall, based on max-stable processes fitted using partial duration series and a censored threshold likelihood function. The resulting models are coherent with classical extreme-value theory and allow the consistent treatment of spatial dependence of rainfall using ideas related to those of classical geostatistics. We illustrate the ideas through data from the Val Ferret watershed in the Swiss Alps, based on daily cumulative rainfall totals recorded at 24 stations for four summers, augmented by a longer series from nearby. We compare the fits of different statistical models appropriate for spatial extremes, select that best fitting our data, and compare return level estimates for the total daily rainfall over the stations. The method can be used in other situations to produce simulations needed for hydrological models, and in particular, for the generation of spatially heterogeneous extreme rainfall fields over catchments.}
+      \field{isbn}{1944-7973}
+      \field{issn}{00431397}
+      \field{journaltitle}{Water Resources Research}
+      \field{number}{8}
+      \field{title}{{Threshold modeling of extreme spatial rainfall}}
+      \field{volume}{49}
+      \field{year}{2013}
+      \field{pages}{4633\bibrangedash 4644}
+      \range{pages}{12}
+      \verb{file}
+      \verb :Users/samorris/Dropbox/Mendeley/Water Resources Research/Thibaud, Mutzner, Davison - 2013 - Threshold modeling of extreme spatial rainfall.pdf:pdf
+      \endverb
+      \keyw{extremes,max-stable model,spatial rainfall}
     \endentry
     \entry{tzeng_resolution_2018}{article}{}{}
       \name{author}{2}{}{%
@@ -208,6 +768,85 @@
       \verb https://doi.org/10.1080/00401706.2017.1345701
       \endverb
       \keyw{Computer experiment,Maximum likelihood,Multi-resolution,Nonstationary spatial covariance function,Thin-plate splines}
+    \endentry
+    \entry{epa2024downscaler}{report}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=8233d83a5e663161d707a62961f8f66f}{%
+           family={{U.S. Environmental Protection Agency}},
+           familyi={U\bibinitperiod}}}%
+      }
+      \list{institution}{2}{%
+        {Office of Air Quality Planning}%
+        {Standards, U.S. EPA}%
+      }
+      \strng{namehash}{8233d83a5e663161d707a62961f8f66f}
+      \strng{fullhash}{8233d83a5e663161d707a62961f8f66f}
+      \strng{fullhashraw}{8233d83a5e663161d707a62961f8f66f}
+      \strng{bibnamehash}{8233d83a5e663161d707a62961f8f66f}
+      \strng{authorbibnamehash}{8233d83a5e663161d707a62961f8f66f}
+      \strng{authornamehash}{8233d83a5e663161d707a62961f8f66f}
+      \strng{authorfullhash}{8233d83a5e663161d707a62961f8f66f}
+      \strng{authorfullhashraw}{8233d83a5e663161d707a62961f8f66f}
+      \field{sortinit}{U}
+      \field{sortinithash}{6901a00e45705986ee5e7ca9fd39adca}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{month}{10}
+      \field{number}{EPA-454/R-24-002}
+      \field{title}{Bayesian Space-time Downscaling Fusion Model (Downscaler) Derived Estimates of Air Quality for 2021}
+      \field{type}{Annual Report}
+      \field{year}{2024}
+      \verb{urlraw}
+      \verb https://www.epa.gov/hesc/rsig-related-downloadable-data-files
+      \endverb
+      \verb{url}
+      \verb https://www.epa.gov/hesc/rsig-related-downloadable-data-files
+      \endverb
+    \endentry
+    \entry{Wadsworth2012}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=d5943e6bde8a0bcedc815b6e29b7f71a}{%
+           family={Wadsworth},
+           familyi={W\bibinitperiod},
+           given={Jennifer\bibnamedelima L.},
+           giveni={J\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+        {{un=1,uniquepart=given,hash=72c869378e68a398a30bef4b31fbd22e}{%
+           family={Tawn},
+           familyi={T\bibinitperiod},
+           given={Jonathan\bibnamedelima A.},
+           giveni={J\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=1}}%
+      }
+      \strng{namehash}{12a1c81500f384e38772b18df654d0ae}
+      \strng{fullhash}{12a1c81500f384e38772b18df654d0ae}
+      \strng{fullhashraw}{12a1c81500f384e38772b18df654d0ae}
+      \strng{bibnamehash}{12a1c81500f384e38772b18df654d0ae}
+      \strng{authorbibnamehash}{12a1c81500f384e38772b18df654d0ae}
+      \strng{authornamehash}{12a1c81500f384e38772b18df654d0ae}
+      \strng{authorfullhash}{12a1c81500f384e38772b18df654d0ae}
+      \strng{authorfullhashraw}{12a1c81500f384e38772b18df654d0ae}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Current dependence models for spatial extremes are based upon max-stable processes. Within this class, there are few inferentially viable models available, and we propose one further model. More problematic are the restrictive assumptions that must be made when using max-stable processes to model dependence for spatial extremes: it must be assumed that the dependence structure of the observed extremes is compatible with a limiting model that holds for all events more extreme than those that have already occurred. This problem has long been acknowledged in the context of finite-dimensional multivariate extremes, in particular when data display dependence at observable levels, but are independent in the limit. We propose a flexible class of models that is suitable for such data in a spatial context. In addition, we consider the situation where the extremal dependence structure may vary with distance. We apply our models to spatially referenced significant wave height data from the North Sea, finding evidence that their extremal structure is not compatible with a limiting dependence model.}
+      \field{issn}{00063444}
+      \field{journaltitle}{Biometrika}
+      \field{number}{2}
+      \field{title}{{Dependence modelling for spatial extremes}}
+      \field{volume}{99}
+      \field{year}{2012}
+      \field{pages}{253\bibrangedash 272}
+      \range{pages}{20}
+      \verb{file}
+      \verb :Users/samorris/Dropbox/Mendeley/Biometrika/Wadsworth, Tawn - 2012 - Dependence modelling for spatial extremes.pdf:pdf
+      \endverb
+      \keyw{Asymptotic independence,Extremal dependence,Max-stable process,Significant wave height,Spatial extreme value theory}
     \endentry
   \enddatalist
 \endrefsection
