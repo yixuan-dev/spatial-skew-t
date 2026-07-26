@@ -142,9 +142,24 @@
 \WatermarkOff                           % 不要浮水印
 ~ 
 
-% %% 序言或致謝
-% \newpage
-% \WatermarkOn                          % 浮水印
+%% 序言或致謝
+\newpage
+\setcounter{page}{3}                    % 將頁碼重設為 3
+\WatermarkOn                          % 浮水印
+\section*{致謝辭}
+\addcontentsline{toc}{section}{致謝辭}
+
+首先，要感謝我的父母，有你們的一直以來給予的信任及裁培，讓我可以專注地完成學業。
+
+雖然很開心自己完成了這段碩士旅程，但在為論文提筆致謝辭時不知道為何點點不捨在心頭上激起漣漪。
+
+\begin{flushright}
+謝易軒 謹致
+
+國立東華大學應用數學系統計碩士班
+
+中華民國 115 年 7 月 25 日
+\end{flushright}
 
 % %% 空白頁
 % \newpage
@@ -154,7 +169,7 @@
 
 %% 中文摘要 + 關鍵詞
 \newpage
-\setcounter{page}{3}                    % 將頁碼重設為 3
+\setcounter{page}{4}                    % 將頁碼重設為 4
 \WatermarkOn                            % 浮水印
 \section*{摘要}
 \addcontentsline{toc}{section}{摘要}
@@ -171,7 +186,7 @@
 
 %% 英文摘要 + 關鍵詞
 \newpage
-\setcounter{page}{4}                    % 將頁碼重設為 4
+\setcounter{page}{5}                    % 將頁碼重設為 5
 \WatermarkOn                            % 浮水印
 \section*{Abstract}
 \addcontentsline{toc}{section}{Abstract}
@@ -203,7 +218,7 @@ candidate model class selected by held-out threshold predictive performance.
 
 %% 目錄頁
 \newpage
-\setcounter{page}{5}                    % 將頁碼重設為 5
+\setcounter{page}{6}                    % 將頁碼重設為 6
 \addcontentsline{toc}{section}{Contents}
 \tableofcontents
 \WatermarkOn                            % 浮水印
@@ -216,7 +231,7 @@ candidate model class selected by held-out threshold predictive performance.
 
 %% 圖目錄頁
 \newpage
-\setcounter{page}{6}                    % 將頁碼重設為 6
+\setcounter{page}{7}                    % 將頁碼重設為 7
 \addcontentsline{toc}{section}{List of Figures}
 \listoffigures
 \WatermarkOn                            % 浮水印
@@ -229,7 +244,7 @@ candidate model class selected by held-out threshold predictive performance.
 
 %% 表目錄頁
 \newpage
-\setcounter{page}{7}                    % 將頁碼重設為 7
+\setcounter{page}{8}                    % 將頁碼重設為 8
 \addcontentsline{toc}{section}{List of Tables}
 \listoftables
 \WatermarkOn                            % 浮水印
