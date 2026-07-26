@@ -3,9 +3,9 @@
 #
 # Loads fits from <results_dir>/<setting>-<method>-<dataset>[-K<mrts_k>].RData,
 # computes per-cell Brier / Quantile scores plus the multivariate energy
-# and variogram scores against the held-out test set in the loaded
-# simdata, captures parameter quantile intervals + elapsed_sec, and
-# writes a single .RData cache to:
+# and variogram scores and the univariate CRPS against the held-out test
+# set in the loaded simdata, captures parameter quantile intervals +
+# elapsed_sec, and writes a single .RData cache to:
 #
 #   output/results/scores<setting><suffix>.RData
 #
@@ -211,6 +211,12 @@ elapsed_sec  <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
 energy.score <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
 vario.score  <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
 
+# Univariate CRPS: crps_sample at each held-out site, averaged over test
+# sites within a time and then over times. The marginal companion to the
+# energy score (its multivariate generalization); shares the same thinned
+# predictive draws.
+crps.score   <- array(NA_real_, dim = c(nsets, nmeth, nks), dimnames = dn_blk)
+
 # Point-prediction RMSE: posterior predictive mean vs held-out y, averaged
 # over test sites and times. One number per (dataset, method, mrts_k), like
 # the multivariate scores. Noise-dominated and largely insensitive to MRTS
@@ -283,6 +289,7 @@ multivar_scores <- function(yp, validate, p = vs_p, max_draws = es_max_draws) {
   }
   es <- rep(NA_real_, nt)
   vs <- rep(NA_real_, nt)
+  cr <- rep(NA_real_, nt)
   for (t in seq_len(nt)) {
     yt   <- validate[, t]
     keep <- is.finite(yt)
@@ -292,13 +299,17 @@ multivar_scores <- function(yp, validate, p = vs_p, max_draws = es_max_draws) {
     es[t] <- tryCatch(
       scoringRules::es_sample(y = yt[keep], dat = dat),
       error = function(e) NA_real_)
+    cr[t] <- tryCatch(
+      mean(scoringRules::crps_sample(y = yt[keep], dat = dat)),
+      error = function(e) NA_real_)
     if (sum(keep) >= 2L) {                    # variogram needs >= 2 sites
       vs[t] <- tryCatch(
         scoringRules::vs_sample(y = yt[keep], dat = dat, p = p),
         error = function(e) NA_real_)
     }
   }
-  list(energy = mean(es, na.rm = TRUE), vario = mean(vs, na.rm = TRUE))
+  list(energy = mean(es, na.rm = TRUE), vario = mean(vs, na.rm = TRUE),
+       crps = mean(cr, na.rm = TRUE))
 }
 
 # ---- score loop ------------------------------------------------------
@@ -307,8 +318,8 @@ save_checkpoint <- function() {
   # `results_dir`) so loading the cache in tables.R does not shadow
   # tables.R's local `results_dir = "output/results"` variable.
   fits_dir <- results_dir
-  save(quant.score, brier.score, energy.score, vario.score, pred.rmse,
-       recovery.rmse,
+  save(quant.score, brier.score, energy.score, vario.score, crps.score,
+       pred.rmse, recovery.rmse,
        beta.0, beta.1, beta.2,
        tau.alpha, tau.beta, rho, nu, gamma, lambda,
        elapsed_sec,
@@ -348,6 +359,7 @@ for (di in seq_along(datasets)) {
         ms <- multivar_scores(fit$yp, validate)
         energy.score[di, mi, ki] <- ms$energy
         vario.score[di, mi, ki]  <- ms$vario
+        crps.score[di, mi, ki]   <- ms$crps
         ppmean <- apply(fit$yp, c(2, 3), mean)   # np x nt predictive mean
         pred.rmse[di, mi, ki] <- sqrt(mean((ppmean - validate)^2, na.rm = TRUE))
       }

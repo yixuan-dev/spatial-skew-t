@@ -1,6 +1,0 @@
-Rscript run-settings.R --data=simdata_nonsta.RData --setting=20 "3" 8 2 "4" "25"
-Rscript run-settings.R --data=simdata_nonsta.RData --setting=20 "1:10" 8 2 "5" "25"
-Rscript run-settings.R --data=simdata_nonsta.RData --setting=20 "4:6" 8 2 "4" "30"
-Rscript run-settings.R --data=simdata_nonsta.RData --setting=20 "7:10" 8 2 "5" "30"
-Rscript run-settings.R --data=simdata_nonsta.RData --setting=20 "10" 8 2 "3" "40"
-Rscript run-settings.R --data=simdata_nonsta.RData --setting=20 "4:10" 8 2 "3:5" "50"
