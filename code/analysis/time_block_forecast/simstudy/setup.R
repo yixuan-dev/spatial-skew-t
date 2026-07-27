@@ -92,16 +92,18 @@ dist.t <- "t"
 
 # AR(2) coefficient pair per setting (shared by tau*, z*, w*).
 phi.settings <- list(
-  c(0.00, 0.00),                  # 1 - i.i.d. control
-  c(0.12, -0.05),                 # 2 - weak
-  c(0.60, -0.30),                 # 3 - moderate (reference case in the note)
-  c(0.80, -0.35),                 # 4 - strong
-  c(0.15, 0.80),                  # 5 - near-unit-root (rho(F) = 0.973)
-  list(type = "arfima", d = 0.35),  # 6 - long memory, Hurst 0.85
-  list(type = "arfima", d = 0.45)   # 7 - long memory, Hurst 0.95
+  c(0.00, 0.00), # 1 - i.i.d. control
+  c(0.12, -0.05), # 2 - weak
+  c(0.60, -0.30), # 3 - moderate (reference case in the note)
+  c(0.80, -0.35), # 4 - strong
+  c(0.15, 0.80), # 5 - near-unit-root (rho(F) = 0.973)
+  list(type = "arfima", d = 0.35), # 6 - long memory, Hurst 0.85
+  list(type = "arfima", d = 0.45) # 7 - long memory, Hurst 0.95
 )
-setting.label <- c("iid", "weak", "moderate", "strong", "nearunit",
-                   "lm35", "lm45")
+setting.label <- c(
+  "iid", "weak", "moderate", "strong", "nearunit",
+  "lm35", "lm45"
+)
 nsettings <- length(phi.settings)
 
 # fail loudly if any non-control pair leaves the stationarity triangle
