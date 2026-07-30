@@ -1,0 +1,199 @@
+#########################################################################
+# chunk_sanity_tbf.R -- validity gate for one time-block score cache. The
+# driver deletes a dataset's ~2.4 GB of fits only after this passes, so
+# every assertion here exists to stop an unrecoverable deletion.
+#
+# Usage (from code/analysis/time_block_forecast/simstudy):
+#   Rscript DESKTOP-61SBCCI/chunk_sanity_tbf.R <cache.RData> <setting> <datasets> <methods> [es_draws]
+#   e.g. Rscript DESKTOP-61SBCCI/chunk_sanity_tbf.R \
+#          output/results/scores5_d3.RData 5 3 "c(1,2,4)" 1000
+#
+# Deliberately NOT checked, because assertion C is not a gate in this run:
+# C_spread and B_truth failures are counted and printed, never fatal. The
+# lambda ~ HN(0, 20) prior is the protection against the reflected ridge;
+# the diagnostics are a descriptive ledger.
+#########################################################################
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) < 4 || length(args) > 6) {
+  stop(paste("usage: chunk_sanity_tbf.R <cache.RData> <setting>",
+             "<datasets> <methods> [es_draws] [min_elapsed_sec]"), call. = FALSE)
+}
+cache_file <- args[1]
+setting_expect <- as.integer(args[2])
+datasets_expect <- sort(as.integer(eval(parse(text = args[3]))))
+methods_expect <- as.integer(eval(parse(text = args[4])))
+es_expect <- if (length(args) >= 5) as.integer(args[5]) else NA_integer_
+# Production cells take 1.5-2 h; anything far under that means mcmc() gave
+# up early. Lowered only by the smoke test, which fits at toy iteration
+# counts -- the driver always leaves it at the default.
+min_elapsed <- if (length(args) >= 6) as.numeric(args[6]) else 1800
+
+fail <- function(...) {
+  cat("[SANITY FAILED] ", sprintf(...), "\n", sep = "")
+  quit(status = 1)
+}
+
+if (!file.exists(cache_file)) fail("cache not found: %s", cache_file)
+e <- new.env()
+load(cache_file, envir = e)
+
+need <- c("crps.lead", "brier.lead", "energy.score", "vario.score",
+          "elapsed_sec", "fit.diag", "post.summary", "hn_prior",
+          "es_max_draws", "probs", "datasets", "methods", "setting",
+          "block_H", "block_seams", "data_path", "data_suffix", "fits_dir")
+for (nm in need) {
+  if (!exists(nm, envir = e, inherits = FALSE)) fail("object `%s` missing", nm)
+}
+
+nD <- length(datasets_expect)
+nM <- length(methods_expect)
+H <- 15L
+NB <- 5L
+NPROB <- 7L
+
+# ---- identity of the cache --------------------------------------------
+if (!identical(as.integer(e$setting), setting_expect)) {
+  fail("setting is %s, expected %d", e$setting, setting_expect)
+}
+# scores.R defaults --datasets to ALL datasets in simdata (1:50) and fills
+# the absent ones with NA. Gating such a cache would delete the fits of a
+# chunk that was, for the most part, never scored.
+if (!identical(sort(as.integer(e$datasets)), datasets_expect)) {
+  fail("datasets are [%s], expected [%s] -- was --datasets passed?",
+       paste(e$datasets, collapse = ","), paste(datasets_expect, collapse = ","))
+}
+if (!identical(dimnames(e$crps.lead)[["dataset"]],
+               as.character(sort(as.integer(e$datasets))))) {
+  fail("crps.lead dataset dimnames disagree with the `datasets` vector")
+}
+# scores.R defaults --methods to 1:2. Missing method 4 here would mean its
+# fits are deleted having never been scored: ~40 core-hours, unrecoverable.
+if (!identical(as.integer(e$methods), methods_expect)) {
+  fail("methods are [%s], expected [%s] -- was --methods passed?",
+       paste(e$methods, collapse = ","), paste(methods_expect, collapse = ","))
+}
+
+# ---- the run's premise -------------------------------------------------
+if (!isTRUE(e$hn_prior)) {
+  fail("hn_prior is %s, expected TRUE -- was --hn passed to run-settings.R?",
+       format(e$hn_prior))
+}
+if (!identical(as.integer(e$es_max_draws), es_expect)) {
+  fail("es_max_draws is %s, expected %s",
+       format(e$es_max_draws), format(es_expect))
+}
+
+# ---- geometry ----------------------------------------------------------
+if (!identical(as.integer(e$block_H), H)) fail("block_H is %s, expected %d", e$block_H, H)
+if (!identical(as.integer(e$block_seams), c(50L, 80L, 110L, 140L, 170L))) {
+  fail("block_seams are [%s], expected 50,80,110,140,170",
+       paste(e$block_seams, collapse = ","))
+}
+if (!isTRUE(all.equal(as.numeric(e$probs),
+                      c(0.90, 0.92, 0.94, 0.95, 0.96, 0.98, 0.99)))) {
+  fail("probs grid is [%s], expected the 7-value high-quantile grid",
+       paste(e$probs, collapse = ","))
+}
+
+chk_dim <- function(nm, expect_dim, expect_names) {
+  o <- get(nm, envir = e)
+  if (!identical(dim(o), expect_dim)) {
+    fail("`%s` dim is [%s], expected [%s]", nm,
+         paste(dim(o), collapse = "x"), paste(expect_dim, collapse = "x"))
+  }
+  if (!identical(names(dimnames(o)), expect_names)) {
+    fail("`%s` dimnames names are [%s], expected [%s]", nm,
+         paste(names(dimnames(o)), collapse = ","),
+         paste(expect_names, collapse = ","))
+  }
+}
+chk_dim("crps.lead", c(H, nD, nM, NB), c("lead", "dataset", "method", "block"))
+chk_dim("brier.lead", c(H, NPROB, nD, nM, NB),
+        c("lead", "quantile", "dataset", "method", "block"))
+chk_dim("energy.score", c(nD, nM, NB), c("dataset", "method", "block"))
+chk_dim("vario.score", c(nD, nM, NB), c("dataset", "method", "block"))
+chk_dim("elapsed_sec", c(nD, nM), c("dataset", "method"))
+chk_dim("fit.diag", c(18L, nD, nM, NB), c("stat", "dataset", "method", "block"))
+chk_dim("post.summary", c(5L, 15L, nD, nM, NB),
+        c("pstat", "param", "dataset", "method", "block"))
+
+# ---- completeness: no NA is legitimate in this study -------------------
+# scores.R silently `next`s past a missing or forecast-less fit, leaving
+# NA behind. This is the assertion that catches it.
+for (nm in c("crps.lead", "brier.lead", "energy.score", "vario.score",
+             "elapsed_sec")) {
+  o <- get(nm, envir = e)
+  if (anyNA(o)) fail("`%s` has %d NA cells -- a fit was not scored", nm, sum(is.na(o)))
+  if (!all(is.finite(o))) fail("`%s` has non-finite cells", nm)
+  if (any(o <= 0)) fail("`%s` has non-positive cells", nm)
+}
+if (any(e$brier.lead > 1)) fail("`brier.lead` exceeds 1")
+
+# ---- diagnostics / posterior summaries must have arrived ---------------
+for (st in c("lambda", "beta0", "sd_lead_max")) {
+  if (anyNA(e$fit.diag[st, , , , drop = FALSE])) {
+    fail("`fit.diag` row `%s` has NA -- inline diagnostics did not reach the cache", st)
+  }
+}
+if (anyNA(e$post.summary["mean", "beta0", , , , drop = FALSE])) {
+  fail("`post.summary` has NA for beta0 -- posterior summaries did not reach the cache")
+}
+# The per-cell mirrors are what survive the deletion; they must exist first.
+for (d in datasets_expect) {
+  for (m in methods_expect) {
+    stem <- sprintf("%d-%d-%d", setting_expect, m, d)
+    for (f in c(sprintf("output/diag/diag_%s.csv", stem),
+                sprintf("output/diag/post_%s.csv", stem),
+                sprintf("output/diag/pred_%s.RData", stem))) {
+      if (!file.exists(f)) fail("durable mirror missing: %s", f)
+    }
+  }
+}
+
+# ---- provenance of the data --------------------------------------------
+if (!identical(e$data_suffix, "")) fail("data_suffix is '%s', expected ''", e$data_suffix)
+if (!identical(e$fits_dir, "results")) fail("fits_dir is '%s', expected 'results'", e$fits_dir)
+if (!identical(basename(e$data_path), "simdata.RData")) {
+  fail("data_path is '%s', expected .../simdata.RData", e$data_path)
+}
+
+# ---- method identity (partial cover for the ar1 forecast wiring) -------
+mdn <- dimnames(e$fit.diag)[["method"]]
+has_phi1 <- function(m) all(!is.na(e$fit.diag["phi1.z", , as.character(m), ]))
+has_phi2 <- function(m) all(!is.na(e$fit.diag["phi2.z", , as.character(m), ]))
+if ("1" %in% mdn && (has_phi1(1) || has_phi2(1))) {
+  fail("method 1 carries phi chains -- it should be i.i.d. in time")
+}
+if ("2" %in% mdn && !(has_phi1(2) && has_phi2(2))) {
+  fail("method 2 is missing a phi lag -- it should be AR(2)")
+}
+if ("4" %in% mdn && !(has_phi1(4) && !has_phi2(4))) {
+  fail("method 4 phi structure is not single-lag -- it should be AR(1)")
+}
+
+# ---- runtime plausibility (last, so a toy smoke cache can exercise -----
+# ---- every assertion above before tripping on this one) ----------------
+# A production cell takes 1.5-2 h. Far under that means mcmc() gave up
+# early -- options(warn = 2) makes any warning fatal inside the sampler,
+# and the cell would still have saved whatever it had.
+if (any(e$elapsed_sec < min_elapsed)) {
+  fail("elapsed_sec has cells under %.0f s (min %.0f s) -- did a fit abort?",
+       min_elapsed, min(e$elapsed_sec))
+}
+if (any(e$elapsed_sec > 6 * 3600)) {
+  fail("elapsed_sec has cells over 6 h (max %.0f s)", max(e$elapsed_sec))
+}
+
+# ---- descriptive only: reported, never fatal ---------------------------
+n_c <- sum(e$fit.diag["C_spread", , , ] == 0, na.rm = TRUE)
+n_b <- sum(e$fit.diag["B_truth", , , ] == 0, na.rm = TRUE)
+lam_neg <- sum(e$fit.diag["lambda", , , ] < 0, na.rm = TRUE)
+
+cat(sprintf(paste("[SANITY OK] %s: setting %d, datasets %s, methods [%s],",
+                  "%d blocks, HN prior, es_draws %s\n"),
+            cache_file, setting_expect,
+            paste(range(datasets_expect), collapse = ".."),
+            paste(methods_expect, collapse = ","), NB, format(es_expect)))
+cat(sprintf("            diagnostics (descriptive): B_truth fail %d, C_spread fail %d, lambda<0 %d of %d block-cells\n",
+            n_b, n_c, lam_neg, nD * nM * NB))

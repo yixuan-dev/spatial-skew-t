@@ -107,6 +107,18 @@ resolve_simstudy_data_path <- function(data_arg = NULL) {
   normalizePath("./simdata.RData", winslash = "/", mustWork = TRUE)
 }
 
+# Short git sha of the working tree, for run provenance. Returns NA when
+# git is unavailable or the tree is not a repository -- never errors, since
+# this is only ever recorded, never acted on.
+tbf_git_sha <- function() {
+  out <- tryCatch(
+    suppressWarnings(system2("git", c("rev-parse", "--short", "HEAD"),
+      stdout = TRUE, stderr = FALSE)),
+    error = function(e) NA_character_
+  )
+  if (length(out) != 1L || !nzchar(out)) NA_character_ else out
+}
+
 format_runtime_timestamp <- function(timestamp) {
   if (length(timestamp) == 0 || anyNA(timestamp)) return(NA_character_)
   format(as.POSIXct(timestamp, tz = "UTC"), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
@@ -175,15 +187,89 @@ get_tbf_method_catalog <- function() {
   )
 }
 
-# ---- setting catalog (data-generating AR(2) strength, --setting axis) -
+# ---- setting catalog (data-generating temporal law, --setting axis) ---
+# Mirrors phi.settings in setup.R. Settings 6-7 are ARFIMA(0, d, 0), which
+# has no AR(2) representation, so phi1/phi2 are NA there and `family`
+# is what callers must branch on -- never the setting id.
 get_tbf_setting_catalog <- function() {
   data.frame(
-    setting_id = 1:4,
-    label = c("iid", "weak", "moderate", "strong"),
-    phi1 = c(0.00, 0.12, 0.60, 0.80),
-    phi2 = c(0.00, -0.05, -0.30, -0.35),
+    setting_id = 1:7,
+    label = c("iid", "weak", "moderate", "strong", "nearunit", "lm35", "lm45"),
+    family = c("iid", "ar2", "ar2", "ar2", "ar2", "arfima", "arfima"),
+    phi1 = c(0.00, 0.12, 0.60, 0.80, 0.15, NA_real_, NA_real_),
+    phi2 = c(0.00, -0.05, -0.30, -0.35, 0.80, NA_real_, NA_real_),
+    d = c(NA_real_, NA_real_, NA_real_, NA_real_, NA_real_, 0.35, 0.45),
+    hurst = c(NA_real_, NA_real_, NA_real_, NA_real_, NA_real_, 0.85, 0.95),
     stringsAsFactors = FALSE
   )
+}
+
+# ---- ground truth of the generating parameters (simulation only) ------
+# beta.t = c(10, 0, 0), lambda.t = 3, rho.t = 1, nu.t = 0.5, gamma.t = 0.9,
+# tau.alpha.t = 6, tau.beta.t = 16 (setup.R); the sampler's internal gamma
+# shape/rate is the /2 reparameterisation, i.e. (3, 8).
+get_tbf_truth <- function(setting_id) {
+  row <- get_tbf_setting_catalog()
+  row <- row[row$setting_id == as.integer(setting_id), , drop = FALSE]
+  if (nrow(row) != 1L) stop(sprintf("unknown setting id %s", setting_id), call. = FALSE)
+  list(
+    beta0 = 10, beta1 = 0, beta2 = 0, lambda = 3,
+    rho = 1, nu = 0.5, gamma = 0.9,
+    tau.alpha = 3, tau.beta = 8,
+    family = row$family[1],
+    phi = c(row$phi1[1], row$phi2[1]),
+    d = row$d[1]
+  )
+}
+
+# ---- ARFIMA(0, d, 0) helpers ------------------------------------------
+# Self-contained copies of arfima_acf() / arfima_yw_projection() from
+# code/R/ar2/auxfunctions_ar2.R (lines 398-422), which is the canonical
+# location. tables.R sources only this file -- never ar2_load.R -- so it
+# cannot reach the originals. Keep the two in sync if either changes.
+tbf_arfima_acf <- function(d, H) {
+  r <- numeric(H + 1L)
+  r[1L] <- 1
+  for (h in seq_len(H)) r[h + 1L] <- r[h] * ((h - 1L + d) / (h - d))
+  r
+}
+
+tbf_arfima_yw_ar2 <- function(d) {
+  rho1 <- d / (1 - d)
+  rho2 <- d * (1 + d) / ((1 - d) * (2 - d))
+  c(phi1 = rho1 * (1 - rho2) / (1 - rho1^2),
+    phi2 = (rho2 - rho1^2) / (1 - rho1^2))
+}
+
+# ---- memory horizon, dispatched on the setting family -----------------
+# AR(2): h* = ceil(log eps / log rho(F)), the geometric-decay horizon.
+# ARFIMA: the ACF decays hyperbolically, so no eps-crossing exists at any
+# practical horizon (d = 0.45 crosses 0.05 beyond h = 5e4). Report h* as NA
+# with the reason, and give the Yule-Walker AR(2) projection's horizon as a
+# comparable proxy -- that projection is the pseudo-true target an AR(2)
+# analysis model converges to under this misspecification.
+tbf_memory_horizon <- function(setting_id, epsilon = 0.05) {
+  row <- get_tbf_setting_catalog()
+  row <- row[row$setting_id == as.integer(setting_id), , drop = FALSE]
+  if (nrow(row) != 1L) {
+    return(list(h_star = NA_integer_, basis = "unknown-setting",
+                proxy = NA_integer_, note = NA_character_))
+  }
+  if (identical(row$family[1], "arfima")) {
+    d <- row$d[1]
+    yw <- tbf_arfima_yw_ar2(d)
+    acf15 <- tbf_arfima_acf(d, 15L)[16L]
+    return(list(
+      h_star = NA_integer_,
+      basis = "undefined-hyperbolic",
+      proxy = ar2_memory_horizon(yw[["phi1"]], yw[["phi2"]], epsilon),
+      note = sprintf(paste("ARFIMA d=%.2f: rho(15)=%.3f, no eps=%.2f crossing at any",
+                           "practical horizon; YW-AR(2) proxy phi=(%.3f, %.3f)"),
+                     d, acf15, epsilon, yw[["phi1"]], yw[["phi2"]])
+    ))
+  }
+  list(h_star = ar2_memory_horizon(row$phi1[1], row$phi2[1], epsilon),
+       basis = "ar2-spectral-radius", proxy = NA_integer_, note = NA_character_)
 }
 
 # ---- time-block geometry ---------------------------------------------
@@ -197,6 +283,9 @@ ar2_spectral_radius <- function(phi1, phi2) {
 # Effective memory horizon h*(epsilon) = ceil(log eps / log rho)
 # (eq. (14) of the note). Returns Inf for the i.i.d. control.
 ar2_memory_horizon <- function(phi1, phi2, epsilon = 0.05) {
+  # NA phi (an ARFIMA setting, or an id outside the catalog) has no AR(2)
+  # horizon. Guard first: without this `if (NA)` aborts the caller.
+  if (!is.finite(phi1) || !is.finite(phi2)) return(NA_integer_)
   if (phi1 == 0 && phi2 == 0) return(0L)
   sr <- ar2_spectral_radius(phi1, phi2)
   if (sr <= 0 || sr >= 1) return(NA_integer_)
@@ -370,5 +459,87 @@ ar1_recurse <- function(seam_state, phi1, H, K) {
     out[, h] <- cur
     prev1 <- cur
   }
+  out
+}
+
+#########################################################################
+# Posterior / predictive summaries.
+#
+# A fitting driver discards `fit` after forecasting (run-settings.R) and
+# the fit files themselves are deleted after scoring on the chunked
+# driver, so anything not summarised here is unrecoverable without a full
+# refit. check_fit_consistency() records posterior MEANS only; these give
+# the sd, median and 95% interval as well.
+#########################################################################
+
+# mean / sd / 2.5% / 50% / 97.5% of one scalar chain. Identical to
+# summarise_chain() in block1_positive_control/hn_prior_experiment/
+# refit_allparams_hn.R, kept here so every driver shares one definition.
+TBF_POST_STATS <- c("mean", "sd", "q025", "q50", "q975")
+
+tbf_summarise_chain <- function(v) {
+  v <- as.numeric(v)
+  q <- quantile(v, c(0.025, 0.5, 0.975), na.rm = TRUE)
+  c(mean = mean(v, na.rm = TRUE), sd = sd(v, na.rm = TRUE),
+    q025 = q[[1]], q50 = q[[2]], q975 = q[[3]])
+}
+
+# Canonical parameter order. Fixed and method-independent: method 1 has no
+# phi chains and method 4 (AR(1)) has no second lag, so those rows come
+# back NA rather than absent -- which keeps the score-cache array
+# rectangular across methods.
+tbf_post_params <- function() {
+  c("beta0", "beta1", "beta2", "lambda", "rho", "nu", "gamma",
+    "tau.alpha", "tau.beta",
+    "phi.z1", "phi.z2", "phi.tau1", "phi.tau2", "phi.w1", "phi.w2")
+}
+
+# Long-form posterior summary of every scalar parameter in one fit.
+# tau.alpha/tau.beta are divided by 2 to report the internal gamma
+# shape/rate, matching the truth (3, 8) and the /2 reparam used by
+# rpotspatTS_arp() and check_fit_consistency().
+tbf_posterior_summary <- function(fit) {
+  params <- tbf_post_params()
+  out <- matrix(NA_real_, length(params), length(TBF_POST_STATS),
+                dimnames = list(params, TBF_POST_STATS))
+  put <- function(nm, v) {
+    if (is.null(v) || !length(v)) return(invisible())
+    out[nm, ] <<- tbf_summarise_chain(v)
+  }
+  beta <- as.matrix(fit$beta)
+  for (j in seq_len(min(3L, ncol(beta)))) put(paste0("beta", j - 1L), beta[, j])
+  put("lambda", fit$lambda)
+  put("rho", fit$rho)
+  put("nu", fit$nu)
+  put("gamma", fit$gamma)
+  put("tau.alpha", fit$tau.alpha / 2)
+  put("tau.beta", fit$tau.beta / 2)
+  for (nm in c("z", "tau", "w")) {
+    p <- fit[[paste0("phi.", nm)]]
+    if (is.null(p)) next
+    pm <- as.matrix(p)
+    put(paste0("phi.", nm, "1"), pm[, 1L])
+    if (ncol(pm) >= 2L) put(paste0("phi.", nm, "2"), pm[, 2L])
+  }
+  data.frame(param = params, out, row.names = NULL, stringsAsFactors = FALSE)
+}
+
+# Per (site, lead) summary of the predictive sample, so predictive-interval
+# coverage / PIT / new quantile scores remain computable after the raw
+# iters x ns x H array is deleted. Returns [ns, H, stat]; ~190 KB per block.
+TBF_PRED_PROBS <- c(0.025, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.975)
+
+tbf_predictive_summary <- function(yhat) {
+  stats <- c("mean", "sd", paste0("q", sub("^0\\.", "", format(TBF_PRED_PROBS))))
+  ns <- dim(yhat)[2]
+  H <- dim(yhat)[3]
+  out <- array(NA_real_, dim = c(ns, H, length(stats)),
+               dimnames = list(site = NULL, lead = as.character(seq_len(H)),
+                               stat = stats))
+  out[, , 1L] <- apply(yhat, c(2, 3), mean)
+  out[, , 2L] <- apply(yhat, c(2, 3), sd)
+  qs <- apply(yhat, c(2, 3), quantile, probs = TBF_PRED_PROBS, na.rm = TRUE)
+  # qs is [prob, site, lead]; move the prob axis last to match `stats`.
+  out[, , -(1:2)] <- aperm(qs, c(2, 3, 1))
   out
 }

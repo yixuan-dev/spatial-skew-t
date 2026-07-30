@@ -140,11 +140,12 @@ write.csv(rel_table,
 # ---- joint-structure summary -----------------------------------------
 setting_cat <- get_tbf_setting_catalog()
 phi_row <- setting_cat[setting_cat$setting_id == setting_id, , drop = FALSE]
-h_star <- if (nrow(phi_row) == 1L) {
-  ar2_memory_horizon(phi_row$phi1[1], phi_row$phi2[1])
-} else {
-  NA_integer_
-}
+# ARFIMA settings have no AR(2) memory horizon: the ACF decays
+# hyperbolically, so h_star is NA and a Yule-Walker AR(2) projection stands
+# in as a comparable proxy. tbf_memory_horizon() dispatches on the family.
+hs <- tbf_memory_horizon(setting_id)
+h_star <- hs$h_star
+if (!is.na(hs$note)) cat("  ", hs$note, "\n", sep = "")
 
 joint_rows <- list()
 for (mi in seq_along(methods)) {
@@ -158,6 +159,11 @@ for (mi in seq_along(methods)) {
 }
 joint_table <- do.call(rbind, joint_rows)
 joint_table$h_star <- h_star
+joint_table$h_star_basis <- hs$basis
+joint_table$h_star_proxy <- hs$proxy
+joint_table$family <- phi_row$family[1]
+joint_table$d <- phi_row$d[1]
+joint_table$hurst <- phi_row$hurst[1]
 joint_table <- merge(joint_table, crossing_table[crossing_table$score == "crps",
   c("method", "crossing_lead")], by = "method", all.x = TRUE)
 write.csv(joint_table,
@@ -168,7 +174,8 @@ write.csv(joint_table,
 simresults_file <- file.path(results_dir,
   sprintf("simresults%d%s.RData", setting_id, data_suffix))
 save(curve_table, rel_table, crossing_table, joint_table,
-  h_star, probs, methods, datasets, setting, block_H, block_seams, data_suffix,
+  h_star, hs, probs, methods, datasets, setting, block_H, block_seams,
+  data_suffix,
   file = simresults_file)
 
 cat("\nWrote tables to ", tables_dir, "\n", sep = "")
