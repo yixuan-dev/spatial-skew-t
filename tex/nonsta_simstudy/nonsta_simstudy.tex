@@ -18,7 +18,7 @@ what a mean-only MRTS augmentation can and cannot buy}
 \author{}
 \date{July 2026 --- interim report v4 (settings 1--12, the
 threshold-vs-symmetry disambiguation, the $K \ge 30$ extension, and the
-non-$t$ extension 13--21; settings 16 and 20 at $n = 10$)}
+non-$t$ extension 13--21; settings 16 and 20 at $n = 30$)}
 
 \begin{document}
 \maketitle
@@ -56,7 +56,7 @@ so the reversal requires mean structure that only a fine basis can resolve,
 not merely a large $K$.
 New in v4: the nine non-$t$ extension settings (13--21; Gaussian-GP errors,
 so the skew-$t$ error law is misspecified) are fitted and included in the
-score tables --- settings 16 and 20 at $n = 10$ on the full $K$ grid, the
+score tables --- settings 16 and 20 at $n = 30$ on the full $K$ grid, the
 other seven as $n = 3$ pilots; their systematic analysis is deferred.
 \end{abstract}
 
@@ -84,7 +84,7 @@ they drop the skew-$t$ generator entirely in favour of a nonlinear mean surface
 (sd 11) with Gaussian-GP errors ($\sigma_g = 4$, same $C_{\mathrm{exp}}$), so
 that the mean channel is tested without the crutch of a correctly specified
 error law at large $K$. All nine are fitted and scored and appear in the score
-tables --- settings 16 and 20 at $n = 10$ on the full $K$ grid, the other seven
+tables --- settings 16 and 20 at $n = 30$ on the full $K$ grid, the other seven
 as $n = 3$ pilots ($\Kmrts \in \{0, 30, 40, 50\}$);
 Section~\ref{sec:spotlight} introduces four of them in detail, and the
 systematic analysis is deferred to the next revision.
@@ -122,14 +122,14 @@ ID & \texttt{surf\_type} & non-stationarity & route & $n$ \\
 13 & franke         & mean, Franke (multiscale)                 & mean & 3 \\
 14 & ridge\_curved  & mean, curved Gaussian ridge               & mean & 3 \\
 15 & annulus        & mean, Ricker ring ($r_0{=}3$, $w{=}1.5$)   & mean & 3 \\
-16 & sigmoid\_front & mean, $\tanh$ arc front                    & mean & 3 \\
+16 & sigmoid\_front & mean, $\tanh$ arc front                    & mean & 30 \\
 17 & gp\_mean       & mean, GP draw (per dataset, fixed in $t$)  & mean & 3 \\
 18 & franke\_sas    & mean $=$ setting 13; sinh-arcsinh error   & mean & 3 \\
 19 & poly2          & mean, bowl $+$ saddle (2nd-order poly)     & mean & 3 \\
-20 & transform\_mix & mean, log $+$ exp-decay $+$ ratio terms    & mean & 3 \\
+20 & transform\_mix & mean, log $+$ exp-decay $+$ ratio terms    & mean & 30 \\
 21 & nonsmooth      & mean, hinge $+\,|\cdot|$ ($C^0$ creases)   & mean & 3 \\
 \bottomrule
-\multicolumn{5}{p{0.92\textwidth}}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables. $^{b}$ settings 13--21: settings 16 and 20 at $n=10$ on the full $K$ grid, the other seven as $n=3$ pilots on $\Kmrts \in \{0,30,40,50\}$.}
+\multicolumn{5}{p{0.92\textwidth}}{\footnotesize $^{a}$ setting 2 was fitted at $K=0$ only (no MRTS sweep); it is excluded from the score tables. $^{b}$ settings 13--21: settings 16 and 20 at $n=30$ on the full $K$ grid, the other seven as $n=3$ pilots on $\Kmrts \in \{0,30,40,50\}$.}
 \end{tabular}
 \end{table}
 
@@ -513,7 +513,7 @@ Y_t(\bs) \;=\; 10 \;+\; g(\bs) \;+\; \sigma_g\,\varepsilon_t(\bs),
 so the marginal law is Gaussian and every $t$-based error model is
 misspecified. Methods, holdout and scoring are as in Section~1; the fitted
 grid is $\Kmrts \in \{0, 30, 40, 50\}$ with $n = 3$, except settings 16 and 20,
-which are at $n = 10$ on the full $K$ grid $\{0,3,5,8,10,12,15,20,25,30,40,50\}$.
+which are at $n = 30$ on the full $K$ grid $\{0,3,5,8,10,12,15,20,25,30,40,50\}$.
 \item Each mean surface is the image of a raw field
 $\tilde g \in \R^{144}$ under the orthogonalise-and-standardise map
 \begin{equation}

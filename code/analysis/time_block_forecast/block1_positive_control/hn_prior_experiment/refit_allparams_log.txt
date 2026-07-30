@@ -1,0 +1,380 @@
+Loading required package: spam
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+Loading required package: RColorBrewer
+
+Try help(fields) to get started.
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+all-params refit: 10 total, 10 pending, workers = 6
+
+starting worker pid=28440 on localhost:11119 at 16:11:30.071
+starting worker pid=42632 on localhost:11119 at 16:11:30.058
+starting worker pid=41812 on localhost:11119 at 16:11:30.066
+starting worker pid=43140 on localhost:11119 at 16:11:30.072
+starting worker pid=17524 on localhost:11119 at 16:11:30.084
+starting worker pid=35364 on localhost:11119 at 16:11:30.092
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+
+Attaching package: 'spam'
+
+Loading required package: RColorBrewer
+Loading required package: viridisLite
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+Loading required package: viridisLite
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+Loading required package: RColorBrewer
+Loading required package: RColorBrewer
+Loading required package: RColorBrewer
+Loading required package: RColorBrewer
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+
+Try help(fields) to get started.
+Loading required package: RColorBrewer
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+# This research was partially supported under NSF Grant ATM-0534173
+# This research was partially supported under NSF Grant ATM-0534173
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+Loading required package: mvtnorm
+Loading required package: mvtnorm
+Loading required package: mvtnorm
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+Loading required package: mvtnorm
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+	 no site-specific threshold set 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+Loading required package: mvtnorm
+Loading required package: mvtnorm
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+MCMC Total Time: 768.63 sec elapsed
+MCMC Total Time: 768.89 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+MCMC Total Time: 775.05 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+MCMC Total Time: 775.63 sec elapsed
+MCMC Total Time: 775.61 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+MCMC Total Time: 780.25 sec elapsed
+MCMC Total Time: 747.82 sec elapsed
+MCMC Total Time: 766.72 sec elapsed
+MCMC Total Time: 760.59 sec elapsed
+MCMC Total Time: 762.37 sec elapsed
+s4 d1 m2 done (776 s)
+s4 d2 m2 done (762 s)
+s4 d3 m2 done (769 s)
+s4 d4 m2 done (776 s)
+s4 d5 m2 done (748 s)
+s5 d1 m2 done (770 s)
+s5 d2 m2 done (767 s)
+s5 d3 m2 done (781 s)
+s5 d4 m2 done (776 s)
+s5 d5 m2 done (761 s) 
+
+all-params refit finished

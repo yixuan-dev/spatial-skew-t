@@ -1,0 +1,931 @@
+Loading required package: spam
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+Loading required package: RColorBrewer
+
+Try help(fields) to get started.
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+block1 HN-prior experiment: settings=4,5 methods=1,2 datasets=1..10
+cells: 40 total, 40 pending; workers = 6
+
+starting worker pid=45808 on localhost:11876 at 09:45:43.144
+starting worker pid=13112 on localhost:11876 at 09:45:43.141
+starting worker pid=30184 on localhost:11876 at 09:45:43.146
+starting worker pid=16356 on localhost:11876 at 09:45:43.142
+starting worker pid=18012 on localhost:11876 at 09:45:43.157
+starting worker pid=27916 on localhost:11876 at 09:45:43.164
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Loading required package: spam
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+Loading required package: RColorBrewer
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+
+Attaching package: 'spam'
+
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: viridisLite
+
+Attaching package: 'spam'
+
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+Spam version 2.11-1 (2025-01-20) is loaded.
+Type 'help( Spam)' or 'demo( spam)' for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix '.spam' to the function name, e.g. 'help( chol.spam)'.
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+
+Attaching package: 'spam'
+
+
+Attaching package: 'spam'
+
+Loading required package: viridisLite
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+The following objects are masked from 'package:base':
+
+    backsolve, forwardsolve
+
+Loading required package: RColorBrewer
+Loading required package: viridisLite
+Loading required package: viridisLite
+Loading required package: RColorBrewer
+Loading required package: RColorBrewer
+Loading required package: RColorBrewer
+Loading required package: RColorBrewer
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+
+Try help(fields) to get started.
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+# This research was partially supported under NSF Grant ATM-0534173
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+# This research was partially supported under NSF Grant ATM-0534173
+
+Attaching package: 'SpatialTools'
+
+The following object is masked from 'package:spam':
+
+    rmvnorm
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+
+Attaching package: 'inline'
+
+The following object is masked from 'package:Rcpp':
+
+    registerPlugin
+
+Loading required package: mvtnorm
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+Loading required package: mvtnorm
+	 no site-specific threshold set 
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+	 initializing all tau terms to 1 
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+	 initializing all z terms to 0.6745 
+Loading required package: mvtnorm
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+Loading required package: mvtnorm
+	 no site-specific threshold set 
+Loading required package: mvtnorm
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+
+Attaching package: 'mvtnorm'
+
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+Loading required package: mvtnorm
+	 no site-specific threshold set 
+
+Attaching package: 'mvtnorm'
+
+	 initializing all tau terms to 1 
+The following object is masked _by_ '.GlobalEnv':
+
+    logdet
+
+	 initializing all z terms to 0.6745 
+The following object is masked from 'package:SpatialTools':
+
+    rmvnorm
+
+The following objects are masked from 'package:spam':
+
+    rmvnorm, rmvt
+
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 18000 
+	 iter 16000 
+	 iter 18000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 20000 
+MCMC Total Time: 668.81 sec elapsed
+	 iter 20000 
+MCMC Total Time: 674.57 sec elapsed
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 757.53 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 20000 
+MCMC Total Time: 768.74 sec elapsed
+	 iter 20000 
+MCMC Total Time: 770.2 sec elapsed
+	 iter 20000 
+MCMC Total Time: 772.75 sec elapsed
+	 iter 2000 
+	 iter 2000 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 4000 
+	 iter 2000 
+	 iter 4000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 4000 
+	 iter 6000 
+	 iter 4000 
+	 iter 6000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 8000 
+	 iter 6000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 664.87 sec elapsed
+	 iter 20000 
+MCMC Total Time: 661.5 sec elapsed
+	 iter 20000 
+MCMC Total Time: 762.52 sec elapsed
+	 iter 20000 
+MCMC Total Time: 662.11 sec elapsed
+	 iter 20000 
+MCMC Total Time: 670.01 sec elapsed
+	 iter 20000 
+MCMC Total Time: 768.25 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 18000 
+	 iter 18000 
+	 iter 16000 
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 684.77 sec elapsed
+	 iter 20000 
+MCMC Total Time: 700.29 sec elapsed
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 772.14 sec elapsed
+	 iter 20000 
+MCMC Total Time: 781.52 sec elapsed
+	 iter 20000 
+MCMC Total Time: 779.25 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 20000 
+MCMC Total Time: 782.97 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 4000 
+	 iter 2000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 668.09 sec elapsed
+	 iter 20000 
+MCMC Total Time: 681.11 sec elapsed
+	 iter 20000 
+MCMC Total Time: 690.9 sec elapsed
+	 iter 20000 
+MCMC Total Time: 766.19 sec elapsed
+	 iter 20000 
+MCMC Total Time: 771.99 sec elapsed
+	 iter 20000 
+MCMC Total Time: 687.48 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 14000 
+	 iter 12000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 14000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 18000 
+	 iter 16000 
+	 iter 18000 
+	 iter 16000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 641.52 sec elapsed
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 650.42 sec elapsed
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 719.49 sec elapsed
+	 iter 20000 
+MCMC Total Time: 734.59 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 20000 
+MCMC Total Time: 745.28 sec elapsed
+	 iter 20000 
+MCMC Total Time: 740.96 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 iter 2000 
+	 iter 4000 
+	 iter 2000 
+	 iter 4000 
+	 iter 2000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 8000 
+	 iter 6000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 10000 
+	 iter 8000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 12000 
+	 iter 10000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 655.48 sec elapsed
+	 iter 20000 
+MCMC Total Time: 679.49 sec elapsed
+	 iter 20000 
+MCMC Total Time: 763.95 sec elapsed
+	 iter 20000 
+MCMC Total Time: 663.82 sec elapsed
+	 iter 20000 
+MCMC Total Time: 767.49 sec elapsed
+	 iter 20000 
+MCMC Total Time: 680.24 sec elapsed
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 no site-specific threshold set 
+	 initializing all tau terms to 1 
+	 initializing all z terms to 0.6745 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 2000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 4000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 6000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 8000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 10000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 12000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 14000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 16000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 18000 
+	 iter 20000 
+MCMC Total Time: 615.67 sec elapsed
+	 iter 20000 
+MCMC Total Time: 671.58 sec elapsed
+	 iter 20000 
+MCMC Total Time: 610.89 sec elapsed
+	 iter 20000 
+MCMC Total Time: 696.06 sec elapsed
+s4 d1 m1 saved (761 s, lam +2.71 b0 10.4 sdzr 0.91 B=TRUE C=TRUE)
+s4 d1 m2 saved (857 s, lam +2.76 b0 10.3 sdzr 0.92 B=TRUE C=TRUE)
+s4 d2 m1 saved (770 s, lam +2.65 b0 10.3 sdzr 0.92 B=TRUE C=TRUE)
+s4 d2 m2 saved (852 s, lam +2.67 b0 10.1 sdzr 0.93 B=TRUE C=TRUE)
+s4 d3 m1 saved (728 s, lam +3.42 b0 10.1 sdzr 1.24 B=TRUE C=TRUE)
+s4 d3 m2 saved (848 s, lam +3.37 b0 10.1 sdzr 1.26 B=TRUE C=TRUE)
+s4 d4 m1 saved (696 s, lam +2.11 b0 10.0 sdzr 1.02 B=TRUE C=TRUE)
+s4 d4 m2 saved (856 s, lam +2.12 b0 9.9 sdzr 1.02 B=TRUE C=TRUE)
+s4 d5 m1 saved (744 s, lam +3.56 b0 9.9 sdzr 1.04 B=TRUE C=TRUE)
+s4 d5 m2 saved (856 s, lam +3.56 b0 9.6 sdzr 1.06 B=TRUE C=TRUE)
+s4 d6 m1 saved (781 s, lam +2.84 b0 9.9 sdzr 1.03 B=TRUE C=TRUE)
+s4 d6 m2 saved (837 s, lam +3.23 b0 9.5 sdzr 0.92 B=TRUE C=FALSE)
+s4 d7 m1 saved (746 s, lam +2.61 b0 10.5 sdzr 1.36 B=TRUE C=TRUE)
+s4 d7 m2 saved (842 s, lam +2.57 b0 10.4 sdzr 1.39 B=TRUE C=TRUE)
+s4 d8 m1 saved (751 s, lam +2.65 b0 10.4 sdzr 1.24 B=TRUE C=TRUE)
+s4 d8 m2 saved (866 s, lam +3.02 b0 10.3 sdzr 1.11 B=TRUE C=TRUE)
+s4 d9 m1 saved (769 s, lam +2.23 b0 10.6 sdzr 1.03 B=TRUE C=TRUE)
+s4 d9 m2 saved (823 s, lam +2.45 b0 10.6 sdzr 0.96 B=TRUE C=TRUE)
+s4 d10 m1 saved (735 s, lam +2.84 b0 10.3 sdzr 0.91 B=TRUE C=TRUE)
+s4 d10 m2 saved (746 s, lam +2.96 b0 10.1 sdzr 0.88 B=TRUE C=TRUE)
+s5 d1 m1 saved (756 s, lam +2.89 b0 11.2 sdzr 1.03 B=TRUE C=TRUE)
+s5 d1 m2 saved (850 s, lam +2.51 b0 11.1 sdzr 1.21 B=TRUE C=TRUE)
+s5 d2 m1 saved (790 s, lam +0.29 b0 10.1 sdzr 0.65 B=FALSE C=TRUE)
+s5 d2 m2 saved (859 s, lam +0.57 b0 9.8 sdzr 0.80 B=FALSE C=TRUE)
+s5 d3 m1 saved (740 s, lam +3.88 b0 13.3 sdzr 1.29 B=TRUE C=TRUE)
+s5 d3 m2 saved (855 s, lam +4.97 b0 11.4 sdzr 1.08 B=FALSE C=TRUE)
+s5 d4 m1 saved (690 s, lam +1.39 b0 10.2 sdzr 1.11 B=TRUE C=TRUE)
+s5 d4 m2 saved (857 s, lam +2.23 b0 9.8 sdzr 0.75 B=TRUE C=TRUE)
+s5 d5 m1 saved (756 s, lam +2.58 b0 11.8 sdzr 1.00 B=TRUE C=TRUE)
+s5 d5 m2 saved (868 s, lam +2.93 b0 10.7 sdzr 0.96 B=TRUE C=TRUE)
+s5 d6 m1 saved (775 s, lam +2.46 b0 10.3 sdzr 1.09 B=TRUE C=TRUE)
+s5 d6 m2 saved (831 s, lam +2.92 b0 10.4 sdzr 0.97 B=TRUE C=TRUE)
+s5 d7 m1 saved (768 s, lam +2.52 b0 12.1 sdzr 1.03 B=TRUE C=TRUE)
+s5 d7 m2 saved (861 s, lam +3.07 b0 11.0 sdzr 0.91 B=TRUE C=TRUE)
+s5 d8 m1 saved (746 s, lam +2.27 b0 10.3 sdzr 0.83 B=TRUE C=TRUE)
+s5 d8 m2 saved (863 s, lam +3.63 b0 9.9 sdzr 0.57 B=TRUE C=TRUE)
+s5 d9 m1 saved (752 s, lam +1.56 b0 10.2 sdzr 2.30 B=TRUE C=TRUE)
+s5 d9 m2 saved (804 s, lam +3.11 b0 10.2 sdzr 1.33 B=TRUE C=TRUE)
+s5 d10 m1 saved (764 s, lam +3.57 b0 12.1 sdzr 0.87 B=TRUE C=TRUE)
+s5 d10 m2 saved (776 s, lam +2.58 b0 11.7 sdzr 1.22 B=TRUE C=TRUE) 
+
+all requested fits finished
