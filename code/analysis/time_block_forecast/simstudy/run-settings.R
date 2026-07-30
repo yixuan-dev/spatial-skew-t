@@ -13,14 +13,22 @@
 # exchangeable (contrast Proposition 2).
 #
 # Output: results/<setting>-<method>-<dataset>.RData, holding a list of
-# per-block predictive samples + the validation truth + runtime info.
+# per-block predictive samples + the validation truth + runtime info +
+# per-block fit diagnostics, posterior summaries and predictive summaries.
+#
+# The last three exist because the chunked driver deletes the fit files
+# after scoring (DESKTOP-61SBCCI/expA_hn_driver.ps1): anything not summarised
+# while `fit` is still in memory is unrecoverable without a full refit.
+# They are also mirrored to output/diag/ so they survive the deletion.
 #
 # Usage:
-#   Rscript run-settings.R --setting=<id> [--data=<path>]
+#   Rscript run-settings.R --setting=<id> [--data=<path>] [--hn]
+#                          [--iters=<n>] [--burn=<n>]
 #                          [datasets] [workers] [methods]
 # Examples:
 #   Rscript run-settings.R --setting=3 "1"   1 "1:2"
 #   Rscript run-settings.R --setting=3 "1:5" 4 "(1,2)"
+#   Rscript run-settings.R --hn --setting=5 "1:5" 6 "c(1,2,4)"
 #########################################################################
 
 # ar2_load.R does rm(list = ls()); source it first, then re-source the
@@ -36,6 +44,7 @@ if (length(script_arg) > 0) {
 
 source("../../simstudy/ar2_load.R", chdir = TRUE)
 source("./time_block_helpers.R")
+source("./fit_diag_utils.R")
 
 # -----------------------------
 # User controls
@@ -47,10 +56,31 @@ thin <- 1
 
 # ---- CLI parsing ------------------------------------------------------
 args_raw <- commandArgs(trailingOnly = TRUE)
-parsed <- extract_leading_flags(args_raw, c("data", "setting"))
+# extract_leading_flags() demands a value after a bare "--flag", so pull the
+# valueless form of --hn out first; --hn=TRUE still goes through the parser.
+hn_bare <- any(args_raw == "--hn")
+args_raw <- args_raw[args_raw != "--hn"]
+parsed <- extract_leading_flags(args_raw,
+  c("data", "setting", "hn", "iters", "burn"))
 args <- parsed$args
 data_flag <- parsed$values$data
 setting_flag <- parsed$values$setting
+
+# lambda ~ HN(0, lambda.s) instead of N(0, lambda.s): removes the discrete
+# sign reflection of the (beta0, lambda, z) ridge at the model level, so no
+# guard or reseed loop is needed. See tex/lambda_phiz_ridge and the block-1
+# counterfactual in block1_positive_control/hn_prior_experiment/.
+lambda_positive <- hn_bare ||
+  (!is.null(parsed$values$hn) &&
+     tolower(parsed$values$hn) %in% c("1", "t", "true", "yes"))
+
+# iters/burn overrides exist for the structural smoke test only; production
+# runs must leave them at the defaults above so every arm stays comparable.
+if (!is.null(parsed$values$iters)) iters <- as.integer(parsed$values$iters)
+if (!is.null(parsed$values$burn)) burn <- as.integer(parsed$values$burn)
+if (is.na(iters) || is.na(burn) || burn >= iters) {
+  stop("--iters/--burn must be integers with burn < iters", call. = FALSE)
+}
 
 data_path <- if (!is.null(data_flag) && nzchar(data_flag)) data_flag else "./simdata.RData"
 if (!file.exists(data_path)) {
@@ -86,12 +116,26 @@ if (is.na(workers) || workers < 1) stop("workers must be a positive integer", ca
 results_dir <- derive_results_dir(data_path, "results")
 if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE)
 
+# Diagnostics, posterior summaries and predictive summaries are mirrored
+# here so they outlive the fit files, which the chunked driver deletes.
+diag_dir <- "output/diag"
+if (!dir.exists(diag_dir)) dir.create(diag_dir, recursive = TRUE)
+
 blocks <- tbf_blocks(block_seams, block_H, nt)
+
+# Inputs to check_fit_consistency(); computed once on the master and
+# exported, so every worker scores against the same reference.
+marginal_sd <- sd(y[, , , setting])
+truth <- get_tbf_truth(setting)
 
 cat(sprintf(
   "Data=%s setting=%d datasets=%s methods=%s blocks=%d (H=%d) iters=%d\n",
   data_path, setting, paste(dataset_ids, collapse = ","),
   paste(method_ids, collapse = ","), length(blocks), block_H, iters
+))
+cat(sprintf("lambda prior = %s | marginal sd = %.3f | warn = %s\n",
+  if (lambda_positive) "HN(0, 20) [--hn]" else "N(0, 20) [default]",
+  marginal_sd, format(getOption("warn"))
 ))
 
 # ---- one (method, dataset) task --------------------------------------
@@ -100,12 +144,30 @@ run_method <- function(method_id, dataset_id) {
   y.d <- y[, , dataset_id, setting]                   # ns x nt
   outputfile <- build_tbf_result_file(results_dir, setting, method_id, dataset_id)
 
-  set.seed(get_tbf_seed(setting, method_id, dataset_id))
+  # Resume: a finished cell is never redone. The file is written once, at
+  # the end of all blocks, so its presence means the whole cell is done.
+  if (file.exists(outputfile)) {
+    cat(sprintf("[Dataset %d][Method %d] exists, skip -> %s\n",
+      dataset_id, method_id, outputfile))
+    return(invisible(sprintf("s%d m%d d%d skip", setting, method_id, dataset_id)))
+  }
+
+  seed_used <- get_tbf_seed(setting, method_id, dataset_id)
+  set.seed(seed_used)
+  # Method 2 recurses on two lags, method 4 on one, method 1 draws from the
+  # stationary marginal. Both flags are passed to forecast_block() AND
+  # recorded, because an AR(1) fit forecast from the i.i.d. branch is the
+  # kind of silent null that looks entirely plausible in a score table.
+  ar2_used <- isTRUE(spec$ar2[1])
+  ar1_used <- isTRUE(spec$temporal[1]) && !ar2_used
   cat(sprintf("[Dataset %d][Method %d: %s] start\n", dataset_id, method_id, spec$label[1]))
   started_at <- Sys.time()
   tic <- proc.time()
 
   block_out <- vector("list", length(blocks))
+  diag_rows <- vector("list", length(blocks))
+  post_rows <- vector("list", length(blocks))
+  pred_summary <- vector("list", length(blocks))
   for (b in seq_along(blocks)) {
     blk <- blocks[[b]]
     y.train <- y.d[, blk$train_times, drop = FALSE]
@@ -147,15 +209,19 @@ run_method <- function(method_id, dataset_id) {
       temporalw = isTRUE(spec$temporal[1]),
       temporaltau = isTRUE(spec$temporal[1]),
       temporalz = isTRUE(spec$temporal[1]),
-      ar2_w = isTRUE(spec$ar2[1]),
-      ar2_tau = isTRUE(spec$ar2[1]),
-      ar2_z = isTRUE(spec$ar2[1]),
-      rho.upper = 15, nu.upper = 10
+      ar2_w = ar2_used,
+      ar2_tau = ar2_used,
+      ar2_z = ar2_used,
+      rho.upper = 15, nu.upper = 10,
+      lambda.positive = lambda_positive
     )
 
+    # ar1 = TRUE is what routes method 4 into the single-lag recursion.
+    # Without it a temporal AR(1) fit silently forecasts from the i.i.d.
+    # branch (time_block_helpers.R:304), i.e. no temporal signal at all.
     yhat <- forecast_block(
       fit = fit, seam = blk$seam, H = block_H,
-      x_block = x.block, s = s, ar2 = isTRUE(spec$ar2[1])
+      x_block = x.block, s = s, ar2 = ar2_used, ar1 = ar1_used
     )
 
     block_out[[b]] <- list(
@@ -166,10 +232,41 @@ run_method <- function(method_id, dataset_id) {
       yhat = yhat,                       # iters x ns x H predictive sample
       y_val = y.d[, blk$test_times]      # ns x H validation truth
     )
+
+    # ---- everything below must happen while `fit` is still alive ------
+    # The fit is discarded here and the whole file is deleted after
+    # scoring, so an unsummarised quantity needs a full refit to recover.
+    chk <- check_fit_consistency(fit, yhat, truth, marginal_sd,
+      data_mean = mean(y.train))
+    diag_rows[[b]] <- cbind(
+      setting = setting, method = method_id, dataset = dataset_id,
+      block = b, seam = blk$seam, seed = seed_used,
+      hn = lambda_positive, ar2_used = ar2_used, ar1_used = ar1_used,
+      chk
+    )
+    post_rows[[b]] <- cbind(
+      setting = setting, method = method_id, dataset = dataset_id,
+      block = b, tbf_posterior_summary(fit)
+    )
+    pred_summary[[b]] <- tbf_predictive_summary(yhat)
+
     rm(fit)
     gc()
-    cat(sprintf("  block %d (seam %d) forecast done\n", b, blk$seam))
+    cat(sprintf("  block %d (seam %d) forecast done  lambda %+.2f  SDmax %.2f\n",
+      b, blk$seam, chk$lambda, chk$sd_lead_max))
   }
+
+  fit_diag <- do.call(rbind, diag_rows)
+  post_summary <- do.call(rbind, post_rows)
+  names(pred_summary) <- as.character(seq_along(blocks))
+  stem <- sprintf("%d-%d-%d", setting, method_id, dataset_id)
+  # One file per cell, never a shared append: the workers run concurrently
+  # and would interleave their writes into a common file.
+  write.csv(fit_diag, file.path(diag_dir, sprintf("diag_%s.csv", stem)),
+    row.names = FALSE)
+  write.csv(post_summary, file.path(diag_dir, sprintf("post_%s.csv", stem)),
+    row.names = FALSE)
+  save(pred_summary, file = file.path(diag_dir, sprintf("pred_%s.RData", stem)))
 
   elapsed_sec <- unname((proc.time() - tic)[3])
   runtime_info <- build_tbf_runtime_info(
@@ -178,16 +275,39 @@ run_method <- function(method_id, dataset_id) {
     runner = "run-settings.R::run_method",
     method_id = method_id, method_key = as.character(method_id),
     control = list(iters = iters, burn = burn, update = update, thin = thin,
-                   block_H = block_H, block_seams = block_seams)
+                   block_H = block_H, block_seams = block_seams,
+                   lambda_positive = lambda_positive,
+                   ar2_used = ar2_used, ar1_used = ar1_used,
+                   seed = seed_used,
+                   warn_option = getOption("warn"),
+                   host = unname(Sys.info()[["nodename"]]),
+                   r_version = as.character(getRversion()),
+                   git_sha = tbf_git_sha())
   )
   forecast <- list(
     setting = setting, method_id = method_id, dataset_id = dataset_id,
     blocks = block_out
   )
-  save(forecast, runtime_info, file = outputfile)
+  save(forecast, runtime_info, fit_diag, post_summary, pred_summary,
+    file = outputfile)
   rm(forecast, block_out, runtime_info)
   gc()
   cat(sprintf("[Dataset %d][Method %d] done -> %s\n", dataset_id, method_id, outputfile))
+  invisible(sprintf("s%d m%d d%d ok (%.0f min)",
+    setting, method_id, dataset_id, elapsed_sec / 60))
+}
+
+# One failing cell must not take down the other workers in flight: PSOCK
+# propagates an error out of parLapply and the whole batch dies with it.
+# Cells that already saved survive; this one is reported and re-run by the
+# driver's next inventory round.
+run_method_safe <- function(method_id, dataset_id) {
+  tryCatch(run_method(method_id, dataset_id), error = function(e) {
+    msg <- sprintf("s%d m%d d%d FAILED: %s",
+      setting, method_id, dataset_id, conditionMessage(e))
+    cat(msg, "\n")
+    invisible(msg)
+  })
 }
 
 # ---- task grid --------------------------------------------------------
@@ -206,6 +326,7 @@ if (workers_use > 1) {
     setwd(wd)
     source("../../simstudy/ar2_load.R", chdir = TRUE)
     source("./time_block_helpers.R")
+    source("./fit_diag_utils.R")
     NULL
   })
   parallel::clusterExport(cl, c("data_path"), envir = environment())
@@ -213,18 +334,23 @@ if (workers_use > 1) {
     load(data_path, envir = .GlobalEnv)
     NULL
   })
+  # PSOCK resolves free names against the WORKER's globals, so a global
+  # missing from this list either errors or -- worse -- silently binds to
+  # something else on the worker. Every name run_method() touches goes here.
   parallel::clusterExport(cl, c(
     "setting", "iters", "burn", "update", "thin", "results_dir",
-    "catalog", "blocks", "block_H", "block_seams", "run_method", "tasks"
+    "catalog", "blocks", "block_H", "block_seams", "run_method", "tasks",
+    "lambda_positive", "marginal_sd", "truth", "diag_dir", "run_method_safe"
   ), envir = environment())
-  parallel::parLapply(cl, seq_len(nrow(tasks)), function(i) {
-    run_method(tasks$method[i], tasks$dataset[i])
+  out <- parallel::parLapply(cl, seq_len(nrow(tasks)), function(i) {
+    run_method_safe(tasks$method[i], tasks$dataset[i])
   })
   parallel::stopCluster(cl)
+  cat(paste(unlist(out), collapse = "\n"), "\n")
 } else {
   for (i in seq_len(nrow(tasks))) {
     tic <- proc.time()
-    run_method(tasks$method[i], tasks$dataset[i])
+    run_method_safe(tasks$method[i], tasks$dataset[i])
     cat(sprintf("elapsed (dataset %d, method %d): %.2f sec\n",
       tasks$dataset[i], tasks$method[i], (proc.time() - tic)[3]))
   }
