@@ -87,6 +87,9 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                      rho.upper = NULL,
                      lognu.m = -1.2, lognu.s = 1, nu.upper = NULL, fix.nu = FALSE,
                      lambda.m = 0, lambda.s = 20,
+                     # lambda.positive = TRUE: prior lambda ~ HN(0, lambda.s)
+                     # (N(lambda.m, lambda.s) truncated to lambda > 0)
+                     lambda.positive = FALSE,
                      # mcmc settings
                      iters = 5000, burn = 1000, update = 100, thin = 1,
                      iterplot = FALSE,
@@ -264,6 +267,8 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
         } else {
             lambda <- lambda.init
         }
+        # under the HN prior the support is lambda > 0; fold a negative start
+        if (lambda.positive) lambda <- abs(lambda)
     } else {
         lambda <- 0
     }
@@ -461,7 +466,7 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                     x = x, y = y, zg = zg, taug = taug,
                     prec = prec, skew = skew,
                     lambda = lambda, lambda.m = lambda.m,
-                    lambda.s = lambda.s
+                    lambda.s = lambda.s, lambda.positive = lambda.positive
                 )
                 beta <- this.update$beta
                 lambda <- this.update$lambda
@@ -476,7 +481,8 @@ mcmc <- function(y, s, x, s.pred = NULL, x.pred = NULL,
                 this.update <- updateZonly(
                     lambda.m = lambda.m, lambda.s = lambda.s,
                     x = x, y = y, beta = beta, zg = zg,
-                    taug = taug, prec = prec
+                    taug = taug, prec = prec,
+                    lambda.positive = lambda.positive
                 )
                 lambda <- this.update$lambda
             }

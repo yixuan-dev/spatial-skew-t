@@ -425,11 +425,34 @@ updateTauBeta <- function(tau, tau.alpha, tau.beta.a, tau.beta.b) {
 }
 
 # another way to get the regression coefficients
+# rtnorm_pos: exact draw from N(m, s^2) truncated to (0, Inf).
+# Simple rejection when the untruncated mass above 0 is substantial;
+# Robert (1995) exponential rejection for the deep-tail case (m << 0),
+# where naive inverse-CDF underflows.
+rtnorm_pos <- function(m, s) {
+  a <- -m / s
+  if (a < 0.45) {
+    repeat {
+      x <- rnorm(1)
+      if (x > a) return(m + s * x)
+    }
+  }
+  alpha <- (a + sqrt(a^2 + 4)) / 2
+  repeat {
+    x <- a + rexp(1, alpha)
+    if (runif(1) <= exp(-(x - alpha)^2 / 2)) return(m + s * x)
+  }
+}
+
 # using the parameterization y = xbeta + lambda |z| where z(s) ~ HN(0, sig(s))
 # if skew model, it treats z(s) as another covariate in the model and updates
 # lambda as a coefficient
+# lambda.positive = TRUE puts the prior lambda ~ HN(0, lambda.s), i.e. the
+# N(lambda.m, lambda.s) prior truncated to lambda > 0: the joint (beta, lambda)
+# full conditional then is MVN truncated in the lambda coordinate, sampled
+# exactly as lambda ~ TN(0,Inf) from its marginal, then beta | lambda.
 updateBeta <- function(beta.m, beta.s, x, y, zg, taug, prec, skew,
-                       lambda, lambda.m, lambda.s) {
+                       lambda, lambda.m, lambda.s, lambda.positive = FALSE) {
   p <- dim(x)[3]
   nt <- ncol(y)
 
@@ -470,6 +493,20 @@ updateBeta <- function(beta.m, beta.s, x, y, zg, taug, prec, skew,
 
   vvv <- chol2inv(chol(vvv))
   mmm <- vvv %*% mmm
+
+  if (skew && lambda.positive) {
+    iL <- p + 1
+    m.lam <- mmm[iL]
+    v.lam <- vvv[iL, iL]
+    lambda.new <- rtnorm_pos(m.lam, sqrt(v.lam))
+    m.b <- mmm[1:p] + vvv[1:p, iL] / v.lam * (lambda.new - m.lam)
+    V.b <- vvv[1:p, 1:p, drop = FALSE] -
+      tcrossprod(vvv[1:p, iL]) / v.lam
+    V.b <- (V.b + t(V.b)) / 2
+    beta.new <- m.b + t(chol(V.b)) %*% rnorm(p)
+    return(list(beta = beta.new, lambda = lambda.new))
+  }
+
   beta <- mmm + t(chol(vvv)) %*% rnorm(length(mmm))
 
   if (skew) {
@@ -523,7 +560,8 @@ updateBetaonly <- function(beta.m, beta.s, x, y, zg, taug, prec, lambda) {
 # updateZonly: 只更新 lambda，固定 beta
 # 將 x %*% beta 視為 offset，從 y 中減去後更新 lambda
 # =============================================================================
-updateZonly <- function(lambda.m, lambda.s, x, y, beta, zg, taug, prec) {
+updateZonly <- function(lambda.m, lambda.s, x, y, beta, zg, taug, prec,
+                        lambda.positive = FALSE) {
   p <- dim(x)[3]
   nt <- ncol(y)
   ns <- nrow(y)
@@ -551,7 +589,11 @@ updateZonly <- function(lambda.m, lambda.s, x, y, beta, zg, taug, prec) {
 
   vvv <- 1 / vvv
   mmm <- vvv * mmm
-  lambda <- rnorm(1, mmm, sqrt(vvv))
+  lambda <- if (lambda.positive) {
+    rtnorm_pos(mmm, sqrt(vvv))
+  } else {
+    rnorm(1, mmm, sqrt(vvv))
+  }
 
   return(list(lambda = lambda))
 }
