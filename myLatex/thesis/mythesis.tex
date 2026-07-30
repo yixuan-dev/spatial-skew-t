@@ -111,13 +111,18 @@
 
 %% 審定書
 \pagenumbering{roman}                   % 小寫羅馬數字
-\addcontentsline{toc}{section}{學位考試委員會審定書}
-\includepdf[pages={1}, scale=0.95, pagecommand={
-    \begin{tikzpicture}[remember picture,overlay]
-        \node[opacity=0.2] at (current page.center) 
-        {\includegraphics[width=5cm]{../pdf/NDHU_logo.pdf}};
-    \end{tikzpicture}
-    \setcounter{page}{1}                % 將頁碼重設為 1
+\includepdf[
+    pages={1}, 
+    scale=0.95, 
+    pagecommand={
+    % \phantomsection
+    % \addcontentsline{toc}{section}{Certificate of Approval of Examination Committee}
+    % \begin{tikzpicture}[remember picture,overlay]
+    %     \node[opacity=0.1] at (current page.center) 
+    %     {\includegraphics[width=5cm]{../pdf/NDHU_logo.pdf}};
+    % \end{tikzpicture}
+    % \setcounter{page}{1}                % 將頁碼重設為 1
+    \thispagestyle{empty}               % 不顯示頁碼
     }]{../pdf/學位考試委員會審定書.pdf}
 
 %% 空白頁
@@ -127,13 +132,17 @@
 ~
 
 %% 論文原創性聲明書
-\addcontentsline{toc}{section}{學位論文原創性聲明書}
-\includepdf[pages={1}, pagecommand={
-    \begin{tikzpicture}[remember picture,overlay]
-        \node[opacity=0.2] at (current page.center) 
-        {\includegraphics[width=5cm]{../pdf/NDHU_logo.pdf}};
-    \end{tikzpicture}
-    \setcounter{page}{2}                % 將頁碼重設為 2
+\includepdf[
+    pages={1}, 
+    pagecommand={
+    % \phantomsection
+    % \addcontentsline{toc}{section}{Declaration of Thesis/Dissertation Originality}
+    % \begin{tikzpicture}[remember picture,overlay]
+    %     \node[opacity=0.1] at (current page.center) 
+    %     {\includegraphics[width=5cm]{../pdf/NDHU_logo.pdf}};
+    % \end{tikzpicture}
+    % \setcounter{page}{2}                % 將頁碼重設為 2
+    \thispagestyle{empty}               % 不顯示頁碼
     }]{../pdf/學位論文原創性聲明書.pdf}
 
 %% 空白頁
@@ -144,39 +153,40 @@
 
 %% 序言或致謝
 \newpage
-\setcounter{page}{3}                    % 將頁碼重設為 3
-\WatermarkOn                          % 浮水印
-\section*{致謝辭}
-\addcontentsline{toc}{section}{致謝辭}
+\thispagestyle{empty}                   % 不顯示頁碼
+\WatermarkOn                            % 浮水印
+\section*{\centering 致謝辭}
 
-首先，要感謝我的父母，有你們的一直以來給予的信任及裁培，讓我可以專注地完成學業。
+\hspace*{1.5em}完成這篇論文的一路上，受到許多人的幫助。感謝我的父母給予的信任及栽培，讓我可以專注地完成學業。謝謝黃灝勻老師在研究上給予的諸多方向及指點，每當我陷入瓶頸時，總能點出問題的關鍵，讓我學會如何思考與面對研究中的未知。謝謝吳韋瑩老師，無論是在運籌計畫或羽球場上，都教會了我面對挑戰的心態。謝謝蕭維政老師細心審閱論文，在口試時提供許多寶貴的建議，使這篇論文更加完整。也謝謝302、314研究室的夥伴們，在這段日子裡一起討論、互相打氣，讓漫長的研究過程多了許多歡笑；謝謝一路上陪伴我的朋友，在我感到疲憊時給予傾聽與鼓勵。
 
-雖然很開心自己完成了這段碩士旅程，但在為論文提筆致謝辭時不知道為何點點不捨在心頭上激起漣漪。
+雖然很開心完成了這段碩士旅程，但在提筆致謝辭時卻感到點點不捨。這兩年所學到的，不只是專業知識，更是面對問題時的耐心與韌性。謝謝所有曾經幫助過我的人，我會帶著這份溫暖，繼續走向下一段旅程。
 
 \begin{flushright}
-謝易軒 謹致
+謝易軒 \ 謹致
 
 國立東華大學應用數學系統計碩士班
 
 中華民國 115 年 7 月 25 日
 \end{flushright}
 
-% %% 空白頁
-% \newpage
-% \thispagestyle{empty}                 % 不顯示頁碼
-% \WatermarkOff                         % 不要浮水印
-% ~ 
+%% 空白頁
+\newpage
+\thispagestyle{empty}                 % 不顯示頁碼
+\WatermarkOff                         % 不要浮水印
+~ 
 
 %% 中文摘要 + 關鍵詞
 \newpage
-\setcounter{page}{4}                    % 將頁碼重設為 4
+\setcounter{page}{1}                    % 將頁碼重設為 1
 \WatermarkOn                            % 浮水印
-\section*{摘要}
-\addcontentsline{toc}{section}{摘要}
+\section*{\centering 摘要}
+\addcontentsline{toc}{section}{摘要} % 加入目錄
 
-在環境風險治理中，決策關心的通常不是平均濃度，而是未設站位置超越高門檻的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，沿兩軸檢驗其可改進空間：潛在參數的標準化 AR(2) 先驗，與迴歸均值中的多尺度薄板樣條 (MRTS) 基底。模型比較以樣本外 Brier 分數為核心指標，於模擬與 2005 年 7 月美國 AQS 臭氧資料（CMAQ 共變數）上進行。時間軸的結果依預測任務而分：即使係數被完整回收，空間內插仍對自迴歸階數不敏感；只有當任務需要外推至觀測紀錄之外，較豐富的時間 pooling 才帶來從未顯著的增益。MRTS 均值項在非定態確實位於均值曲面、且基底足以解析它時可改善預測；於臭氧資料上其增益真實，惟幅度不大。因此本文的貢獻在於將 STP 基準擴展為可由樣本外門檻預測表現進行資料驅動選擇的候選模型類。
+\hspace*{1.5em}在環境風險治理中，決策關心的通常不是平均濃度，而是未設站位置超越高門檻的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，沿兩軸檢驗其可改進空間：潛在參數的標準化 AR(2) 先驗，與迴歸均值中的多尺度薄板樣條 (MRTS) 基底。模型比較以樣本外 Brier 分數為核心指標，於模擬與 2005 年 7 月美國 AQS 臭氧資料（CMAQ 共變數）上進行。時間軸的結果依預測任務而分：即使係數被完整回收，空間內插仍對自迴歸階數不敏感；只有當任務需要外推至觀測紀錄之外，較豐富的時間 pooling 才帶來從未顯著的增益。MRTS 均值項在非定態確實位於均值曲面、且基底足以解析它時可改善預測；於臭氧資料上其增益真實，惟幅度不大。因此本文的貢獻在於將 STP 基準擴展為可由樣本外門檻預測表現進行資料驅動選擇的候選模型類。
 
-\textbf{關鍵字}：時空 \skewt 過程、門檻超標預測、AR(2) 先驗、多尺度薄板樣條、Brier 分數、臭氧
+\vspace{2.0\baselineskip}
+
+\noindent \textbf{關鍵字}：時空 \skewt 過程、門檻超標預測、AR(2) 先驗、多尺度薄板樣條、Brier 分數、臭氧
 
 %% 空白頁
 \newpage
@@ -186,10 +196,10 @@
 
 %% 英文摘要 + 關鍵詞
 \newpage
-\setcounter{page}{5}                    % 將頁碼重設為 5
+\setcounter{page}{2}                    % 將頁碼重設為 2
 \WatermarkOn                            % 浮水印
-\section*{Abstract}
-\addcontentsline{toc}{section}{Abstract}
+\section*{\centering Abstract}
+\addcontentsline{toc}{section}{Abstract} % 加入目錄
 
 In environmental risk regulation, the inferential target is often not the field
 mean but the probability of exceeding a high threshold at unmonitored
@@ -208,7 +218,9 @@ enough to resolve it; on the ozone data its gain is real, though modest in
 magnitude. The contribution is therefore to enlarge the STP baseline into a
 candidate model class selected by held-out threshold predictive performance.
 
-\textbf{Keywords}: spatio-temporal \skewt process; threshold exceedance prediction; AR(2) prior; multi-resolution thin-plate splines; Brier score; ozone
+\vspace{2.0\baselineskip}
+
+\noindent \textbf{Keywords}: spatio-temporal \skewt process; threshold exceedance prediction; AR(2) prior; multi-resolution thin-plate splines; Brier score; ozone
 
 %% 空白頁
 \newpage
@@ -218,23 +230,23 @@ candidate model class selected by held-out threshold predictive performance.
 
 %% 目錄頁
 \newpage
-\setcounter{page}{6}                    % 將頁碼重設為 6
-\addcontentsline{toc}{section}{Contents}
-\tableofcontents
+\setcounter{page}{3}
 \WatermarkOn                            % 浮水印
+\tableofcontents
+\addcontentsline{toc}{section}{Contents} % 加入目錄
 
-%% 空白頁
-\newpage
-\thispagestyle{empty}                   % 不顯示頁碼
-\WatermarkOff                           % 不要浮水印
-~
+% % 空白頁
+% \newpage
+% \thispagestyle{empty}                   % 不顯示頁碼
+% \WatermarkOff                           % 不要浮水印
+% ~
 
 %% 圖目錄頁
 \newpage
-\setcounter{page}{7}                    % 將頁碼重設為 7
-\addcontentsline{toc}{section}{List of Figures}
-\listoffigures
+\setcounter{page}{5}
 \WatermarkOn                            % 浮水印
+\listoffigures
+\addcontentsline{toc}{section}{List of Figures} % 加入目錄
 
 %% 空白頁
 \newpage
@@ -244,10 +256,10 @@ candidate model class selected by held-out threshold predictive performance.
 
 %% 表目錄頁
 \newpage
-\setcounter{page}{8}                    % 將頁碼重設為 8
-\addcontentsline{toc}{section}{List of Tables}
-\listoftables
+\setcounter{page}{6}
 \WatermarkOn                            % 浮水印
+\listoftables
+\addcontentsline{toc}{section}{List of Tables} % 加入目錄
 
 %% 空白頁
 \newpage
@@ -1057,12 +1069,23 @@ flexibility where the simulation showed the structure to be, while a
 reparameterized $z$, longer records, and a rolling forecast origin would test
 whether the extrapolation gains are real.
 
+
+% --------------------------------------------------------------
+%% References
+\phantomsection
+\addcontentsline{toc}{section}{References}
+\printbibliography        % 顯示參考文獻
+
 % --------------------------------------------------------------
 %% Appendix
+\newpage
 \appendix
-\section{Appendices}
+\phantomsection
+\addcontentsline{toc}{section}{Appendix}
 
-\subsection{Notation}\label{app:notation}
+% --------------------------------------------------------------
+\newpage
+\section{Notation}\label{app:notation}
 
 Several letters carry more than one meaning in this thesis.  Table~\ref{tab:notation} lists those reused symbols together to make the intended reading explicit; symbols not listed here are used with a single meaning.
 
@@ -1121,7 +1144,7 @@ $n_s,\ n_t$ & Number of sites; number of days \\
 \end{longtable}
 }
 
-\subsection{Stationary moments of the standardized AR(2)}\label{app:ar2-moments}
+\section{Stationary moments of the standardized AR(2)}\label{app:ar2-moments}
 
 We derive the Yule--Walker moments \eref{eq:gamma12}--\eref{eq:sigeps} used to standardize the AR(2) prior \eref{eq:ar2-recursion} to unit marginal variance.  Let $\gamma_h = \mathrm{Cov}(Y_t, Y_{t-h})$ be the stationary autocovariances, constrained so that $\gamma_0 = \mathrm{Var}(Y_t) = 1$.  Multiplying the recursion \eref{eq:ar2-recursion} by $Y_{t-h}$ for $h \ge 1$ and taking expectations, and using that $\epsilon_t$ is independent of $Y_{t-h}$ for the causal stationary solution, yields the Yule--Walker recursion
 \begin{align}
@@ -1129,7 +1152,7 @@ We derive the Yule--Walker moments \eref{eq:gamma12}--\eref{eq:sigeps} used to s
 \end{align}
 Evaluating \eref{eq:yw} at $h = 1$ and using the symmetry $\gamma_{-1} = \gamma_1$ with $\gamma_0 = 1$ gives $\gamma_1 = \phi_1 + \phi_2\, \gamma_1$, hence $\gamma_1 = \phi_1 / (1 - \phi_2)$, and at $h = 2$ gives $\gamma_2 = \phi_1\, \gamma_1 + \phi_2$; together these are \eref{eq:gamma12}.  Multiplying \eref{eq:ar2-recursion} instead by $Y_t$ and taking expectations, with $\mathrm{E}[Y_t\, \epsilon_t] = \sigma_\epsilon^2$ because $Y_t$ carries the current innovation, gives $\gamma_0 = \phi_1\, \gamma_1 + \phi_2\, \gamma_2 + \sigma_\epsilon^2$, and solving for $\sigma_\epsilon^2$ under $\gamma_0 = 1$ recovers \eref{eq:sigeps}.  The same normalization fixes the initial pair, which has unit variances and lag-1 covariance $\gamma_1$ and is therefore the stationary bivariate Gaussian \eref{eq:joint-init}.
 
-\subsection{AR(2) full conditional for the Gibbs-within-MH update}\label{app:full-cond}
+\section{AR(2) full conditional for the Gibbs-within-MH update}\label{app:full-cond}
 
 The AR(2) Markov structure factorizes the joint prior of $(Y_1, \ldots, Y_{n_t})$ as
 \begin{align}
@@ -1153,7 +1176,7 @@ where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through t
 \end{align}
 in which all three prior factors must appear; omitting the lag-2 factor distorts the stationary distribution of the chain away from the AR(2) joint and produces a lag-2 autocorrelation that does not match the Yule--Walker value in \eref{eq:gamma12}.
 
-\subsection{Marginal covariance of the non-stationary-dependence design}\label{app:nsdep-cov}
+\section{Marginal covariance of the non-stationary-dependence design}\label{app:nsdep-cov}
 
 The second MRTS design of \sref{sec:sim-mrts-design} places the non-stationarity in the dependence through a mean-zero random effect built from two fixed cosine fields on the $[0,10]^2$ domain.  With centers $\bc_1 = (0, 10)^\top$, $\bc_2 = (7.5, 2.5)^\top$ and wavenumbers $\kappa_1 = \pi/10$, $\kappa_2 = \pi/5$,
 \begin{align}
@@ -1177,16 +1200,6 @@ Marginalizing over the weights, $u_t(\bs) = \sum_{j} \xi_{tj}\, g_j(\bs)$ has ze
   \label{eq:nsdep-cov}
 \end{align}
 The pointwise variance $\mathrm{Var}\big(u_t(\bs)\big) = \sum_{j} \tau_j^2\, g_j(\bs)^2$ depends on location, so the dependence is non-stationary while the marginal mean stays constant at $10$.  Because the weights are redrawn independently across days, $u_t$ carries no temporal dependence, keeping this design orthogonal to the AR(2) experiment.
-
-
-% --------------------------------------------------------------
-%% References
-\printbibliography        % 顯示參考文獻
-
-% 參考文獻插入範例
-% \parencite{morris_space-time_2017}
-
-% \textcite{morris_space-time_2017}
 
 % -------------------------------
 % 文件結束
