@@ -645,31 +645,31 @@ away from the oracle at every $K$.
 
 \subsection*{What the spotlight settings show}
 
-Settings 16 and 20 are now fitted at $n = 10$ on the full $K$ grid; 19 and 21
-remain $n = 3$ pilots. The $n = 10$ pair carries the weight of what follows.
+Settings 16 and 20 are now fitted at $n = 30$ on the full $K$ grid; 19 and 21
+remain $n = 3$ pilots. The $n = 30$ pair carries the weight of what follows.
 
 \begin{itemize}
-\item \textbf{Unthresholded methods gain across the board.} On both $n = 10$
+\item \textbf{Unthresholded methods gain across the board.} On both $n = 30$
 settings the Gaussian and skew-$t$ methods reduce all three scores: setting 16
 to $0.94$--$0.96$ (energy/variogram) and $0.93$--$0.95$ (Brier); setting 20
 more strongly, with skew-$t$ K5 the standout ($0.70$ energy, $0.63$ variogram,
-$0.60$ Brier) (Tables~\ref{tab:energy}--\ref{tab:vario}, \ref{tab:brierKc}).
+$0.59$ Brier) (Tables~\ref{tab:energy}--\ref{tab:vario}, \ref{tab:brierKc}).
 Under a misspecified error law the mean channel finally moves every score in
 the same direction --- unlike the skew-$t$-core settings, where these methods
 were flat.
 \item \textbf{The thresholded methods split by surface --- and the $n = 3$
-``inversion'' was largely small-sample noise.} At $n = 10$ the censored
+``inversion'' was largely small-sample noise.} At $n = 30$ the censored
 methods are \emph{flat} on setting 16 (energy $1.00$/$1.00$, variogram
 $1.00$/$1.00$ for the K1/K5 variants) --- \emph{not} the $1.5$--$1.7$ energy
 \emph{loss} the $n = 3$ pilot had reported --- yet gain \emph{strongly} on
-setting 20 (energy $0.53$/$0.53$, variogram $0.42$/$0.43$). The discriminator
+setting 20 (energy $0.49$/$0.52$, variogram $0.39$/$0.40$). The discriminator
 is where the surface puts its curvature: setting 20 concentrates it where the
 uniform sites are sparsest, and there the mean basis rescues the censored
 likelihood; the smoother sigmoid front of setting 16 leaves nothing to rescue.
 The larger energy-ratio excursions still visible at $n = 3$ (settings 14, 15,
 17, up to $2.9$) should be read with that same small-$n$ caution.
-\item \textbf{Brier improves for every method on both $n = 10$ settings}
-($0.60$--$0.95$); the realised gains do not follow the $e(K)$ ordering and
+\item \textbf{Brier improves for every method on both $n = 30$ settings}
+($0.59$--$0.95$); the realised gains do not follow the $e(K)$ ordering and
 stay far above the floor $R^\star$, both consistent with Finding~3's
 sharpness--extrapolation account.
 \end{itemize}
@@ -681,17 +681,17 @@ sharpness--extrapolation account.
 exists because all earlier settings share the skew-$t$ core, so at large $K$
 the fitted skew-$t$ is \emph{correctly specified} --- a confound for every
 ``MRTS helps/hurts'' conclusion. Its nine settings are now fitted and scored
-($n = 10$ on the full $K$ grid for settings 16 and 20; $n = 3$ pilots for the
+($n = 30$ on the full $K$ grid for settings 16 and 20; $n = 3$ pilots for the
 other seven; Tables~\ref{tab:energy}--\ref{tab:vario} and \ref{tab:brierKc};
 four settings introduced in Section~\ref{sec:spotlight}), but the systematic
 write-up --- in particular why the thresholded methods, the carriers of every
 skew-$t$-core gain, \emph{lose} under some misspecified-error surfaces (energy
 ratios up to $2.9$ at $n = 3$, settings 14, 15, 17) yet are flat on setting 16
-and gain sharply on setting 20 at $n = 10$, while the unthresholded methods
+and gain sharply on setting 20 at $n = 30$, while the unthresholded methods
 post steady gains throughout --- is still to be done. Bringing the remaining
 seven settings to $n = 10$ is the next step.
 \item \textbf{$n$ upgrade}: settings 4--12 and seven of the non-$t$ block are
-$n = 3$ pilots (settings 16 and 20 are already at $n = 10$); the headline
+$n = 3$ pilots (settings 16 and 20 are already at $n = 30$); the headline
 contrasts (11, 12, and the disambiguation) merit $n = 10$. An automated fill
 script (fit increment $\to$ re-score $\to$ verify overlap against the pilot
 cells $\to$ delete fits) performs each upgrade; it resumes cleanly after an
