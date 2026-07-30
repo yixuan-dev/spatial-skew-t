@@ -76,28 +76,34 @@ method_label <- vapply(methods, function(m) {
 H <- block_H
 set_tag <- sprintf("set%d%s", setting_id, data_suffix)
 
-# Data-generating process label per setting id (for figure titles).
-# Stored as bquote() language objects so math symbols render through
-# plot() main / mtext().
-dgp_label_map <- list(
-  "1"  = bquote("Gaussian"),
-  "2"  = bquote(italic(t) * " (K=1)"),
-  "3"  = bquote(italic(t) * " (K=5)"),
-  "4"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3)"),
-  "5"  = bquote("Skew-" * italic(t) * " (K=5, " * lambda * "=3)"),
-  "6"  = bquote("Max-stable, Reich and Shaby"),
-  "7"  = bquote("Transformed Skew-" * italic(t) * ", T=q(0.80)"),
-  "8"  = bquote("Max-stable, Brown-Resnick"),
-  "9"  = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
-                  phi[1] * "=0.8, " * phi[2] * "=-0.35"),
-  "10" = bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3), AR(2): " *
-                  phi[1] * "=0.12, " * phi[2] * "=-0.05")
-)
+# Data-generating process label, built from the setting catalog rather
+# than a hardcoded map. Every setting of THIS study shares the same
+# marginal law (skew-t, K=1, lambda=3) and differs only in the temporal
+# law, so the label is that law. Stored as a bquote() language object so
+# math symbols render through plot() main / mtext().
+#
+# (The previous hardcoded list was inherited from the Morris spatial study,
+# whose setting ids mean something else entirely: it labelled setting 5 as
+# "K=5" and setting 7 as a transformed skew-t, both wrong here.)
+dgp_label <- function(setting_id) {
+  row <- get_tbf_setting_catalog()
+  row <- row[row$setting_id == as.integer(setting_id), , drop = FALSE]
+  head <- bquote("Skew-" * italic(t) * " (K=1, " * lambda * "=3)")
+  if (nrow(row) != 1L) return(bquote(.(head) * .(sprintf(", setting %d", setting_id))))
+  temporal <- switch(row$family[1],
+    iid = bquote(", i.i.d. in time"),
+    ar2 = bquote(", AR(2): " * phi[1] * .(sprintf("=%.2f, ", row$phi1[1])) *
+                   phi[2] * .(sprintf("=%.2f", row$phi2[1]))),
+    arfima = bquote(", ARFIMA " * italic(d) *
+                      .(sprintf("=%.2f (H=%.2f)", row$d[1], row$hurst[1]))),
+    bquote(.(sprintf(", %s", row$label[1])))
+  )
+  bquote(.(head) * .(temporal))
+}
 # dgp_title(): expression built from setting_id + data_suffix,
 # optionally suffixed by an extra `bquote(...)` snippet for context.
 dgp_title <- function(suffix_expr = NULL) {
-  base <- dgp_label_map[[as.character(setting_id)]]
-  if (is.null(base)) base <- bquote(paste("setting ", .(setting_id)))
+  base <- dgp_label(setting_id)
   if (nzchar(data_suffix)) {
     base <- bquote(.(base) ~ .(paste0("[", data_suffix, "]")))
   }
