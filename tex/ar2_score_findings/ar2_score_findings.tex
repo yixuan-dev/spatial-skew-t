@@ -1,0 +1,189 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1.05in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\DeclareMathOperator{\sd}{sd}
+\newcommand{\E}{\mathbb{E}}
+
+\title{\textbf{Where AR(2) pooling moves the forecast scores}\\[2pt]
+\large Main findings of the block-1 positive control, their robustness\\
+to the ridge and recovery issues, and the resulting thesis language}
+\author{Technical note}
+\date{31 July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The research question is under which simulated dependence conditions the
+AR(2)-structured skew-t model separates from its i.i.d.-in-time
+counterpart in Brier score and CRPS. The block-1 answer: separation
+exists only under near-unit-root dependence AR(2)$(0.15, 0.80)$ and only
+in the CRPS ($-31$ to $-35\%$, paired one-sided $p = .039/.012$ under
+two independent protection schemes); the Brier score at $q_{95}$ never
+reaches significance anywhere, and the strong-but-short-memory condition
+AR(2)$(0.80, -0.35)$ shows no detectable difference in either score.
+These conclusions are invariant to the reflected-ridge pathology (once
+protected by either remedy) and to every parameter-recovery defect
+found, which justifies handling both by thesis reminder text rather than
+by further model changes.
+\end{abstract}
+
+\section{Design and test}
+
+Settings $4$ (AR(2)$(0.80,-0.35)$, memory horizon $h^\ast=6$ days) and
+$5$ (AR(2)$(0.15,0.80)$, $h^\ast=109$); datasets $1$--$10$; block~1
+(train $t=1..50$, forecast $t=51..65$); methods i.i.d.\ and AR(2), both
+skew-t, $K=1$. Per cell and lead $h$,
+\begin{equation}
+  \mathrm{CRPS}_h = \frac{1}{n_s}\sum_{s}
+  \mathrm{crps}\big(F_{sh},\, y_{sh}\big),
+  \qquad
+  \mathrm{BS}_h = \frac{1}{n_s}\sum_{s}
+  \big(\mathbf{1}\{y_{sh} > q_{95}\} - \hat p_{sh}\big)^2,
+\end{equation}
+with $F_{sh}$ the posterior predictive sample, $q_{95}$ the validation
+block's own $95\%$ quantile, and $\hat p_{sh}$ the posterior predictive
+exceedance probability. Primary summaries are means over leads $1$--$5$;
+the test is the paired one-sided Wilcoxon over datasets,
+$H_1\!: \text{AR(2)} < \text{i.i.d.}$
+
+\section{Main result}
+
+\begin{table}[ht]
+\centering
+\caption{Paired comparison, means over clean datasets, leads 1--5.
+``guarded'' = assertion-guarded study, $\lambda \sim N(0,20)$;
+``HN'' = unguarded study, $\lambda \sim \mathrm{HN}(0,20)$. $n$ = clean
+datasets in that study.}
+\label{tab:main}
+\footnotesize
+\begin{tabular}{llrrrrrrr}
+\toprule
+setting & study & $n$ & \multicolumn{3}{c}{CRPS} & \multicolumn{3}{c}{Brier $q_{95}$} \\
+\cmidrule(lr){4-6}\cmidrule(lr){7-9}
+ & & & i.i.d. & AR(2) & $\Delta\%$ ($p$) & i.i.d. & AR(2) & $\Delta\%$ ($p$) \\
+\midrule
+4 strong    & guarded & 10 & 2.265 & 2.207 & $-2.6$ (.161)  & .0526 & .0530 & $+0.8$ (.539) \\
+4 strong    & HN      & 9  & 1.906 & 1.807 & $-5.2$ (.049)  & .0431 & .0428 & $-0.7$ (.213) \\
+5 near-unit & guarded & 8  & 2.695 & 1.851 & $\mathbf{-31.3}$ (\textbf{.039}) & .0623 & .0552 & $-11.4$ (.422) \\
+5 near-unit & HN      & 8  & 2.780 & 1.795 & $\mathbf{-35.4}$ (\textbf{.012}) & .0468 & .0395 & $-15.5$ (.273) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three statements summarize Table~\ref{tab:main}.
+
+\begin{enumerate}\itemsep2pt
+  \item \textbf{CRPS separates, and only under near-unit-root
+        dependence.} The gain under AR(2)$(0.15,0.80)$ is large,
+        $-31$ to $-35\%$, and significant under both protection
+        schemes. Under
+        AR(2)$(0.80,-0.35)$ the point estimate is small and unstable
+        across clean-set definitions (the HN row's $p = .049$ excludes
+        dataset~6, the hardest dataset; it should not be read as a
+        discovery).
+  \item \textbf{The Brier score at $q_{95}$ separates nowhere.} Point
+        estimates favor AR(2) under near-unit-root dependence ($-11$ to
+        $-16\%$) but $p$ never falls below $0.27$. This matches the
+        earlier uncertainty audit of the main simulation study, where
+        station-level bootstrap and replicate-level Wilcoxon likewise
+        found paired Brier differences undetectable.
+  \item \textbf{Why the Brier score is blind here.} At a $q_{95}$
+        threshold the expected number of exceedance events per lead is
+        $0.05\, n_s \approx 7$; over a $5$-lead window the paired Brier
+        difference is dominated by event-count noise, and its
+        replicate-level variance swamps a $10$--$15\%$ mean shift at
+        $n = 8$--$10$. The CRPS integrates over all thresholds and does
+        not pay this sparsity price.
+\end{enumerate}
+
+\section{Robustness to the ridge and recovery issues}
+
+The pathology and remedy ledgers (companion notes) support four
+invariance statements.
+
+\begin{table}[ht]
+\centering
+\caption{Threat audit of the main result.}
+\label{tab:threats}
+\small
+\begin{tabular}{p{0.30\textwidth}p{0.30\textwidth}p{0.30\textwidth}}
+\toprule
+threat & evidence & verdict on Table~\ref{tab:main} \\
+\midrule
+Reflected ridge (unprotected, would inflate scores of affected cells by
+up to $12\times$ Brier) &
+two independent remedies deliver score-indistinguishable studies
+($p=.52/.28$, $n=35$); headline holds under both, $-31.3\% \to -35.4\%$ &
+no effect once either remedy is active; protection is necessary
+(unguarded att-0 study would be contaminated) \\
+\addlinespace
+$\tau$-shape misrecovery under near-unit-root dependence
+($\hat a$ CI covers truth $1/5$ cells) &
+both methods fit the same cell's $\tau$; defect is common to the pair &
+cancels in the paired difference \\
+\addlinespace
+$\phi$ shrinkage in setting 4 (recovered $0.62$ of $0.80$) &
+weakens the AR(2) method's own tool where the gain is already
+undetectable &
+cannot fabricate the setting-5 gain; at most understates setting-4 \\
+\addlinespace
+Heavy-tail realizations ($\hat a < 2$, datasets s4 d1, s4 d6, s5 d5) &
+predictive clouds of all chains agree to $q_{99.9}$; scores within
+$1\%$ &
+none; affects only the stability of the (now descriptive) spread
+statistic \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The decision that follows, adopted for the thesis: no further model or
+prior adjustment beyond the already-adopted
+$\lambda \sim \mathrm{HN}(0,20)$, and the residual issues are handled as
+reminder text.
+
+\section{Suggested thesis reminder text}
+
+\begin{quote}\small
+The skew-t likelihood is flat along
+$(\lambda, \beta_0, \{z_t\}) \mapsto (\lambda^\ast, \beta_0^\ast,
+\{(m_t - \beta_0^\ast)/\lambda^\ast\})$, a ridge whose reflected branch
+($\lambda^\ast < 0$) can capture a minority of MCMC chains on short
+training windows. We remove the branch by the sign-anchored prior
+$\lambda \sim \mathrm{HN}(0, 20)$, which is justified because the sign
+of the skewness is known in simulation and identified by the sample
+skewness in applications; on the $40$ positive-control fits this prior
+eliminated all sign reflections without measurable effect on any other
+parameter or on either forecast score. Two benign weak-identification
+effects remain and are reported rather than repaired. First, under
+near-unit-root dependence AR(2)$(0.15, 0.80)$ a $50$-day window carries
+little information about the marginal of the latent variance process, so
+its shape parameter is over-estimated (posterior mean $3.9$ against
+truth $3$); the defect is shared by the compared methods and cancels in
+paired score comparisons. Second, occasional training windows realize
+heavy-tailed variance posteriors ($\hat a < 2$) for which
+moment-based predictive-spread statistics have no finite sampling
+variance; quantile-based spread summaries should be preferred when
+diagnosing such fits.
+\end{quote}
+
+\section{In flight}
+
+Experiment~A (delivered to the compute host 31 July 2026) extends the
+design to settings $5$ and $7$ (ARFIMA $d=0.45$ long memory,
+misspecified for any finite-order AR fit), all five blocks
+(seams $50, 80, 110, 140, 170$), methods i.i.d./AR(2)/AR(1), $10$
+datasets, under the HN-only policy with dataset-level pairing
+($n = 10$; cell-level $n = 50$ as power sensitivity). It will answer the
+two open questions Table~\ref{tab:main} cannot: whether the CRPS gain
+survives geometric-memory misspecification against hyperbolic-memory
+truth, and whether AR(2) separates from AR(1) rather than only from
+i.i.d.
+
+\end{document}

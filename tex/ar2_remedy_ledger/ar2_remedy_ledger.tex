@@ -1,0 +1,198 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1.05in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\DeclareMathOperator{\hn}{HN}
+\DeclareMathOperator{\TN}{TN}
+\DeclareMathOperator{\sd}{sd}
+\newcommand{\E}{\mathbb{E}}
+
+\title{\textbf{Remedy ledger}\\[2pt]
+\large What was tried against the block-1 pathologies, what it bought\\
+in pathology counts and in scores, and what remains untried}
+\author{Technical note}
+\date{31 July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Companion to \code{tex/ar2\_pathology\_ledger}. Two remedies were
+implemented and measured on the same $40$ cells with identical seeds:
+assertion-guarded reseeding (pipeline level) and the sign-anchored prior
+$\lambda \sim \hn(0, 20)$ (model level). Both remove the score-relevant
+pathology; their delivered scores are statistically indistinguishable
+(paired over $35$ cells, $p = 0.52$ CRPS, $p = 0.28$ Brier), and the
+study's headline conclusion survives both, sharpening under the prior.
+The ledger closes with the untried remedies and the argument for why
+their expected score gain is bounded near zero.
+\end{abstract}
+
+\section{Remedy 1 (pipeline): assertion-guarded reseeding}
+
+Pre-registered rule, symmetric across methods. A fit failing truth
+recovery (B) or predictive spread (C, $\max_h \sd(\hat y_h) \le 3 \times$
+marginal SD) is refitted with seed $+\,7919\cdot\text{attempt}$, at most
+three reseeds; a cell still failing is kept but flagged and excluded
+from the primary analysis. Assertions use only the fit, the training
+data, and the simulation truth --- never validation outcomes.
+
+\begin{table}[ht]
+\centering
+\caption{What the guard bought (bit-for-bit counterfactual of the
+unguarded study; leads 1--5).}
+\label{tab:guard}
+\begin{tabular}{lrr}
+\toprule
+ & unguarded (att-0) & guarded (kept) \\
+\midrule
+failing cells                 & $13/40$ & $3/40$ flagged \\
+CRPS, affected cells          & $2.30$  & $2.03$ \quad ($-12\%$) \\
+Brier $q_{95}$, affected cells& $.0437$ & $.0368$ \quad ($-16\%$) \\
+largest single-cell rescue    & \multicolumn{2}{c}{Brier $.0205 \to .0017$ \ ($12\times$)} \\
+cost                          & \multicolumn{2}{c}{$\approx 1.33$ fits per affected cell} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The headline comparison was additionally shown to be insensitive to the
+flag exclusions (sensitivity run keeping all cells,
+$p = 0.010$--$0.021$).
+
+\section{Remedy 2 (model): $\lambda \sim \hn(0, 20)$}
+
+Backend flag \code{lambda.positive} (default off; production behavior
+unchanged). The joint $(\beta, \lambda)$ full conditional is multivariate
+normal; under the truncated prior the exact Gibbs draw is
+\begin{equation}
+  \lambda \,\mid\, \cdot \;\sim\; \TN_{(0,\infty)}\!\big(m_\lambda,\, V_{\lambda\lambda}\big),
+  \qquad
+  \beta \,\mid\, \lambda, \cdot \;\sim\;
+  N\!\big(m_\beta + V_{\beta\lambda} V_{\lambda\lambda}^{-1}(\lambda - m_\lambda),\;
+        V_{\beta\beta} - V_{\beta\lambda} V_{\lambda\lambda}^{-1} V_{\lambda\beta}\big),
+  \label{eq:tgibbs}
+\end{equation}
+with the deep-tail truncated draw by exponential rejection (Robert,
+1995). No approximation is involved; the reflected branch has prior mass
+zero and disappears from the posterior.
+
+\begin{table}[ht]
+\centering
+\caption{The HN experiment. Same $40$ cells, same attempt-0 seeds,
+single fit per cell, no guard, no reseeding.}
+\label{tab:hn}
+\begin{tabular}{lrr}
+\toprule
+ & $N(0,20)$ att-0 & $\hn(0,20)$ \\
+\midrule
+failing cells                    & $13/40$ & $4/40$ \\
+reflections ($\hat\lambda < 0$)  & $10$    & $0$ (by construction) \\
+previously unfixable flag healed & --- & s5 d8 m2: $\hat\lambda = +3.63$ \\
+healthy cells harmed             & --- & $0/27$ \\
+\midrule
+\multicolumn{3}{l}{\emph{parameter side effects}, paired over 35 mutually clean cells:} \\
+$\beta_0$   & \multicolumn{2}{r}{$+0.020$ \ ($p=.042$; $0.2\%$ of truth)} \\
+$\lambda,\ a,\ b,\ \phi_z,\ \phi_\tau$ & \multicolumn{2}{r}{all $p > 0.19$} \\
+\midrule
+\multicolumn{3}{l}{\emph{scores vs the guarded study}, paired over the same 35 cells:} \\
+CRPS  & \multicolumn{2}{r}{$2.165$ vs $2.166$ \ ($p = 0.52$)} \\
+Brier & \multicolumn{2}{r}{$.0491$ vs $.0494$ \ ($p = 0.28$)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The four residual failures are, by pathology, U$\times$2 (s5 d2, both
+methods; no prior can supply identification the window lacks), P
+(s5 d3 m2, $\hat\lambda = 4.97$; the prior constrains the sign, not the
+scale), and H (s4 d6 m2, the spread-statistic coin flip of the
+pathology ledger, \S4).
+
+\paragraph{Effect on the headline.} Under the guarded study the AR(2)
+advantage at AR(2)$(0.15, 0.80)$ was CRPS $-31.3\%$ ($p = .039$); under
+the HN study it is $-35.4\%$ ($p = .012$). The conclusion does not
+depend on which remedy protects the study.
+
+\paragraph{Adopted policy (31 July 2026).} From Experiment~A onward the
+production pipeline uses the HN prior alone. Assertion~C is demoted to a
+descriptive record --- no fit-level gate, no reseeding, no cell
+exclusion --- so the primary analysis consumes all cells. The
+justification is Table~\ref{tab:hn}: the prior alone delivers
+guard-equivalent scores at one fit per cell, and the pathologies it
+leaves (U, P, H) have no measured score path.
+
+\section{Untried remedies and their expected value}
+
+The score gain of any further sampler- or prior-side remedy is bounded
+by an equivalence argument. Two independent mechanisms --- selection by
+reseeding and removal by truncation --- already agree on the delivered
+scores to within noise ($p = 0.52/0.28$); a third mechanism that removes
+the same pathology can only reproduce the same healthy posterior, so its
+expected score gain over the adopted policy is $\approx 0$. The value of
+the entries below is therefore robustness or diagnostics, not score.
+
+\begin{table}[ht]
+\centering
+\caption{Untried remedies. Expected gains are predictions, not
+measurements.}
+\label{tab:untried}
+\small
+\begin{tabular}{p{0.26\textwidth}p{0.13\textwidth}p{0.25\textwidth}p{0.24\textwidth}}
+\toprule
+remedy & targets & expected pathology gain & expected score gain / cost \\
+\midrule
+Mode-jumping swap kernel: deterministic proposal
+$(\lambda, \beta_0, z) \to (-\lambda, \beta_0', \text{flipped } z)$
+with MH correction & R &
+same as HN (mixes across branches; post-hoc relabel) &
+$\approx 0$; high engineering cost, sampler revalidation \\
+\addlinespace
+Tighter \code{lambda.s} (e.g.\ scale so $|\lambda|=12$ costs
+$\gg$ a few nats) & R, P &
+partial; starves both branches' tails but shrinks honest estimates &
+$\le 0$ (bias risk); scale choice is a judgment call \\
+\addlinespace
+Quantile-spread assertion, $q_{99}-q_{1}$ in place of $\max_h \sd$ & H
+(false alarms) &
+removes the $a<2$ instability of the C statistic entirely
+(finite for all $a>0$) &
+$0$ (diagnostic only); trivial cost; moot while C is descriptive \\
+\addlinespace
+Longer training window & U, $\tau$-shape recovery &
+raises effective sample size of the $z$ path and the $\tau$ marginal &
+unknown for scores; changes the study design (no longer $50$-day
+short-window question) \\
+\addlinespace
+Informative $(a, b)$ prior anchored at truth & H, $\tau$ recovery &
+prevents $\hat a < 2$ realizations &
+$\approx 0$ for paired scores (both methods share the cell's $\tau$);
+indefensible outside simulation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{What remains unprotected, quantified}
+
+Under the adopted HN-only policy the primary analysis includes the four
+residual cells. Their measured score footprint, leads 1--5:
+
+\begin{itemize}\itemsep2pt
+  \item \textbf{U (s5 d2, both methods).} CRPS $1.164$ vs $1.158$,
+        Brier $.0194$ vs $.0190$ (i.i.d.\ vs AR(2)) --- the two methods
+        agree on this dataset to three decimals, so the paired
+        difference it contributes is $\approx 0$. Including it dilutes,
+        never distorts.
+  \item \textbf{P (s5 d3 m2).} The inflated fit scores \emph{better}
+        than its healthy replacement (CRPS $1.99$ vs $2.15$), and d3 is
+        an AR(2)-losing dataset under either version; inclusion is
+        conservative for the headline.
+  \item \textbf{H (s4 d6 m2).} Predictive cloud indistinguishable from
+        the passing chains to $q_{99.9}$; scores within $1\%$ of the
+        guarded version (.1338 vs .1349). No footprint.
+\end{itemize}
+
+\end{document}
