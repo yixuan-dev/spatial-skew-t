@@ -8,6 +8,7 @@
 #   .\DESKTOP-61SBCCI\expA_hn_driver.ps1 -DryRun      # print the plan, run nothing
 #   .\DESKTOP-61SBCCI\expA_hn_driver.ps1              # full run, workers auto
 #   .\DESKTOP-61SBCCI\expA_hn_driver.ps1 -Workers 10 -Settings "5"
+#   .\DESKTOP-61SBCCI\expA_hn_driver.ps1 -KeepFits    # gate but never delete fits
 #
 # Interrupted? Re-run the same command. Datasets whose cache exists and
 # passes the gate are skipped entirely; valid fits are skipped by the
@@ -34,7 +35,13 @@ param(
     [int]$DiskFloorGB   = 40,
     [switch]$DryRun,
     [switch]$SkipEnvCheck,
-    [switch]$NoCommit
+    [switch]$NoCommit,
+    # Keep every fit on disk after gating instead of deleting it. Full
+    # campaign is ~49 GB (60 cells x 0.81 GB) -- affordable insurance
+    # against a future re-scoring, which the 2026-07-31 threshold-rule
+    # change showed can otherwise force a refit (the pred_* mirrors cannot
+    # resolve exceedance probabilities at a new threshold).
+    [switch]$KeepFits
 )
 
 $ErrorActionPreference = 'Stop'
@@ -186,12 +193,16 @@ foreach ($S in $settingList) {
 
             Invoke-Rscript "Rscript `"$toolDir/chunk_sanity_tbf.R`" $cache $S $d `"$Methods`" $EsDraws"
 
-            $removed = 0
-            foreach ($m in $methodIds) {
-                $f = "results/$S-$m-$d.RData"     # exact name, never a wildcard
-                if (Test-Path $f) { Remove-Item $f -Force; $removed++ }
+            if ($KeepFits) {
+                Write-Host "== s$S d$d gated, fits kept (-KeepFits; disk free $(Get-FreeGB) GB)"
+            } else {
+                $removed = 0
+                foreach ($m in $methodIds) {
+                    $f = "results/$S-$m-$d.RData"     # exact name, never a wildcard
+                    if (Test-Path $f) { Remove-Item $f -Force; $removed++ }
+                }
+                Write-Host "== s$S d$d gated, $removed fits deleted (disk free $(Get-FreeGB) GB)"
             }
-            Write-Host "== s$S d$d gated, $removed fits deleted (disk free $(Get-FreeGB) GB)"
         }
     }
 
