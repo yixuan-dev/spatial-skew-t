@@ -20,7 +20,7 @@
 # Slide figure B - mean Brier score vs number of MRTS basis functions
 #   at q=0.95, the two nonlinear-mean DGPs in one row (thesis Figure 4
 #   panels (a), (c)):
-#   set16_nonsta  tanh arc front
+#   set16_nonsta  tanh sigmoid front
 #   set20_nonsta  log/exp/ratio transform mix
 #
 # Usage (from code/analysis/simstudy/, via PowerShell Rscript.exe):
@@ -199,7 +199,7 @@ make_slide_rel_by_quantile <- function() {
 # ---- Slide figure B: Brier vs MRTS K at q=0.95, both nont DGPs --------
 make_slide_mean_vs_K_nont <- function() {
   panels <- list(
-    list(setting = 16L, main = "Arc front"),
+    list(setting = 16L, main = "Sigmoid front"),
     list(setting = 20L, main = "Transform mix")
   )
   q_show <- 0.95

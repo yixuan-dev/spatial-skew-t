@@ -48,7 +48,7 @@
 #   Same conventions as Figure 2. Also writes the thesis table numbers
 #   (relative Brier vs the same method's own K=0, q=0.95) to
 #   output/tables/nont_thesis_table.csv.
-#   (a) set16_nonsta q=0.95  tanh arc front, n=10, full 12-point K grid
+#   (a) set16_nonsta q=0.95  tanh sigmoid front, n=10, full 12-point K grid
 #   (b) set16_nonsta q=0.98
 #   (c) set20_nonsta q=0.95  log/exp/ratio transforms, n=3 pilot,
 #       K in {0,30,40,50}
@@ -354,7 +354,7 @@ make_fig_brier_by_lead_blk1 <- function() {
 }
 
 # ---- Figure 4: mean Brier vs MRTS K, non-t mean-surface DGPs ----------
-# setup_nonsta.R settings 16 (tanh arc front, n=10, full 12-point K grid)
+# setup_nonsta.R settings 16 (tanh sigmoid front, n=10, full 12-point K grid)
 # and 20 (log/exp/ratio transforms, n=3 pilot, K in {0,30,40,50}): a
 # nonlinear mean surface plus stationary Gaussian-GP error. Same panel
 # conventions as Figure 2; the per-panel K grids differ, so each panel

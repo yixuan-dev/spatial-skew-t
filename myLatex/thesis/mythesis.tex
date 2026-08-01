@@ -536,7 +536,7 @@ where $\mathrm{X}_j(\bs, t)$ represents the $j$-th exogenous covariate of $\bX_t
   Y_t(\bs) \;=\; \bX^*_t(\bs)^\top \bbeta^* \;+\; \lambda\, \sigma_t(\bs)\, |z_t(\bs)| \;+\; \sigma_t(\bs)\, v_t(\bs),
   \label{eq:fullmodel-mrts}
 \end{align}
-which is identical to the STP model \eref{eq:fullmodel} on all components other than the mean, with $\bbeta^* \in \calR^{K_{\mathrm{MRTS}} + p}$.  Because the MRTS basis functions depend only on location, each site $\bs$ shares the same ordered set of basis values $\bff(\bs)$ at every day $t$.  The number of basis functions $K_{\mathrm{MRTS}}$ is the practical tuning parameter.  \sref{sec:sim-mrts-design} compares $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$ across its simulation designs.
+which is identical to the STP model \eref{eq:fullmodel} on all components other than the mean, with $\bbeta^* \in \calR^{K_{\mathrm{MRTS}} + p}$.  Because the MRTS basis functions depend only on location, each site $\bs$ shares the same ordered set of basis values $\bff(\bs)$ at every day $t$.  The number of basis functions $K_{\mathrm{MRTS}}$ is the practical tuning parameter.  \sref{sec:sim-mrts-design} compares $K_{\mathrm{MRTS}} \in \{0, 3, 5, 8, 10, 12, 15, 20, 25\}$ across its simulation designs, extended by $\{30, 40, 50\}$ on the two nonlinear-mean designs.
 
 \subsection{Hierarchical model}\label{sec:meth-hier}
 
@@ -840,7 +840,7 @@ This experiment enriches the regression component with the MRTS basis functions 
 \begin{enumerate}[leftmargin=3em]
   \item \Skewt, $K = 5$ knots, $\lambda = 3$, with the constant mean $\bX^\top \bbeta = 10$;
   \item \Skewt, $K = 1$ knot, $\lambda = 3$, with an additive mean-zero non-stationary spatial random effect $u_t(\bs)$, redrawn daily from two fixed cosine fields (Appendix~\ref{app:nsdep-cov}), so the non-stationarity lies in the second moment while the marginal mean stays at $10$;
-  \item Gaussian, arc front: the nonlinear-mean model \eref{eq:nont-gen} with $\tilde g(\bs) = \tanh\{\lVert \bs - (2, 2)^\top \rVert - 4.5\}$, a smoothed circular step;
+  \item Gaussian, sigmoid front: the nonlinear-mean model \eref{eq:nont-gen} with $\tilde g(\bs) = \tanh\{\lVert \bs - (2, 2)^\top \rVert - 4.5\}$, a smoothed circular step;
   \item Gaussian, transform mix: the nonlinear-mean model \eref{eq:nont-gen} with $\tilde g(\bs) = \mathrm{std}\{\log(1 + s_1)\} + \mathrm{std}\{e^{-s_1/2}\} + \mathrm{std}\{s_1 / (1 + s_2)\}$, with $\mathrm{std}\{\cdot\}$ standardizing each term to unit spatial standard deviation, whose curvature concentrates near the domain boundary, where the uniform site draw is sparsest.
 \end{enumerate}
 
@@ -863,14 +863,14 @@ On the two \skewt-core designs, augmenting the regression component with MRTS ba
 \label{fig:bs-mean-vs-K-mrts}
 \end{figure}
 
-The two nonlinear-mean designs address the complementary case (\fref{fig:bs-mean-vs-K-nont}; Table~\ref{tab:mrts-nont-brier}).  On the arc-front design the Brier score finally responds to the mean basis, but only once the basis is fine enough to resolve the front.  The profiles stay flat for a coarse basis, deteriorate slightly at intermediate sizes, and improve only at the finer bases, with the thresholded models gaining more than the unthresholded ones and the gains larger at the higher exceedance level.  The intermediate-basis dip is the signature of a too-coarse basis.  A partially fitted mean sharpens the predictive distribution while leaving a residual surface error that extrapolates to the held-out sites, and the net effect on the Brier score is negative until the basis actually resolves the front.
+The two nonlinear-mean designs address the complementary case (\fref{fig:bs-mean-vs-K-nont}; Table~\ref{tab:mrts-nont-brier}).  On the sigmoid-front design the Brier score finally responds to the mean basis, but only once the basis is fine enough to resolve the front.  The profiles stay flat for a coarse basis, deteriorate slightly at intermediate sizes, and improve only at the finer bases, with the gains larger at the higher exceedance level.  The intermediate-basis deterioration is the signature of a too-coarse basis.  A partially fitted mean sharpens the predictive distribution while leaving a residual surface error that extrapolates to the held-out sites, and the net effect on the Brier score is negative until the basis actually resolves the front.
 
 The transform-mix design shows the same mechanism operating from a much worse starting point.  The mismatched five-knot partition, compounded for the thresholded variant by censoring, leaves the no-basis baselines of the five-knot models far above those of the one-knot models, and the mean basis recovers most of that loss.  Every model improves at the $0.95$ threshold quantile, and at its best basis size each converges to nearly the same score.  The improvement is not uniform across levels, however.  At the rarer $0.98$ quantile it is carried entirely by the five-knot models, whereas the one-knot models stay flat or worsen.  This is the sharpness--extrapolation signature again, in that only the models whose no-basis fit is badly mis-specified, here the five-knot partition, carry enough headroom for the mean basis to convert into a gain at the rarest level.  Both surfaces were chosen, by an oracle calculation performed before any fitting, to leave genuine Brier headroom.  Replacing the fitted mean by the true surface $g$ under the true Gaussian error law leaves substantial headroom on both.  The realized gains convert only a small part of that headroom, which is consistent with the sharpness--extrapolation account above.  The Brier score improves only where the residual basis error is small relative to the predictive spread.
 
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{../pdf/brier_score_mean_vs_K-set16_20_nonsta.pdf}
-\caption[Brier score versus the MRTS basis size, nonlinear-mean designs]{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ on the two nonlinear-mean designs of \eref{eq:nont-gen} ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~arc front; (c,d)~transform mix.  Both use $10$ data sets on the full $K_{\mathrm{MRTS}}$ grid.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
+\caption[Brier score versus the MRTS basis size, nonlinear-mean designs]{Brier score versus the number of MRTS basis functions $K_{\mathrm{MRTS}}$ on the two nonlinear-mean designs of \eref{eq:nont-gen} ($K_{\mathrm{MRTS}}=0$ is the no-MRTS baseline; lower is better).  Data-generating processes: (a,b)~sigmoid front; (c,d)~transform mix.  Both use $10$ data sets on the full $K_{\mathrm{MRTS}}$ grid.  Exceedance level $q=0.95$ in (a,c) and $q=0.98$ in (b,d).}
 \label{fig:bs-mean-vs-K-nont}
 \end{figure}
 
@@ -883,11 +883,11 @@ The transform-mix design shows the same mechanism operating from a much worse st
 \toprule
 Generating design & Analysis model & $K{=}30$ & $K{=}40$ & $K{=}50$ & Best ($K$) & $\mathrm{BS}_0$ \\
 \midrule
-Arc front     & Gaussian                      & 0.970 & 0.967 & 0.966 & 0.966 (50) & 0.0232 \\
-Arc front     & \Skewt, $K = 1$               & 0.969 & 0.967 & 0.967 & 0.966 (25) & 0.0233 \\
-Arc front     & Symmetric-$t$, $K = 1$, thr.  & 0.943 & 0.949 & 0.949 & 0.941 (25) & 0.0240 \\
-Arc front     & \Skewt, $K = 5$               & 0.960 & 0.956 & 0.956 & 0.956 (50) & 0.0235 \\
-Arc front     & Symmetric-$t$, $K = 5$, thr.  & 0.944 & 0.951 & 0.974 & 0.944 (25) & 0.0239 \\
+Sigmoid front & Gaussian                      & 0.970 & 0.967 & 0.966 & 0.966 (50) & 0.0232 \\
+Sigmoid front & \Skewt, $K = 1$               & 0.969 & 0.967 & 0.967 & 0.966 (25) & 0.0233 \\
+Sigmoid front & Symmetric-$t$, $K = 1$, thr.  & 0.943 & 0.949 & 0.949 & 0.941 (25) & 0.0240 \\
+Sigmoid front & \Skewt, $K = 5$               & 0.960 & 0.956 & 0.956 & 0.956 (50) & 0.0235 \\
+Sigmoid front & Symmetric-$t$, $K = 5$, thr.  & 0.944 & 0.951 & 0.974 & 0.944 (25) & 0.0239 \\
 \midrule
 Transform mix & Gaussian                      & 0.708 & 0.695 & 0.679 & 0.679 (50) & 0.0079 \\
 Transform mix & \Skewt, $K = 1$               & 0.698 & 0.686 & 0.669 & 0.669 (50) & 0.0080 \\

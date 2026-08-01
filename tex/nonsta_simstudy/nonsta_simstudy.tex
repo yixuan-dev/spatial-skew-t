@@ -122,7 +122,7 @@ ID & \texttt{surf\_type} & non-stationarity & route & $n$ \\
 13 & franke         & mean, Franke (multiscale)                 & mean & 3 \\
 14 & ridge\_curved  & mean, curved Gaussian ridge               & mean & 3 \\
 15 & annulus        & mean, Ricker ring ($r_0{=}3$, $w{=}1.5$)   & mean & 3 \\
-16 & sigmoid\_front & mean, $\tanh$ arc front                    & mean & 30 \\
+16 & sigmoid\_front & mean, sigmoid front ($\tanh$)             & mean & 30 \\
 17 & gp\_mean       & mean, GP draw (per dataset, fixed in $t$)  & mean & 3 \\
 18 & franke\_sas    & mean $=$ setting 13; sinh-arcsinh error   & mean & 3 \\
 19 & poly2          & mean, bowl $+$ saddle (2nd-order poly)     & mean & 3 \\
@@ -169,7 +169,7 @@ ID & \texttt{surf\_type} & marginal law & spatial dependence & mean structure $\
 13 & franke         & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ Franke's function (2 large $+$ 1 medium bump, 1 fine dip) \hfill (11.0) \\
 14 & ridge\_curved  & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ curved Gaussian ridge $\exp[-(s_2' - 0.5 - 0.25\sin 2\pi s_1')^2 / 2\cdot0.12^2]$ \hfill (11.0) \\
 15 & annulus        & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ Ricker ring $\psi((r-3)/1.5)$, $r = \lVert\bs - (5,5)\rVert$ \hfill (11.0) \\
-16 & sigmoid\_front & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+ \tanh[(\lVert\bs - (2,2)\rVert - 4.5)/1.0]$ arc front \hfill (11.0) \\
+16 & sigmoid\_front & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+ \tanh[(\lVert\bs - (2,2)\rVert - 4.5)/1.0]$ sigmoid front \hfill (11.0) \\
 17 & gp\_mean       & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ GP draw (Mat\'ern $\nu{=}1.5$, range 2), redrawn per dataset, fixed in $t$ \hfill (11.0) \\
 18 & franke\_sas    & sinh-arcsinh ($\epsilon{=}0.8$, $\delta{=}1$), right-skewed & $C_{\mathrm{exp}}$, stationary & $10\,+$ Franke (identical to setting 13) \hfill (11.0) \\
 19 & poly2          & Gaussian & $C_{\mathrm{exp}}$, stationary & $10\,+$ 2nd-order polynomial (bowl $+$ saddle) \hfill (11.0) \\
