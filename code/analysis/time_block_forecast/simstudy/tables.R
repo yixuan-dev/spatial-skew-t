@@ -65,7 +65,10 @@ if (!file.exists(scores_file)) {
     scores_file, setting_id), call. = FALSE)
 }
 load(scores_file)
-# Provides: crps.lead, brier.lead, energy.score, vario.score, elapsed_sec,
+# Provides: crps.lead, brier.lead (full-series thresholds since
+#           2026-07-31; brier_threshold_basis records the rule),
+#           brier.lead.blockq, pexceed.mean, brier.thresholds,
+#           exceed.rate.lead, energy.score, vario.score, elapsed_sec,
 #           probs, datasets, methods, setting, block_H, block_seams, ...
 
 catalog <- get_tbf_method_catalog()

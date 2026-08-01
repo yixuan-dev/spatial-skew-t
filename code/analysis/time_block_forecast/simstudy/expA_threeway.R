@@ -55,7 +55,10 @@ if (!file.exists(scores_file)) {
   stop(sprintf("score cache not found: %s", scores_file), call. = FALSE)
 }
 load(scores_file)
-# Provides: crps.lead, brier.lead, fit.diag, post.summary, hn_prior,
+# Provides: crps.lead, brier.lead (full-series thresholds since
+#           2026-07-31; brier_threshold_basis records the rule),
+#           brier.lead.blockq, pexceed.mean, brier.thresholds,
+#           exceed.rate.lead, fit.diag, post.summary, hn_prior,
 #           es_max_draws, probs, datasets, methods, setting, block_H, ...
 
 catalog <- get_tbf_method_catalog()

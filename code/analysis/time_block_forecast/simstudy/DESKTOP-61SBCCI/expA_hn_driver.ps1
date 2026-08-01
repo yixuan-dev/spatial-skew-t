@@ -202,9 +202,14 @@ foreach ($S in $settingList) {
     $finalCache = "output/results/scores${S}.RData"
     Invoke-Rscript ("Rscript `"../../simstudy/DESKTOP-61SBCCI/merge_score_caches.R`" " +
                     "$finalCache " + ($caches -join ' '))
+    # brier_threshold_basis + the anyNA checks close merge_score_caches.R's
+    # silent NA-fill path: a dataset-array absent from one input is NA-filled,
+    # not rejected, so the merged cache must be re-checked for completeness.
     Invoke-Rscript ("Rscript -e `"load('$finalCache'); " +
                     "stopifnot(identical(as.integer(datasets), ${dFirst}L:${dLast}L), isTRUE(hn_prior), " +
-                    "!anyNA(crps.lead), !anyNA(brier.lead)); " +
+                    "identical(brier_threshold_basis, 'full_series'), " +
+                    "!anyNA(crps.lead), !anyNA(brier.lead), !anyNA(brier.lead.blockq), " +
+                    "!anyNA(pexceed.mean), !anyNA(brier.thresholds), !anyNA(exceed.rate.lead)); " +
                     "cat('final cache OK: n =', length(datasets), 'datasets,', length(methods), 'methods\n')`"")
 
     # -- downstream artifacts (cheap, and they travel back in git) --------

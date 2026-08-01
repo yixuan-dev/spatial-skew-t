@@ -55,6 +55,9 @@ marginal increment ($t\,p = 0.081$, $W\,p = 0.111$) --- the geometric first
 lag approximates the hyperbolic decay, and the second buys little. (An earlier
 $n = 5$ sample overstated this second-lag increment; the $n = 10$ fill
 corrects it.)
+\emph{Note (2026-07-31): every Brier figure in this revision uses the
+per-block threshold rule since demoted as look-ahead; see the Protocol
+paragraph. CRPS results are unaffected.}
 \end{abstract}
 
 \section{Data-generating processes and design}
@@ -113,8 +116,37 @@ Experiments A and B use settings 4--5; Experiment C uses 6--7.
 observed), forecast the window $(T_o, T_o + 15]$ with the seam-conditioned
 recursion of \code{forecast\_block()}. Scores per lead $h$: CRPS
 (\code{crps\_sample}, averaged over sites) and the Brier score for exceedance
-of the validation block's $q_{95}$, identical thresholds for both methods,
-paired by dataset. Both experiments post-date the \code{z.init} repair; all
+of a high quantile, identical thresholds for both methods, paired by dataset.
+
+\emph{Threshold rule (revised 2026-07-31).} The scorer now defines the Brier
+thresholds as quantiles of the dataset's \emph{full series},
+$\mathrm{quantile}(y[,\,,\mathrm{set},\mathrm{setting}],\,p)$ --- the same
+rule as the spatial simstudy. The rule used in \emph{every table of this
+revision} was the validation block's own quantile,
+$\mathrm{quantile}(y_{\mathrm{val}},p)$; it is retained in the score caches
+as \code{brier.lead.blockq} but demoted to a diagnostic, for two reasons.
+It is look-ahead (the threshold is a statistic of the very window being
+forecast), and it pins the realised exceedance rate at exactly $1-p$ in
+every block, so a level error cannot move the base rate: on setting 5's
+terminal near-unit-root excursion (dataset 2, block 5, observations at
+$2.4\times$ the training level) all three methods assign
+$\hat p \le 4\times10^{-4}$ to exceedance and score within $0.0005$ of one
+another --- while CRPS separates them by a factor of two. Under the
+full-series rule the same cell separates the methods decisively, and the
+setting-5 $q_{95}$ Brier ordering \emph{inverts} (AR(2) best instead of
+i.i.d.). The cost is coverage: at high thresholds a quiet block has no
+exceedance at all under a fixed threshold ($\approx 80\%$ of
+(lead, quantile, dataset, block) cells at setting 5, $\approx 62\%$ at
+setting 7, recorded per cell in \code{exceed.rate.lead}), and there the
+score degenerates onto climatology; the level-error ledger
+\code{pexceed.mean} vs.\ \code{exceed.rate.lead} makes this visible. All
+Brier tables below therefore reflect the \emph{old} rule and will be
+superseded when the settings-5/7 campaign is re-scored; the CRPS columns
+are unaffected. Caches record the rule in
+\code{brier\_threshold\_basis}, and the merge and sanity gates refuse to
+mix rules.
+
+Both experiments post-date the \code{z.init} repair; all
 Experiment-B fits passed the pre-registered consistency guard (truth
 recovery $\wedge$ predictive spread; see the companion note
 \code{tex/guard\_effect}), which replaced 13 of 40 attempt-0 chains.

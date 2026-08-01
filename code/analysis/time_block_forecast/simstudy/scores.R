@@ -7,7 +7,9 @@
 #
 #   - lead-time curves:   univariate proper scores evaluated separately
 #                         at each lead h = 1..H (CRPS, and Brier at a
-#                         grid of high thresholds);
+#                         grid of high FULL-SERIES threshold quantiles;
+#                         the block-quantile rule is retained as a
+#                         diagnostic array, see the probs block below);
 #   - joint summary:      energy score and variogram score over the
 #                         per-site length-H time vector -- multivariate
 #                         proper scores that credit temporal dependence.
@@ -81,9 +83,28 @@ blocks <- tbf_blocks(block_seams, block_H, nt)
 n_blocks <- length(blocks)
 H <- block_H
 
-# threshold grid for the lead-time Brier score (high quantiles of the
-# full data, matching the Morris study's probs grid).
+# Threshold grid for the lead-time Brier score (the Morris study's probs
+# grid). Two threshold RULES are scored at every cell:
+#   brier.lead        thresholds = quantile(y[, , set, setting], probs) --
+#                     one vector per (dataset, setting) from the FULL
+#                     series, identical to code/analysis/simstudy/
+#                     scores.R:333. This is the PRIMARY rule.
+#   brier.lead.blockq thresholds = quantile(y_val, probs) -- the block's
+#                     own held-out window. Retained for continuity with
+#                     caches written before 2026-07-31 ONLY: it is
+#                     look-ahead, and it pins the exceedance base rate at
+#                     exactly 1-p in every block, so it cannot detect a
+#                     level error (the near-unit-root excursion of
+#                     setting 5 scores the same as a perfect forecast).
+#                     Diagnostic; never promote it to a table.
 probs <- c(0.90, 0.92, 0.94, 0.95, 0.96, 0.98, 0.99)
+
+# Provenance tripwire. This is NOT a dataset-array, so
+# DESKTOP-61SBCCI/merge_score_caches.R:117-126 requires it to be identical
+# across every chunk cache -- which makes merging an old-rule cache with a
+# new-rule one a hard error rather than a silent average of two
+# definitions of "the Brier score".
+brier_threshold_basis <- "full_series"
 
 # The energy score is O(m^2) in the number of predictive draws m, and the
 # fits carry m = 1e4. At full m it costs ~7 min per (dataset, method) cell,
@@ -136,9 +157,38 @@ dn_blk <- list(dataset = as.character(datasets),
                block = as.character(seq_len(n_blocks)))
 
 crps.lead <- array(NA_real_, dim = c(H, nsets, nmeth, n_blocks), dimnames = dn_lead)
+
+# Both Brier rules share this shape; as.character(probs) (giving "0.9",
+# never quantile()'s "90%") keeps the quantile dimnames byte-identical
+# across chunk caches, which bind_dataset_arrays() requires.
+dn_brier <- c(list(lead = as.character(seq_len(H)),
+                   quantile = as.character(probs)), dn_lead[-1])
 brier.lead <- array(NA_real_, dim = c(H, nprob, nsets, nmeth, n_blocks),
-  dimnames = c(list(lead = as.character(seq_len(H)),
-                    quantile = as.character(probs)), dn_lead[-1]))
+  dimnames = dn_brier)
+brier.lead.blockq <- array(NA_real_, dim = c(H, nprob, nsets, nmeth, n_blocks),
+  dimnames = dn_brier)
+# Site-mean predicted exceedance probability under the full-series rule.
+# Together with exceed.rate.lead it is the level-error ledger: predicted
+# far below realised means the predictive never reaches the threshold and
+# the Brier there has degenerated onto climatology.
+pexceed.mean <- array(NA_real_, dim = c(H, nprob, nsets, nmeth, n_blocks),
+  dimnames = dn_brier)
+
+# The full-series thresholds themselves, and the realised exceedance base
+# rate they induce. Both are functions of the DATA only -- populated even
+# for a (dataset, block) whose fit is missing, so do not read anyNA() on
+# them as "was this dataset scored". Both carry a named "dataset"
+# dimension so merge_score_caches.R binds them along dataset instead of
+# demanding byte-identity.
+brier.thresholds <- array(NA_real_, dim = c(nprob, nsets),
+  dimnames = list(quantile = as.character(probs),
+                  dataset = as.character(datasets)))
+exceed.rate.lead <- array(NA_real_, dim = c(H, nprob, nsets, n_blocks),
+  dimnames = list(lead = as.character(seq_len(H)),
+                  quantile = as.character(probs),
+                  dataset = as.character(datasets),
+                  block = as.character(seq_len(n_blocks))))
+
 energy.score <- array(NA_real_, dim = c(nsets, nmeth, n_blocks), dimnames = dn_blk)
 vario.score  <- array(NA_real_, dim = c(nsets, nmeth, n_blocks), dimnames = dn_blk)
 elapsed_sec  <- array(NA_real_, dim = c(nsets, nmeth), dimnames = dn_blk[1:2])
@@ -164,8 +214,11 @@ post.summary <- array(NA_real_,
 hn_prior_seen <- logical(0)
 
 # ---- per-block scoring helpers ---------------------------------------
-score_block <- function(yhat, y_val, es_draws = NA_integer_) {
-  # yhat: iters x ns x H predictive sample; y_val: ns x H truth.
+score_block <- function(yhat, y_val, thr_full, es_draws = NA_integer_) {
+  # yhat: iters x ns x H predictive sample; y_val: ns x H truth;
+  # thr_full: the full-series thresholds for this dataset (mandatory and
+  # positional BEFORE es_draws, so an un-updated call site errors instead
+  # of silently recycling es_draws into the threshold slot).
   ns <- dim(yhat)[2]
   Hh <- dim(yhat)[3]
   iters_n <- dim(yhat)[1]
@@ -183,14 +236,23 @@ score_block <- function(yhat, y_val, es_draws = NA_integer_) {
       y = y_val[, h], dat = t(yhat[, , h])), na.rm = TRUE)
   }
 
-  # lead-time Brier at each threshold quantile.
-  thr <- quantile(y_val, probs = probs, na.rm = TRUE)
-  brier_h <- matrix(NA_real_, Hh, length(probs))
+  # lead-time Brier at each threshold quantile, under BOTH rules.
+  #   thr_full : full-series quantiles of y[, , set, setting]  (PRIMARY)
+  #   thr_blk  : quantiles of this block's own held-out window (diagnostic)
+  thr_blk <- quantile(y_val, probs = probs, na.rm = TRUE, names = FALSE)
+  brier_h  <- matrix(NA_real_, Hh, length(probs))
+  brier_hb <- matrix(NA_real_, Hh, length(probs))
+  pex_h    <- matrix(NA_real_, Hh, length(probs))
   for (h in seq_len(Hh)) {
+    s <- yhat[, , h]                              # iters x ns, sliced once
     for (q in seq_along(probs)) {
-      phat <- colMeans(yhat[, , h] > thr[q])      # ns predicted exceed prob
-      ind <- as.numeric(y_val[, h] > thr[q])
+      phat <- colMeans(s > thr_full[q])           # ns predicted exceed prob
+      ind <- as.numeric(y_val[, h] > thr_full[q])
       brier_h[h, q] <- mean((ind - phat)^2, na.rm = TRUE)
+      pex_h[h, q] <- mean(phat, na.rm = TRUE)
+      phb <- colMeans(s > thr_blk[q])
+      inb <- as.numeric(y_val[, h] > thr_blk[q])
+      brier_hb[h, q] <- mean((inb - phb)^2, na.rm = TRUE)
     }
   }
 
@@ -202,13 +264,33 @@ score_block <- function(yhat, y_val, es_draws = NA_integer_) {
     vs[i] <- scoringRules::vs_sample(y = y_val[i, ], dat = dat_i, p = 0.5)
   }
 
-  list(crps = crps_h, brier = brier_h,
+  list(crps = crps_h, brier = brier_h, brier_blockq = brier_hb,
+       pexceed = pex_h,
        energy = mean(es, na.rm = TRUE), vario = mean(vs, na.rm = TRUE))
 }
 
 # ---- score loop -------------------------------------------------------
 for (di in seq_along(datasets)) {
   set <- datasets[di]
+
+  # Full-series thresholds for this dataset -- the sibling study's rule
+  # (code/analysis/simstudy/scores.R:333) verbatim. `set` is the dataset
+  # ID, not `di`. names = FALSE keeps quantile()'s "90%" labels out of the
+  # cache; the array dimnames come from as.character(probs) only.
+  thr_full <- quantile(y[, , set, setting], probs = probs,
+                       na.rm = TRUE, names = FALSE)
+  brier.thresholds[, di] <- thr_full
+
+  # Descriptive coverage ledger, computed from the DATA (not a fit), so it
+  # is complete even where a fit is missing: the realised exceedance base
+  # rate at every (lead, quantile, block) under the full-series rule.
+  for (b in seq_along(blocks)) {
+    yv_b <- y[, blocks[[b]]$test_times, set, setting]     # ns x H
+    for (q in seq_along(probs)) {
+      exceed.rate.lead[, q, di, b] <- colMeans(yv_b > thr_full[q], na.rm = TRUE)
+    }
+  }
+
   for (mi in seq_along(methods)) {
     method <- methods[mi]
     f <- build_tbf_result_file(results_dir, setting, method, set)
@@ -223,9 +305,26 @@ for (di in seq_along(datasets)) {
 
     for (b in seq_along(fc$blocks)) {
       blk <- fc$blocks[[b]]
-      sc <- score_block(blk$yhat, blk$y_val, es_draws = es_max_draws)
+      # Tie the fit file to the data the thresholds came from. The ledger
+      # above indexes y by blocks[[b]]$test_times while the score uses the
+      # fit's own blk$y_val; if those ever diverge, or the fit was run on
+      # a different data file, the full-series thresholds would produce
+      # plausible-looking but wrong scores. Assert, don't assume.
+      if (!identical(as.integer(blk$test_times),
+                     as.integer(blocks[[b]]$test_times))) {
+        stop(sprintf("%s block %d: test_times disagree with tbf_blocks()", f, b),
+             call. = FALSE)
+      }
+      if (b == 1L && !isTRUE(all.equal(as.numeric(blk$y_val),
+            as.numeric(y[, blk$test_times, set, setting]), tolerance = 0))) {
+        stop(sprintf("%s: y_val does not match %s -- wrong data file?",
+                     f, data_path), call. = FALSE)
+      }
+      sc <- score_block(blk$yhat, blk$y_val, thr_full, es_draws = es_max_draws)
       crps.lead[, di, mi, b] <- sc$crps
       brier.lead[, , di, mi, b] <- sc$brier
+      brier.lead.blockq[, , di, mi, b] <- sc$brier_blockq
+      pexceed.mean[, , di, mi, b] <- sc$pexceed
       energy.score[di, mi, b] <- sc$energy
       vario.score[di, mi, b] <- sc$vario
     }
@@ -262,7 +361,9 @@ for (di in seq_along(datasets)) {
 hn_prior <- if (length(unique(hn_prior_seen)) == 1L) unique(hn_prior_seen) else NA
 
 fits_dir <- results_dir
-save(crps.lead, brier.lead, energy.score, vario.score, elapsed_sec,
+save(crps.lead, brier.lead, brier.lead.blockq, pexceed.mean,
+  brier.thresholds, exceed.rate.lead, brier_threshold_basis,
+  energy.score, vario.score, elapsed_sec,
   fit.diag, post.summary, hn_prior, es_max_draws,
   probs, datasets, methods, setting, block_H, block_seams,
   data_path, data_suffix, fits_dir,

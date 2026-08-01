@@ -38,7 +38,9 @@ if (!file.exists(cache_file)) fail("cache not found: %s", cache_file)
 e <- new.env()
 load(cache_file, envir = e)
 
-need <- c("crps.lead", "brier.lead", "energy.score", "vario.score",
+need <- c("crps.lead", "brier.lead", "brier.lead.blockq", "pexceed.mean",
+          "brier.thresholds", "exceed.rate.lead", "brier_threshold_basis",
+          "energy.score", "vario.score",
           "elapsed_sec", "fit.diag", "post.summary", "hn_prior",
           "es_max_draws", "probs", "datasets", "methods", "setting",
           "block_H", "block_seams", "data_path", "data_suffix", "fits_dir")
@@ -95,6 +97,13 @@ if (!isTRUE(all.equal(as.numeric(e$probs),
   fail("probs grid is [%s], expected the 7-value high-quantile grid",
        paste(e$probs, collapse = ","))
 }
+# The probs grid is identical under both threshold rules, so it cannot
+# detect a rule change; the basis scalar is what does.
+if (!identical(e$brier_threshold_basis, "full_series")) {
+  fail(paste("brier_threshold_basis is '%s', expected 'full_series' --",
+             "this cache was written by the pre-2026-07-31 scorer"),
+       format(e$brier_threshold_basis))
+}
 
 chk_dim <- function(nm, expect_dim, expect_names) {
   o <- get(nm, envir = e)
@@ -111,6 +120,18 @@ chk_dim <- function(nm, expect_dim, expect_names) {
 chk_dim("crps.lead", c(H, nD, nM, NB), c("lead", "dataset", "method", "block"))
 chk_dim("brier.lead", c(H, NPROB, nD, nM, NB),
         c("lead", "quantile", "dataset", "method", "block"))
+chk_dim("brier.lead.blockq", c(H, NPROB, nD, nM, NB),
+        c("lead", "quantile", "dataset", "method", "block"))
+chk_dim("pexceed.mean", c(H, NPROB, nD, nM, NB),
+        c("lead", "quantile", "dataset", "method", "block"))
+chk_dim("brier.thresholds", c(NPROB, nD), c("quantile", "dataset"))
+chk_dim("exceed.rate.lead", c(H, NPROB, nD, NB),
+        c("lead", "quantile", "dataset", "block"))
+# brier.thresholds' dataset axis is the one the merge binds along.
+if (!identical(dimnames(e$brier.thresholds)[["dataset"]],
+               as.character(sort(as.integer(e$datasets))))) {
+  fail("brier.thresholds dataset dimnames disagree with the `datasets` vector")
+}
 chk_dim("energy.score", c(nD, nM, NB), c("dataset", "method", "block"))
 chk_dim("vario.score", c(nD, nM, NB), c("dataset", "method", "block"))
 chk_dim("elapsed_sec", c(nD, nM), c("dataset", "method"))
@@ -121,14 +142,36 @@ chk_dim("post.summary", c(5L, 15L, nD, nM, NB),
 # ---- completeness: no NA is legitimate in this study -------------------
 # scores.R silently `next`s past a missing or forecast-less fit, leaving
 # NA behind. This is the assertion that catches it.
-for (nm in c("crps.lead", "brier.lead", "energy.score", "vario.score",
-             "elapsed_sec")) {
+for (nm in c("crps.lead", "energy.score", "vario.score", "elapsed_sec")) {
   o <- get(nm, envir = e)
   if (anyNA(o)) fail("`%s` has %d NA cells -- a fit was not scored", nm, sum(is.na(o)))
   if (!all(is.finite(o))) fail("`%s` has non-finite cells", nm)
   if (any(o <= 0)) fail("`%s` has non-positive cells", nm)
 }
-if (any(e$brier.lead > 1)) fail("`brier.lead` exceeds 1")
+
+# The Brier arrays are mean((ind - phat)^2) over sites: squared probability
+# errors on [0, 1], NOT strictly positive scores. An exact 0 is legitimate
+# (measured on setting 5 dataset 2 method 1: 5 of 525 cells under the
+# full-series rule, 3 of 525 under the block rule). The old
+# `mean(brier.lead == 0) > 0.5` heuristic would not have fired under either
+# rule; it is replaced by the threshold-provenance recomputation below,
+# which asserts what the score actually IS rather than guessing from shape.
+for (nm in c("brier.lead", "brier.lead.blockq", "pexceed.mean")) {
+  o <- get(nm, envir = e)
+  if (anyNA(o)) fail("`%s` has %d NA cells -- a fit was not scored", nm, sum(is.na(o)))
+  if (!all(is.finite(o))) fail("`%s` has non-finite cells", nm)
+  if (any(o < 0 | o > 1)) fail("`%s` is outside [0, 1] (min %g, max %g)",
+                               nm, min(o), max(o))
+}
+# Wiring check: the two rules cannot produce identical numbers unless both
+# arms of score_block() were handed the same thresholds.
+if (identical(e$brier.lead, e$brier.lead.blockq)) {
+  fail("`brier.lead` and `brier.lead.blockq` are identical -- both arms got the same thresholds")
+}
+# These two derive from the data, not from a fit; any NA means the dataset
+# loop never reached them. (They are NOT a was-this-scored proxy.)
+if (anyNA(e$brier.thresholds)) fail("`brier.thresholds` has NA cells")
+if (anyNA(e$exceed.rate.lead)) fail("`exceed.rate.lead` has NA cells")
 
 # ---- diagnostics / posterior summaries must have arrived ---------------
 for (st in c("lambda", "beta0", "sd_lead_max")) {
@@ -157,6 +200,54 @@ if (!identical(e$fits_dir, "results")) fail("fits_dir is '%s', expected 'results
 if (!identical(basename(e$data_path), "simdata.RData")) {
   fail("data_path is '%s', expected .../simdata.RData", e$data_path)
 }
+
+# ---- provenance of the Brier thresholds --------------------------------
+# This gate authorises an irreversible 2.4 GB fit deletion, and the ONE
+# thing a shape check cannot see is whether the thresholds really are the
+# full-series ones. So recompute them, and the base rates they induce,
+# from the data file the cache names, and require bit-exact agreement.
+# Costs ~0.6 s; everything (probs, seams, H, path) is read from the cache,
+# nothing hardcoded, so a toy smoke cache exercises this too. Fail closed
+# on a missing data file -- a gate that cannot verify must not pass.
+if (!file.exists(e$data_path)) {
+  fail("data_path does not exist: %s -- cannot verify threshold provenance",
+       e$data_path)
+}
+d <- new.env(parent = emptyenv())
+load(e$data_path, envir = d)
+if (!exists("y", envir = d, inherits = FALSE)) fail("`y` not found in %s", e$data_path)
+pr <- as.numeric(e$probs)
+ds_dn <- dimnames(e$brier.thresholds)[["dataset"]]
+for (di in seq_along(datasets_expect)) {
+  set <- datasets_expect[di]
+  if (!identical(ds_dn[di], as.character(set))) {
+    fail("brier.thresholds dataset dimname [%d] is '%s', expected '%d'",
+         di, ds_dn[di], set)
+  }
+  thr <- quantile(d$y[, , set, setting_expect], probs = pr,
+                  na.rm = TRUE, names = FALSE)
+  got <- as.numeric(e$brier.thresholds[, di])
+  if (!isTRUE(all.equal(got, thr, tolerance = 0))) {
+    fail("dataset %d thresholds are NOT the full-series quantiles (max abs diff %g)",
+         set, max(abs(got - thr)))
+  }
+  if (is.unsorted(thr, strictly = TRUE)) {
+    fail("dataset %d thresholds are not strictly increasing", set)
+  }
+  for (b in seq_len(NB)) {
+    tt <- as.integer(e$block_seams[b]) + seq_len(as.integer(e$block_H))
+    yv <- d$y[, tt, set, setting_expect]
+    for (q in seq_along(pr)) {
+      er <- colMeans(yv > thr[q], na.rm = TRUE)
+      if (!isTRUE(all.equal(as.numeric(e$exceed.rate.lead[, q, di, b]),
+                            as.numeric(er), tolerance = 0))) {
+        fail("dataset %d block %d prob %g: exceed.rate.lead does not match the data",
+             set, b, pr[q])
+      }
+    }
+  }
+}
+rm(d); invisible(gc(FALSE))
 
 # ---- method identity (partial cover for the ar1 forecast wiring) -------
 mdn <- dimnames(e$fit.diag)[["method"]]
@@ -190,6 +281,18 @@ n_c <- sum(e$fit.diag["C_spread", , , ] == 0, na.rm = TRUE)
 n_b <- sum(e$fit.diag["B_truth", , , ] == 0, na.rm = TRUE)
 lam_neg <- sum(e$fit.diag["lambda", , , ] < 0, na.rm = TRUE)
 
+# Brier coverage ledger under the full-series rule. Both resolutions are
+# printed so nobody quotes the flattering block-level number: brier.lead's
+# unit is the lead, and at high thresholds most leads of a quiet block have
+# no exceedance at all. The level check is the diagnostic that matters --
+# predicted far below realised means the predictive never reaches the
+# threshold and the Brier there is climatology, not forecast skill.
+er <- e$exceed.rate.lead
+q95i <- which(abs(as.numeric(e$probs) - 0.95) < 1e-12)
+er_blk <- apply(er, c(2, 3, 4), mean)              # (quantile, dataset, block)
+pex95 <- apply(e$pexceed.mean[, q95i, , , , drop = FALSE], 4, mean)
+obs95 <- mean(er[, q95i, , ])
+
 cat(sprintf(paste("[SANITY OK] %s: setting %d, datasets %s, methods [%s],",
                   "%d blocks, HN prior, es_draws %s\n"),
             cache_file, setting_expect,
@@ -197,3 +300,10 @@ cat(sprintf(paste("[SANITY OK] %s: setting %d, datasets %s, methods [%s],",
             paste(methods_expect, collapse = ","), NB, format(es_expect)))
 cat(sprintf("            diagnostics (descriptive): B_truth fail %d, C_spread fail %d, lambda<0 %d of %d block-cells\n",
             n_b, n_c, lam_neg, nD * nM * NB))
+cat(sprintf("            brier thresholds (full series): q90 %.2f .. q99 %.2f\n",
+            min(e$brier.thresholds[1, ]), max(e$brier.thresholds[NPROB, ])))
+cat(sprintf("            exceedance ledger: base rate 0 in %.1f%% of lead-cells, %.1f%% of block-cells\n",
+            100 * mean(er == 0), 100 * mean(er_blk == 0)))
+cat(sprintf("            level check q95: realised %.4f vs predicted [%s] by method [%s]\n",
+            obs95, paste(sprintf("%.4f", pex95), collapse = ", "),
+            paste(dimnames(e$pexceed.mean)[["method"]], collapse = ", ")))

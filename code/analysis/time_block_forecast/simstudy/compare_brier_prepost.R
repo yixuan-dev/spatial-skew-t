@@ -7,9 +7,14 @@
 #   after  = output/results/scores4.RData        (rescored from the fixed
 #            reruns in results/, 2026-07-15)
 #
-# Both sides score the SAME y_val with the SAME per-block thresholds, and
-# the fixed reruns reuse the pipeline seed, so every (lead, quantile,
-# dataset, block) cell pairs exactly. Aggregation is done two ways --
+# Both sides must score the SAME y_val under the SAME threshold RULE. The
+# rule is recorded in the cache as `brier_threshold_basis` since
+# 2026-07-31; caches written before that carry no such object and are
+# implicitly the per-block rule. stopifnot(identical(probs)) can NOT see a
+# rule change -- probs is the same grid under both rules -- so the basis
+# is asserted separately below. The fixed reruns reuse the pipeline seed,
+# so every (lead, quantile, dataset, block) cell pairs exactly.
+# Aggregation is done two ways --
 # mean AND median over the 25 (dataset, block) pairs -- because the
 # residual ~16% exploding blocks (the phi.z near-unit-root issue) inflate
 # the mean on the "after" side.
@@ -36,6 +41,20 @@ aft <- load_scores("output/results/scores4.RData")
 
 stopifnot(identical(bef$probs, aft$probs))
 
+# The threshold rule must match on both sides; probs alone cannot see it.
+threshold_basis <- function(env) {
+  if (exists("brier_threshold_basis", envir = env, inherits = FALSE)) {
+    env$brier_threshold_basis
+  } else {
+    "validation_block"   # the implicit rule of every pre-2026-07-31 cache
+  }
+}
+if (!identical(threshold_basis(bef), threshold_basis(aft))) {
+  stop(sprintf(paste("threshold rule differs: before = '%s', after = '%s'",
+                     "-- the before/after cells are not comparable"),
+               threshold_basis(bef), threshold_basis(aft)), call. = FALSE)
+}
+
 # both files may carry the full dataset axis (1..50) with NA where no
 # result file existed; restrict to the datasets scored on BOTH sides.
 scored <- function(env) {
@@ -45,6 +64,14 @@ scored <- function(env) {
 use_sets <- intersect(scored(bef), scored(aft))
 stopifnot(length(use_sets) > 0)
 cat("paired datasets:", paste(use_sets, collapse = ","), "\n\n")
+
+# When both sides carry the thresholds, require them identical on the
+# datasets actually compared -- the assertion the header claims.
+if (!is.null(bef$brier.thresholds) && !is.null(aft$brier.thresholds)) {
+  stopifnot(isTRUE(all.equal(bef$brier.thresholds[, use_sets, drop = FALSE],
+                             aft$brier.thresholds[, use_sets, drop = FALSE],
+                             tolerance = 0)))
+}
 
 probs <- bef$probs
 H <- dim(bef$brier.lead)[1]
