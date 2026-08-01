@@ -1,0 +1,661 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[capitalize]{cleveref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+% ---- Shorthands ----
+\newcommand{\skewt}{skew-$t$\xspace}
+\newcommand{\bphi}{\boldsymbol{\varphi}}
+\newcommand{\bX}{\mathbf{X}}
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bZ}{\mathcal{Z}}
+\newcommand{\ind}{\mathbf{1}}
+\newcommand{\Norm}{\mathcal{N}}
+\newcommand{\Unif}{\mathrm{Unif}}
+\newcommand{\given}{\,\vert\,}
+\DeclareRobustCommand{\code}[1]{\texttt{#1}}
+\newcommand{\eref}[1]{(\ref{#1})}
+\newcommand{\sref}[1]{Section~\ref{#1}}
+
+% ---- Make the math shorthands safe inside PDF bookmarks ----
+\pdfstringdefDisableCommands{%
+  \def\bphi{phi}%
+  \def\boldsymbol#1{#1}%
+  \def\bm#1{#1}%
+  \def\code#1{#1}%
+  \def\skewt{skew-t}%
+}
+
+% ---- Theorem environments ----
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{lemma}[proposition]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[proposition]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[proposition]{Remark}
+
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue!60!black},
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{teal},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    framesep=4pt,
+    language=R
+}
+
+\title{The $\bphi$ Update in \code{mythesis.tex} versus \code{code/R/ar2}:\\
+       A Step-by-Step Correspondence Audit}
+\author{Technical Note --- \code{thesis\_phi\_update\_audit}}
+\date{2026-08-01}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+This note checks, step by step, whether the thesis description of how the AR
+coefficients $\bphi$ enter and are updated in the MCMC matches
+\code{code/R/ar2}. The audit separates three questions that the phrase ``the
+$\bphi$ update'' can mean, because the thesis answers them very differently.
+\emph{(A)} How $\bphi$ enters the Metropolis--Hastings update of the
+time-varying parameters --- Appendix~C of the thesis
+(\code{app:full-cond}); the code matches it exactly, including the
+head-of-series and end-of-series edge cases. \emph{(B)} How $\bphi$ itself is
+drawn --- the code runs a component-wise random-walk Metropolis kernel with
+silent rejection on the stationarity triangle, targeting the \emph{exact}
+stationary likelihood; the thesis does not describe this block at all.
+\emph{(C)} The prior on $\bphi$ --- the thesis states
+$\Unif(\text{stationarity triangle})$, whereas the code uses independent
+$\Norm(0, 0.5^2)$ factors truncated to that triangle. (C) is a contradiction
+between text and code, (B) is an omission, (A) is correct. Two minor prose
+inaccuracies in Appendix~C are also recorded. \sref{sec:edits} gives
+paste-ready replacement text for \code{mythesis.tex}.
+\end{abstract}
+
+\tableofcontents
+
+% ====================================================================
+\section{Scope, and a notation collision that must be cleared first}
+\label{sec:scope}
+
+\subsection{Two different objects are both called $Y$}
+
+The thesis uses the symbol $Y$ for two things.
+
+\begin{itemize}[nosep]
+  \item In the model, $Y_t(\bm{s})$ is the \emph{response} at site $\bm{s}$ on
+        day $t$ (thesis \code{eq:fullmodel}), and $\bY_t$ is its
+        $n$-vector over sites.
+  \item In the thesis's \code{sec:ar2} and throughout Appendix~C
+        (\code{app:full-cond}), $\{Y_t\}$ denotes ``any scalar component of
+        $\bm{w}^{*}_{tk}$, or $z^{*}_{tk}$ or $\sigma^{2*}_{tk}$'' --- that
+        is, one \emph{time-varying parameter on the transformed
+        (standard-normal) scale}, at a fixed knot $k$.
+\end{itemize}
+
+Both meanings appear inside the same display, thesis \code{eq:full-cond},
+whose likelihood factor is written $L(\bY \given Y_t)$: bold $\bY$ is the
+data, scalar $Y_t$ is the time-varying parameter. The companion note
+\code{tex/transform\_ar\_construction/} avoids the collision by writing
+$X^{*}_t$ for the transformed time-varying parameter. \textbf{This note adopts
+$X^{*}_t$ throughout}, reserving $\bY_t$ for the data.
+
+\begin{definition}[The three transformed channels]\label{def:channels}
+Fix a knot $k \in \{1,\dots,K\}$ and let $X^{*}_{1:n_t}$ denote any one of the
+scalar series
+\begin{equation}\label{eq:channels}
+  X^{*}_{tk} \in
+  \bigl\{\, w^{(1)*}_{tk},\; w^{(2)*}_{tk},\; z^{*}_{tk},\; \sigma^{2*}_{tk} \,\bigr\},
+\end{equation}
+obtained from the probability integral transforms
+\code{eq:wstar}--\code{eq:sigmastar} of the thesis. Each channel carries its
+own coefficient pair, $\bphi^{(w)}, \bphi^{(z)}, \bphi^{(\sigma)}$, shared
+across knots $k$ (and, for $w$, across both coordinates $j = 1,2$).
+\end{definition}
+
+\subsection{Three distinct questions}
+
+Once the notation is fixed, ``does the thesis description of the $\bphi$
+update match the code?'' splits into three questions, answered in
+\crefrange{sec:layerA}{sec:layerC} and summarised in \cref{tab:verdict}.
+
+\begin{table}[htbp]
+\centering
+\caption{Audit verdict. Thesis labels refer to \code{myLatex/thesis/mythesis.tex};
+code paths are relative to \code{code/R/ar2/}.}
+\label{tab:verdict}
+\small
+\begin{tabular}{@{}p{0.055\textwidth} p{0.31\textwidth} p{0.24\textwidth} p{0.30\textwidth}@{}}
+\toprule
+& \textbf{Question} & \textbf{Thesis} & \textbf{Verdict} \\
+\midrule
+(A) & How does $\bphi$ enter the MH update of $X^{*}_t$?
+    & \code{app:full-cond}, \code{app:ar2-moments}
+    & \textbf{Matches}, equation by equation (\sref{sec:layerA}) \\
+\addlinespace
+(B) & How is $\bphi$ itself updated?
+    & --- (nothing)
+    & \textbf{Undocumented}; four features missing (\sref{sec:layerB}) \\
+\addlinespace
+(C) & What is the prior on $\bphi$?
+    & \code{eq:stage3-priors}: $\Unif(S_2)$
+    & \textbf{Contradicts} the code, which uses truncated
+      $\Norm(0,0.5^2)$ (\sref{sec:layerC}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ====================================================================
+\section{The object $\bphi$ parameterises}
+\label{sec:prior-object}
+
+\begin{definition}[Standardised stationary AR(2)]\label{def:ar2}
+For each channel of \cref{def:channels}, the prior is
+\begin{equation}\label{eq:ar2-rec}
+  X^{*}_t \;=\; \varphi_1 X^{*}_{t-1} \;+\; \varphi_2 X^{*}_{t-2} \;+\; \epsilon_t,
+  \qquad \epsilon_t \overset{\text{iid}}{\sim} \Norm(0, \sigma_\epsilon^2),
+  \qquad t \ge 3,
+\end{equation}
+subject to the unit-variance normalisation $\gamma_0 := \operatorname{Var}(X^{*}_t) = 1$,
+which the back-transform requires at \emph{every} $t$, and to stationarity,
+\begin{equation}\label{eq:triangle}
+  \bphi = (\varphi_1, \varphi_2) \in S_2
+  \;:=\;
+  \bigl\{ |\varphi_2| < 1,\;\; \varphi_1 + \varphi_2 < 1,\;\; \varphi_2 - \varphi_1 < 1 \bigr\},
+\end{equation}
+the open triangle with vertices $(-2,-1)$, $(2,-1)$, $(0,1)$.
+\end{definition}
+
+\begin{proposition}[Yule--Walker moments]\label{prop:yw}
+Under \cref{def:ar2},
+\begin{equation}\label{eq:yw}
+  \gamma_0 = 1,
+  \qquad
+  \gamma_1 = \frac{\varphi_1}{1 - \varphi_2},
+  \qquad
+  \gamma_2 = \varphi_1 \gamma_1 + \varphi_2,
+  \qquad
+  \sigma_\epsilon^2 = 1 - \varphi_1 \gamma_1 - \varphi_2 \gamma_2 ,
+\end{equation}
+all functions of $\bphi$ alone.
+\end{proposition}
+
+\noindent
+\textbf{Code.} \code{get\_ar2\_standard\_moments}, \code{auxfunctions\_ar2.R}
+L9--54; the four assignments at L31--34 are \eref{eq:yw} verbatim.
+\textbf{Thesis.} \code{eq:gamma12}--\code{eq:sigeps}, derived in
+Appendix~B (\code{app:ar2-moments}). \textbf{Match.} Exact. The stationarity
+test \eref{eq:triangle} is \code{check\_ar2\_stability}, L2--7 (with a
+tolerance $10^{-8}$ on each strict inequality), matching thesis
+\code{eq:stab-triangle}.
+
+\begin{proposition}[Joint factorisation]\label{prop:factor}
+Under \cref{def:ar2} the joint prior of $X^{*}_{1:n_t}$ factorises as
+$p(X^{*}_{1:n_t}) = p_1(X^{*}_1)\, p_2(X^{*}_2 \given X^{*}_1) \prod_{s=3}^{n_t} p_s(X^{*}_s \given X^{*}_{s-1}, X^{*}_{s-2})$
+with
+\begin{align}
+  p_1(x) &= \Norm\!\bigl(x;\; 0,\; 1\bigr), \label{eq:p1}\\
+  p_2(x \given x_1) &= \Norm\!\bigl(x;\; \gamma_1 x_1,\; 1 - \gamma_1^2\bigr), \label{eq:p2}\\
+  p_s(x \given x_{s-1}, x_{s-2}) &= \Norm\!\bigl(x;\; \varphi_1 x_{s-1} + \varphi_2 x_{s-2},\; \sigma_\epsilon^2\bigr),
+    \qquad s \ge 3. \label{eq:ps}
+\end{align}
+\end{proposition}
+
+\noindent
+\textbf{Code.} \code{get\_ar2\_conditional\_params},
+\code{auxfunctions\_ar2.R} L56--92, whose three branches are exactly
+\eref{eq:p1} (L66--68), \eref{eq:p2} (L70--85), \eref{eq:ps} (L87--91).
+\textbf{Thesis.} \code{eq:joint-prior} together with the initial pair
+\code{eq:joint-init}; \eref{eq:p2} is the conditional of that bivariate
+normal. \textbf{Match.} Exact.
+
+\begin{remark}[$\bphi$ enters through two channels, not one]\label{rem:two-channels}
+This is the structural fact behind everything that follows. In \eref{eq:ps},
+$\bphi$ enters through the mean coefficients \emph{and} through
+$\sigma_\epsilon^2$. In \eref{eq:p2} it enters only through
+$\gamma_1 = \varphi_1/(1-\varphi_2)$. The $t = 2$ factor is therefore
+$\bphi$-dependent, and
+\begin{equation}\label{eq:p2-neq}
+  \Norm\!\bigl(\gamma_1 x_1,\; 1-\gamma_1^2\bigr)
+  \;=\;
+  \Norm\!\bigl(\varphi_1 x_1,\; \sigma_\epsilon^2\bigr)
+  \iff \varphi_2 = 0 .
+\end{equation}
+Using the right-hand form (the recursion extrapolated backwards with a
+fictitious $X^{*}_0 = 0$) breaks $\operatorname{Var}(X^{*}_2) = 1$ and hence
+breaks the target marginal after the back-transform. The code uses the
+left-hand form (``Fix~1'', \code{auxfunctions\_ar2.R} L74--84). Only $p_1$
+is $\bphi$-free.
+\end{remark}
+
+% ====================================================================
+\section{Layer (A): how $\bphi$ enters the update of $X^{*}_t$}
+\label{sec:layerA}
+
+\subsection{What the thesis says}
+
+Appendix~C states that a proposal for $X^{*}_t$ changes three factors of
+\cref{prop:factor} --- the self factor, the lag-1 factor and the lag-2 factor
+--- so that
+\begin{equation}\label{eq:fullcond}
+  \pi\bigl(X^{*}_t \given X^{*}_{-t}, \bY\bigr)
+  \;\propto\;
+  \underbrace{L\bigl(\bY \given X^{*}_t\bigr)}_{\text{spatial likelihood}}
+  \cdot
+  \underbrace{p_t\bigl(X^{*}_t \given X^{*}_{t-1}, X^{*}_{t-2}\bigr)}_{\text{self}}
+  \cdot
+  \underbrace{p_{t+1}\bigl(X^{*}_{t+1} \given X^{*}_t, X^{*}_{t-1}\bigr)}_{\text{lag-1}}
+  \cdot
+  \underbrace{p_{t+2}\bigl(X^{*}_{t+2} \given X^{*}_{t+1}, X^{*}_t\bigr)}_{\text{lag-2}},
+\end{equation}
+with the convention that factors referencing a non-existent time index are
+dropped, and that under a symmetric random-walk proposal
+$X^{*(c)}_t \sim \Norm(X^{*}_t, s^2)$ the acceptance probability is
+$R = \min\{1, \pi(X^{*(c)}_t \given \cdot)/\pi(X^{*}_t \given \cdot)\}$.
+
+\subsection{Making the edge convention explicit}
+
+Write $\mathcal{S}(t) \subseteq \{1,\dots,n_t\}$ for the set of factor indices
+in which $X^{*}_t$ appears. \cref{prop:factor} gives
+\begin{equation}\label{eq:Sset}
+  \mathcal{S}(t) \;=\; \{t,\, t+1,\, t+2\} \cap \{1, \dots, n_t\},
+\end{equation}
+which unpacks as in \cref{tab:factors}. The acceptance ratio actually
+evaluated is then
+\begin{equation}\label{eq:logR-latent}
+  \log R
+  \;=\;
+  \underbrace{\log L\bigl(\bY \given X^{*(c)}_t\bigr) - \log L\bigl(\bY \given X^{*}_t\bigr)}_{\text{likelihood part}}
+  \;+\;
+  \sum_{s \in \mathcal{S}(t)}
+  \Bigl[ \log p_s\bigl(\,\cdot \given \cdot\,\bigr)\Big|_{X^{*}_t = X^{*(c)}_t}
+       - \log p_s\bigl(\,\cdot \given \cdot\,\bigr)\Big|_{X^{*}_t} \Bigr].
+\end{equation}
+
+\begin{table}[htbp]
+\centering
+\caption{The factor set $\mathcal{S}(t)$ of \eref{eq:Sset}, written out. The
+$t = 1$ and $t = 2$ rows are the ``initial-pair'' cases: since
+$p(X^{*}_1, X^{*}_2) = p_1(X^{*}_1)\,p_2(X^{*}_2 \given X^{*}_1)$, the head of
+the series needs no special code path.}
+\label{tab:factors}
+\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+$t$ & Factors containing $X^{*}_t$ & Code guard \\
+\midrule
+$1$              & $p_1(X^{*}_1)$, \; $p_2(X^{*}_2 \given X^{*}_1)$, \; $p_3(X^{*}_3 \given X^{*}_2, X^{*}_1)$ & self ($t{=}1$ branch), \code{t < nt}, \code{t+2 <= nt} \\
+$2$              & $p_2(X^{*}_2 \given X^{*}_1)$, \; $p_3(\cdot)$, \; $p_4(X^{*}_4 \given X^{*}_3, X^{*}_2)$ & self ($t{=}2$ branch), \code{t < nt}, \code{t+2 <= nt} \\
+$3 \le t \le n_t - 2$ & $p_t(\cdot)$, \; $p_{t+1}(\cdot)$, \; $p_{t+2}(\cdot)$ & all three \\
+$n_t - 1$        & $p_{n_t-1}(\cdot)$, \; $p_{n_t}(\cdot)$ & \code{t+2 <= nt} false \\
+$n_t$            & $p_{n_t}(\cdot)$ & \code{t < nt} false \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{What the code does}
+
+All three updaters implement \eref{eq:logR-latent} with the guards of
+\cref{tab:factors}; see \cref{tab:code-map}. The lag-2 term is the ``Fix~2''
+patch documented in \code{tex/where\_we\_are/}, whose
+Proposition on detailed balance shows that omitting it makes the chain
+target a modified stationary law whose lag-2 autocorrelation misses
+$\gamma_2$.
+
+\begin{table}[htbp]
+\centering
+\caption{Where each factor of \eref{eq:fullcond} lives, by channel. All files
+in \code{code/R/ar2/}.}
+\label{tab:code-map}
+\small
+\begin{tabular}{@{}l l l l l@{}}
+\toprule
+Channel & Updater (file \code{update\_params\_ar2.R}) & self & lag-1 & lag-2 \\
+\midrule
+$\sigma^{2*}$, $K = 1$ & \code{updateTauTS\_AR2}   & L51--59   & L62--75   & L82--95 \\
+$\sigma^{2*}$, $K > 1$ & \code{updateTauTS\_AR2}   & L142--150 & L153--166 & L172--185 \\
+$z^{*}$                & \code{updateZTS\_AR2}     & L392--400 & L403--416 & L421--434 \\
+$\bm{w}^{*}$           & \code{updateKnotsTS\_AR2} & L548--555 & L566--579 & L584--597 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{proposition}[Layer (A) verdict]\label{prop:verdictA}
+For every channel and every $t$, the set of prior factors entered into the
+acceptance ratio by the code equals $\mathcal{S}(t)$ of \eref{eq:Sset}, and
+each factor is evaluated with the branch of \cref{prop:factor} matching its
+own time index. The code therefore implements \eref{eq:fullcond} exactly as
+Appendix~C describes it.
+\end{proposition}
+
+\begin{proof}[Verification]
+Take \code{updateZTS\_AR2} as representative. The self term (L392--400) calls
+\code{ar2\_conditional\_log\_density} with time index $t$ and lags
+\begin{lstlisting}
+lag1 <- if (t >= 2) z.star[k, t - 1] else NULL
+lag2 <- if (t >= 3) z.star[k, t - 2] else NULL
+\end{lstlisting}
+so that by
+\cref{prop:factor} this selects \eref{eq:p1} at $t=1$, \eref{eq:p2} at $t=2$,
+\eref{eq:ps} otherwise. The lag-1 term (L403--416) is guarded by
+\code{t < nt} and passes time index $t+1$ with the candidate as its
+\emph{lag-1} argument and \code{z.star[k, t-1]} as its lag-2 argument; at
+$t = 1$ that argument is \code{NULL} and the $t{+}1 = 2$ branch \eref{eq:p2}
+is selected, which is why the head of the series needs no special case. The
+lag-2 term (L421--434) is guarded by \code{t+2 <= nt} and passes time index
+$t+2$ with \code{z.star[k, t+1]} as lag-1 and the candidate as lag-2. Reading
+off the three time indices gives exactly the rows of \cref{tab:factors}. The
+same three blocks appear at the line numbers of \cref{tab:code-map} for the
+other channels.
+\end{proof}
+
+\subsection{Two prose inaccuracies in Appendix~C}
+\label{sec:layerA-nits}
+
+\begin{enumerate}[label=(A\arabic*), leftmargin=*]
+\item \textbf{The proposal is not scalar for $\bm{w}^{*}$.} Appendix~C writes
+      $X^{*(c)}_t \sim \Norm(X^{*}_t, s^2)$, a single-component move. That is
+      what \code{updateTauTS\_AR2} and \code{updateZTS\_AR2} do (one $(k,t)$
+      cell at a time). \code{updateKnotsTS\_AR2}, however, proposes all
+      $K \times 2$ knot coordinates of day $t$ jointly and accepts or rejects
+      them as one block (\code{update\_params\_ar2.R} L523--526, single
+      \code{log(runif(1)) < R} at L599--606):
+      \begin{equation}\label{eq:block-move}
+        \bm{w}^{*(c)}_{tk} = \bm{w}^{*}_{tk} + s_{kt}\,\bm{\varepsilon}_{k},
+        \qquad \bm{\varepsilon}_k \overset{\text{iid}}{\sim} \Norm_2(\bm{0}, \bm{I}_2),
+        \qquad k = 1, \dots, K,
+      \end{equation}
+      which is still a symmetric random walk, so \eref{eq:logR-latent} is
+      unchanged in form, but it is a block move and the text should say so.
+\item \textbf{The adaptation band is $[0.25, 0.50]$, not $0.3$--$0.4$.}
+      \code{mhupdate} (\code{auxfunctions.R} L99--113) rescales $s$ by $0.8$
+      when the running acceptance rate falls below $0.25$ and by $1.2$ when it
+      exceeds $0.50$, every $50$ attempts, and this is applied only while
+      \code{iter < burn/2} (\code{mcmc\_ar2.R} L556). The stopping of
+      adaptation before the sampling phase is worth stating, since it is what
+      makes the adaptive scheme valid.
+\end{enumerate}
+
+% ====================================================================
+\section{Layer (B): the $\bphi$ block itself, which the thesis omits}
+\label{sec:layerB}
+
+Appendix~C ends at \eref{eq:fullcond}. Nowhere does the thesis say how
+$\bphi^{(w)}, \bphi^{(z)}, \bphi^{(\sigma)}$ are drawn. The code does it in
+\code{updatePhiAR2TS} (\code{update\_params\_ar2.R} L225--340), called once
+per sweep from each channel's updater (L201--205, L449--453, L613--617). Four
+features need documenting.
+
+\subsection{(B1) The target}
+
+Conditionally on the transformed latents, $\bphi$ is independent of the data
+and of all other parameters, so its full conditional involves only the AR
+prior and its own prior:
+\begin{equation}\label{eq:phi-target}
+  \pi\bigl(\bphi \given X^{*}\bigr)
+  \;\propto\;
+  \Biggl[\, \prod_{k=1}^{K} p\bigl(X^{*}_{1:n_t,k} \given \bphi\bigr) \Biggr]\, p(\bphi)\, \ind\{\bphi \in S_2\},
+\end{equation}
+the product running over knots (and, for $\bm{w}^{*}$, over both coordinates),
+which are independent replicates of the same AR(2) law.
+
+\subsection{(B2) The likelihood is the exact stationary one}
+
+Expanding $p(X^{*}_{1:n_t,k} \given \bphi)$ with \cref{prop:factor} and
+dropping the $\bphi$-free factor $p_1$, the log-likelihood used in the
+acceptance ratio is
+\begin{equation}\label{eq:exact-ll}
+  \ell(\bphi)
+  \;=\;
+  \underbrace{\sum_{k} \log \Norm\!\Bigl(X^{*}_{2k};\; \gamma_1 X^{*}_{1k},\; 1 - \gamma_1^2 \Bigr)}_{\text{initial block, } \bphi\text{-dependent}}
+  \;+\;
+  \underbrace{\sum_{k} \sum_{t=3}^{n_t} \log \Norm\!\Bigl(X^{*}_{tk};\; \varphi_1 X^{*}_{t-1,k} + \varphi_2 X^{*}_{t-2,k},\; \sigma_\epsilon^2 \Bigr)}_{\text{transitions (Box--Jenkins conditional likelihood)}} .
+\end{equation}
+\textbf{Code.} \code{ar2\_stationary\_loglik}, \code{auxfunctions\_ar2.R}
+L122--133; the two summands are L131 and L132 respectively.
+
+\begin{remark}[Why the initial block cannot be dropped, and why AR(1) is exempt]
+\label{rem:exact}
+Keeping only the transition sum is the Box--Jenkins conditional likelihood.
+For AR(1) that is exact up to a $\bphi$-free constant, because the only
+discarded factor is $p_1 = \Norm(0,1)$, which does not involve $\varphi$. For
+AR(2) the discarded factor is $p_1 \cdot p_2$, and by
+\cref{rem:two-channels} $p_2$ \emph{does} involve $\bphi$ through $\gamma_1$.
+Dropping it makes the $\bphi$ block and the $X^{*}$ block target different
+joint laws, i.e.\ the two Gibbs blocks become incompatible; see
+\code{tex/ar2\_phi\_exact\_likelihood/}. Appendix~C already argues the dual
+statement for the $X^{*}$ block (``all three prior factors must appear''); the
+same $\gamma_1$ dependence produces this second trap, and the thesis states
+only the first half.
+\end{remark}
+
+\subsection{(B3) The kernel: component-wise random walk with silent rejection}
+
+One sweep updates $\varphi_1$ and then $\varphi_2$, the second step
+conditioning on the just-updated first. For $\varphi_1$ (the $\varphi_2$ step
+is identical with the roles exchanged):
+\begin{align}
+  \varphi_1^{(c)} &\sim \Norm\bigl(\varphi_1, s_1^2\bigr) \quad\text{(untruncated)}, \label{eq:phi-prop}\\[2pt]
+  \log R &= \ell\bigl(\varphi_1^{(c)}, \varphi_2\bigr) - \ell\bigl(\varphi_1, \varphi_2\bigr)
+            + \log p\bigl(\varphi_1^{(c)}\bigr) - \log p\bigl(\varphi_1\bigr),
+            \label{eq:phi-ratio}\\[2pt]
+  \varphi_1^{\text{new}} &=
+  \begin{cases}
+    \varphi_1^{(c)}, & \text{if } (\varphi_1^{(c)}, \varphi_2) \in S_2 \text{ and } \log U < \log R, \quad U \sim \Unif(0,1),\\[2pt]
+    \varphi_1,       & \text{otherwise (in particular, whenever the candidate leaves } S_2).
+  \end{cases}
+  \label{eq:silent}
+\end{align}
+\textbf{Code.} L281--305 ($\varphi_1$) and L308--331 ($\varphi_2$); the
+stationarity test at L283/L310 is the $\ind\{\cdot \in S_2\}$ of
+\eref{eq:silent}; the moment recomputation is wrapped in \code{tryCatch} so
+that a numerically degenerate candidate is also silently rejected.
+
+\begin{lemma}[Silent rejection needs no Hastings correction]\label{lem:silent}
+Let $q$ be symmetric, $q(\bphi' \given \bphi) = q(\bphi \given \bphi')$, and
+let the kernel accept only candidates in $S_2$, with probability
+$\alpha(\bphi, \bphi') = \min\{1, \pi(\bphi')/\pi(\bphi)\}$, otherwise
+remaining at $\bphi$. Then for $\bphi, \bphi' \in S_2$,
+\begin{equation}\label{eq:db}
+  \pi(\bphi)\, q(\bphi' \given \bphi)\, \alpha(\bphi, \bphi')
+  \;=\;
+  \min\bigl\{ \pi(\bphi), \pi(\bphi') \bigr\}\, q(\bphi' \given \bphi)
+  \;=\;
+  \pi(\bphi')\, q(\bphi \given \bphi')\, \alpha(\bphi', \bphi),
+\end{equation}
+so detailed balance holds with respect to $\pi$ restricted to $S_2$; mass
+proposed outside $S_2$ contributes only to the holding probability. No
+Jacobian or truncation ratio enters.
+\end{lemma}
+
+\begin{remark}[Do not ``fix'' this to match the AR(1) code]\label{rem:no-fix}
+The AR(1) reference updater \code{updatePhiTS}
+(\code{update\_params.R} L1156--1202) instead draws from a normal truncated to
+$(-1,1)$ and carries the corresponding asymmetry correction, terms
+\code{curlog.cand - canlog.cand} at L1192. The audit in
+\code{tex/where\_we\_are/} records that an attempt to impose the analogous
+correction on the AR(2) silent-rejection kernel biased the chain toward the
+boundary of $S_2$ and was reverted. Both kernels are valid; they are simply
+different, and the thesis should describe the one that is used.
+\end{remark}
+
+\subsection{(B4) Adaptation and bookkeeping}
+
+The proposal scales $s_1, s_2$ are tuned by the same \code{mhupdate} rule as
+in \sref{sec:layerA-nits}, separately for each channel
+(\code{mcmc\_ar2.R} L567--581 for $\bm{w}$, and the matching blocks for
+$\sigma^2$ and $z$), and only while \code{iter < burn/2}. Attempt counters are
+incremented before the stationarity test (L229--230), so an out-of-triangle
+proposal counts as a rejection --- which is the correct accounting for the
+kernel of \cref{lem:silent}, since such a move genuinely fails.
+
+% ====================================================================
+\section{Layer (C): the prior, where text and code disagree}
+\label{sec:layerC}
+
+\subsection{The two statements side by side}
+
+The thesis, \code{eq:stage3-priors}, states
+\begin{equation}\label{eq:prior-thesis}
+  \bigl(\varphi^{(\cdot)}_1,\, \varphi^{(\cdot)}_2\bigr)
+  \;\sim\; \Unif(S_2),
+  \qquad\text{i.e.}\qquad
+  p_{\text{thesis}}(\bphi) \;\propto\; \ind\{\bphi \in S_2\}.
+\end{equation}
+The code, through the defaults \code{prior.mean = 0}, \code{prior.sd = 0.5} of
+\code{updatePhiAR2TS} (L228) used at L295--297 and L322--324, implements
+\begin{equation}\label{eq:prior-code}
+  p_{\text{code}}(\bphi)
+  \;\propto\;
+  \Norm\bigl(\varphi_1;\, 0,\, 0.5^2\bigr)\,
+  \Norm\bigl(\varphi_2;\, 0,\, 0.5^2\bigr)\,
+  \ind\{\bphi \in S_2\},
+\end{equation}
+the indicator being realised implicitly by \eref{eq:silent}. The arguments
+\code{prior.mean} and \code{prior.sd} are never supplied by any production
+caller --- \code{updateTauTS\_AR2}, \code{updateZTS\_AR2},
+\code{updateKnotsTS\_AR2} all call with the defaults --- and are overridden
+only in \code{tests/test\_fix3\_phi\_hastings.R}. So \eref{eq:prior-code} is
+effectively hardcoded. The AR(1) baseline is the same story one dimension
+down: $\Norm(0, 0.5^2)$ truncated to $(-1,1)$
+(\code{update\_params.R} L1190--1191).
+
+\subsection{Why the difference is not cosmetic}
+
+\paragraph{Step 1: the penalty is not flat.}
+On $S_2$,
+\begin{equation}\label{eq:log-penalty}
+  \log p_{\text{code}}(\bphi) - \log p_{\text{code}}(\bm{0})
+  \;=\; -\,\frac{\varphi_1^2 + \varphi_2^2}{2 \cdot 0.5^2}
+  \;=\; -\,2\bigl(\varphi_1^2 + \varphi_2^2\bigr),
+\end{equation}
+whereas \eref{eq:prior-thesis} makes this identically $0$. At the generating
+values of the simulation study the penalty is $1.53$ nats at
+$(\varphi_1,\varphi_2) = (0.80,-0.35)$ and $1.33$ nats at $(0.15, 0.80)$,
+relative to the origin. These are small against a likelihood built from
+$K(n_t - 1)$ Gaussian factors, which is why
+\code{tex/ar2\_phi1\_prior\_support/} measures a posterior shrinkage of at
+most $0.04$ and concludes ``no code change''. The point is not that the
+sampler is wrong --- it validly targets the posterior induced by
+\eref{eq:prior-code} --- but that the thesis reports a prior the study did
+not use.
+
+\paragraph{Step 2: the scale is calibrated to the wrong support.}
+Under $S_2$ the marginal supports are
+\begin{equation}\label{eq:supports}
+  \varphi_1 \in (-2, 2), \qquad \varphi_2 \in (-1, 1),
+\end{equation}
+so $\varphi_1$ has twice the range of the AR(1) coefficient while
+\eref{eq:prior-code} keeps the AR(1) scale $0.5$. For the AR(1) pairing the
+match is deliberate, $\Phi(1/0.5) - \Phi(-1/0.5) \approx 0.954$, about $95\%$
+of the untruncated mass inside the support. For $\varphi_1$ under $S_2$ the
+same scale leaves $\Phi(4) - \Phi(-4) > 0.9999$ inside, i.e.\ the prior is far
+more informative relative to its support than the AR(1) prior it was ported
+from. The mismatch is confined to $\varphi_1$; for $\varphi_2$ support and
+scale still match.
+
+\paragraph{Step 3: the two orders are not prior-nested.}
+Setting $\varphi_2 = 0$ in \eref{eq:prior-code} recovers the AR(1) prior on
+that section. But the AR(2) fit never conditions on $\varphi_2 = 0$; the
+comparison in the thesis is against the \emph{marginal} induced on
+$\varphi_1$,
+\begin{equation}\label{eq:marginal}
+  p_{\text{code}}(\varphi_1)
+  \;\propto\;
+  \Norm\bigl(\varphi_1;\, 0,\, 0.5^2\bigr)
+  \int_{\{\varphi_2 :\, (\varphi_1,\varphi_2) \in S_2\}}
+  \Norm\bigl(\varphi_2;\, 0,\, 0.5^2\bigr)\, d\varphi_2
+  \;\ne\;
+  p_{\text{AR(1)}}(\varphi_1),
+\end{equation}
+because the inner integral depends on $\varphi_1$ through the triangle's
+$\varphi_1$-section. Every AR(2)-versus-AR(1) contrast in the thesis
+(\code{tab:ar2-sim-paired}, \code{tab:timeblock-brier},
+\code{tab:ozone-brier-ci}) therefore carries a small prior confound alongside
+the change in order. Recording this caveat in the paper is one of the two
+follow-ups left open by \code{tex/ar2\_phi1\_prior\_support/}
+(\S Status and decision, 2026-07-15).
+
+% ====================================================================
+\section{Recommended edits to \code{mythesis.tex}}
+\label{sec:edits}
+
+Nothing in \code{code/R/ar2} needs to change; all three edits are textual.
+
+\paragraph{E1 --- correct the prior (\code{eq:stage3-priors}).}
+Replace the $\bphi$ entry by the truncated-normal form and add the
+non-nestedness caveat where AR(1) and AR(2) are compared:
+\begin{lstlisting}[language=TeX]
+(\phi^{(\cdot)}_1,\, \phi^{(\cdot)}_2)
+  &\mathrlap{\;\sim\; N(0,\, \sigma^2_\phi \bI_2)\ \text{restricted to the
+    stationarity triangle \eref{eq:stab-triangle}},}
+% ... and in the hyperparameter sentence: \sigma_\phi = 0.5.
+% Caveat sentence, to sit with the AR(1)-vs-AR(2) comparison:
+% Because the triangle \eref{eq:stab-triangle} gives $\phi_1$ the support
+% $(-2,2)$ while $\phi_2$ retains $(-1,1)$, the common scale
+% $\sigma_\phi = 0.5$ is calibrated to the AR(1) support; the induced
+% marginal prior on $\phi_1$ under the AR(2) model is therefore not the
+% AR(1) prior, and the AR(2)-versus-AR(1) contrasts carry a small prior
+% component alongside the change in order. The posterior shrinkage this
+% induces was measured at no more than 0.04 across the generating values
+% used here.
+\end{lstlisting}
+
+\paragraph{E2 --- add the $\bphi$ block to Appendix~C.}
+A subsection after the thesis's \code{eq:mh-ratio} covering, in order: the target
+\eref{eq:phi-target}; the exact stationary likelihood \eref{eq:exact-ll} with
+\cref{rem:exact} on why the initial block survives for AR(2) but is vacuous
+for AR(1); the component-wise scan with silent rejection
+\eref{eq:phi-prop}--\eref{eq:silent} and \cref{lem:silent}; and one sentence
+that a single pair $\bphi^{(\cdot)}$ is shared across knots (and across both
+coordinates of $\bm{w}^{*}$).
+
+\paragraph{E3 --- two corrections inside Appendix~C.}
+Change ``an acceptance rate near $0.3$--$0.4$'' to the actual rule, adaptation
+by factors $0.8/1.2$ whenever the running rate leaves $[0.25, 0.50]$, stopped
+after the first half of burn-in; and note that for $\bm{w}^{*}$ the day-$t$
+proposal \eref{eq:block-move} is a block move over all $K \times 2$
+coordinates rather than the scalar move written for the other two channels.
+
+\paragraph{E4 --- optional, but it is the cause of the confusion.}
+Rename the appendix's time-varying parameter from $Y_t$ to $X^{*}_t$ (or
+$U_t$), so that \eref{eq:fullcond} does not carry $\bY$ and $Y_t$ with two
+different meanings in one display. This matches
+\code{tex/transform\_ar\_construction/}.
+
+% ====================================================================
+\section{Summary}
+
+\begin{enumerate}[label=\textbf{(\Alph*)}, leftmargin=*]
+\item The description of how $\bphi$ enters the update of the time-varying
+      parameters --- Appendices~B and~C --- \textbf{matches the code exactly},
+      including the Yule--Walker standardisation \eref{eq:yw}, the stationary
+      $t = 2$ conditional \eref{eq:p2}, and the three-factor acceptance ratio
+      \eref{eq:logR-latent} with its edge conventions. Two prose details need
+      correcting (\sref{sec:layerA-nits}).
+\item The update of $\bphi$ \emph{itself} is \textbf{not described anywhere in
+      the thesis}, although it embodies two deliberate and non-obvious
+      decisions: the exact stationary likelihood \eref{eq:exact-ll} and the
+      silent-rejection kernel \eref{eq:silent}.
+\item The one place the thesis does speak about $\bphi$ directly, its prior,
+      \textbf{contradicts the code}: $\Unif(S_2)$ in the text
+      \eref{eq:prior-thesis} versus truncated independent $\Norm(0, 0.5^2)$ in
+      the implementation \eref{eq:prior-code}, with a documented consequence
+      for the AR(1)-versus-AR(2) comparisons \eref{eq:marginal}.
+\end{enumerate}
+
+\end{document}

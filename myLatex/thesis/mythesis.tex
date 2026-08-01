@@ -213,10 +213,11 @@ the prediction task: spatial interpolation is insensitive to the autoregressive
 order even where the coefficients are recovered closely, and richer temporal
 pooling helps only when the task requires extrapolating beyond the observed
 record, by margins never significant. The MRTS mean improves prediction where
-the non-stationarity lies in a genuine mean surface and the basis is fine
-enough to resolve it; on the ozone data its gain is real, though modest in
-magnitude. The contribution is therefore to enlarge the STP baseline into a
-candidate model class selected by held-out threshold predictive performance.
+the non-stationarity lies in the mean surface rather than the second moment
+and the basis is fine enough to resolve it; on the ozone data the gain is
+present but modest in magnitude. The contribution is therefore to enlarge the
+STP baseline into a candidate model class selected by held-out threshold
+predictive performance.
 
 \vspace{2.0\baselineskip}
 
@@ -900,7 +901,7 @@ Transform mix & Symmetric-$t$, $K = 5$, thr.  & 0.374 & 0.446 & 0.367 & 0.367 (5
 
 \subsection{Summary of the simulation study}\label{sec:sim-summary}
 
-Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The persistence experiment sharpens this conclusion into a statement about the prediction task itself.  Even under highly persistent and long-memory dependence, with the temporal coefficients well identified, spatial hold-out prediction is insensitive to the autoregressive order; modest gains from richer temporal pooling, directionally consistent though never statistically significant, emerge only once the task requires extrapolating beyond the observed record.  Whatever promise the AR(2) extension retains therefore lies in forecasting rather than interpolation.  The MRTS experiments admit an equally structural summary.  The mean term is inert when the non-stationarity lives in the second moment, and under genuine nonlinear mean structure it pays off only once the basis is fine enough to resolve the surface, converting a small fraction of the oracle headroom.  Whether the same pattern holds on real environmental data is the question taken up in \sref{sec:ozonedata}, where the AR(2) and MRTS variants enter as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
+Overall, the simulation study indicates that both extensions enlarge the usable model class but that neither uniformly dominates the STP baseline.  The persistence experiment sharpens this conclusion into a statement about the prediction task itself.  Even under highly persistent and long-memory dependence, with the temporal coefficients well identified, spatial hold-out prediction is insensitive to the autoregressive order; modest gains from richer temporal pooling, directionally consistent though never statistically significant, emerge only once the task requires extrapolating beyond the observed record.  Whatever promise the AR(2) extension retains therefore lies in forecasting rather than interpolation.  The MRTS experiments admit an equally structural summary.  The mean term is inert when the non-stationarity lives in the second moment, and under nonlinear mean structure it pays off only once the basis is fine enough to resolve the surface, converting a small fraction of the oracle headroom.  Whether the same pattern holds on real environmental data is the question taken up in \sref{sec:ozonedata}, where the AR(2) and MRTS variants enter as candidate options to be selected by held-out predictive scores rather than as default replacements for the AR(1) STP baseline.
 
 \section{Ozone data analysis}\label{sec:ozonedata}
 
