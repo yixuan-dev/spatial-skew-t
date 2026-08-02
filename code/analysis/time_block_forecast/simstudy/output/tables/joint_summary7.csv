@@ -1,0 +1,4 @@
+"method","label","energy_mean","vario_mean","elapsed_sec_mean","h_star","h_star_basis","h_star_proxy","family","d","hurst","crossing_lead"
+1,"Skew-t, K=1, i.i.d. in time",10.1517839082378,130.355515297834,8081.637,NA,"undefined-hyperbolic",30,"arfima",0.45,0.95,NA
+2,"Skew-t, K=1, AR(2) temporal (tau,z,w)",9.73273350095897,124.023753301701,9919.626,NA,"undefined-hyperbolic",30,"arfima",0.45,0.95,14
+4,"Skew-t, K=1, AR(1) temporal (tau,z)",10.0005864220058,128.962268674121,9430.547,NA,"undefined-hyperbolic",30,"arfima",0.45,0.95,9
