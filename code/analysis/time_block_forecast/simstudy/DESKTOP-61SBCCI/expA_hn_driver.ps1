@@ -21,8 +21,8 @@
 # merge script verifies every input is reproduced exactly.
 #
 # Assertion C is NOT a gate here: the HN prior is the protection against
-# the lambda reflected ridge, and C_spread / B_truth are recorded as a
-# descriptive ledger only. Nothing is excluded on their basis.
+# the lambda reflected ridge. The A/A'/B/C flags are no longer recorded
+# at all (2026-08-03); fit.diag carries numeric summaries only.
 
 param(
     [string]$Settings   = "5,7",
@@ -115,7 +115,7 @@ if ($DryRun) { Write-Host "*** DRY RUN: printing the plan and the calls, nothing
 # ---- preflight ----------------------------------------------------------
 foreach ($f in @('simdata.RData', 'run-settings.R', 'scores.R', 'tables.R',
                  'time_block_helpers.R', 'fit_diag_utils.R',
-                 'collect_diag.R', 'expA_threeway.R',
+                 'expA_threeway.R',
                  '../../simstudy/DESKTOP-61SBCCI/merge_score_caches.R')) {
     if (-not (Test-Path $f)) { throw "$f not found -- git pull incomplete?" }
 }
@@ -224,7 +224,6 @@ foreach ($S in $settingList) {
                     "cat('final cache OK: n =', length(datasets), 'datasets,', length(methods), 'methods\n')`"")
 
     # -- downstream artifacts (cheap, and they travel back in git) --------
-    Invoke-Rscript "Rscript collect_diag.R --setting=$S"
     Invoke-Rscript "Rscript expA_threeway.R --setting=$S"
     Invoke-Rscript "Rscript tables.R --setting=$S"
     Invoke-Rscript "Rscript plots.R --setting=$S"
@@ -239,14 +238,9 @@ $toAdd = @()
 foreach ($S in $settingList) {
     $toAdd += "output/results/scores${S}.RData"
     $toAdd += (Get-ChildItem "output/results/scores${S}_d*.RData" | ForEach-Object { "output/results/$($_.Name)" })
-    $toAdd += (Get-ChildItem "output/diag" -Filter "diag_${S}-*.csv" | ForEach-Object { "output/diag/$($_.Name)" })
-    $toAdd += (Get-ChildItem "output/diag" -Filter "post_${S}-*.csv" | ForEach-Object { "output/diag/$($_.Name)" })
-    $toAdd += (Get-ChildItem "output/diag" -Filter "*_${S}.csv" | ForEach-Object { "output/diag/$($_.Name)" })
     $toAdd += (Get-ChildItem "output/tables" -Filter "*${S}.csv" | ForEach-Object { "output/tables/$($_.Name)" })
     $toAdd += (Get-ChildItem "output/plots" -Filter "*set${S}.pdf" | ForEach-Object { "output/plots/$($_.Name)" })
 }
-# pred_*.RData is ~47 MB of predictive summaries: kept on this machine as
-# the insurance against a future re-scoring, deliberately NOT committed.
 git add -f $toAdd
 git add $toolDir
 git commit -m "Experiment A (5 blocks): settings $Settings x methods $Methods x datasets $Datasets, lambda~HN(0,20), run on $env:COMPUTERNAME"

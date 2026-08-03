@@ -8,10 +8,9 @@
 #   e.g. Rscript DESKTOP-61SBCCI/chunk_sanity_tbf.R \
 #          output/results/scores5_d3.RData 5 3 "c(1,2,4)" 1000
 #
-# Deliberately NOT checked, because assertion C is not a gate in this run:
-# C_spread and B_truth failures are counted and printed, never fatal. The
-# lambda ~ HN(0, 20) prior is the protection against the reflected ridge;
-# the diagnostics are a descriptive ledger.
+# The A/A'/B/C guard flags are no longer recorded (2026-08-03): the
+# lambda ~ HN(0, 20) prior is the protection against the reflected ridge,
+# and fit.diag carries the 14 numeric summaries only.
 #########################################################################
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -52,7 +51,7 @@ nD <- length(datasets_expect)
 nM <- length(methods_expect)
 H <- 15L
 NB <- 5L
-NPROB <- 7L
+NPROB <- 11L
 
 # ---- identity of the cache --------------------------------------------
 if (!identical(as.integer(e$setting), setting_expect)) {
@@ -93,8 +92,9 @@ if (!identical(as.integer(e$block_seams), c(50L, 80L, 110L, 140L, 170L))) {
        paste(e$block_seams, collapse = ","))
 }
 if (!isTRUE(all.equal(as.numeric(e$probs),
-                      c(0.90, 0.92, 0.94, 0.95, 0.96, 0.98, 0.99)))) {
-  fail("probs grid is [%s], expected the 7-value high-quantile grid",
+                      c(0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97,
+                        0.98, 0.99, 0.995)))) {
+  fail("probs grid is [%s], expected the 11-value high-quantile grid of scores.R",
        paste(e$probs, collapse = ","))
 }
 # The probs grid is identical under both threshold rules, so it cannot
@@ -135,7 +135,7 @@ if (!identical(dimnames(e$brier.thresholds)[["dataset"]],
 chk_dim("energy.score", c(nD, nM, NB), c("dataset", "method", "block"))
 chk_dim("vario.score", c(nD, nM, NB), c("dataset", "method", "block"))
 chk_dim("elapsed_sec", c(nD, nM), c("dataset", "method"))
-chk_dim("fit.diag", c(18L, nD, nM, NB), c("stat", "dataset", "method", "block"))
+chk_dim("fit.diag", c(14L, nD, nM, NB), c("stat", "dataset", "method", "block"))
 chk_dim("post.summary", c(5L, 15L, nD, nM, NB),
         c("pstat", "param", "dataset", "method", "block"))
 
@@ -182,17 +182,9 @@ for (st in c("lambda", "beta0", "sd_lead_max")) {
 if (anyNA(e$post.summary["mean", "beta0", , , , drop = FALSE])) {
   fail("`post.summary` has NA for beta0 -- posterior summaries did not reach the cache")
 }
-# The per-cell mirrors are what survive the deletion; they must exist first.
-for (d in datasets_expect) {
-  for (m in methods_expect) {
-    stem <- sprintf("%d-%d-%d", setting_expect, m, d)
-    for (f in c(sprintf("output/diag/diag_%s.csv", stem),
-                sprintf("output/diag/post_%s.csv", stem),
-                sprintf("output/diag/pred_%s.RData", stem))) {
-      if (!file.exists(f)) fail("durable mirror missing: %s", f)
-    }
-  }
-}
+# (The per-cell output/diag mirrors are gone since 2026-08-03; the two
+# assertions above ARE the durability check -- the cache itself carries
+# the diagnostics and posterior summaries past the fit deletion.)
 
 # ---- provenance of the data --------------------------------------------
 if (!identical(e$data_suffix, "")) fail("data_suffix is '%s', expected ''", e$data_suffix)
@@ -277,8 +269,6 @@ if (any(e$elapsed_sec > 6 * 3600)) {
 }
 
 # ---- descriptive only: reported, never fatal ---------------------------
-n_c <- sum(e$fit.diag["C_spread", , , ] == 0, na.rm = TRUE)
-n_b <- sum(e$fit.diag["B_truth", , , ] == 0, na.rm = TRUE)
 lam_neg <- sum(e$fit.diag["lambda", , , ] < 0, na.rm = TRUE)
 
 # Brier coverage ledger under the full-series rule. Both resolutions are
@@ -298,8 +288,8 @@ cat(sprintf(paste("[SANITY OK] %s: setting %d, datasets %s, methods [%s],",
             cache_file, setting_expect,
             paste(range(datasets_expect), collapse = ".."),
             paste(methods_expect, collapse = ","), NB, format(es_expect)))
-cat(sprintf("            diagnostics (descriptive): B_truth fail %d, C_spread fail %d, lambda<0 %d of %d block-cells\n",
-            n_b, n_c, lam_neg, nD * nM * NB))
+cat(sprintf("            diagnostics (descriptive): lambda<0 %d of %d block-cells\n",
+            lam_neg, nD * nM * NB))
 cat(sprintf("            brier thresholds (full series): q90 %.2f .. q99 %.2f\n",
             min(e$brier.thresholds[1, ]), max(e$brier.thresholds[NPROB, ])))
 cat(sprintf("            exceedance ledger: base rate 0 in %.1f%% of lead-cells, %.1f%% of block-cells\n",

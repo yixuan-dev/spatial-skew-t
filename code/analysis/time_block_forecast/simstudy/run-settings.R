@@ -14,12 +14,12 @@
 #
 # Output: results/<setting>-<method>-<dataset>.RData, holding a list of
 # per-block predictive samples + the validation truth + runtime info +
-# per-block fit diagnostics, posterior summaries and predictive summaries.
+# per-block fit diagnostics and posterior summaries.
 #
-# The last three exist because the chunked driver deletes the fit files
+# The last two exist because the chunked driver deletes the fit files
 # after scoring (DESKTOP-61SBCCI/expA_hn_driver.ps1): anything not summarised
 # while `fit` is still in memory is unrecoverable without a full refit.
-# They are also mirrored to output/diag/ so they survive the deletion.
+# scores.R carries both into the score cache, which is the durable copy.
 #
 # Usage:
 #   Rscript run-settings.R --setting=<id> [--data=<path>] [--hn]
@@ -116,11 +116,6 @@ if (is.na(workers) || workers < 1) stop("workers must be a positive integer", ca
 results_dir <- derive_results_dir(data_path, "results")
 if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE)
 
-# Diagnostics, posterior summaries and predictive summaries are mirrored
-# here so they outlive the fit files, which the chunked driver deletes.
-diag_dir <- "output/diag"
-if (!dir.exists(diag_dir)) dir.create(diag_dir, recursive = TRUE)
-
 blocks <- tbf_blocks(block_seams, block_H, nt)
 
 # Inputs to check_fit_consistency(); computed once on the master and
@@ -167,7 +162,6 @@ run_method <- function(method_id, dataset_id) {
   block_out <- vector("list", length(blocks))
   diag_rows <- vector("list", length(blocks))
   post_rows <- vector("list", length(blocks))
-  pred_summary <- vector("list", length(blocks))
   for (b in seq_along(blocks)) {
     blk <- blocks[[b]]
     y.train <- y.d[, blk$train_times, drop = FALSE]
@@ -238,6 +232,12 @@ run_method <- function(method_id, dataset_id) {
     # scoring, so an unsummarised quantity needs a full refit to recover.
     chk <- check_fit_consistency(fit, yhat, truth, marginal_sd,
       data_mean = mean(y.train))
+    # The A/A'/B/C pass flags predate the HN prior, which removed the
+    # ridge they guarded against; this study records the numeric
+    # summaries only. (block1_positive_control still uses the flags as
+    # guards, so they stay in the shared check_fit_consistency().)
+    chk <- chk[setdiff(names(chk),
+      c("A_zconsist", "Aprime_sdz", "B_truth", "C_spread"))]
     diag_rows[[b]] <- cbind(
       setting = setting, method = method_id, dataset = dataset_id,
       block = b, seam = blk$seam, seed = seed_used,
@@ -248,7 +248,6 @@ run_method <- function(method_id, dataset_id) {
       setting = setting, method = method_id, dataset = dataset_id,
       block = b, tbf_posterior_summary(fit)
     )
-    pred_summary[[b]] <- tbf_predictive_summary(yhat)
 
     rm(fit)
     gc()
@@ -256,17 +255,14 @@ run_method <- function(method_id, dataset_id) {
       b, blk$seam, chk$lambda, chk$sd_lead_max))
   }
 
+  # fit_diag and post_summary travel inside the fit file only; scores.R
+  # carries them into the score cache (fit.diag / post.summary), which is
+  # what survives the fit deletion. The per-cell side files this used to
+  # write (output/diag/{diag,post,pred}_S-m-d.*) were a second copy of
+  # the same rows plus a predictive summary nothing consumed; removed
+  # 2026-08-03.
   fit_diag <- do.call(rbind, diag_rows)
   post_summary <- do.call(rbind, post_rows)
-  names(pred_summary) <- as.character(seq_along(blocks))
-  stem <- sprintf("%d-%d-%d", setting, method_id, dataset_id)
-  # One file per cell, never a shared append: the workers run concurrently
-  # and would interleave their writes into a common file.
-  write.csv(fit_diag, file.path(diag_dir, sprintf("diag_%s.csv", stem)),
-    row.names = FALSE)
-  write.csv(post_summary, file.path(diag_dir, sprintf("post_%s.csv", stem)),
-    row.names = FALSE)
-  save(pred_summary, file = file.path(diag_dir, sprintf("pred_%s.RData", stem)))
 
   elapsed_sec <- unname((proc.time() - tic)[3])
   runtime_info <- build_tbf_runtime_info(
@@ -288,7 +284,7 @@ run_method <- function(method_id, dataset_id) {
     setting = setting, method_id = method_id, dataset_id = dataset_id,
     blocks = block_out
   )
-  save(forecast, runtime_info, fit_diag, post_summary, pred_summary,
+  save(forecast, runtime_info, fit_diag, post_summary,
     file = outputfile)
   rm(forecast, block_out, runtime_info)
   gc()
@@ -340,7 +336,7 @@ if (workers_use > 1) {
   parallel::clusterExport(cl, c(
     "setting", "iters", "burn", "update", "thin", "results_dir",
     "catalog", "blocks", "block_H", "block_seams", "run_method", "tasks",
-    "lambda_positive", "marginal_sd", "truth", "diag_dir", "run_method_safe"
+    "lambda_positive", "marginal_sd", "truth", "run_method_safe"
   ), envir = environment())
   out <- parallel::parLapply(cl, seq_len(nrow(tasks)), function(i) {
     run_method_safe(tasks$method[i], tasks$dataset[i])

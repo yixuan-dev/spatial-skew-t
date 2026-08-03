@@ -45,9 +45,10 @@ indistinguishable from the guarded study.
 
 **Assertion C is not used in this run.** There is no fit-level guard, no
 reseed loop, no delete gate on C, and no cell exclusion rule: the primary
-analysis uses all 50 (dataset, block) cells per setting. `C_spread`,
-`B_truth`, `sdz_ratio`, `sd_lead_max` and `lambda` are still recorded per
-block and reported by `chunk_sanity_tbf.R` and `collect_diag.R`, as a
+analysis uses all 50 (dataset, block) cells per setting. Since 2026-08-03
+the A/A'/B/C flags are not recorded at all; `fit.diag` carries the 14
+numeric summaries (`lambda`, `sdz_ratio`, `sd_lead_max`, the phis, ...)
+per block, and `chunk_sanity_tbf.R` reports `lambda < 0` counts as a
 descriptive ledger only.
 
 Consequence: these caches are **not cell-comparable** to settings 1-4,
@@ -60,30 +61,25 @@ any cache where it is not `TRUE`.
 ```
 inventory_tbf.R  -> which (method, dataset) fits are missing, as run-settings.R calls
 run-settings.R   -> results/<S>-<m>-<d>.RData  (810 MB, 5 blocks)
-                    + output/diag/{diag,post}_<S>-<m>-<d>.csv, pred_<S>-<m>-<d>.RData
 scores.R         -> output/results/scores<S>_d<d>.RData
 chunk_sanity_tbf.R -> the gate; non-zero exit means the fits are NOT deleted
                     -> then results/<S>-<m>-<d>.RData is removed by exact name
 merge_score_caches.R (reused from ../../simstudy/DESKTOP-61SBCCI/)
                  -> output/results/scores<S>.RData, verifying every input exactly
-collect_diag.R, expA_threeway.R, tables.R, plots.R -> the tracked artifacts
+expA_threeway.R, tables.R, plots.R -> the tracked artifacts
 ```
 
 ## What survives the fit deletion
 
-The fits are unrecoverable once deleted, so `run-settings.R` writes three
-things while `fit` is still in memory:
-
-| artifact | what | size | committed |
-|---|---|---|---|
-| `output/diag/diag_<S>-<m>-<d>.csv` | per-block A/A'/B/C diagnostics, lambda, phi, seed | ~1 KB | yes |
-| `output/diag/post_<S>-<m>-<d>.csv` | posterior mean/sd/median/95% CI of 15 parameters | ~2 KB | yes |
-| `output/diag/pred_<S>-<m>-<d>.RData` | per (site, lead) predictive mean/sd/9 quantiles | ~950 KB | **no** |
-
-The predictive summaries (~47 MB total) stay on this machine. They are the
-only way to compute predictive-interval coverage, PIT histograms or a new
-quantile-based score later without repeating the 110 core-hours. Do not
-delete them until the report is final.
+The fits are unrecoverable once deleted. Everything summarised while
+`fit` was still in memory (the per-block `fit_diag` and `post_summary`)
+rides inside the fit file and is carried into the score cache by
+scores.R as the `fit.diag` and `post.summary` arrays -- the cache is the
+durable copy. (Until 2026-08-03 run-settings.R also mirrored these, plus
+a per-(site, lead) predictive summary, to per-cell files under
+`output/diag/`; the mirrors were a second copy of the same rows and the
+predictive summary had no consumer, so the mechanism was removed. Use
+`-KeepFits` when a future re-scoring is anticipated.)
 
 ## What the gate checks before deleting anything
 
@@ -92,15 +88,16 @@ or `--methods` were omitted (`scores.R` defaults to 1:50 and 1:2, and either
 would delete unscored fits), a cache with any NA in the score arrays, a
 cache where `hn_prior` is not `TRUE`, a cell that "finished" in under
 30 minutes (`options(warn = 2)` makes any warning fatal inside `mcmc()`),
-and a missing durable mirror in `output/diag/`.
+and NA anywhere in the `fit.diag` / `post.summary` arrays -- the durable
+copies of the fit-time summaries.
 
 ## What returns in git
 
-The 20 per-dataset caches, the 2 merged caches, the diagnostics and
-recovery ledgers, `output/tables/expA_*.csv`, `joint_summary{5,7}.csv`, the
-lead-curve PDFs, this folder and the driver transcript. Under 5 MB. Fits
-and `pred_*.RData` never enter git; `git add -f` is needed because the root
-`.gitignore` covers `*.RData`.
+The 20 per-dataset caches, the 2 merged caches,
+`output/tables/expA_*.csv`, `joint_summary{5,7}.csv`, the lead-curve
+PDFs, this folder and the driver transcript. Under 5 MB. Fits never
+enter git; `git add -f` is needed because the root `.gitignore` covers
+`*.RData`.
 
 Then, back on the machine that owns the report:
 

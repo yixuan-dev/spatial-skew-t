@@ -97,7 +97,7 @@ H <- block_H
 #                     level error (the near-unit-root excursion of
 #                     setting 5 scores the same as a perfect forecast).
 #                     Diagnostic; never promote it to a table.
-probs <- c(0.90, 0.92, 0.94, 0.95, 0.96, 0.98, 0.99)
+probs <- c(0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 0.995)
 
 # Provenance tripwire. This is NOT a dataset-array, so
 # DESKTOP-61SBCCI/merge_score_caches.R:117-126 requires it to be identical
@@ -197,10 +197,11 @@ elapsed_sec  <- array(NA_real_, dim = c(nsets, nmeth), dimnames = dn_blk[1:2])
 # numeric arrays with a NAMED "dataset" dimension, not data.frames: that is
 # what makes DESKTOP-61SBCCI/merge_score_caches.R bind them along dataset
 # instead of demanding they be identical across chunk caches.
+# The A/A'/B/C guard flags are gone since 2026-08-03: the HN prior removed
+# the ridge they guarded, and run-settings.R stopped recording them.
 diag_stats <- c("lambda", "beta0", "zbar", "z_pred", "z_ratio", "sdz_ratio",
                 "phi1.z", "phi2.z", "phi1.tau", "phi2.tau",
-                "sd_lead1", "sd_lead_max", "mu_recon", "data_mean",
-                "A_zconsist", "Aprime_sdz", "B_truth", "C_spread")
+                "sd_lead1", "sd_lead_max", "mu_recon", "data_mean")
 fit.diag <- array(NA_real_, dim = c(length(diag_stats), nsets, nmeth, n_blocks),
   dimnames = c(list(stat = diag_stats), dn_blk))
 

@@ -523,23 +523,3 @@ tbf_posterior_summary <- function(fit) {
   }
   data.frame(param = params, out, row.names = NULL, stringsAsFactors = FALSE)
 }
-
-# Per (site, lead) summary of the predictive sample, so predictive-interval
-# coverage / PIT / new quantile scores remain computable after the raw
-# iters x ns x H array is deleted. Returns [ns, H, stat]; ~190 KB per block.
-TBF_PRED_PROBS <- c(0.025, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.975)
-
-tbf_predictive_summary <- function(yhat) {
-  stats <- c("mean", "sd", paste0("q", sub("^0\\.", "", format(TBF_PRED_PROBS))))
-  ns <- dim(yhat)[2]
-  H <- dim(yhat)[3]
-  out <- array(NA_real_, dim = c(ns, H, length(stats)),
-               dimnames = list(site = NULL, lead = as.character(seq_len(H)),
-                               stat = stats))
-  out[, , 1L] <- apply(yhat, c(2, 3), mean)
-  out[, , 2L] <- apply(yhat, c(2, 3), sd)
-  qs <- apply(yhat, c(2, 3), quantile, probs = TBF_PRED_PROBS, na.rm = TRUE)
-  # qs is [prob, site, lead]; move the prob axis last to match `stats`.
-  out[, , -(1:2)] <- aperm(qs, c(2, 3, 1))
-  out
-}
