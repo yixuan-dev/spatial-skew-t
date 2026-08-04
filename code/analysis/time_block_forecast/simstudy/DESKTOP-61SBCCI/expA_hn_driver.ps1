@@ -236,8 +236,10 @@ if ($NoCommit) { Write-Host "`n-NoCommit: skipping the git step"; Stop-Transcrip
 Write-Host "`n== committing score caches and diagnostics =="
 $toAdd = @()
 foreach ($S in $settingList) {
+    # The per-dataset chunk caches stay out of git: the merge verified each
+    # input byte-exactly and the gate re-checked the merged cache, so
+    # scores<S>.RData is the single authoritative copy.
     $toAdd += "output/results/scores${S}.RData"
-    $toAdd += (Get-ChildItem "output/results/scores${S}_d*.RData" | ForEach-Object { "output/results/$($_.Name)" })
     $toAdd += (Get-ChildItem "output/tables" -Filter "*${S}.csv" | ForEach-Object { "output/tables/$($_.Name)" })
     $toAdd += (Get-ChildItem "output/plots" -Filter "*set${S}.pdf" | ForEach-Object { "output/plots/$($_.Name)" })
 }

@@ -93,16 +93,14 @@ copies of the fit-time summaries.
 
 ## What returns in git
 
-The 20 per-dataset caches, the 2 merged caches,
+The 2 merged caches (`scores{5,7}.RData`),
 `output/tables/expA_*.csv`, `joint_summary{5,7}.csv`, the lead-curve
 PDFs, this folder and the driver transcript. Under 5 MB. Fits never
 enter git; `git add -f` is needed because the root `.gitignore` covers
 `*.RData`.
 
-Then, back on the machine that owns the report:
-
-```powershell
-git pull
-Rscript ..\..\simstudy\DESKTOP-61SBCCI\merge_score_caches.R <tmp> output\results\scores5_d*.RData
-# and diff <tmp> against the returned scores5.RData -- a free cross-machine check
-```
+The per-dataset chunk caches (`scores<S>_d<d>.RData`) are campaign
+scaffolding only -- the gate's unit and the merge's input. The merge
+verifies every input byte-exactly and the gate re-checks the merged
+cache, so they carry nothing the merged cache does not; they stay on the
+run machine and are disposable once the merge has passed.
