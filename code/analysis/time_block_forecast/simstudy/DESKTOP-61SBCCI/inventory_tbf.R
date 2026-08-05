@@ -21,9 +21,25 @@
 #########################################################################
 
 args <- commandArgs(trailingOnly = TRUE)
+
+# Which lambda-prior arm to inventory. Selects results_<arm>/ and decides
+# what counts as a valid fit; defaults to hn, the arm every campaign so
+# far has used.
+prior_arm <- "hn"
+prior_flag <- grep("^--prior=", args, value = TRUE)
+if (length(prior_flag)) {
+  prior_arm <- tolower(sub("^--prior=", "", prior_flag[1]))
+  if (!prior_arm %in% c("hn", "n")) {
+    stop(sprintf("--prior must be hn or n, got '%s'", prior_arm), call. = FALSE)
+  }
+  args <- args[!grepl("^--prior=", args)]
+}
+hn_want <- identical(prior_arm, "hn")
+
 if (length(args) != 5) {
-  stop(paste("usage: inventory_tbf.R <setting> <datasets e.g. 1:5>",
-             "<methods e.g. c(1,2,4)> <workers> <calls_out>"), call. = FALSE)
+  stop(paste("usage: inventory_tbf.R [--prior=hn|n] <setting>",
+             "<datasets e.g. 1:5> <methods e.g. c(1,2,4)> <workers>",
+             "<calls_out>"), call. = FALSE)
 }
 setting <- as.integer(args[1])
 datasets <- eval(parse(text = args[2]))
@@ -44,7 +60,9 @@ if (length(script_arg) > 0L) {
 N_BLOCKS <- 5L
 MIN_BYTES <- 700e6   # a complete 5-block cell is ~810 MB
 
-fname <- function(m, d) sprintf("results/%d-%d-%d.RData", setting, m, d)
+fname <- function(m, d) {
+  sprintf("results_%s/%d-%d-%d.RData", prior_arm, setting, m, d)
+}
 
 grid <- expand.grid(m = methods, d = datasets)
 grid$file <- mapply(fname, grid$m, grid$d)
@@ -76,17 +94,18 @@ if (nrow(ex) > 0) {
           !is.null(b$yhat) && length(dim(b$yhat)) == 3L && !anyNA(b$yhat[1, , ])
         }, TRUE)) &&
         !is.null(e$fit_diag) && nrow(e$fit_diag) == N_BLOCKS &&
-        isTRUE(e$runtime_info$control$lambda_positive)
+        identical(isTRUE(e$runtime_info$control$lambda_positive), hn_want)
     }, error = function(err) FALSE)
     if (!ok) bad <- c(bad, f)
   }
   if (length(bad)) {
-    cat("INVALID (bad structure or not an --hn fit; will be re-run):\n")
+    cat(sprintf("INVALID (bad structure or not a %s fit; will be re-run):\n",
+                if (hn_want) "--hn" else "--prior=n"))
     print(bad)
     grid$exists[grid$file %in% bad] <- FALSE
   } else {
-    cat(sprintf("newest %d files all load cleanly under the HN prior\n",
-                length(newest)))
+    cat(sprintf("newest %d files all load cleanly under the %s prior\n",
+                length(newest), if (hn_want) "HN" else "N"))
   }
 }
 
@@ -110,7 +129,8 @@ if (nrow(miss) > 0) {
     ms <- as.integer(names(key)[key == dsig])
     ds <- as.integer(strsplit(dsig, ",")[[1]])
     lines <- c(lines, sprintf(
-      'Rscript run-settings.R --hn --setting=%d "%s" %d "%s"',
+      'Rscript run-settings.R %s --setting=%d "%s" %d "%s"',
+      if (hn_want) "--hn" else "--prior=n",
       setting, spec(ds), workers, spec(ms)))
   }
 }

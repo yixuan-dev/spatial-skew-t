@@ -39,8 +39,10 @@ if (length(script_arg) > 0L) {
 source("./time_block_helpers.R")
 
 cli_args <- commandArgs(trailingOnly = TRUE)
-parsed <- extract_leading_flags(cli_args, c("data", "setting"))
+prior <- tbf_take_prior_flag(cli_args, c("data", "setting"))
+parsed <- prior$parsed
 flags <- parsed$values
+prior_tag <- prior$prior_tag
 
 if (is.null(flags$setting) || !nzchar(flags$setting)) {
   stop("tables.R: --setting=<id> is required.", call. = FALSE)
@@ -59,7 +61,8 @@ for (d in c(results_dir, tables_dir)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-scores_file <- file.path(results_dir, sprintf("scores%d%s.RData", setting_id, data_suffix))
+scores_file <- tbf_score_cache_file(setting_id, data_suffix, prior_tag,
+  dir = results_dir)
 if (!file.exists(scores_file)) {
   stop(sprintf("Score cache not found: %s\n  Run scores.R --setting=%d first.",
     scores_file, setting_id), call. = FALSE)
@@ -174,8 +177,8 @@ write.csv(joint_table,
   row.names = FALSE)
 
 # ---- aggregated artifact (consumed by plots.R, Stage 3) --------------
-simresults_file <- file.path(results_dir,
-  sprintf("simresults%d%s.RData", setting_id, data_suffix))
+simresults_file <- tbf_score_cache_file(setting_id, data_suffix, prior_tag,
+  dir = results_dir, prefix = "simresults")
 save(curve_table, rel_table, crossing_table, joint_table,
   h_star, hs, probs, methods, datasets, setting, block_H, block_seams,
   data_suffix,

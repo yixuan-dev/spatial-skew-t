@@ -34,8 +34,10 @@ if (length(script_arg) > 0L) {
 source("./time_block_helpers.R")
 
 cli_args <- commandArgs(trailingOnly = TRUE)
-parsed <- extract_leading_flags(cli_args, c("setting", "data"))
+prior <- tbf_take_prior_flag(cli_args, c("setting", "data"))
+parsed <- prior$parsed
 flags <- parsed$values
+prior_tag <- prior$prior_tag
 if (is.null(flags$setting) || !nzchar(flags$setting)) {
   stop("expA_threeway.R: --setting=<id> is required.", call. = FALSE)
 }
@@ -49,10 +51,10 @@ data_suffix <- if (!is.null(flags$data) && nzchar(flags$data)) {
 tables_dir <- "output/tables"
 if (!dir.exists(tables_dir)) dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
 
-scores_file <- file.path("output/results",
-  sprintf("scores%d%s.RData", setting_id, data_suffix))
+scores_file <- tbf_score_cache_file(setting_id, data_suffix, prior_tag)
 if (!file.exists(scores_file)) {
-  stop(sprintf("score cache not found: %s", scores_file), call. = FALSE)
+  stop(sprintf("score cache not found: %s (run scores.R --prior=%s)",
+    scores_file, prior_tag), call. = FALSE)
 }
 load(scores_file)
 # Provides: crps.lead, brier.lead (full-series thresholds since

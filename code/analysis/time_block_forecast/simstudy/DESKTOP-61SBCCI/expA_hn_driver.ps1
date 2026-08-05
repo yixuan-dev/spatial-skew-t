@@ -25,6 +25,12 @@
 # at all (2026-08-03); fit.diag carries numeric summaries only.
 
 param(
+    # Which arm of the lambda-prior toggle to run. "hn" is lambda ~ HN(0, 20)
+    # (run-settings.R --hn), "n" is the backend default N(0, 20). The arm
+    # selects results_<arm>/ and scores<S>_<arm>.RData, so the two campaigns
+    # can coexist on disk and can never overwrite each other.
+    [ValidateSet("hn", "n")]
+    [string]$Prior      = "hn",
     [string]$Settings   = "5,7",
     [string]$Datasets   = "1:10",
     [string]$Methods    = "c(1,2,4)",
@@ -112,6 +118,14 @@ Write-Host "est. total : $cells cells x ~1.8 h = ~$([math]::Round($cells * 1.8, 
 Write-Host "es_draws   : $EsDraws (energy/variogram only; CRPS and Brier keep all draws)"
 if ($DryRun) { Write-Host "*** DRY RUN: printing the plan and the calls, nothing is executed ***" }
 
+# ---- the prior arm ------------------------------------------------------
+# One place decides the flag and the two path roots; nothing below builds
+# an untagged path, so an hn run and an n run cannot collide.
+$PriorFlag  = if ($Prior -eq "hn") { "--hn" } else { "--prior=n" }
+$FitsDir    = "results_$Prior"
+$HnExpect   = if ($Prior -eq "hn") { "TRUE" } else { "FALSE" }
+Write-Host "prior arm  : $Prior ($PriorFlag) -> $FitsDir/, scores<S>_$Prior.RData"
+
 # ---- preflight ----------------------------------------------------------
 foreach ($f in @('simdata.RData', 'run-settings.R', 'scores.R', 'tables.R',
                  'time_block_helpers.R', 'fit_diag_utils.R',
@@ -146,9 +160,9 @@ foreach ($S in $settingList) {
         # which datasets of this batch still need work?
         $todo = @()
         foreach ($d in $a..$b) {
-            $cache = "output/results/scores${S}_d${d}.RData"
+            $cache = "output/results/scores${S}_${Prior}_d${d}.RData"
             if (Test-Path $cache) {
-                Rscript "$toolDir/chunk_sanity_tbf.R" $cache $S "$d" "$Methods" $EsDraws
+                Rscript "$toolDir/chunk_sanity_tbf.R" "--prior=$Prior" $cache $S "$d" "$Methods" $EsDraws
                 if ($LASTEXITCODE -eq 0) { Write-Host "== s$S d$d already scored and gated, skipping"; continue }
                 Write-Warning "existing $cache failed the gate -- redoing dataset $d"
                 Remove-Item $cache -Force
@@ -161,7 +175,7 @@ foreach ($S in $settingList) {
         $callsFile = Join-Path $toolDir "calls_s${S}_d${a}-${b}.txt"
         $missing = -1
         for ($round = 1; $round -le 3; $round++) {
-            $inv = & Rscript "$toolDir/inventory_tbf.R" $S $dsSpec "$Methods" $Workers $callsFile 2>&1
+            $inv = & Rscript "$toolDir/inventory_tbf.R" "--prior=$Prior" $S $dsSpec "$Methods" $Workers $callsFile 2>&1
             if ($LASTEXITCODE -ne 0) { $inv | Write-Host; throw "inventory_tbf.R failed for setting $S $dsSpec" }
             $inv | Write-Host
             $missing = [int]($inv | Select-String '^MISSING (\d+)$').Matches[0].Groups[1].Value
@@ -184,21 +198,22 @@ foreach ($S in $settingList) {
         # sequential; the finer unit means each committed cache is an
         # independently verified atom and disk is freed sooner.
         foreach ($d in $a..$b) {
-            $cache = "output/results/scores${S}_d${d}.RData"
+            $cache = "output/results/scores${S}_${Prior}_d${d}.RData"
             $caches += $cache
             if (Test-Path $cache) { continue }   # gated above
 
-            Invoke-Rscript ("Rscript scores.R --setting=$S --methods=`"$Methods`" " +
+            Invoke-Rscript ("Rscript scores.R $PriorFlag --setting=$S --methods=`"$Methods`" " +
                             "--datasets=`"$d`" --es_draws=$EsDraws --out=`"$cache`"")
 
-            Invoke-Rscript "Rscript `"$toolDir/chunk_sanity_tbf.R`" $cache $S $d `"$Methods`" $EsDraws"
+            Invoke-Rscript ("Rscript `"$toolDir/chunk_sanity_tbf.R`" --prior=$Prior " +
+                            "$cache $S $d `"$Methods`" $EsDraws")
 
             if ($KeepFits) {
                 Write-Host "== s$S d$d gated, fits kept (-KeepFits; disk free $(Get-FreeGB) GB)"
             } else {
                 $removed = 0
                 foreach ($m in $methodIds) {
-                    $f = "results/$S-$m-$d.RData"     # exact name, never a wildcard
+                    $f = "$FitsDir/$S-$m-$d.RData"   # exact name, never a wildcard
                     if (Test-Path $f) { Remove-Item $f -Force; $removed++ }
                 }
                 Write-Host "== s$S d$d gated, $removed fits deleted (disk free $(Get-FreeGB) GB)"
@@ -209,15 +224,15 @@ foreach ($S in $settingList) {
     if ($DryRun) { continue }
 
     # -- merge the per-dataset caches -> final cache for this setting -----
-    $caches = $allDatasets | ForEach-Object { "output/results/scores${S}_d$_.RData" }
-    $finalCache = "output/results/scores${S}.RData"
+    $caches = $allDatasets | ForEach-Object { "output/results/scores${S}_${Prior}_d$_.RData" }
+    $finalCache = "output/results/scores${S}_${Prior}.RData"
     Invoke-Rscript ("Rscript `"../../simstudy/DESKTOP-61SBCCI/merge_score_caches.R`" " +
                     "$finalCache " + ($caches -join ' '))
     # brier_threshold_basis + the anyNA checks close merge_score_caches.R's
     # silent NA-fill path: a dataset-array absent from one input is NA-filled,
     # not rejected, so the merged cache must be re-checked for completeness.
     Invoke-Rscript ("Rscript -e `"load('$finalCache'); " +
-                    "stopifnot(identical(as.integer(datasets), ${dFirst}L:${dLast}L), isTRUE(hn_prior), " +
+                    "stopifnot(identical(as.integer(datasets), ${dFirst}L:${dLast}L), identical(isTRUE(hn_prior), $HnExpect), " +
                     "identical(brier_threshold_basis, 'full_series'), " +
                     "!anyNA(crps.lead), !anyNA(brier.lead), !anyNA(brier.lead.blockq), " +
                     "!anyNA(pexceed.mean), !anyNA(brier.thresholds), !anyNA(exceed.rate.lead)); " +
@@ -239,7 +254,7 @@ foreach ($S in $settingList) {
     # The per-dataset chunk caches stay out of git: the merge verified each
     # input byte-exactly and the gate re-checked the merged cache, so
     # scores<S>.RData is the single authoritative copy.
-    $toAdd += "output/results/scores${S}.RData"
+    $toAdd += "output/results/scores${S}_${Prior}.RData"
     $toAdd += (Get-ChildItem "output/tables" -Filter "*${S}.csv" | ForEach-Object { "output/tables/$($_.Name)" })
     $toAdd += (Get-ChildItem "output/plots" -Filter "*set${S}.pdf" | ForEach-Object { "output/plots/$($_.Name)" })
 }

@@ -14,6 +14,21 @@
 #########################################################################
 
 args <- commandArgs(trailingOnly = TRUE)
+
+# Which lambda-prior arm this cache is supposed to be. Pulled out before
+# the positional parse so it can appear anywhere on the line. Defaults to
+# hn, which is what every campaign run so far has been; an N-arm run must
+# say --prior=n, and the gate then refuses an HN cache.
+prior_expect <- "hn"
+prior_flag <- grep("^--prior=", args, value = TRUE)
+if (length(prior_flag)) {
+  prior_expect <- tolower(sub("^--prior=", "", prior_flag[1]))
+  if (!prior_expect %in% c("hn", "n")) {
+    stop(sprintf("--prior must be hn or n, got '%s'", prior_expect), call. = FALSE)
+  }
+  args <- args[!grepl("^--prior=", args)]
+}
+
 if (length(args) < 4 || length(args) > 6) {
   stop(paste("usage: chunk_sanity_tbf.R <cache.RData> <setting>",
              "<datasets> <methods> [es_draws] [min_elapsed_sec]"), call. = FALSE)
@@ -76,9 +91,18 @@ if (!identical(as.integer(e$methods), methods_expect)) {
 }
 
 # ---- the run's premise -------------------------------------------------
-if (!isTRUE(e$hn_prior)) {
-  fail("hn_prior is %s, expected TRUE -- was --hn passed to run-settings.R?",
-       format(e$hn_prior))
+hn_want <- identical(prior_expect, "hn")
+if (!identical(isTRUE(e$hn_prior), hn_want)) {
+  fail(paste("hn_prior is %s but the %s arm was expected --",
+             "%s"),
+       format(e$hn_prior), prior_expect,
+       if (hn_want) "was --hn passed to run-settings.R?"
+       else "this cache looks like an HN run scored as N")
+}
+# scores.R has recorded the arm as a string since 2026-08-05; caches
+# written before that carry only hn_prior, so this is checked when present.
+if (!is.null(e$prior_arm) && !identical(e$prior_arm, prior_expect)) {
+  fail("prior_arm is '%s', expected '%s'", e$prior_arm, prior_expect)
 }
 if (!identical(as.integer(e$es_max_draws), es_expect)) {
   fail("es_max_draws is %s, expected %s",
@@ -188,7 +212,15 @@ if (anyNA(e$post.summary["mean", "beta0", , , , drop = FALSE])) {
 
 # ---- provenance of the data --------------------------------------------
 if (!identical(e$data_suffix, "")) fail("data_suffix is '%s', expected ''", e$data_suffix)
-if (!identical(e$fits_dir, "results")) fail("fits_dir is '%s', expected 'results'", e$fits_dir)
+# Since 2026-08-05 the fits live in results_<arm>/ so the two prior arms
+# cannot overwrite each other. "results" is accepted as the pre-tagging
+# legacy value (those fits are all HN).
+fits_dir_ok <- c(sprintf("results_%s", prior_expect),
+                 if (hn_want) "results")
+if (!e$fits_dir %in% fits_dir_ok) {
+  fail("fits_dir is '%s', expected one of [%s]",
+       e$fits_dir, paste(fits_dir_ok, collapse = ", "))
+}
 if (!identical(basename(e$data_path), "simdata.RData")) {
   fail("data_path is '%s', expected .../simdata.RData", e$data_path)
 }

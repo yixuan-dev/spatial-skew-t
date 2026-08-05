@@ -48,9 +48,11 @@ source("./time_block_helpers.R")
 
 # ---- CLI parsing ------------------------------------------------------
 cli_args <- commandArgs(trailingOnly = TRUE)
-parsed <- extract_leading_flags(cli_args,
+prior <- tbf_take_prior_flag(cli_args,
   c("data", "setting", "methods", "datasets"))
+parsed <- prior$parsed
 flags <- parsed$values
+prior_tag <- prior$prior_tag
 
 if (is.null(flags$setting) || !nzchar(flags$setting)) {
   stop("posterior.R: --setting=<id> is required.", call. = FALSE)
@@ -65,10 +67,10 @@ if (length(setting_ids) != 1L) {
 }
 setting <- as.integer(setting_ids)
 
-results_dir <- derive_results_dir(data_path, "results")
+results_dir <- derive_results_dir(data_path, "results", prior_tag)
 if (!dir.exists(results_dir)) {
-  stop(sprintf("results directory not found: %s (run run-settings.R first)",
-    results_dir), call. = FALSE)
+  stop(sprintf("results directory not found: %s (run run-settings.R --prior=%s first)",
+    results_dir, prior_tag), call. = FALSE)
 }
 
 # ---- methods / datasets (auto-scan from results_dir) ------------------
@@ -108,10 +110,10 @@ datasets <- if (!is.null(flags$datasets) && nzchar(flags$datasets)) {
 for (d in c("output/results", "output/tables")) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
-out_rdata <- file.path("output/results",
-  sprintf("posterior%d%s.RData", setting, data_suffix))
+out_rdata <- tbf_score_cache_file(setting, data_suffix, prior_tag,
+  dir = "output/results", prefix = "posterior")
 out_csv <- file.path("output/tables",
-  sprintf("posterior_summary%d%s.csv", setting, data_suffix))
+  sprintf("posterior_summary%d%s_%s.csv", setting, data_suffix, prior_tag))
 
 cat(sprintf(
   "posterior: setting=%d  results_dir=%s\n  methods=%s  datasets=%s\n  out=%s\n",

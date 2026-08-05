@@ -36,8 +36,10 @@ source("./time_block_helpers.R")
 
 # ---- CLI parsing ------------------------------------------------------
 cli_args <- commandArgs(trailingOnly = TRUE)
-parsed <- extract_leading_flags(cli_args, c("data", "setting"))
+prior <- tbf_take_prior_flag(cli_args, c("data", "setting"))
+parsed <- prior$parsed
 flags <- parsed$values
+prior_tag <- prior$prior_tag
 
 if (is.null(flags$setting) || !nzchar(flags$setting)) {
   stop("plots.R: --setting=<id> is required.", call. = FALSE)
@@ -57,11 +59,12 @@ if (!dir.exists(plots_dir)) {
 }
 
 # ---- load the Stage 2 artifact ---------------------------------------
-simresults_file <- file.path(results_dir,
-  sprintf("simresults%d%s.RData", setting_id, data_suffix))
+simresults_file <- tbf_score_cache_file(setting_id, data_suffix, prior_tag,
+  dir = results_dir, prefix = "simresults")
 if (!file.exists(simresults_file)) {
-  stop(sprintf("Aggregated results not found: %s\n  Run tables.R --setting=%d first.",
-    simresults_file, setting_id), call. = FALSE)
+  stop(sprintf(
+    "Aggregated results not found: %s\n  Run tables.R --setting=%d --prior=%s first.",
+    simresults_file, setting_id, prior_tag), call. = FALSE)
 }
 load(simresults_file)
 # Provides: curve_table, rel_table, crossing_table, joint_table,

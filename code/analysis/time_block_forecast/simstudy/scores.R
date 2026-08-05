@@ -23,10 +23,14 @@
 #
 # Usage:
 #   Rscript scores.R --setting=<id> [--data=<path>]
+#                    [--hn | --prior=hn|n]  which lambda-prior arm to score;
+#                                           selects results_<tag>/ and the
+#                                           cache name. Default n.
 #                    [--methods=<spec>]   default 1:2
 #                    [--datasets=<spec>]  default 1..nsets
 #                    [--es_draws=<n>]     default all draws
-#                    [--out=<path>]       default output/results/scores<S>.RData
+#                    [--out=<path>]       default
+#                                         output/results/scores<S>_<tag>.RData
 #########################################################################
 
 rm(list = ls())
@@ -45,9 +49,19 @@ if (!requireNamespace("scoringRules", quietly = TRUE)) {
 
 # ---- CLI parsing ------------------------------------------------------
 cli_args <- commandArgs(trailingOnly = TRUE)
+# extract_leading_flags() demands a value after a bare "--flag", so pull the
+# valueless form of --hn out first; --hn=TRUE and --prior=hn still parse.
+hn_bare <- any(cli_args == "--hn")
+cli_args <- cli_args[cli_args != "--hn"]
 parsed <- extract_leading_flags(cli_args,
-  c("data", "setting", "methods", "datasets", "es_draws", "out"))
+  c("data", "setting", "methods", "datasets", "es_draws", "out", "hn", "prior"))
 flags <- parsed$values
+
+# Which arm of the lambda-prior toggle to score. This selects the results
+# directory, so scoring the wrong arm is a missing-file error rather than a
+# silently mixed cache.
+lambda_positive <- hn_bare || tbf_parse_prior(cli_args, flags)
+prior_tag <- tbf_prior_tag(lambda_positive)
 
 if (is.null(flags$setting) || !nzchar(flags$setting)) {
   stop("scores.R: --setting=<id> is required.", call. = FALSE)
@@ -62,10 +76,11 @@ if (length(setting) != 1L || setting < 1L || setting > dim(y)[4]) {
   stop(sprintf("--setting must be a single integer in 1..%d", dim(y)[4]), call. = FALSE)
 }
 
-results_dir <- derive_results_dir(data_path, "results")
+results_dir <- derive_results_dir(data_path, "results", prior_tag)
 if (!dir.exists(results_dir)) {
-  stop(sprintf("results directory not found: %s (run run-settings.R first)", results_dir),
-    call. = FALSE)
+  stop(sprintf(
+    "results directory not found: %s (run run-settings.R%s first)",
+    results_dir, if (lambda_positive) " --hn" else ""), call. = FALSE)
 }
 
 methods <- if (!is.null(flags$methods) && nzchar(flags$methods)) {
@@ -129,7 +144,7 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = F
 out_file <- if (!is.null(flags$out) && nzchar(flags$out)) {
   flags$out
 } else {
-  file.path(out_dir, sprintf("scores%d%s.RData", setting, data_suffix))
+  tbf_score_cache_file(setting, data_suffix, prior_tag, dir = out_dir)
 }
 if (!dir.exists(dirname(out_file))) {
   dir.create(dirname(out_file), recursive = TRUE, showWarnings = FALSE)
@@ -361,11 +376,30 @@ for (di in seq_along(datasets)) {
 
 hn_prior <- if (length(unique(hn_prior_seen)) == 1L) unique(hn_prior_seen) else NA
 
+# The fits found in results_<tag>/ must actually BE that arm. The tagged
+# path makes a collision impossible going forward, but a directory
+# populated before tagging -- or by hand -- could still disagree with the
+# flag, and that would mislabel the whole cache. Assert rather than trust.
+if (length(hn_prior_seen) > 0L) {
+  if (is.na(hn_prior)) {
+    stop(sprintf(
+      "%s holds a MIX of lambda priors (%d HN, %d N fits) -- the arms must not share a directory",
+      results_dir, sum(hn_prior_seen), sum(!hn_prior_seen)), call. = FALSE)
+  }
+  if (!identical(isTRUE(hn_prior), isTRUE(lambda_positive))) {
+    stop(sprintf(
+      "%s holds %s fits but the run asked for the %s arm (--prior=%s)",
+      results_dir, if (isTRUE(hn_prior)) "HN" else "N",
+      if (lambda_positive) "HN" else "N", prior_tag), call. = FALSE)
+  }
+}
+
 fits_dir <- results_dir
+prior_arm <- prior_tag
 save(crps.lead, brier.lead, brier.lead.blockq, pexceed.mean,
   brier.thresholds, exceed.rate.lead, brier_threshold_basis,
   energy.score, vario.score, elapsed_sec,
-  fit.diag, post.summary, hn_prior, es_max_draws,
+  fit.diag, post.summary, hn_prior, prior_arm, es_max_draws,
   probs, datasets, methods, setting, block_H, block_seams,
   data_path, data_suffix, fits_dir,
   file = out_file)
