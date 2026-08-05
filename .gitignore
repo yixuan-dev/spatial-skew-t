@@ -11,6 +11,7 @@
 *.RDataBak
 !simdata.RData
 !score*.RData
+!posterior*.RData
 
 #Rstudio project
 .Rproj.user
