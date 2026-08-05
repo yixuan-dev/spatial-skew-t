@@ -53,7 +53,7 @@ rate as it should.
 \section{Scope and design}
 
 Identical to the sibling report: the Experiment~A campaign from
-\code{simstudy/output/results/scores\{5,7\}.RData}, seams at
+\code{simstudy/output/results/scores\{5,7\}\_hn.RData}, seams at
 $T_o = 50, 80, 110, 140, 170$, $H = 15$, three methods (i.i.d., AR(1),
 AR(2)), ten datasets, five blocks, $\lambda \sim \hn(0, 20)$,
 \code{hn\_prior = TRUE}, no missing cells and hence $n = 10$ with no
@@ -196,12 +196,17 @@ noisier one.
 \section{Provenance}
 
 Caches, scripts and gates as in the sibling report:
-\code{simstudy/output/results/scores\{5,7\}.RData},
+\code{simstudy/output/results/scores\{5,7\}\_hn.RData},
 \code{brier\_threshold\_basis = "full\_series"} recording the primary
 rule, \code{hn\_prior = TRUE}; tables from
-\code{Rscript expA\_breakdown.R --settings=5,7}, which emits both rules'
-fragments from one load and recomputes the pinning table from
+\code{Rscript expA\_breakdown.R --prior=hn --settings=5,7}, which emits
+both rules' fragments from one load and recomputes the pinning table from
 \code{simdata.RData}. No number in this document is transcribed by hand.
+
+The \code{\_hn} suffix is the lambda-prior arm, which every per-arm
+artifact has carried since 2026-08-05. Both this report and its sibling
+are the HN arm; the threshold rule is the only thing that differs between
+them.
 
 Sibling: \code{tex/timeblock\_brier\_fullseries}. Frozen record of the
 retired campaign, settings 4 and 6, Experiments~B and~C, and all CRPS

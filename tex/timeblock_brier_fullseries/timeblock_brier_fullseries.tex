@@ -245,17 +245,24 @@ failure to separate setting~7 is informative.
 
 \section{Provenance}
 
-Caches: \code{simstudy/output/results/scores5.RData},
-\code{scores7.RData}, both with \code{brier\_threshold\_basis =
+Caches: \code{simstudy/output/results/scores5\_hn.RData},
+\code{scores7\_hn.RData}, both with \code{brier\_threshold\_basis =
 "full\_series"} and \code{hn\_prior = TRUE}, written by
 \code{simstudy/scores.R}. The rule changed in commit \code{46628f7}; the
 Experiment~A outputs were refreshed under it in \code{638f85a}.
 
+The \code{\_hn} suffix is the lambda-prior arm. Since 2026-08-05 every
+per-arm artifact carries it --- fits in \code{results\_hn/}, caches in
+\code{scores<S>\_hn.RData} --- because the formal experiment runs under
+either $\lambda \sim \hn(0, 20)$ (\code{--hn}) or $\lambda \sim N(0, 20)$,
+and before tagging the two arms silently overwrote each other. This report
+is the HN arm; the N arm has not been fitted.
+
 Tables and their \code{\_body.tex} fragments:
-\code{Rscript expA\_breakdown.R --settings=5,7}, which reads only the two
-caches and \code{simdata.RData} and writes every table this report
-\code{\textbackslash input}s. No number in this document is transcribed
-by hand. The script asserts the threshold basis and the absence of NA
+\code{Rscript expA\_breakdown.R --prior=hn --settings=5,7}, which reads
+only the two caches and \code{simdata.RData} and writes every table this
+report \code{\textbackslash input}s. Each fragment records its arm in a
+header comment. No number in this document is transcribed by hand. The script asserts the threshold basis and the absence of NA
 cells on load, and cross-checks its $q_{95}$ tests against
 \code{expA\_tests\_\{5,7\}.csv}.
 
