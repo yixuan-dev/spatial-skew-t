@@ -31,7 +31,7 @@ if (length(script_arg) > 0) {
 # ar2_load.R does rm(list = ls()): source it FIRST, then the helpers it wiped.
 source("../../../simstudy/ar2_load.R", chdir = TRUE)
 source("../../simstudy/time_block_helpers.R")
-source("../../simstudy/fit_diag_utils.R")
+source("../fit_assertions.R")
 load("../../simstudy/simdata.RData", envir = .GlobalEnv)
 options(warn = 1)
 
@@ -138,7 +138,7 @@ if (nrow(pending) == 0L) {
     setwd(wd)
     source("../../../simstudy/ar2_load.R", chdir = TRUE)
     source("../../simstudy/time_block_helpers.R")
-    source("../../simstudy/fit_diag_utils.R")
+    source("../fit_assertions.R")
     load("../../simstudy/simdata.RData", envir = .GlobalEnv)
     options(warn = 1)
     blk <- tbf_blocks(block_seams, block_H, nt)[[1]]

@@ -113,15 +113,17 @@ if (any(!method_ids %in% catalog$method_id)) {
 }
 if (is.na(workers) || workers < 1) stop("workers must be a positive integer", call. = FALSE)
 
-results_dir <- derive_results_dir(data_path, "results")
+prior_tag <- tbf_prior_tag(lambda_positive)
+results_dir <- derive_results_dir(data_path, "results", prior_tag)
 if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE)
 
 blocks <- tbf_blocks(block_seams, block_H, nt)
 
-# Inputs to check_fit_consistency(); computed once on the master and
-# exported, so every worker scores against the same reference.
+# Reference scale for the run banner, computed once on the master and
+# exported so every worker reports against the same number. The ground
+# truth that used to sit beside it went with the B assertion to
+# block1_positive_control/fit_assertions.R.
 marginal_sd <- sd(y[, , , setting])
-truth <- get_tbf_truth(setting)
 
 cat(sprintf(
   "Data=%s setting=%d datasets=%s methods=%s blocks=%d (H=%d) iters=%d\n",
@@ -230,14 +232,13 @@ run_method <- function(method_id, dataset_id) {
     # ---- everything below must happen while `fit` is still alive ------
     # The fit is discarded here and the whole file is deleted after
     # scoring, so an unsummarised quantity needs a full refit to recover.
-    chk <- check_fit_consistency(fit, yhat, truth, marginal_sd,
-      data_mean = mean(y.train))
-    # The A/A'/B/C pass flags predate the HN prior, which removed the
-    # ridge they guarded against; this study records the numeric
-    # summaries only. (block1_positive_control still uses the flags as
-    # guards, so they stay in the shared check_fit_consistency().)
-    chk <- chk[setdiff(names(chk),
-      c("A_zconsist", "Aprime_sdz", "B_truth", "C_spread"))]
+    # Numeric summaries only. The A/A'/B/C pass flags predate the HN
+    # prior, which removed the ridge they guarded against; this study has
+    # not recorded them since commit bcc2d39 and never gated on them, so
+    # since 2026-08-05 it does not compute them either -- the assertions
+    # live in block1_positive_control/fit_assertions.R, the study that
+    # gates on B and C.
+    chk <- fit_diag_summary(fit, yhat, data_mean = mean(y.train))
     diag_rows[[b]] <- cbind(
       setting = setting, method = method_id, dataset = dataset_id,
       block = b, seam = blk$seam, seed = seed_used,
@@ -336,7 +337,7 @@ if (workers_use > 1) {
   parallel::clusterExport(cl, c(
     "setting", "iters", "burn", "update", "thin", "results_dir",
     "catalog", "blocks", "block_H", "block_seams", "run_method", "tasks",
-    "lambda_positive", "marginal_sd", "truth", "run_method_safe"
+    "lambda_positive", "marginal_sd", "run_method_safe"
   ), envir = environment())
   out <- parallel::parLapply(cl, seq_len(nrow(tasks)), function(i) {
     run_method_safe(tasks$method[i], tasks$dataset[i])

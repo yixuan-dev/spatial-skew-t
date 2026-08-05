@@ -76,15 +76,90 @@ extract_leading_flags <- function(args, flag_names) {
   list(args = args, values = values)
 }
 
-# Derive results / output suffix from the dataset filename, exactly as the
-# Morris study does (simdata.RData -> "", simdata_def.RData -> "_def").
-derive_results_dir <- function(data_path, default_dir = "results") {
-  base <- tools::file_path_sans_ext(basename(data_path))
-  if (identical(base, "simdata")) {
-    return(default_dir)
+# ---- the lambda-prior arm (the --hn toggle) ---------------------------
+# The formal experiment runs under either lambda ~ HN(0, 20) ("hn", the
+# --hn flag) or lambda ~ N(0, 20) ("n", the backend default). These are
+# DIFFERENT EXPERIMENTS, not two runs of one: the HN arm removes the sign
+# reflection of the (beta0, lambda, z) ridge at the model level, which is
+# why the guard exists in one arm and not the other.
+#
+# Every per-arm artifact therefore carries the tag in its path. Before
+# 2026-08-05 it did not, so an HN run and an N run of the same
+# (setting, method, dataset) silently overwrote each other and a mixed
+# score cache could only be detected after the fact, as hn_prior = NA.
+# Tagging makes the collision impossible instead of detectable.
+tbf_prior_tag <- function(lambda_positive) {
+  if (length(lambda_positive) != 1L || is.na(lambda_positive)) {
+    stop("tbf_prior_tag(): lambda_positive must be a single TRUE/FALSE -- ",
+         "an untagged or mixed arm is exactly what this guards against.",
+         call. = FALSE)
   }
-  suffix <- sub("^simdata", "", base)
-  if (!nzchar(suffix)) paste0(default_dir, "_", base) else paste0(default_dir, suffix)
+  if (isTRUE(lambda_positive)) "hn" else "n"
+}
+
+# Parse the prior arm from CLI flags. Accepts the valueless --hn, the
+# valued --hn=TRUE/FALSE, and --prior=hn/n. Returns TRUE/FALSE.
+tbf_parse_prior <- function(args_raw, values = NULL) {
+  if (any(args_raw == "--hn")) return(TRUE)
+  if (!is.null(values$prior) && nzchar(values$prior)) {
+    p <- tolower(values$prior)
+    if (p %in% c("hn", "halfnormal")) return(TRUE)
+    if (p %in% c("n", "normal")) return(FALSE)
+    stop(sprintf("--prior must be hn or n, got '%s'", values$prior), call. = FALSE)
+  }
+  if (!is.null(values$hn) && nzchar(values$hn)) {
+    return(tolower(values$hn) %in% c("1", "t", "true", "yes"))
+  }
+  FALSE
+}
+
+# Derive results / output suffix from the dataset filename, exactly as the
+# Morris study does (simdata.RData -> "", simdata_def.RData -> "_def"),
+# then append the prior arm. prior_tag is mandatory for the fitting and
+# scoring drivers; NULL is accepted only for callers that genuinely span
+# both arms.
+derive_results_dir <- function(data_path, default_dir = "results",
+                               prior_tag = NULL) {
+  base <- tools::file_path_sans_ext(basename(data_path))
+  dir <- if (identical(base, "simdata")) {
+    default_dir
+  } else {
+    suffix <- sub("^simdata", "", base)
+    if (!nzchar(suffix)) paste0(default_dir, "_", base) else paste0(default_dir, suffix)
+  }
+  if (is.null(prior_tag)) dir else paste0(dir, "_", prior_tag)
+}
+
+# Canonical per-arm cache path. `chunk` is the per-dataset chunk id written
+# by the chunked driver (--out=), NULL for the merged cache. `prefix`
+# selects which cache: scores / simresults / posterior.
+#   scores5_hn.RData          merged score cache, HN arm
+#   scores5_hn_d3.RData       dataset-3 chunk, HN arm
+#   simresults5_n.RData       tables.R stage-2 cache, N arm
+tbf_score_cache_file <- function(setting_id, data_suffix, prior_tag,
+                                 chunk = NULL, dir = "output/results",
+                                 prefix = "scores") {
+  if (is.null(prior_tag) || !nzchar(prior_tag)) {
+    stop("tbf_score_cache_file(): prior_tag is required.", call. = FALSE)
+  }
+  file.path(dir, sprintf("%s%d%s_%s%s.RData",
+    prefix, as.integer(setting_id), data_suffix, prior_tag,
+    if (is.null(chunk)) "" else paste0("_d", chunk)))
+}
+
+# Parse the prior arm alongside a script's own flags, in one call.
+# extract_leading_flags() demands a value after a bare "--flag", so the
+# valueless --hn is pulled out before parsing. Returns the usual parse
+# result plus the resolved arm, so every script selects its arm the same
+# way and none of them can forget to.
+tbf_take_prior_flag <- function(cli_args, flag_names) {
+  hn_bare <- any(cli_args == "--hn")
+  rest <- cli_args[cli_args != "--hn"]
+  parsed <- extract_leading_flags(rest, unique(c(flag_names, "hn", "prior")))
+  lambda_positive <- hn_bare || tbf_parse_prior(rest, parsed$values)
+  list(parsed = parsed, values = parsed$values, args = parsed$args,
+       lambda_positive = lambda_positive,
+       prior_tag = tbf_prior_tag(lambda_positive))
 }
 
 derive_data_suffix <- function(data_path) {
@@ -468,8 +543,8 @@ ar1_recurse <- function(seam_state, phi1, H, K) {
 # A fitting driver discards `fit` after forecasting (run-settings.R) and
 # the fit files themselves are deleted after scoring on the chunked
 # driver, so anything not summarised here is unrecoverable without a full
-# refit. check_fit_consistency() records posterior MEANS only; these give
-# the sd, median and 95% interval as well.
+# refit. fit_diag_summary() (fit_diag_utils.R) records posterior MEANS
+# only; these give the sd, median and 95% interval as well.
 #########################################################################
 
 # mean / sd / 2.5% / 50% / 97.5% of one scalar chain. Identical to
@@ -497,7 +572,7 @@ tbf_post_params <- function() {
 # Long-form posterior summary of every scalar parameter in one fit.
 # tau.alpha/tau.beta are divided by 2 to report the internal gamma
 # shape/rate, matching the truth (3, 8) and the /2 reparam used by
-# rpotspatTS_arp() and check_fit_consistency().
+# rpotspatTS_arp() and fit_diag_summary() (fit_diag_utils.R).
 tbf_posterior_summary <- function(fit) {
   params <- tbf_post_params()
   out <- matrix(NA_real_, length(params), length(TBF_POST_STATS),

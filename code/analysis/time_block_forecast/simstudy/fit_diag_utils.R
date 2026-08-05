@@ -1,28 +1,37 @@
 #########################################################################
-# fit_diag_utils.R -- shared self-consistency assertions for time-block fits.
+# fit_diag_utils.R -- numeric per-fit diagnostic summaries for time-block
+# fits. DESCRIPTIVE ONLY: this file contains no assertions and no pass /
+# fail flags.
 #
-# Extracted from fit_diagnostics.R so that fitting drivers (e.g. the
-# block1_positive_control study) can reuse the same checks as guards.
+# fit_diag_summary() reduces a live `fit` (plus its forecast draws) to the
+# one-row numeric record that has to be taken while the fit is still in
+# memory -- run-settings.R discards `fit` immediately and the chunked
+# driver deletes the whole file after scoring, so anything not summarised
+# here needs a full refit to recover.
 #
-#   A  z self-consistency : mean(z) ~ mean(1/sqrt(tau)) * sqrt(2/pi)
-#                           (the model IS z ~ HalfNormal(0, 1/sqrt(tau)))
-#   A' z temporal-sd      : sd_t(posterior-mean z path) ~ sigma*sqrt(1-2/pi)
-#                           (transverse to the reflected ridge: a reflected
-#                           fit keeps the LEVEL of z but shrinks its temporal
-#                           variation by 1/|lambda|; see
-#                           tex/lambda_phiz_ridge/lambda_phiz_ridge.tex S6)
-#   B  truth recovery     : lambda/beta0 near truth, lambda sign correct
-#                           (simulation only)
-#   C  predictive spread  : sd(yhat[,,h]) <= k * marginal_sd for all h
-#                           (a stationary AR forecast converges to climatology)
-#   D  ridge check        : report beta0 + lambda*mean(z) vs the data mean
+# WHERE THE ASSERTIONS LIVE. The A / A' / B / C self-consistency checks
+# that used to be computed here now live with the study that gates on
+# them:
+#
+#   block1_positive_control/fit_assertions.R   check_fit_consistency()
+#   block1_positive_control/fit_diagnostics.R  the refit harness
+#
+# They were moved out on 2026-08-05. This study stopped recording the
+# flags when the lambda ~ HN(0, 20) prior removed the reflected ridge they
+# guarded against (commit bcc2d39); it never gated on them, and keeping
+# their definition here made a diagnostic-only study look like it ran
+# assertions it did not run. block1_positive_control DOES gate on B and C,
+# so that is where they belong. fit_assertions.R sources this file and
+# builds the flags on top of the summary below -- the arithmetic is
+# unchanged and the emitted column order is preserved.
+#
+# The columns z_ratio and sdz_ratio remain here. They are ratios, not
+# verdicts: A and A' are the thresholded versions of them, and the
+# threshold is what moved.
 #########################################################################
 
-# Returns a one-row data.frame: numeric summaries + logical pass flags.
-# A' is REPORTED (Aprime_sdz + sdz_ratio) but not intended as a hard gate yet.
-check_fit_consistency <- function(fit, yhat, truth, marginal_sd,
-                                  data_mean, tol_z = 0.40, tol_lam = 0.60,
-                                  k_spread = 3) {
+# Returns a one-row data.frame of numeric summaries. No logical columns.
+fit_diag_summary <- function(fit, yhat, data_mean) {
   a <- mean(fit$tau.alpha) / 2          # internal gamma shape
   b <- mean(fit$tau.beta) / 2
   lam <- mean(fit$lambda)
@@ -37,33 +46,28 @@ check_fit_consistency <- function(fit, yhat, truth, marginal_sd,
   phi.z <- get_phi2(fit$phi.z)
   phi.tau <- get_phi2(fit$phi.tau)
 
-  # A: z self-consistency. E[z] = E[1/sqrt(tau)] * sqrt(2/pi) on the SAME cells.
+  # z self-consistency ratio. The model IS z ~ HalfNormal(0, 1/sqrt(tau)),
+  # so E[z] = E[1/sqrt(tau)] * sqrt(2/pi) on the SAME cells; z_ratio is the
+  # realised over the predicted.
   z_pred <- mean(1 / sqrt(fit$tau)) * sqrt(2 / pi)
   z_ratio <- zbar / z_pred
-  A <- abs(z_ratio - 1) < tol_z
 
-  # A': temporal variation of the fitted z path vs the model's own marginal.
-  # fit$z is iters x nt (K = 1); the posterior-mean path is colMeans.
+  # Temporal variation of the fitted z path against the model's own
+  # marginal. fit$z is iters x nt (K = 1), so the posterior-mean path is
+  # colMeans. This ratio is transverse to the reflected lambda ridge: a
+  # reflected fit keeps the LEVEL of z but shrinks its temporal variation
+  # by 1/|lambda| (tex/lambda_phiz_ridge S6).
   z_path <- colMeans(fit$z)
   sdz_pred <- mean(1 / sqrt(fit$tau)) * sqrt(1 - 2 / pi)
   sdz_ratio <- sd(z_path) / sdz_pred
-  Aprime <- sdz_ratio > 0.5             # informative flag, not a gate
 
-  # B: truth recovery (skip if truth is NULL, i.e. real data).
-  if (!is.null(truth)) {
-    B <- (sign(lam) == sign(truth$lambda)) &&
-      (abs(lam / truth$lambda - 1) < tol_lam) &&
-      (abs(beta0 - truth$beta0) < 0.5 * abs(truth$beta0) + 2)
-  } else {
-    B <- NA
-  }
-
-  # C: predictive spread never exceeds k * marginal.
+  # Predictive spread by lead. A stationary AR forecast converges to
+  # climatology, so this should stay within a small multiple of the
+  # marginal SD -- but the comparison is the caller's business.
   H <- dim(yhat)[3]
   sd_h <- vapply(seq_len(H), function(h) sd(as.numeric(yhat[, , h])), numeric(1))
-  C <- max(sd_h) <= k_spread * marginal_sd
 
-  # D: ridge -- does the fit reproduce the data mean despite bad parts?
+  # Ridge reconstruction: does the fit reproduce the data mean?
   mu_recon <- beta0 + lam * zbar
 
   data.frame(
@@ -74,7 +78,6 @@ check_fit_consistency <- function(fit, yhat, truth, marginal_sd,
     phi1.tau = phi.tau[1], phi2.tau = phi.tau[2],
     sd_lead1 = sd_h[1], sd_lead_max = max(sd_h),
     mu_recon = mu_recon, data_mean = data_mean,
-    A_zconsist = A, Aprime_sdz = Aprime, B_truth = B, C_spread = C,
     stringsAsFactors = FALSE
   )
 }

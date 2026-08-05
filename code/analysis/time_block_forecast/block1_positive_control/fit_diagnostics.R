@@ -2,6 +2,13 @@
 # fit_diagnostics.R -- refit time-block cases WITH the fit retained, and run
 # self-consistency assertions that turn a silent fit failure into a loud one.
 #
+# Moved here from ../simstudy on 2026-08-05. It reads the simstudy data
+# and refits simstudy cases, but it is an assertion harness, and the
+# assertions belong with the study that gates on them: the simstudy arm
+# records descriptive diagnostics only (see ../simstudy/fit_diag_utils.R)
+# while run_block1_guarded.R gates on B and C. Outputs now land under this
+# directory's output/diag/.
+#
 # Motivation: run-settings.R saves only `forecast`, never `fit`, so lambda / z /
 # beta0 / phi are unrecoverable after a run -- and every diagnosis of the
 # time-block divergence has been blocked by that. This standalone harness
@@ -27,17 +34,23 @@
 # NOTE: ar2_load.R starts with rm(list = ls()), which wipes everything defined
 # before it. So we source FIRST, then define functions and parse args. (This is
 # the same trap run-settings.R documents.)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) > 0) {
+  script_dir <- dirname(normalizePath(sub("^--file=", "", script_arg[1]),
+    winslash = "/", mustWork = FALSE))
+  if (dir.exists(script_dir)) setwd(script_dir)
+}
 source("../../simstudy/ar2_load.R", chdir = TRUE)
-source("./time_block_helpers.R")
-load("./simdata.RData", envir = .GlobalEnv)
+source("../simstudy/time_block_helpers.R")
+load("../simstudy/simdata.RData", envir = .GlobalEnv)
 options(warn = 1)
 
-# ---- reusable assertion function (shared; see fit_diag_utils.R) --------
-# check_fit_consistency() moved to fit_diag_utils.R so fitting drivers
-# (e.g. block1_positive_control) can use it as a guard. It now also
-# reports A' (sdz_ratio): the temporal sd of the fitted z path vs the
-# model marginal -- the check that is transverse to the reflected ridge.
-source("./fit_diag_utils.R")
+# ---- the assertions ----------------------------------------------------
+# check_fit_consistency() lives in fit_assertions.R alongside this
+# harness. Both moved here from ../simstudy on 2026-08-05: the simstudy
+# arm records descriptive diagnostics only and does not gate on A/B/C, so
+# the assertions belong with the study that does.
+source("./fit_assertions.R")
 
 # ---- CLI ---------------------------------------------------------------
 args <- commandArgs(trailingOnly = TRUE)
