@@ -13,12 +13,43 @@
 
 \title{\textbf{Time-block forecast scores: AR(2) versus i.i.d.\ temporal
 pooling}\\[2pt]
-\large Report on Experiments A--C (post \code{z.init} fix, assertion-guarded)}
+\large Experiments A--C on the retired campaign
+(post \code{z.init} fix, assertion-guarded)\\[2pt]
+\large\textmd{\emph{Frozen archive --- superseded for the Brier score}}}
 \author{Score report}
-\date{17 July 2026 \quad(rev.\ 18 July 2026: long-memory settings)}
+\date{17 July 2026 \quad(rev.\ 18 July 2026: long-memory settings;
+retitled and frozen 4 August 2026)}
 
 \begin{document}
 \maketitle
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{\small
+\textbf{Status: frozen archive.} This report documents a campaign that no
+longer exists. Its fits were produced by
+\code{block1\_positive\_control/} (Experiments B and C) and the pre-HN
+Experiment~A driver, under the $\lambda$ prior that preceded
+$\lambda \sim \hn(0, 20)$; those fit files have since been deleted and
+\emph{cannot be regenerated}. Nothing in this document has been
+recomputed, and no number in it should be updated --- it is retained as
+the only record of settings~4 and~6 and of Experiments~B and~C, and as
+the only record of the CRPS results for those experiments.
+
+\smallskip
+\textbf{Superseded by, for the Brier score:}
+\code{tex/timeblock\_brier\_fullseries} (the full-series threshold rule)
+and \code{tex/timeblock\_brier\_blockq} (the per-block rule). Both are
+built from the current \code{scores5/7.RData} caches --- the same fits,
+the same $n = 10$ datasets, differing only in the threshold rule --- and
+cover settings~5 and~7 only. Where those reports and this one disagree,
+they are measuring different fits, not different truths; prefer the
+newer pair.
+
+\smallskip
+\textbf{Unaffected:} the CRPS results below. CRPS does not depend on the
+Brier threshold rule, and the newer pair of reports is Brier-only, so
+this remains the study's CRPS record for Experiments~A--C.}}
+\end{center}
 
 \begin{abstract}
 Two clean experiments compare the AR(2) skew-t model against the

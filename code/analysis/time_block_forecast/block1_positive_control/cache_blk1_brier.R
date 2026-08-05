@@ -14,8 +14,10 @@
 #   brier [lead 1:15, prob, dataset, method, setting]
 #   pass  [dataset, method, setting]   guard flag per fit
 #   settings, datasets, methods, probs, mlab
-# Also prints the clean-n=10 per-lead q95 three-way table per setting,
-# for diffing against tex/timeblock_score_report/timeblock_score_report.tex.
+# Also prints the clean-n=10 per-lead q95 three-way table per setting, for
+# diffing against tex/timeblock_expABC_legacy/timeblock_expABC_legacy.tex
+# (renamed 2026-08-04 from timeblock_score_report; that report is now a
+# frozen archive of this retired campaign).
 #
 #   & $R cache_blk1_brier.R
 #########################################################################
@@ -80,7 +82,7 @@ cat(sprintf("\nWrote %s\n",
 
 # ---- verification: clean-n=10 per-lead q95 three-way means -------------
 # Column order printed as iid / AR1 / AR2 to match analyze_threeway.R and
-# the tables in timeblock_score_report.tex (tab:expB5brier, tab:expC7brier).
+# the tables in timeblock_expABC_legacy.tex (tab:expB5brier, tab:expC7brier).
 for (si in seq_along(settings)) {
   st <- settings[si]
   # clean = every method actually fit on the dataset passed the guard
