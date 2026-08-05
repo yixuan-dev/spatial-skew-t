@@ -80,8 +80,10 @@ set9 的 20 個檔案介於過渡修復（z.init=1）與正式修復之間，無
 ### 範圍外備註：`code/analysis/time_block_forecast/simstudy`
 
 該研究才是 bug 現場（顯式 `z.init = 0.01`）。已於修復時處理：壞結果封存於
-`results_BUGGY_backup/`，`run-settings.R` 已移除該參數並加註警告，
-`compare_brier_prepost.R` 保留前後對照。**該目錄修復前的所有 score（CRPS/Brier/
+`results_BUGGY_backup/`，`run-settings.R` 已移除該參數並加註警告，前後對照由
+`compare_brier_prepost.R` 保留 —— 該腳本與其產出已於 2026-08-05 移至
+`code/analysis/time_block_forecast/block1_positive_control/`（simstudy 只留正式
+實驗，探索與診斷腳本歸 positive_control）。**該目錄修復前的所有 score（CRPS/Brier/
 energy/variogram）一律作廢，不得引用。**
 
 ## 日後判準（若挖出舊備份或懷疑某個 temporal fit）

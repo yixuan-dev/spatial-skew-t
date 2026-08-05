@@ -2,10 +2,18 @@
 # compare_brier_prepost.R -- before/after comparison of predictive scores
 # across the z.init fix, setting 4 (phi = (0.80, -0.35)).
 #
-#   before = output/results/scores4_BUGGY.RData  (scored 2026-05-24, from
-#            the z.init = 0.01 runs, now archived in results_BUGGY_backup/)
-#   after  = output/results/scores4.RData        (rescored from the fixed
-#            reruns in results/, 2026-07-15)
+# Moved here from ../simstudy on 2026-08-05. It reads the simstudy score
+# caches but is a one-off diagnostic of a retired campaign, not part of
+# the formal pipeline, and it keys on the C_spread assertion flag -- so it
+# belongs with the exploratory arm. Both its inputs are archived rather
+# than current; it is retained as the record of the z.init before/after,
+# and its committed outputs under output/ are that record.
+#
+#   before = ../simstudy/output/results/scores4_BUGGY.RData  (scored
+#            2026-05-24, from the z.init = 0.01 runs, archived in
+#            results_BUGGY_backup/)
+#   after  = ../simstudy/output/results/scores4.RData        (rescored
+#            from the fixed reruns in results/, 2026-07-15)
 #
 # Both sides must score the SAME y_val under the SAME threshold RULE. The
 # rule is recorded in the cache as `brier_threshold_basis` since
@@ -36,8 +44,8 @@ load_scores <- function(path) {
   load(path, envir = env)
   env
 }
-bef <- load_scores("output/results/scores4_BUGGY.RData")
-aft <- load_scores("output/results/scores4.RData")
+bef <- load_scores("../simstudy/output/results/scores4_BUGGY.RData")
+aft <- load_scores("../simstudy/output/results/scores4.RData")
 
 stopifnot(identical(bef$probs, aft$probs))
 
@@ -82,10 +90,17 @@ M_IID <- 1L; M_AR2 <- 2L   # get_tbf_method_catalog(): 1 = iid, 2 = AR(2)
 # after-side fit diagnostics: which (dataset, block) failed the spread
 # assertion (the residual phi.z near-unit-root explosions). Chains match
 # because both reruns reuse get_tbf_seed().
+#
+# The C_spread flag is produced by the assertion harness, which moved to
+# block1_positive_control/fit_diagnostics.R on 2026-08-05 along with the
+# rest of the A/B/C machinery -- this study computes no assertions of its
+# own. The read stays optional: if the harness has not been run for this
+# setting the comparison simply reports no flagged blocks.
 fail_after <- matrix(FALSE, max(as.integer(use_sets)), nblk)
-if (file.exists("output/diag/fit_diag_4.RData")) {
+diag_rdata <- "output/diag/fit_diag_4.RData"
+if (file.exists(diag_rdata)) {
   denv <- new.env(parent = emptyenv())
-  load("output/diag/fit_diag_4.RData", envir = denv)
+  load(diag_rdata, envir = denv)
   d <- denv$diag
   for (r in seq_len(nrow(d))) {
     if (!isTRUE(d$C_spread[r])) fail_after[d$dataset[r], d$block[r]] <- TRUE
