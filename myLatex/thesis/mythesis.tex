@@ -455,7 +455,7 @@ Writing $\{Y_t\}$ for any scalar component of $\bw^*_{tk}$, or for $z^*_{tk}$ or
 \end{align}
 with $(\phi_1, \phi_2)$ confined to the stationarity triangle
 \begin{align}
-  |\phi_2| < 1, \qquad \phi_1 + \phi_2 < 1, \qquad \phi_2 - \phi_1 < 1. \label{eq:stab-triangle}
+  \calS \;=\; \big\{ (\phi_1, \phi_2) \;:\; |\phi_2| < 1, \;\; \phi_1 + \phi_2 < 1, \;\; \phi_2 - \phi_1 < 1 \big\}. \label{eq:stab-triangle}
 \end{align}
 Because the inverse PIT \eref{eq:wstar}--\eref{eq:sigmastar} returns the half-normal, inverse-gamma, and uniform target margins only when $\gamma_0 := \mathrm{Var}(Y_t) = 1$, the innovation variance is not free.  Solving the Yule--Walker equations under $\gamma_0 = 1$ (Appendix~\ref{app:ar2-moments}) fixes the standardized autocovariances
 \begin{align}
@@ -489,7 +489,7 @@ Mirroring the AR(1) block \eref{eq:ar1-w}--\eref{eq:ar1-sigma}, the AR(2) prior 
   \sigma^{2*}_{tk} \mid \sigma^{2*}_{t-1, k}, \sigma^{2*}_{t-2, k}
     &\sim N\!\left(\phi^{(\sigma)}_1\, \sigma^{2*}_{t-1, k} + \phi^{(\sigma)}_2\, \sigma^{2*}_{t-2, k},\; \sigma_{\epsilon, \sigma}^2\right), \label{eq:ar2-sigma}
 \end{align}
-where each pair $(\phi^{(\cdot)}_1, \phi^{(\cdot)}_2)$ lies in the stationarity triangle \eref{eq:stab-triangle}, the innovation variances follow from \eref{eq:gamma12}--\eref{eq:sigeps}, and the initial pairs follow \eref{eq:joint-init} component-wise.  After the inverse PIT \eref{eq:wstar}--\eref{eq:sigmastar}, the back-transformed $\bw_{tk}, z_{tk}, \sigma^2_{tk}$ keep the same marginals as the AR(1) baseline, so the spatial \skewt model \eref{eq:fullmodel} is preserved at every $t$.  The Gibbs-within-MH full conditional that updates each $Y_t$ now carries three prior factors (self, lag-1, lag-2); its explicit form and the Metropolis--Hastings acceptance ratio are given in Appendix~\ref{app:full-cond}.
+where each pair $\bphi^{(\cdot)}$ lies in the stationarity triangle $\calS$ of \eref{eq:stab-triangle}, the innovation variances follow from \eref{eq:gamma12}--\eref{eq:sigeps}, and the initial pairs follow \eref{eq:joint-init} component-wise.  After the inverse PIT \eref{eq:wstar}--\eref{eq:sigmastar}, the back-transformed $\bw_{tk}, z_{tk}, \sigma^2_{tk}$ keep the same marginals as the AR(1) baseline, so the spatial \skewt model \eref{eq:fullmodel} is preserved at every $t$.  The Gibbs-within-MH full conditional that updates each $Y_t$ now carries three prior factors (self, lag-1, lag-2); its explicit form and the Metropolis--Hastings acceptance ratio are given in Appendix~\ref{app:full-cond}.
 
 \subsection{Incorporating MRTS covariates}\label{sec:meth-mrts}
 
@@ -633,19 +633,21 @@ All parameters, and only parameters, receive priors at this stage:
   \nonumber\\
   \log \nu &\sim N(-1.2,\, 1),\ \nu \le 10,
   &
-  (\phi^{(\cdot)}_1,\, \phi^{(\cdot)}_2)
-    &\mathrlap{\;\sim\; \mathrm{Unif}\big(\text{stationarity triangle
-      \eref{eq:stab-triangle}}\big).}
+  \bphi^{(\cdot)}
+    &\sim N_2\big(\bZero,\, \sigma^2_\phi \bI_2\big)\,
+      I\big(\bphi^{(\cdot)} \in \calS\big).
   \label{eq:stage3-priors}
 \end{align}
 Here $\mathrm{Unif}\{\cdot\}$ denotes the discrete uniform distribution on the
-listed grid, and the hyperparameters are $\sigma_\beta = \sigma_\lambda = 20$,
+listed grid, and the hyperparameters are $\sigma_\beta = \sigma_\lambda = 20$
+and $\sigma_\phi = 0.5$,
 with the range bound $\varphi_{\max} = 15$ in the simulation study and
 $\varphi_{\max} = 5$ in the ozone study, matched to the extent of each spatial
-domain.  The smoothness prior is lognormal with median
-$e^{-1.2} \approx 0.30$, truncated above at $10$, so $\nu$ is estimated in
-every fit rather than fixed at the exponential case $\nu = 0.5$ used to
-generate the simulation designs.
+domain.  The smoothness $\nu$ receives a lognormal prior with median
+$e^{-1.2} \approx 0.30$, truncated above at $10$.  Both autoregressive
+coefficients carry the
+prior scale $\sigma_\phi$ of the AR(1) baseline, so the AR(1) and AR(2) fits
+are matched on prior scale rather than tuned separately.
 
 Writing $[\,\cdot\,]$ for a generic distribution, the three stages multiply to
 the joint model, and by Bayes' Rule the posterior is proportional to that
@@ -662,8 +664,10 @@ product,
 \end{align}
 sampled by Gibbs-within-MH updates: each factor of
 \eref{eq:bhm-posterior} is one of the stages above, and the full conditionals
-are read off stage by stage; the AR(2) full conditional and its
-Metropolis--Hastings acceptance ratio are given in Appendix~\ref{app:full-cond}.  Predictions at
+are read off stage by stage; the full conditionals of the time-varying
+parameters and of the autoregressive coefficients, together with their
+Metropolis--Hastings acceptance ratios, are given in
+Appendix~\ref{app:full-cond}.  Predictions at
 unmonitored sites follow from the conditional Gaussian structure of
 \eref{eq:bhm-data-gauss} (Bayesian kriging).
 
@@ -719,7 +723,7 @@ To test the AR(2) analysis model against data with a known autoregressive struct
   \item $K = 1$ knot, persistent AR(2) $(\phi_1, \phi_2) = (0.15, 0.80)$;
   \item $K = 1$ knot, long-memory ARFIMA$(0, d, 0)$, $d = 0.45$ \parencite{davies_tests_1987}.
 \end{enumerate}
-All three AR(2) coefficient pairs lie inside the stationarity triangle \eref{eq:stab-triangle}.  Each of the first four designs is fit by nine analysis models, namely the five baselines and the \skewt models with AR(1) and AR(2) coefficients at $K = 1$ and $K = 5$ knots.
+All three AR(2) coefficient pairs lie inside the stationarity triangle $\calS$.  Each of the first four designs is fit by nine analysis models, namely the five baselines and the \skewt models with AR(1) and AR(2) coefficients at $K = 1$ and $K = 5$ knots.
 
 The persistent and long-memory designs (5 and 6) are evaluated under both protocols of \sref{sec:sim-scoring}.  The spatial hold-out evaluation fits the Gaussian model and the $K = 1$ \skewt models with AR(1) and AR(2) structure; the time-block forecast evaluation fits the $K = 1$ \skewt variants with the latent processes i.i.d.\ in time, with AR(1) structure, and with AR(2) structure.  As a short-memory control, the fixed-AR(2) design with $(\phi_1, \phi_2) = (0.80, -0.35)$, whose autocorrelation decays within a few days, is run under the same forecast protocol with the i.i.d.\ and AR(2) variants.
 
@@ -1153,8 +1157,9 @@ We derive the Yule--Walker moments \eref{eq:gamma12}--\eref{eq:sigeps} used to s
 \end{align}
 Evaluating \eref{eq:yw} at $h = 1$ and using the symmetry $\gamma_{-1} = \gamma_1$ with $\gamma_0 = 1$ gives $\gamma_1 = \phi_1 + \phi_2\, \gamma_1$, hence $\gamma_1 = \phi_1 / (1 - \phi_2)$, and at $h = 2$ gives $\gamma_2 = \phi_1\, \gamma_1 + \phi_2$; together these are \eref{eq:gamma12}.  Multiplying \eref{eq:ar2-recursion} instead by $Y_t$ and taking expectations, with $\mathrm{E}[Y_t\, \epsilon_t] = \sigma_\epsilon^2$ because $Y_t$ carries the current innovation, gives $\gamma_0 = \phi_1\, \gamma_1 + \phi_2\, \gamma_2 + \sigma_\epsilon^2$, and solving for $\sigma_\epsilon^2$ under $\gamma_0 = 1$ recovers \eref{eq:sigeps}.  The same normalization fixes the initial pair, which has unit variances and lag-1 covariance $\gamma_1$ and is therefore the stationary bivariate Gaussian \eref{eq:joint-init}.
 
-\section{AR(2) full conditional for the Gibbs-within-MH update}\label{app:full-cond}
+\section{AR(2) full conditionals for the Gibbs-within-MH update}\label{app:full-cond}
 
+\paragraph{Updating the time-varying parameters.}
 The AR(2) Markov structure factorizes the joint prior of $(Y_1, \ldots, Y_{n_t})$ as
 \begin{align}
   p(Y_1, \ldots, Y_{n_t})
@@ -1171,11 +1176,42 @@ with $p(Y_1, Y_2)$ given by \eref{eq:joint-init} and each conditional factor for
   \,\cdot\,
   \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{\text{lag-2}}, \label{eq:full-cond}
 \end{align}
-where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through the partition and Gaussian process structure of \eref{eq:fullmodel}.  The lag-2 factor is absent for $t = n_t - 1$ and both lag-1 and lag-2 factors are absent for $t = n_t$.  At the head of the series the initial-pair density \eref{eq:joint-init} plays the role of the self factor: $Y_1$ enters only the initial-pair factor $p(Y_1, Y_2)$ and the conditional $p(Y_3 \mid Y_2, Y_1)$, while $Y_2$ enters $p(Y_1, Y_2)$, $p(Y_3 \mid Y_2, Y_1)$, and $p(Y_4 \mid Y_3, Y_2)$; in each case the factors referencing a non-existent time index are simply dropped.  Under a symmetric Gaussian random-walk proposal $Y_t^{(c)} \sim N(Y_t, s^2)$, with $s^2$ tuned to an acceptance rate near $0.3$--$0.4$, the Metropolis--Hastings acceptance ratio is
+where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through the partition and Gaussian process structure of \eref{eq:fullmodel}.  The lag-2 factor is absent for $t = n_t - 1$ and both lag-1 and lag-2 factors are absent for $t = n_t$.  At the head of the series the initial-pair density \eref{eq:joint-init} plays the role of the self factor: $Y_1$ enters only the initial-pair factor $p(Y_1, Y_2)$ and the conditional $p(Y_3 \mid Y_2, Y_1)$, while $Y_2$ enters $p(Y_1, Y_2)$, $p(Y_3 \mid Y_2, Y_1)$, and $p(Y_4 \mid Y_3, Y_2)$; in each case the factors referencing a non-existent time index are simply dropped.  Under a symmetric Gaussian random-walk proposal $Y_t^{(c)} \sim N(Y_t, s^2)$, the Metropolis--Hastings acceptance ratio is
 \begin{align}
   R \;=\; \min\!\left(1,\; \frac{\pi(Y_t^{(c)} \mid Y_{-t}, \bY)}{\pi(Y_t \mid Y_{-t}, \bY)}\right), \label{eq:mh-ratio}
 \end{align}
-in which all three prior factors must appear; omitting the lag-2 factor distorts the stationary distribution of the chain away from the AR(2) joint and produces a lag-2 autocorrelation that does not match the Yule--Walker value in \eref{eq:gamma12}.
+in which all three prior factors must appear; omitting the lag-2 factor distorts the stationary distribution of the chain away from the AR(2) joint and produces a lag-2 autocorrelation that does not match the Yule--Walker value in \eref{eq:gamma12}.  The proposal scale is adapted during the first half of the burn-in period, by factors $0.8$ and $1.2$ whenever the running acceptance rate leaves $[0.25, 0.50]$, and is held fixed thereafter, so that the sampling phase runs a time-homogeneous kernel.  The move is componentwise for $z^*$ and $\sigma^{2*}$, while for the knot locations the $2K$ coordinates of a given day are proposed and accepted as a single block, which leaves \eref{eq:mh-ratio} unchanged in form because the block proposal is again a symmetric random walk.
+
+\paragraph{Updating the autoregressive coefficients.}
+Restoring the knot index, write $Y_{tk}$ for the transformed series of knot $k$ and $N(x;\, \mu,\, \sigma^2)$ for the normal density evaluated at $x$.  Conditional on those series, $\bphi^{(\cdot)}$ is independent of the data and of every other parameter, so its full conditional carries only the AR(2) prior and the coefficient prior of \eref{eq:stage3-priors},
+\begin{align}
+  \pi\big(\bphi^{(\cdot)} \mid Y\big)
+  \;\propto\;
+  \Bigg[ \prod_{k=1}^{K} p\big(Y_{1k}, \ldots, Y_{n_t k} \mid \bphi^{(\cdot)}\big) \Bigg]\,
+  N_2\big(\bphi^{(\cdot)};\, \bZero,\, \sigma^2_\phi \bI_2\big)\,
+  I\big(\bphi^{(\cdot)} \in \calS\big),
+  \label{eq:phi-full-cond}
+\end{align}
+the product running over the $K$ knots, which are independent replicates of the same recursion, and over both coordinates in the case of $\bw^*$.  Expanding each factor by \eref{eq:joint-prior} and discarding $p(Y_{1k}) = N(0, 1)$, which does not involve $\bphi^{(\cdot)}$, the log-likelihood in \eref{eq:phi-full-cond} is
+\begin{align}
+  \ell\big(\bphi^{(\cdot)}\big)
+  \;=\;
+  \sum_{k=1}^{K} \log N\big(Y_{2k};\; \gamma_1 Y_{1k},\; 1 - \gamma_1^2\big)
+  \;+\;
+  \sum_{k=1}^{K} \sum_{t=3}^{n_t}
+    \log N\big(Y_{tk};\; \phi_1 Y_{t-1,k} + \phi_2 Y_{t-2,k},\; \sigma_\epsilon^2\big),
+  \label{eq:phi-loglik}
+\end{align}
+with $\gamma_1$ and $\sigma_\epsilon^2$ the functions of $\bphi^{(\cdot)}$ fixed by \eref{eq:gamma12}--\eref{eq:sigeps}.  The first sum is the contribution of the initial pair and cannot be dropped, because it depends on the coefficients through $\gamma_1 = \phi_1 / (1 - \phi_2)$.  Keeping only the transitions would leave the coefficient update targeting the conditional likelihood while the update of $Y_t$ above targets the full joint, so that the two blocks of the sampler no longer share a stationary distribution.  Under AR(1) the same omission is harmless, since there the only discarded factor is $p(Y_1) = N(0, 1)$ and the day-$2$ factor is itself a transition.
+
+The two coefficients are drawn one at a time, the second conditioning on the value of the first just accepted.  For $\phi_1$ a candidate is proposed from the untruncated random walk $\phi_1^{(c)} \sim N(\phi_1, s_\phi^2)$ and, when $(\phi_1^{(c)}, \phi_2) \in \calS$, is accepted with probability
+\begin{align}
+  \min\!\left(1,\;
+    \frac{\exp\{\ell(\phi_1^{(c)}, \phi_2)\}\; N\big(\phi_1^{(c)};\, 0,\, \sigma^2_\phi\big)}
+         {\exp\{\ell(\phi_1, \phi_2)\}\; N\big(\phi_1;\, 0,\, \sigma^2_\phi\big)}\right),
+  \label{eq:phi-mh-ratio}
+\end{align}
+while a candidate falling outside $\calS$ is rejected outright and the chain holds at its current value; $\phi_2$ is drawn the same way with the roles of the two coefficients exchanged, and $s_\phi$ is adapted by the rule stated above.  Rejecting outside $\calS$ needs no Hastings adjustment.  The proposal is symmetric and the acceptance region $\calS$ does not depend on the current state, so for any two points of $\calS$ the proposal density is the same in both directions, detailed balance holds with respect to \eref{eq:phi-full-cond} restricted to $\calS$, and the mass proposed outside $\calS$ only raises the probability of staying put.  A proposal truncated to $\calS$ together with the matching asymmetry correction, the scheme used by the AR(1) baseline, is equally valid but defines a different chain.  One pair $\bphi^{(\cdot)}$ is shared by all $K$ knots of its process.
 
 \section{Marginal covariance of the non-stationary-dependence design}\label{app:nsdep-cov}
 
