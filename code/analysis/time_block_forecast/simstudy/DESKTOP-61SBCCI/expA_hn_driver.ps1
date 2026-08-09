@@ -239,9 +239,12 @@ foreach ($S in $settingList) {
                     "cat('final cache OK: n =', length(datasets), 'datasets,', length(methods), 'methods\n')`"")
 
     # -- downstream artifacts (cheap, and they travel back in git) --------
-    Invoke-Rscript "Rscript expA_threeway.R --setting=$S"
-    Invoke-Rscript "Rscript tables.R --setting=$S"
-    Invoke-Rscript "Rscript plots.R --setting=$S"
+    # The prior flag is mandatory here: without it the three scripts resolve
+    # prior_tag = "n" and look for scores<S>_n.RData, which an hn run never
+    # writes, so the driver would die after the merge and before the commit.
+    Invoke-Rscript "Rscript expA_threeway.R $PriorFlag --setting=$S"
+    Invoke-Rscript "Rscript tables.R $PriorFlag --setting=$S"
+    Invoke-Rscript "Rscript plots.R $PriorFlag --setting=$S"
 }
 
 if ($DryRun) { Write-Host "`n*** DRY RUN complete ***"; Stop-Transcript | Out-Null; exit 0 }
