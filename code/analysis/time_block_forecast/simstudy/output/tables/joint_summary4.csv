@@ -1,3 +1,4 @@
-"method","label","energy_mean","vario_mean","elapsed_sec_mean","h_star","crossing_lead"
-1,"Skew-t, K=1, i.i.d. in time",11.5053484805275,163.487922373608,5065.616,6,NA
-2,"Skew-t, K=1, AR(2) temporal (tau,z,w)",29.2651693969097,742.256347269241,10602.184,6,1
+"method","label","energy_mean","vario_mean","elapsed_sec_mean","h_star","h_star_basis","h_star_proxy","family","d","hurst","crossing_lead"
+1,"Skew-t, K=1, i.i.d. in time",11.0122568416807,158.295146926995,8014.027,6,"ar2-spectral-radius",NA,"ar2",NA,NA,NA
+2,"Skew-t, K=1, AR(2) temporal (tau,z,w)",10.9148910810618,155.677074424634,9828.267,6,"ar2-spectral-radius",NA,"ar2",NA,NA,3
+4,"Skew-t, K=1, AR(1) temporal (tau,z)",10.9727495906437,156.71483367987,9342.173,6,"ar2-spectral-radius",NA,"ar2",NA,NA,2
