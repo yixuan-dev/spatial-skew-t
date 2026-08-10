@@ -23,8 +23,8 @@
 #   (d) set12 Skew-t K=5, lambda=3, AR(2) weak   phi=(0.12,-0.05)
 #   (e) set16 Skew-t K=1, lambda=3, AR(2) phi=(0.15,0.80)
 #   (f) set19 Skew-t K=1, lambda=3, ARFIMA(0,d,0) d=0.45
-#   Panel (f) draws only the AR(1)/AR(2) K=1 skew-t fits, the only
-#   methods fit on set19; every other panel draws the full catalog.
+#   Every panel draws the full nine-model catalog; set19 was completed
+#   from three fits to nine on 2026-08-10.
 #
 # Figure 2 - mean Brier score vs number of MRTS basis functions (MRTS probe).
 #   Absolute score, so Gaussian (method 1) is kept as a real curve.
@@ -202,11 +202,10 @@ load_sim <- function(setting_id, suffix = "") {
 }
 
 # ---- Figure 1: relative Brier vs quantile, spatial hold-out -----------
-# Six panels sharing one format: (a)-(e) draw every non-Gaussian method
-# fit on the setting (the fixed-AR(2) settings 9-12 and the persistent
-# AR(2) DGP 16), while (f), the ARFIMA DGP 19, fit only the skew-t K=1
-# AR(2)/AR(1) variants beside the Gaussian reference. Gaussian (method 1)
-# is the relative reference (== 1, shown as dashed line).
+# Six panels sharing one format: every panel draws every non-Gaussian
+# method fit on the setting (the fixed-AR(2) settings 9-12, the persistent
+# AR(2) DGP 16, and the ARFIMA DGP 19). Gaussian (method 1) is the
+# relative reference (== 1, shown as dashed line).
 make_fig_rel_by_quantile <- function() {
   panels <- list(
     list(setting = 9L, tag = "(a)", ids = NULL),
@@ -214,7 +213,7 @@ make_fig_rel_by_quantile <- function() {
     list(setting = 11L, tag = "(c)", ids = NULL),
     list(setting = 12L, tag = "(d)", ids = NULL),
     list(setting = 16L, tag = "(e)", ids = NULL),
-    list(setting = 19L, tag = "(f)", ids = c(7L, 9L))
+    list(setting = 19L, tag = "(f)", ids = NULL)
   )
   k0 <- 0L
   out_file <- file.path(out_dir, "bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf")
@@ -291,9 +290,12 @@ make_fig_mean_vs_K <- function() {
 
 # ---- Figure 3: Brier q95 by forecast lead, time-block block 1 ----------
 # Cache layout (cache_blk1_brier.R): brier[lead, prob, dataset, method,
-# setting] with methods (iid, AR2, AR1) and settings (5, 7); pass[dataset,
-# method, setting]. Curves are styled by borrowing Morris method ids:
-# iid -> 2 (gray), AR(2) -> 7 (firebrick, thick), AR(1) -> 9 (dodgerblue).
+# setting] with methods (iid, AR2, AR1) and settings (4, 5, 7);
+# pass[dataset, method, setting]. The figure draws the two persistence
+# DGPs (5, 7); setting 4 is the short-memory control, has no AR(1) arm,
+# and contributes to the lead-window table only. Curves are styled by
+# borrowing Morris method ids: iid -> 2 (gray), AR(2) -> 7 (firebrick,
+# thick), AR(1) -> 9 (dodgerblue).
 make_fig_brier_by_lead_blk1 <- function() {
   blk1_dir <- "../time_block_forecast/block1_positive_control/output/tables"
   cache_file <- file.path(blk1_dir, "blk1_brier_cache.RData")
@@ -317,17 +319,25 @@ make_fig_brier_by_lead_blk1 <- function() {
   out_file <- file.path(out_dir, "bs_q95_by_lead-blk1-set5_7.pdf")
   open_panel_device_2(out_file)
   rows <- list()
+  panel_settings <- c(5L, 7L)
+  npanel <- 0L
   for (si in seq_along(e$settings)) {
-    clean <- head(which(apply(e$pass[, , si], 1, all)), e$n_target)
+    # a method never fit on this setting is NA in `pass` and must not veto
+    # the dataset -- setting 4 has no AR(1) arm, and all(c(TRUE, NA)) is NA
+    clean <- head(which(apply(e$pass[, , si], 1,
+      function(r) any(!is.na(r)) && all(r[!is.na(r)]))), e$n_target)
     stopifnot(length(clean) == e$n_target)
     lb <- apply(e$brier[, qi95, clean, , si, drop = FALSE], c(1, 4), mean)
-    draw_series(seq_len(H), lb, style_ids, style_ar2,
-      ylim = range(lb, na.rm = TRUE),
-      xlab = "Forecast lead (days)",
-      ylab = bquote("Brier score," ~ q == 0.95),
-      main = tags[si]
-    )
-    abline(v = 5.5, lty = 3, col = "gray60")
+    if (e$settings[si] %in% panel_settings) {
+      npanel <- npanel + 1L
+      draw_series(seq_len(H), lb, style_ids, style_ar2,
+        ylim = range(lb, na.rm = TRUE),
+        xlab = "Forecast lead (days)",
+        ylab = bquote("Brier score," ~ q == 0.95),
+        main = tags[npanel]
+      )
+      abline(v = 5.5, lty = 3, col = "gray60")
+    }
     for (hs in list(1:5, 1:15)) {
       wm <- colMeans(lb[hs, , drop = FALSE])
       rows[[length(rows) + 1L]] <- data.frame(

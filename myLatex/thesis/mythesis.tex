@@ -723,19 +723,19 @@ To test the AR(2) analysis model against data with a known autoregressive struct
   \item $K = 1$ knot, persistent AR(2) $(\phi_1, \phi_2) = (0.15, 0.80)$;
   \item $K = 1$ knot, long-memory ARFIMA$(0, d, 0)$, $d = 0.45$ \parencite{davies_tests_1987}.
 \end{enumerate}
-All three AR(2) coefficient pairs lie inside the stationarity triangle $\calS$.  Each of the first four designs is fit by nine analysis models, namely the five baselines and the \skewt models with AR(1) and AR(2) coefficients at $K = 1$ and $K = 5$ knots.
+All three AR(2) coefficient pairs lie inside the stationarity triangle $\calS$.  Every design is fit by the same nine analysis models, namely the five baselines and the \skewt models with AR(1) and AR(2) coefficients at $K = 1$ and $K = 5$ knots.
 
-The persistent and long-memory designs (5 and 6) are evaluated under both protocols of \sref{sec:sim-scoring}.  The spatial hold-out evaluation fits the Gaussian model and the $K = 1$ \skewt models with AR(1) and AR(2) structure; the time-block forecast evaluation fits the $K = 1$ \skewt variants with the latent processes i.i.d.\ in time, with AR(1) structure, and with AR(2) structure.  As a short-memory control, the fixed-AR(2) design with $(\phi_1, \phi_2) = (0.80, -0.35)$, whose autocorrelation decays within a few days, is run under the same forecast protocol with the i.i.d.\ and AR(2) variants.
+The persistent and long-memory designs (5 and 6) are evaluated under both protocols of \sref{sec:sim-scoring}.  The spatial hold-out evaluation fits the same nine models as the other designs; the time-block forecast evaluation fits the $K = 1$ \skewt variants with the latent processes i.i.d.\ in time, with AR(1) structure, and with AR(2) structure.  As a short-memory control, the fixed-AR(2) design with $(\phi_1, \phi_2) = (0.80, -0.35)$, whose autocorrelation decays within a few days, is run under the same forecast protocol with the i.i.d.\ and AR(2) variants.
 
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{../pdf/bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf}
-\caption[Spatial hold-out evaluation: relative Brier score by threshold quantile]{Spatial hold-out evaluation: relative Brier score versus the Gaussian model by threshold quantile (Gaussian is the reference $\equiv 1$, shown as the dashed line; values below it are better).  All data-generating settings are \skewt with $\lambda = 3$: (a)~$K=1$, AR(2) $(\phi_1, \phi_2) = (0.80, -0.35)$; (b)~$K=1$, AR(2) $(0.12, -0.05)$; (c)~$K=5$, AR(2) $(0.80, -0.35)$; (d)~$K=5$, AR(2) $(0.12, -0.05)$; (e)~$K=1$, AR(2) $(0.15, 0.80)$; (f)~$K=1$, long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.  Panel (f) draws only the one-knot AR(1) and AR(2) fits, the only models fit under the long-memory design.}
+\caption[Spatial hold-out evaluation: relative Brier score by threshold quantile]{Spatial hold-out evaluation: relative Brier score versus the Gaussian model by threshold quantile (Gaussian is the reference $\equiv 1$, shown as the dashed line; values below it are better).  All data-generating settings are \skewt with $\lambda = 3$: (a)~$K=1$, AR(2) $(\phi_1, \phi_2) = (0.80, -0.35)$; (b)~$K=1$, AR(2) $(0.12, -0.05)$; (c)~$K=5$, AR(2) $(0.80, -0.35)$; (d)~$K=5$, AR(2) $(0.12, -0.05)$; (e)~$K=1$, AR(2) $(0.15, 0.80)$; (f)~$K=1$, long memory, ARFIMA$(0, d, 0)$ with $d = 0.45$.}
 \label{fig:bs-rel-spatial}
 \end{figure}
 
 \paragraph{Results.}\label{sec:sim-ar2-results}
-In the spatial hold-out evaluation, predictive ranking is governed by the marginal and the spatial partition.  The methods whose marginal matches the generating truth give the largest improvement over the Gaussian model, a mismatched marginal can perform worse than Gaussian in the far tail, and the preferred knot count tracks the generating truth (\fref{fig:bs-rel-spatial}(a)--(d)).  The temporal structure barely moves these scores.  The AR(2) and AR(1) curves are essentially indistinguishable from their non-temporal counterparts at every quantile and in every setting, and the paired intervals of Table~\ref{tab:ar2-sim-paired} confirm the visual impression; $32$ of the $33$ intervals cover zero, the single starred exception ($K=5$, $(0.80, -0.35)$, at the $0.90$ quantile) favors the \emph{non-temporal} baseline and sits at the edge of significance, within what chance alone produces among this many comparisons, and the two-sided Wilcoxon $p$-values, ranging from $0.05$ to $1.00$, agree.
+In the spatial hold-out evaluation, predictive ranking is governed by the marginal and the spatial partition.  The methods whose marginal matches the generating truth give the largest improvement over the Gaussian model, a mismatched marginal can perform worse than Gaussian in the far tail, and the preferred knot count tracks the generating truth (\fref{fig:bs-rel-spatial}(a)--(d)).  The temporal structure barely moves these scores.  The AR(2) and AR(1) curves are essentially indistinguishable from their non-temporal counterparts at every quantile and in every setting, and the paired intervals of Table~\ref{tab:ar2-sim-paired} confirm the visual impression; $35$ of the $36$ intervals cover zero, the single starred exception ($K=5$, $(0.80, -0.35)$, at the $0.90$ quantile) favors the \emph{non-temporal} baseline and sits at the edge of significance, within what chance alone produces among this many comparisons, and the two-sided Wilcoxon $p$-values, ranging from $0.05$ to $1.00$, agree.
 
 \begin{table}[htbp]
 \centering
@@ -770,9 +770,9 @@ $K{=}1$, $(0.15,0.80)$ & $0.90$ & $-0.02$ {\tiny $[-0.07,\,+0.03]$} & $-0.07$ {\
  & $0.95$ & $+0.04$ {\tiny $[-0.00,\,+0.08]$} & $-0.05$ {\tiny $[-0.19,\,+0.10]$} \\
  & $0.98$ & $+0.01$ {\tiny $[-0.02,\,+0.03]$} & $+0.01$ {\tiny $[-0.02,\,+0.04]$} \\
 \addlinespace
-ARFIMA, $d = 0.45$ & $0.90$ & \multicolumn{1}{c}{--} & $-0.01$ {\tiny $[-0.04,\,+0.02]$} \\
- & $0.95$ & \multicolumn{1}{c}{--} & $-0.00$ {\tiny $[-0.03,\,+0.03]$} \\
- & $0.98$ & \multicolumn{1}{c}{--} & $-0.00$ {\tiny $[-0.04,\,+0.03]$} \\
+ARFIMA, $d = 0.45$ & $0.90$ & $-0.03$ {\tiny $[-0.08,\,+0.01]$} & $-0.01$ {\tiny $[-0.04,\,+0.02]$} \\
+ & $0.95$ & $+0.02$ {\tiny $[-0.01,\,+0.06]$} & $-0.00$ {\tiny $[-0.03,\,+0.03]$} \\
+ & $0.98$ & $-0.01$ {\tiny $[-0.06,\,+0.04]$} & $-0.00$ {\tiny $[-0.04,\,+0.03]$} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -886,7 +886,7 @@ The transform-mix design shows the same mechanism operating from a much worse st
 \scriptsize
 \begin{tabular}{@{}llccccc@{}}
 \toprule
-Generating design & Analysis model & $K{=}30$ & $K{=}40$ & $K{=}50$ & Best ($K$) & $\mathrm{BS}_0$ \\
+Generating design & Analysis model & $K_{\mathrm{MRTS}}{=}30$ & $K_{\mathrm{MRTS}}{=}40$ & $K_{\mathrm{MRTS}}{=}50$ & Best ($K_{\mathrm{MRTS}}$) & $\mathrm{BS}_0$ \\
 \midrule
 Sigmoid front & Gaussian                      & 0.970 & 0.967 & 0.966 & 0.966 (50) & 0.0232 \\
 Sigmoid front & \Skewt, $K = 1$               & 0.969 & 0.967 & 0.967 & 0.966 (25) & 0.0233 \\
