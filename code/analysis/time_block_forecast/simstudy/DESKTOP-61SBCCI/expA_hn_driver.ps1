@@ -10,15 +10,24 @@
 #   .\DESKTOP-61SBCCI\expA_hn_driver.ps1 -Workers 10 -Settings "5"
 #   .\DESKTOP-61SBCCI\expA_hn_driver.ps1 -KeepFits    # gate but never delete fits
 #
-# Interrupted? Re-run the same command. Datasets whose cache exists and
-# passes the gate are skipped entirely; valid fits are skipped by the
-# inventory; a fit truncated by a kill is detected and re-run.
+# Interrupted? Re-run the same command. Datasets whose chunk cache exists
+# and passes the gate are skipped entirely; a setting whose MERGED cache
+# passes the gate skips fitting and scoring outright; valid fits are
+# skipped by the inventory; a fit truncated by a kill is detected and
+# re-run.
 #
 # Per fit batch of $ChunkSize datasets: fit missing cells -> then per
 # dataset: score -> gate -> delete that dataset's 3 fits (~2.4 GB). Disk
 # high-water mark is one batch, ~12 GB at the default ChunkSize.
-# Per setting: merge the 10 per-dataset caches into scores<S>.RData; the
-# merge script verifies every input is reproduced exactly.
+#
+# Per setting: merge the 10 per-dataset caches into scores<S>_<arm>.RData,
+# gate the merge, then DELETE the per-dataset caches. They are working
+# files, not artifacts: merge_score_caches.R reproduces every input cell
+# exactly (tolerance 0) and the post-merge gate re-checks the result, so
+# scores<S>_<arm>.RData is the single authoritative copy. Consequence: run
+# one dataset RANGE per arm per setting. A second run with a disjoint
+# -Datasets range overwrites the merged cache with only its own datasets
+# and there is no longer a chunk cache to re-merge the earlier half from.
 #
 # Assertion C is NOT a gate here: the HN prior is the protection against
 # the lambda reflected ridge. The A/A'/B/C flags are no longer recorded
@@ -148,12 +157,62 @@ if (-not $DryRun -and -not $SkipEnvCheck) {
 }
 Assert-DiskFloor
 
+# ---- merged-cache gate --------------------------------------------------
+# One predicate, used twice: as the hard gate immediately after the merge,
+# and as the resume short-circuit at the top of a setting. It has to carry
+# the whole provenance check, because once the per-dataset chunk caches are
+# deleted the merged cache is the ONLY thing left to resume from -- and
+# without -KeepFits the fits are gone too, so a false negative here costs a
+# full refit of the setting, not a re-score.
+#
+# brier_threshold_basis + the anyNA checks close merge_score_caches.R's
+# silent NA-fill path: a dataset-array absent from one input is NA-filled,
+# not rejected, so the merged cache must be re-checked for completeness.
+# Returns $true/$false and never throws; the caller decides what a failure
+# means.
+function Test-FinalCache([string]$Path) {
+    if (-not (Test-Path $Path)) { return $false }
+    $mExpect = ($methodIds | ForEach-Object { "${_}L" }) -join ','
+    $chk = "load('$Path'); " +
+        "stopifnot(identical(as.integer(datasets), ${dFirst}L:${dLast}L), " +
+        "identical(as.integer(methods), c($mExpect)), " +
+        "identical(isTRUE(hn_prior), $HnExpect), " +
+        "identical(as.integer(es_max_draws), ${EsDraws}L), " +
+        "identical(brier_threshold_basis, 'full_series'), " +
+        "!anyNA(crps.lead), !anyNA(brier.lead), !anyNA(brier.lead.blockq), " +
+        "!anyNA(pexceed.mean), !anyNA(brier.thresholds), !anyNA(exceed.rate.lead)); " +
+        "cat('cache OK: n =', length(datasets), 'datasets,', length(methods), 'methods\n')"
+    # Capture rather than emit. An uncaptured `& Rscript` writes into this
+    # function's OUTPUT stream, so the caller would get @(<R output>, $true)
+    # instead of a boolean -- and a non-empty array is truthy whatever the
+    # gate decided. 2>&1 keeps the stopifnot() failure text visible.
+    $out = & Rscript -e $chk 2>&1
+    $ok = ($LASTEXITCODE -eq 0)
+    $out | ForEach-Object { Write-Host "   $_" }
+    return $ok
+}
+
 # ---- main loop ----------------------------------------------------------
 foreach ($S in $settingList) {
     Write-Host "`n#### setting $S ####"
-    $caches = @()
+    $finalCache = "output/results/scores${S}_${Prior}.RData"
+
+    # Resume short-circuit. A merged cache that covers exactly this request
+    # (range, methods, prior arm, es_draws) and carries no NA means the fit
+    # / score / merge stages are done for this setting; only the cheap
+    # downstream artifacts below still need to run. Evaluated under -DryRun
+    # too -- the check only loads an RData, and skipping it would make the
+    # printed plan claim work that a real run would not do.
+    $settingDone = Test-FinalCache $finalCache
+    if ($settingDone) {
+        Write-Host "== setting $S already merged and gated: $finalCache -- skipping fit and score"
+    }
 
     foreach ($batch in $batches) {
+        # Nothing finer to skip at: the chunk caches this merge was built
+        # from were deleted once it passed the gate.
+        if ($settingDone) { continue }
+
         $a = $batch[0]; $b = $batch[1]
         $dsSpec = "${a}:${b}"
 
@@ -199,7 +258,6 @@ foreach ($S in $settingList) {
         # independently verified atom and disk is freed sooner.
         foreach ($d in $a..$b) {
             $cache = "output/results/scores${S}_${Prior}_d${d}.RData"
-            $caches += $cache
             if (Test-Path $cache) { continue }   # gated above
 
             Invoke-Rscript ("Rscript scores.R $PriorFlag --setting=$S --methods=`"$Methods`" " +
@@ -224,19 +282,25 @@ foreach ($S in $settingList) {
     if ($DryRun) { continue }
 
     # -- merge the per-dataset caches -> final cache for this setting -----
-    $caches = $allDatasets | ForEach-Object { "output/results/scores${S}_${Prior}_d$_.RData" }
-    $finalCache = "output/results/scores${S}_${Prior}.RData"
-    Invoke-Rscript ("Rscript `"../../simstudy/DESKTOP-61SBCCI/merge_score_caches.R`" " +
-                    "$finalCache " + ($caches -join ' '))
-    # brier_threshold_basis + the anyNA checks close merge_score_caches.R's
-    # silent NA-fill path: a dataset-array absent from one input is NA-filled,
-    # not rejected, so the merged cache must be re-checked for completeness.
-    Invoke-Rscript ("Rscript -e `"load('$finalCache'); " +
-                    "stopifnot(identical(as.integer(datasets), ${dFirst}L:${dLast}L), identical(isTRUE(hn_prior), $HnExpect), " +
-                    "identical(brier_threshold_basis, 'full_series'), " +
-                    "!anyNA(crps.lead), !anyNA(brier.lead), !anyNA(brier.lead.blockq), " +
-                    "!anyNA(pexceed.mean), !anyNA(brier.thresholds), !anyNA(exceed.rate.lead)); " +
-                    "cat('final cache OK: n =', length(datasets), 'datasets,', length(methods), 'methods\n')`"")
+    if (-not $settingDone) {
+        $chunks = $allDatasets | ForEach-Object { "output/results/scores${S}_${Prior}_d$_.RData" }
+        Invoke-Rscript ("Rscript `"../../simstudy/DESKTOP-61SBCCI/merge_score_caches.R`" " +
+                        "$finalCache " + ($chunks -join ' '))
+        if (-not (Test-FinalCache $finalCache)) {
+            throw "merged cache $finalCache failed the completeness gate -- chunk caches kept for inspection"
+        }
+
+        # The chunk caches have served their purpose and are deleted: the
+        # merge reproduced every one of their cells exactly and the gate
+        # above re-checked the result, so keeping them would only leave a
+        # second, unverified copy of the same numbers on disk and in
+        # `git status`. Nothing downstream reads them.
+        $dropped = 0
+        foreach ($c in $chunks) {
+            if (Test-Path $c) { Remove-Item $c -Force; $dropped++ }
+        }
+        Write-Host "== setting $S merged into $finalCache, $dropped chunk caches deleted (disk free $(Get-FreeGB) GB)"
+    }
 
     # -- downstream artifacts (cheap, and they travel back in git) --------
     # The prior flag is mandatory here: without it the three scripts resolve
@@ -254,9 +318,8 @@ if ($NoCommit) { Write-Host "`n-NoCommit: skipping the git step"; Stop-Transcrip
 Write-Host "`n== committing score caches and diagnostics =="
 $toAdd = @()
 foreach ($S in $settingList) {
-    # The per-dataset chunk caches stay out of git: the merge verified each
-    # input byte-exactly and the gate re-checked the merged cache, so
-    # scores<S>.RData is the single authoritative copy.
+    # Only the merged cache exists to commit -- the per-dataset chunk caches
+    # were deleted after the merge gate passed (see the merge step above).
     $toAdd += "output/results/scores${S}_${Prior}.RData"
     $toAdd += (Get-ChildItem "output/tables" -Filter "*${S}.csv" | ForEach-Object { "output/tables/$($_.Name)" })
     $toAdd += (Get-ChildItem "output/plots" -Filter "*set${S}.pdf" | ForEach-Object { "output/plots/$($_.Name)" })
