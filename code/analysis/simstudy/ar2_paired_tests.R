@@ -42,9 +42,6 @@ contrasts_k5 <- list(
   c(8, 10, "AR(2) vs AR(1)  (K=5)"),
   c(10, 4, "AR(1) vs no-TS  (K=5)")
 )
-contrasts_ar_only <- list(          # setting 19 fit only the AR(1)/AR(2) variants
-  c(7, 9, "AR(2) vs AR(1)  (K=1)")
-)
 
 paired <- function(d) {                       # d = per-dataset Brier difference (A - B)
   d <- d[is.finite(d)]
@@ -65,7 +62,11 @@ for (st in settings) {
   probs <- e$probs
   methods <- e$methods                        # integer ids in dim-3 order
   pos <- function(id) match(id, methods)
-  kk <- if (st == 19) contrasts_ar_only else if (st %in% c(9, 10, 16)) contrasts_k1 else contrasts_k5
+  # contrast set follows the GENERATING knot count: 9, 10, 16, 19 are K=1
+  # designs, 11 and 12 are K=5. Setting 19 joins the K=1 list now that its
+  # nine-model catalog is complete (before 2026-08-10 it had only the
+  # Gaussian and the K=1 AR(1)/AR(2) fits, so only 7 vs 9 was available).
+  kk <- if (st %in% c(9, 10, 16, 19)) contrasts_k1 else contrasts_k5
 
   for (pr in target_probs) {
     pi <- which.min(abs(probs - pr))
