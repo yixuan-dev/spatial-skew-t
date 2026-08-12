@@ -18,9 +18,10 @@
 
 \title{\textbf{Full-series threshold Brier scores for the time-block
 forecast}\\[2pt]
-\large Per-block and per-dataset breakdowns, Experiment~A, settings 5 and 7}
+\large Per-block and per-dataset breakdowns, Experiment~A, settings 4, 5
+and 7}
 \author{Score report}
-\date{4 August 2026}
+\date{10 August 2026}
 
 \begin{document}
 \maketitle
@@ -30,16 +31,24 @@ The time-block Brier score is now computed against thresholds drawn from
 each dataset's \emph{full series}, replacing the validation block's own
 quantile. This report gives the breakdown that a pooled lead-time table
 hides: the same scores resolved by block and by dataset, at two
-co-primary thresholds, for the two settings whose fits survive. At the
-near-unit-root setting~5 the AR(2) advantage is not an aggregate
-artifact --- AR(2) scores below i.i.d.\ in \textbf{all five blocks} and,
-at $q_{90}$, in \textbf{all ten datasets}, and the pooled contrast is
-significant at every threshold from $q_{90}$ to $q_{98}$
-(AR(2)$-$AR(1) at $q_{90}$: $t\,p = 0.0002$). This reverses the
-conclusion of the retired campaign, which held that the Brier score was
-too noisy to detect what CRPS could see; under the full-series rule the
-Brier score alone resolves setting~5 decisively, which is why this report
-carries no CRPS. At the long-memory setting~7 the score is a genuine
+co-primary thresholds, for the three settings fitted under this campaign.
+Those three span persistence end to end --- a short-memory control
+(setting~4), a near-unit-root process (setting~5) and a long-memory
+process (setting~7) --- so the score can be read against the property it
+is supposed to be sensitive to. At the near-unit-root setting~5 the AR(2)
+advantage is not an aggregate artifact --- AR(2) scores below i.i.d.\ in
+\textbf{all five blocks} and, at $q_{90}$, in \textbf{all ten datasets},
+and the pooled contrast is significant at every threshold from $q_{90}$
+to $q_{98}$ (AR(2)$-$AR(1) at $q_{90}$: $t\,p = 0.0002$). This reverses
+the conclusion of the retired campaign, which held that the Brier score
+was too noisy to detect what CRPS could see; under the full-series rule
+the Brier score alone resolves setting~5 decisively, which is why this
+report carries no CRPS. The control gives the other end: at setting~4,
+whose autocorrelation decays in six days, the pooled AR(2)$-$i.i.d.\ gap
+over the fifteen-day horizon is $-1.0 \times 10^{-6}$ at $q_{90}$ and
+stays below $0.08 \times 10^{-3}$ in absolute value at every one of the
+eleven thresholds. The score therefore moves with persistence, not with
+the parameter count. At the long-memory setting~7 the score is a genuine
 null, and \S\ref{sec:tie} shows the null is \emph{not} an artifact of
 threshold degeneracy: it survives at $q_{90}$, where the share of cells
 with no realised exceedance falls from $60.9\%$ to $41.6\%$. What does
@@ -50,14 +59,15 @@ which is a level error the pooled score never shows.
 
 \section{Scope and design}
 
-Every number here comes from the two score caches
-\code{simstudy/output/results/scores\{5,7\}.RData}, which hold the
+Every number here comes from the three score caches
+\code{simstudy/output/results/scores\{4,5,7\}\_hn.RData}, which hold the
 Experiment~A campaign: expanding-window blocks with seams at
 $T_o = 50, 80, 110, 140, 170$, each forecasting $H = 15$ days; three
 methods (i.i.d., AR(1), AR(2)); ten datasets; five blocks. All fits carry
 the $\lambda \sim \hn(0, 20)$ prior, and the caches are complete --- no
 cell is missing, so no clean-$n$ selection is applied anywhere in this
-report and $n = 10$ throughout.
+report and $n = 10$ throughout. The three settings are fitted under one
+protocol, so nothing but the generating persistence separates them.
 
 \begin{center}
 \small
@@ -65,6 +75,8 @@ report and $n = 10$ throughout.
 \toprule
 id & label & temporal structure & persistence \\
 \midrule
+4 & control & AR(2) $\phi = (0.80, -0.35)$ & $\rho(F) = 0.592$,
+$h^\ast = 6$ d (short memory) \\
 5 & near-unit-root & AR(2) $\phi = (0.15, 0.80)$ & $\rho(F) = 0.973$,
 $h^\ast = 109$ d (short memory) \\
 7 & LM $d = 0.45$ & ARFIMA$(0, 0.45, 0)$ & Hurst $0.95$, hyperbolic ACF
@@ -73,21 +85,36 @@ $h^\ast = 109$ d (short memory) \\
 \end{tabular}
 \end{center}
 
+\noindent Setting~4 is the design's negative control. Its memory horizon
+is $h^\ast = 6$ days, well inside the $15$-day forecast window, so by
+lead $7$ the AR(2) and i.i.d.\ predictives have converged and the
+comparison has nothing left to detect. A campaign that reported a gain
+here would be reporting an artifact of the extra parameters; the value of
+the setting lies in the null it is expected to produce.
+
 \paragraph{Two co-primary thresholds.} Tables report $q_{90}$ and
 $q_{95}$ side by side rather than $q_{95}$ alone. They are not
 interchangeable: the two disagree on how many datasets favour AR(2) at
-both settings ($10/10$ vs.\ $9/10$ at setting~5; $6/10$ vs.\ $4/10$ at
-setting~7), and $q_{90}$ has materially better coverage, which
-\S\ref{sec:tie} needs. The full eleven-point grid is in the appendix.
+every setting ($10/10$ vs.\ $9/10$ at setting~5; $6/10$ vs.\ $4/10$ at
+setting~7; $5/10$ vs.\ $4/10$ at setting~4), and $q_{90}$ has materially
+better coverage, which \S\ref{sec:tie} needs. The full eleven-point grid
+is in the appendix.
 
-\paragraph{What is not here.} Settings 4 and 6, and Experiments~B and~C,
-cannot be scored under this rule. Their fits were produced by the retired
-campaign and have been deleted:
-\code{simstudy/results/} holds only \code{5-*} and \code{7-*}, and
-\code{block1\_positive\_control/} has no results directory at all.
-Re-creating them means a fresh fitting run, not a re-scoring. Those
-experiments --- and the CRPS results for all of them --- remain recorded
-in \code{tex/timeblock\_expABC\_legacy}, which is frozen for that reason.
+\paragraph{What is not here.} Setting~6 (ARFIMA $d = 0.35$) and
+Experiments~B and~C are absent. They were fitted under the default
+$\lambda \sim N(0, 20)$ prior, which is a different arm of the campaign,
+and adding them would mean mixing priors inside one table rather than
+re-scoring an existing cache. Their fits do survive on the machine that
+produced them --- \code{simstudy/results/} holds settings 1--4 and
+\code{block1\_positive\_control/results/} holds the $160$ block-1 fits of
+the guarded campaign --- but every one of them carries the wrong prior for
+this report, and the block-1 fits carry a different protocol as well
+(one block, a fit-level gate, and a clean-$n$ selection). Those
+experiments, and the CRPS results for all of them, remain recorded in
+\code{tex/timeblock\_expABC\_legacy}, which is frozen for that reason.
+Setting~4 was in this list until 2026-08-09, when it was refitted from
+scratch under the present protocol; it is now a full member of the
+campaign.
 
 \paragraph{Brier only.} This report and its sibling
 \code{tex/timeblock\_brier\_blockq} are Brier-only by construction. CRPS
@@ -141,6 +168,15 @@ AR(2) memory pays where there is something to predict.
 five blocks at both thresholds, behind in block 2 by more than it leads
 anywhere. No block-level structure supports an advantage.
 
+\noindent\textbf{Setting 4.} AR(2) is ahead in one block of five at both
+thresholds (block 3, $-5.6 \times 10^{-3}$ at $q_{90}$) and marginally
+behind in the other four, none of them by more than $3.6 \times 10^{-3}$.
+The pooled gap is $-1.0 \times 10^{-6}$ because one block's lead cancels
+four small deficits, which is what scatter around zero looks like when it
+is resolved by block. The contrast with setting~5 is the point of putting
+the two in the same table: identical protocol, identical estimator, and
+five aligned signs there against a cancelling five here.
+
 \section{Per-dataset breakdown}
 \label{sec:dataset}
 
@@ -158,6 +194,11 @@ Neither result depends on one or two datasets carrying the mean.
 At setting~7 the count is $6/10$ at $q_{90}$ and $4/10$ at $q_{95}$ ---
 indistinguishable from a coin, and the individual gaps are an order of
 magnitude smaller than setting~5's.
+
+Setting~4 reads the same way, $5/10$ and $4/10$, with the per-dataset
+gaps spread symmetrically about zero (at $q_{90}$, from $-0.0078$ on
+dataset~8 to $+0.0047$ on dataset~1). No dataset is a consistent outlier
+across the two thresholds in the way setting~5's dataset~10 is.
 
 \section{Paired tests}
 \label{sec:tests}
@@ -185,6 +226,18 @@ lead and nothing thereafter; two lags buy throughout.
 At setting~7 nothing reaches significance at either threshold, in either
 direction.
 
+Setting~4 likewise separates nowhere, and it is worth recording how far
+from separation it is: over leads $1$--$15$ the AR(2)$-$i.i.d.\ gap is
+$-1.0 \times 10^{-6}$ at $q_{90}$ ($t\,p = 0.50$) and
+$-7.7 \times 10^{-5}$ at $q_{95}$ ($t\,p = 0.45$), and the closest any
+contrast comes to significance is AR(2)$-$AR(1) over $1$--$15$ at
+$q_{95}$, at $t\,p = 0.18$. The short-lead window is the only place the
+control shows even a direction --- AR(2)$-$i.i.d.\ is
+$-0.94 \times 10^{-3}$ over leads $1$--$5$ at $q_{90}$ against
+$-0.001 \times 10^{-3}$ over $1$--$15$ --- which is the memory horizon
+showing through: what little the second lag buys is spent by lead $6$,
+exactly where $h^\ast$ says it should be.
+
 \section{Coverage and degeneracy}
 \label{sec:coverage}
 
@@ -197,11 +250,14 @@ complete regardless of which fits exist.
 
 \tbl{expA_coverage}
 
-\noindent At $q_{95}$, $75.3\%$ of (lead, dataset, block) cells at
-setting~5 and $60.9\%$ at setting~7 realise no exceedance; by $p = 0.995$
-this is above $92\%$ at both. This is the reason $q_{90}$ is carried as a
-co-primary threshold rather than relegated: at $q_{90}$ the degenerate
-share falls to $59.3\%$ and $41.6\%$.
+\noindent At $q_{95}$, $80.8\%$ of (lead, dataset, block) cells at
+setting~4, $75.3\%$ at setting~5 and $60.9\%$ at setting~7 realise no
+exceedance; by $p = 0.995$ this is above $92\%$ at all three. This is the
+reason $q_{90}$ is carried as a co-primary threshold rather than
+relegated: at $q_{90}$ the degenerate shares fall to $63.3\%$, $59.3\%$
+and $41.6\%$. The ordering is worth noting --- the control has the
+\emph{poorest} coverage of the three, so its null is also the least
+powerful of the three, and \S\ref{sec:tie} treats it accordingly.
 
 The predicted-rate columns are a level-error ledger. At setting~5 both
 methods under-predict exceedance relative to what is realised
@@ -212,6 +268,10 @@ $q_{90}$), and the discrepancy widens with the threshold until at
 $p = 0.995$ it predicts $0.0234$ against a realised $0.0057$ --- a
 factor of four. Under long memory the fitted AR(2) puts too much mass in
 the upper tail. A pooled Brier score cannot show this; the ledger can.
+Setting~4 sits between the two and is mild in both directions: both
+methods over-predict slightly at $q_{90}$ ($0.1022$ for i.i.d.\ and
+$0.1082$ for AR(2) against a realised $0.0957$), and the ratio never
+reaches $1.8$ anywhere on the grid, against setting~7's four.
 
 \section{Is the setting-7 tie signal, or degeneracy?}
 \label{sec:tie}
@@ -243,13 +303,36 @@ power --- visibly, at the top of the grid --- but at $q_{90}$ and
 $q_{95}$ there is enough left to separate setting~5 comfortably, so the
 failure to separate setting~7 is informative.
 
+The control tightens the same argument from the other side, and it does
+so on matched coverage. At $q_{90}$ setting~4 leaves $63.3\%$ of cells
+degenerate against setting~5's $59.3\%$ --- close enough that the two
+nulls cannot be attributed to different amounts of surviving signal ---
+yet setting~5 separates at $t\,p = 0.0002$ while setting~4's gap is
+$-1.0 \times 10^{-6}$. Nor is the control's flatness confined to one
+threshold: the gap stays under $0.08 \times 10^{-3}$ in absolute value
+across all eleven, and the count of datasets favouring AR(2) sits at $5$
+or $4$ throughout, which is the pattern a genuinely absent effect
+produces rather than a suppressed one. Read together, the three settings
+order themselves by persistence exactly as the design predicts: nil at
+$h^\ast = 6$ days, decisive at $h^\ast = 109$, and, under hyperbolic
+decay, a null that \S\ref{sec:coverage} attributes to a level error
+rather than to the absence of memory.
+
 \section{Provenance}
 
-Caches: \code{simstudy/output/results/scores5\_hn.RData},
-\code{scores7\_hn.RData}, both with \code{brier\_threshold\_basis =
-"full\_series"} and \code{hn\_prior = TRUE}, written by
-\code{simstudy/scores.R}. The rule changed in commit \code{46628f7}; the
-Experiment~A outputs were refreshed under it in \code{638f85a}.
+Caches: \code{simstudy/output/results/scores4\_hn.RData},
+\code{scores5\_hn.RData}, \code{scores7\_hn.RData}, all three with
+\code{brier\_threshold\_basis = "full\_series"} and
+\code{hn\_prior = TRUE}, written by \code{simstudy/scores.R}. The rule
+changed in commit \code{46628f7}; the settings-5 and -7 outputs were
+refreshed under it in \code{638f85a}, and setting~4 was fitted and scored
+under it in \code{072c07b}.
+
+An untagged \code{scores4.RData} also sits in the same directory. It is
+the retired campaign's setting-4 cache --- $N(0, 20)$ prior, two methods,
+the block-quantile rule, twenty datasets --- and it is not the file this
+report reads. The \code{\_hn} suffix is the only thing separating them on
+disk, which is the reason for the tagging convention described next.
 
 The \code{\_hn} suffix is the lambda-prior arm. Since 2026-08-05 every
 per-arm artifact carries it --- fits in \code{results\_hn/}, caches in
@@ -259,9 +342,9 @@ and before tagging the two arms silently overwrote each other. This report
 is the HN arm; the N arm has not been fitted.
 
 Tables and their \code{\_body.tex} fragments:
-\code{Rscript expA\_breakdown.R --prior=hn --settings=5,7}, which reads
-only the two caches and \code{simdata.RData} and writes every table this
-report \code{\textbackslash input}s. Each fragment records its arm in a
+\code{Rscript expA\_breakdown.R --prior=hn "-{}-settings=(4,5,7)"}, which
+reads only the three caches and \code{simdata.RData} and writes every
+table this report \code{\textbackslash input}s. Each fragment records its arm in a
 header comment. No number in this document is transcribed by hand. The script asserts the threshold basis and the absence of NA
 cells on load, and cross-checks its $q_{95}$ tests against
 \code{expA\_tests\_\{5,7\}.csv}.
@@ -281,6 +364,9 @@ campaign and of all CRPS results:
 significant on both tests from $q_{90}$ through $q_{98}$ and fails only
 at $q_{99}$ and $q_{995}$, where the degenerate share exceeds $91\%$;
 the gap decays smoothly with $p$ as the base rate does. Setting~7 never
-separates at any threshold.
+separates at any threshold. Setting~4 never separates either, and its
+gap never leaves the interval $[-0.08, +0.01] \times 10^{-3}$, changing
+sign three times inside it; the smallest $t\,p$ on its eleven rows is
+$0.44$.
 
 \end{document}

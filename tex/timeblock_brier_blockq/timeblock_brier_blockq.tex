@@ -21,7 +21,7 @@ forecast}\\[2pt]
 \large Per-block and per-dataset breakdowns, and why the rule was
 demoted}
 \author{Score report}
-\date{4 August 2026}
+\date{10 August 2026}
 
 \begin{document}
 \maketitle
@@ -40,9 +40,15 @@ advantage; it \emph{inflates the noise around it}. At setting~5,
 $q_{95}$, its estimated gap is $-18.1 \times 10^{-3}$, more than twice
 the full-series estimate of $-8.9 \times 10^{-3}$, and yet it reaches
 $p = 0.110$ where the full-series rule reaches $p = 0.002$. Per-dataset
-agreement falls from $10/10$ to $7/10$. The mechanism is measured
-directly in \S\ref{sec:pinning}: the rule holds the realised exceedance
-rate at exactly $1-p$ in all fifty (dataset, block) cells --- standard
+agreement falls from $10/10$ to $7/10$. The short-memory control,
+setting~4, shows the same defect from the null end: at $q_{90}$ a gap the
+full-series rule puts at $-1.0 \times 10^{-6}$ becomes
+$+0.75 \times 10^{-3}$ here, a sign flip on identical fits, and the rule
+flattens that setting's five
+windows into a band $1.1$ times wide where the honest rule spreads them
+$2.0$ times. The mechanism is measured directly in \S\ref{sec:pinning}:
+the rule holds the realised exceedance rate at exactly $1-p$ in every one
+of the fifty (dataset, block) cells of every setting --- standard
 deviation zero --- so the threshold is a random statistic of the very
 window being scored, and the per-block randomness it injects survives the
 pairing. A further symptom is that this rule's estimated gap is nearly
@@ -53,12 +59,15 @@ rate as it should.
 \section{Scope and design}
 
 Identical to the sibling report: the Experiment~A campaign from
-\code{simstudy/output/results/scores\{5,7\}\_hn.RData}, seams at
+\code{simstudy/output/results/scores\{4,5,7\}\_hn.RData}, seams at
 $T_o = 50, 80, 110, 140, 170$, $H = 15$, three methods (i.i.d., AR(1),
 AR(2)), ten datasets, five blocks, $\lambda \sim \hn(0, 20)$,
 \code{hn\_prior = TRUE}, no missing cells and hence $n = 10$ with no
-clean-$n$ selection. Settings 5 (near-unit-root AR(2),
-$\phi = (0.15, 0.80)$) and 7 (ARFIMA$(0, 0.45, 0)$, Hurst $0.95$).
+clean-$n$ selection. Settings 4 (short-memory control, AR(2)
+$\phi = (0.80, -0.35)$, $h^\ast = 6$ d), 5 (near-unit-root AR(2),
+$\phi = (0.15, 0.80)$, $h^\ast = 109$ d) and 7 (ARFIMA$(0, 0.45, 0)$,
+Hurst $0.95$). Setting~4 was fitted under this protocol on 2026-08-09 and
+enters both reports together.
 
 The one difference: every table below reads \code{brier.lead.blockq}
 instead of \code{brier.lead}. \code{scores.R} computes both arrays in the
@@ -108,8 +117,19 @@ to its own turbulence: a quiet window is no longer scored as quiet. The
 block that most disagrees between the two rules is block~3, the quietest
 one, whose i.i.d.\ level rises from $0.0154$ to $0.0789$.
 
+The control makes the compression starker still, because its windows are
+genuinely alike to begin with and the rule removes what little separates
+them. At setting~4 the per-block rule's i.i.d.\ levels run from $0.0966$
+to $0.1060$ at $q_{90}$, a factor of $1.10$ across five windows, against
+$0.0625$ to $0.1243$ --- a factor of $2.0$ --- under the full-series rule;
+at $q_{95}$ the two factors are $1.15$ and $2.9$. Five blocks scored to
+within a tenth of each other is not a property of the forecasts, since
+the forecasts are the same ones the sibling report scores.
+
 AR(2) still leads i.i.d.\ in all five blocks at setting~5, and in two of
-five at setting~7 --- one fewer than the full-series rule reports.
+five at setting~7 --- one fewer than the full-series rule reports. At
+setting~4 it leads in two of five, where the full-series rule gives one;
+the block-level signs move under a change of threshold definition alone.
 
 \section{Per-dataset breakdown}
 
@@ -121,6 +141,14 @@ rule --- three datasets change side purely from the threshold
 definition, on identical forecasts. This is the per-dataset face of the
 variance inflation quantified next.
 
+Setting~4 moves the same way: $5/10$ at $q_{90}$ and $3/10$ at $q_{95}$,
+against $5/10$ and $4/10$ under the full-series rule, with the per-dataset
+gaps widening from a $-0.0078$ to $+0.0047$ spread to $-0.0037$ to
+$+0.0073$. A control that is genuinely at zero should be near $5/10$
+under any honest rule; that this one drifts to $3/10$ as the threshold
+rises, while its point estimate drifts \emph{away} from zero, is the same
+inflation seen from the null side.
+
 \section{Paired tests}
 
 \tbl{expA_tests_blockq}
@@ -131,7 +159,11 @@ attains significance anywhere --- AR(2)$-$AR(1) over leads $1$--$15$,
 at both thresholds, marginally ($t\,p = 0.046$ and $0.039$). The
 AR(2)$-$i.i.d.\ contrast, which the full-series rule resolves at
 $p \le 0.004$ everywhere, does not separate at all here. Setting~7 is
-null throughout, as it is under the other rule.
+null throughout, as it is under the other rule, and so is setting~4 ---
+but the control's null arrives with the wrong sign, $+0.75 \times 10^{-3}$
+at $q_{90}$ and $+1.25 \times 10^{-3}$ at $q_{95}$ over leads $1$--$15$,
+against $-1.0 \times 10^{-6}$ and $-7.7 \times 10^{-5}$ on the same fits
+under the sibling rule.
 
 \section{The two rules on identical fits}
 \label{sec:contrast}
@@ -158,6 +190,18 @@ mean. The pairing is what suffers: two methods scored in the same block
 still share a threshold, but that threshold is itself a draw, and its
 randomness enters every dataset's difference differently.
 
+\paragraph{It moves a control off zero.} The setting-4 rows are the
+cleanest reading of the two rules side by side, because there the true
+effect is known to be negligible: a memory of six days has nothing left
+to contribute over a fifteen-day horizon. The full-series rule returns
+$-1.0 \times 10^{-6}$ over leads $1$--$15$ at $q_{90}$; the per-block
+rule, on the same draws, returns $+0.75 \times 10^{-3}$, and at $q_{95}$
+the two are $-0.08 \times 10^{-3}$ and $+1.25 \times 10^{-3}$. Neither
+is significant, so nothing here is a false positive. What it shows is
+displacement: three orders of magnitude and a change of sign, produced by
+the threshold definition alone. On a setting where the answer is not
+known in advance, that displacement is indistinguishable from signal.
+
 \paragraph{It is nearly blind to the threshold.} The appendix sweeps
 both rules across the eleven-point grid. Under the full-series rule
 setting~5's gap decays smoothly with $p$, from $-25.8$ at $q_{90}$ to
@@ -174,16 +218,20 @@ guaranteed itself.
 The claim that this rule pins the exceedance rate has been asserted
 before but not shown. It is a statement about the data alone --- no fit
 enters --- so it can be checked directly. For each of the fifty
-(dataset, block) cells the realised exceedance rate of the validation
-window is computed under both rules.
+(dataset, block) cells of each setting, $150$ in all, the realised
+exceedance rate of the validation window is computed under both rules.
 
 \tbl{expA_pinning}
 
 \noindent The pinning is exact. Under the per-block rule every one of the
-fifty cells realises a rate of precisely $1-p$: mean $0.1000$ at
+$150$ cells realises a rate of precisely $1-p$: mean $0.1000$ at
 $q_{90}$ and $0.0500$ at $q_{95}$, with standard deviation \emph{zero}
-and identical minimum and maximum. Under the full-series rule the same
-cells range from $0$ to $0.9306$ at setting~5, $q_{90}$.
+and identical minimum and maximum, at all three settings alike. Under the
+full-series rule the same cells range from $0$ to $0.9306$ at setting~5,
+$q_{90}$, and the spread is itself informative: the standard deviation of
+the realised rate is $0.2073$ at setting~5, $0.1001$ at setting~7 and
+$0.0893$ at the control, ordering the three by how unequal their windows
+genuinely are. The per-block rule erases that ordering by construction.
 
 This is the mechanism behind both preceding sections. A window that ran
 far above its training level cannot register as unusual, because its
@@ -196,12 +244,13 @@ noisier one.
 \section{Provenance}
 
 Caches, scripts and gates as in the sibling report:
-\code{simstudy/output/results/scores\{5,7\}\_hn.RData},
+\code{simstudy/output/results/scores\{4,5,7\}\_hn.RData},
 \code{brier\_threshold\_basis = "full\_series"} recording the primary
 rule, \code{hn\_prior = TRUE}; tables from
-\code{Rscript expA\_breakdown.R --prior=hn --settings=5,7}, which emits
-both rules' fragments from one load and recomputes the pinning table from
-\code{simdata.RData}. No number in this document is transcribed by hand.
+\code{Rscript expA\_breakdown.R --prior=hn "-{}-settings=(4,5,7)"}, which
+emits both rules' fragments from one load and recomputes the pinning
+table from \code{simdata.RData}. No number in this document is
+transcribed by hand.
 
 The \code{\_hn} suffix is the lambda-prior arm, which every per-arm
 artifact has carried since 2026-08-05. Both this report and its sibling
@@ -209,8 +258,10 @@ are the HN arm; the threshold rule is the only thing that differs between
 them.
 
 Sibling: \code{tex/timeblock\_brier\_fullseries}. Frozen record of the
-retired campaign, settings 4 and 6, Experiments~B and~C, and all CRPS
-results: \code{tex/timeblock\_expABC\_legacy}.
+retired campaign, setting~6, Experiments~B and~C, and all CRPS results:
+\code{tex/timeblock\_expABC\_legacy}. That record also holds the earlier,
+$N(0, 20)$ scoring of setting~4, which the present setting-4 fits replace
+rather than extend.
 
 \appendix
 \section{The full threshold grid}
@@ -223,5 +274,14 @@ gap here is nearly constant in $p$ and the $p$-value never leaves the
 neighbourhood of $0.11$, while the dataset and block counts are frozen at
 $7/10$ and $5/5$ across all eleven thresholds --- the signature of a
 score whose base rate has been fixed by construction.
+
+The control's sweep is the same pathology with the sign reversed. Its
+gap stays positive across all eleven thresholds, from
+$+0.75 \times 10^{-3}$ at $q_{90}$ to $+1.31 \times 10^{-3}$ at
+$q_{96}$, and its dataset count decays monotonically from $5/10$ to
+$1/10$ while $t\,p$ climbs from $0.75$ to $0.96$. Under the full-series
+rule the same sweep sits within $0.08 \times 10^{-3}$ of zero and its
+count holds at $5$ or $4$. Neither sweep separates; only one of them
+stays where a control should.
 
 \end{document}

@@ -178,6 +178,7 @@ write_body <- function(lines, file) {
 }
 setting_desc <- function(S) {
   switch(as.character(S),
+    "4" = "short memory, $\\phi=(0.80,-0.35)$",
     "5" = "near-unit-root, $\\phi=(0.15,0.80)$",
     "7" = "long memory, ARFIMA$(0,0.45,0)$",
     sprintf("setting %d", S))
