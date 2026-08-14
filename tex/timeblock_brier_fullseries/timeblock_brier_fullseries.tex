@@ -369,4 +369,12 @@ gap never leaves the interval $[-0.08, +0.01] \times 10^{-3}$, changing
 sign three times inside it; the smallest $t\,p$ on its eleven rows is
 $0.44$.
 
+
+\section{The second-lag contrast across the grid}
+\label{sec:sweep-ar2ar1}
+
+The sweep above is AR(2) against i.i.d., which mixes what the first lag buys with what the second adds.  Table~\ref{tab:qsweep-ar2ar1-full} isolates the second lag by sweeping AR(2) against AR(1) over the same grid.  At setting~5 the contrast separates from $q_{90}$ through $q_{98}$, in $10/10$ data sets and $5/5$ blocks throughout, and fails only at $q_{99}$ and $q_{995}$, where more than $91\%$ of cells carry no realised exceedance.  That the second-lag contrast is significant on its own, and over a wider band of the tail than AR(1)$-$i.i.d.\ manages anywhere, is what identifies the second lag rather than temporal pooling in general as the source of the setting-5 result.  Setting~4 never separates ($t\,p$ between $0.15$ and $0.23$); setting~7 never separates either, though its gap is negative at all eleven levels and $7/10$ data sets favour AR(2) over AR(1) at every level up to $q_{97}$ --- a faint and consistent preference that the pooled test cannot resolve at $n = 10$.
+
+\tbl{expA_qsweep_full_ar2ar1}
+
 \end{document}
