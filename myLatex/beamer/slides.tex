@@ -383,18 +383,17 @@
   \end{itemize}
 \end{frame}
 
-% ---- p15: AR(2) result 3, extrapolation ----
-\begin{frame}{AR(2), extrapolation: directional gains where predicted}
+% ---- p15: AR(2) result 3, time-block forecast ----
+\begin{frame}{Time-block forecast: the gain tracks persistence}
   \begin{center}
     \includegraphics[width=\linewidth, height=0.62\textheight,
-      keepaspectratio]{../pdf/bs_q95_by_lead-blk1-set5_7.pdf}
+      keepaspectratio]{../pdf/bs_q95_leaddiff-set4_5_7.pdf}
   \end{center}
   \bigskip
   \begin{itemize}
-    \item Long memory: AR(2) lowest at almost every lead; short-memory
-          control: ties
-    \item All differences n.s.\ $\to$ \alert{directional}
-          \ {\small(largest $-0.0068$, CI $[-0.033, 0.020]$)}
+    \item (a) short memory: nil \quad (b) near-unit-root:
+          \alert{$-21\%$} at $q_{90}$ ($p = 0.007$) \quad (c) long memory: nil
+    \item Carried by the \alert{second lag}: AR(1) $\approx$ i.i.d.
   \end{itemize}
 \end{frame}
 
