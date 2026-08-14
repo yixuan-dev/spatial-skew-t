@@ -33,15 +33,7 @@
 #   (c) set3_nonsta  q=0.95   Skew-t K=1, lambda=3, additive non-stationary spatial random effect
 #   (d) set3_nonsta  q=0.98
 #
-# Figure 3 - mean Brier score at q95 by forecast lead, time-block arm
-#   (block 1: fit days 1-50, forecast 51-65). Reads the cache written by
-#   time_block_forecast/block1_positive_control/cache_blk1_brier.R and
-#   averages over the first 10 datasets that pass the guard under all
-#   three methods (iid / AR(1) / AR(2)). Also writes the lead-window
-#   aggregate table used for the thesis table tab:timeblock-brier.
-#   (a) tbf set5 near-unit-root   (b) tbf set7 ARFIMA d=0.45
-#
-# Figure 4 - mean Brier score vs number of MRTS basis functions, non-t
+# Figure 3 - mean Brier score vs number of MRTS basis functions, non-t
 #   mean-surface DGPs (setup_nonsta.R settings 16 & 20: nonlinear mean
 #   surface, sd 11, orthogonal to [1, s1, s2], plus stationary
 #   Gaussian-GP error, so every t-family error law is misspecified).
@@ -60,10 +52,7 @@
 # Outputs (myLatex/pdf):
 #   bs_rel_gauss_by_quantile-set9_to_12_16_19-K0.pdf
 #   brier_score_mean_vs_K.pdf
-#   bs_q95_by_lead-blk1-set5_7.pdf
 #   brier_score_mean_vs_K-set16_20_nonsta.pdf
-# Output (time_block_forecast/block1_positive_control/output/tables):
-#   blk1_thesis_table.csv
 # Output (output/tables):
 #   nont_thesis_table.csv
 #########################################################################
@@ -167,14 +156,6 @@ draw_legend_region <- function(method_ids, style) {
 open_panel_device <- function(out_file) {
   pdf(out_file, width = 9, height = 11)
   layout(matrix(1:6, nrow = 3, byrow = TRUE), heights = c(1, 1, 0.8))
-  par(mar = c(4.6, 4.8, 2.4, 1.0), cex.axis = 1.1, cex.lab = 1.35, cex.main = 1.5)
-}
-
-# Two-panel variant of the shared convention: panels (a)-(b) in row 1,
-# one shared legend spanning both columns in row 2 (drawn as a single row).
-open_panel_device_2 <- function(out_file) {
-  pdf(out_file, width = 9, height = 5.6)
-  layout(matrix(c(1, 2, 3, 3), nrow = 2, byrow = TRUE), heights = c(1, 0.32))
   par(mar = c(4.6, 4.8, 2.4, 1.0), cex.axis = 1.1, cex.lab = 1.35, cex.main = 1.5)
 }
 
@@ -288,82 +269,7 @@ make_fig_mean_vs_K <- function() {
   cat(sprintf("Wrote %s\n", normalizePath(out_file, winslash = "/", mustWork = FALSE)))
 }
 
-# ---- Figure 3: Brier q95 by forecast lead, time-block block 1 ----------
-# Cache layout (cache_blk1_brier.R): brier[lead, prob, dataset, method,
-# setting] with methods (iid, AR2, AR1) and settings (4, 5, 7);
-# pass[dataset, method, setting]. The figure draws the two persistence
-# DGPs (5, 7); setting 4 is the short-memory control, has no AR(1) arm,
-# and contributes to the lead-window table only. Curves are styled by
-# borrowing Morris method ids: iid -> 2 (gray), AR(2) -> 7 (firebrick,
-# thick), AR(1) -> 9 (dodgerblue).
-make_fig_brier_by_lead_blk1 <- function() {
-  blk1_dir <- "../time_block_forecast/block1_positive_control/output/tables"
-  cache_file <- file.path(blk1_dir, "blk1_brier_cache.RData")
-  if (!file.exists(cache_file)) {
-    stop(sprintf("Cache not found: %s (run cache_blk1_brier.R first)", cache_file),
-      call. = FALSE
-    )
-  }
-  e <- new.env()
-  load(cache_file, envir = e)
-  qi95 <- which(e$probs == 0.95)
-  H <- dim(e$brier)[1]
-  tags <- c("(a)", "(b)")
-  # cache method order (iid, AR2, AR1) -> style ids and legend labels
-  style_ids <- c(2L, 7L, 9L)
-  labels <- c(
-    "Skew-t, K=1 (i.i.d. in time)", "Skew-t, K=1, AR(2)",
-    "Skew-t, K=1, AR(1)"
-  )
-
-  out_file <- file.path(out_dir, "bs_q95_by_lead-blk1-set5_7.pdf")
-  open_panel_device_2(out_file)
-  rows <- list()
-  panel_settings <- c(5L, 7L)
-  npanel <- 0L
-  for (si in seq_along(e$settings)) {
-    # a method never fit on this setting is NA in `pass` and must not veto
-    # the dataset -- setting 4 has no AR(1) arm, and all(c(TRUE, NA)) is NA
-    clean <- head(which(apply(e$pass[, , si], 1,
-      function(r) any(!is.na(r)) && all(r[!is.na(r)]))), e$n_target)
-    stopifnot(length(clean) == e$n_target)
-    lb <- apply(e$brier[, qi95, clean, , si, drop = FALSE], c(1, 4), mean)
-    if (e$settings[si] %in% panel_settings) {
-      npanel <- npanel + 1L
-      draw_series(seq_len(H), lb, style_ids, style_ar2,
-        ylim = range(lb, na.rm = TRUE),
-        xlab = "Forecast lead (days)",
-        ylab = bquote("Brier score," ~ q == 0.95),
-        main = tags[npanel]
-      )
-      abline(v = 5.5, lty = 3, col = "gray60")
-    }
-    for (hs in list(1:5, 1:15)) {
-      wm <- colMeans(lb[hs, , drop = FALSE])
-      rows[[length(rows) + 1L]] <- data.frame(
-        setting = e$settings[si],
-        leads = sprintf("1-%d", max(hs)),
-        n = length(clean),
-        iid = wm[1], ar1 = wm[3], ar2 = wm[2],
-        ar1_minus_iid = wm[3] - wm[1],
-        ar2_minus_iid = wm[2] - wm[1],
-        ar2_minus_ar1 = wm[2] - wm[3]
-      )
-    }
-  }
-  # legend in reading order: iid, AR(1), AR(2)
-  draw_legend_span(labels[c(1, 3, 2)], style_ids[c(1, 3, 2)], style_ar2)
-  dev.off()
-  cat(sprintf("Wrote %s\n", normalizePath(out_file, winslash = "/", mustWork = FALSE)))
-
-  tab <- do.call(rbind, rows)
-  tab_file <- file.path(blk1_dir, "blk1_thesis_table.csv")
-  write.csv(tab, tab_file, row.names = FALSE)
-  cat(sprintf("Wrote %s\n", normalizePath(tab_file, winslash = "/", mustWork = FALSE)))
-  print(tab, digits = 4)
-}
-
-# ---- Figure 4: mean Brier vs MRTS K, non-t mean-surface DGPs ----------
+# ---- Figure 3: mean Brier vs MRTS K, non-t mean-surface DGPs ----------
 # setup_nonsta.R settings 16 (tanh sigmoid front, n=10, full 12-point K grid)
 # and 20 (log/exp/ratio transforms, n=3 pilot, K in {0,30,40,50}): a
 # nonlinear mean surface plus stationary Gaussian-GP error. Same panel
@@ -445,5 +351,4 @@ make_fig_mean_vs_K_nont <- function() {
 
 make_fig_rel_by_quantile()
 make_fig_mean_vs_K()
-make_fig_brier_by_lead_blk1()
 make_fig_mean_vs_K_nont()

@@ -328,36 +328,51 @@ for (rule in names(RULES)) {
 # =======================================================================
 # 3. quantile sweep over the full probs grid
 # =======================================================================
-sweep_table <- function(rule) {
+# The sweep is written once per (rule, contrast). The AR(2)-i.i.d. sweep
+# is the headline one; the AR(2)-AR(1) sweep isolates what the SECOND lag
+# buys, which is the quantity the persistence story turns on and which a
+# gap against i.i.d. cannot separate from the first lag's contribution.
+SWEEPS <- list(
+  # lab ends in "\\" where the contrast ends in a period, so that the
+  # caption reads "i.i.d.\ in units of" and not as an end of sentence;
+  # ref carries no final period, the caption template supplies it.
+  list(tag = "",        a = "2", b = "1",
+       lab = "AR(2)$-$i.i.d.\\", ref = "i.i.d"),
+  list(tag = "_ar2ar1", a = "2", b = "4",
+       lab = "AR(2)$-$AR(1)",     ref = "AR(1)")
+)
+
+sweep_table <- function(rule, sw) {
   rows <- list()
   for (S in setting_ids) {
     e <- CACHE[[as.character(S)]]
     for (p in e$probs) {
       a <- arr_at(e, rule, p)
       lv <- apply(a, 3, mean, na.rm = TRUE)
-      st <- one_sided(paired_vec(a, "2", "1", WINDOWS[["1-15"]]))
+      st <- one_sided(paired_vec(a, sw$a, sw$b, WINDOWS[["1-15"]]))
       pd <- apply(a, c(2, 3), mean, na.rm = TRUE)
       pb <- apply(a, c(3, 4), mean, na.rm = TRUE)
       rows[[length(rows) + 1L]] <- data.frame(
         setting = S, rule = RULE_LAB[[rule]], prob = p,
         iid = lv["1"], AR1 = lv["4"], AR2 = lv["2"],
-        gap_AR2_iid = st[["gap"]], t_p = st[["t_p"]], w_p = st[["w_p"]],
-        datasets_won = sum(pd[, "2"] - pd[, "1"] < 0),
-        blocks_won = sum(pb["2", ] - pb["1", ] < 0))
+        contrast = gsub("[$\\]|-i", "-i", sw$lab),
+        gap = st[["gap"]], t_p = st[["t_p"]], w_p = st[["w_p"]],
+        datasets_won = sum(pd[, sw$a] - pd[, sw$b] < 0),
+        blocks_won = sum(pb[sw$a, ] - pb[sw$b, ] < 0))
     }
   }
   do.call(rbind, rows)
 }
 
-sweep_body <- function(tab, rule) {
+sweep_body <- function(tab, rule, sw) {
   head <- c(
     "\\begin{table}[htbp]", "\\centering",
     sprintf("\\caption{Experiment~A, %s threshold rule: the whole threshold grid,",
       RULE_LAB[[rule]]),
-    "leads $1$--$15$. Gap $=$ AR(2)$-$i.i.d.\\ in units of $10^{-3}$, data-set",
+    sprintf("leads $1$--$15$. Gap $=$ %s in units of $10^{-3}$, data-set", sw$lab),
     "unit $n=10$. ``won'' counts the data sets (of $10$) and blocks (of $5$)",
-    "in which AR(2) scores below i.i.d.}",
-    sprintf("\\label{tab:qsweep-%s}", rule),
+    sprintf("in which AR(2) scores below %s.}", sw$ref),
+    sprintf("\\label{tab:qsweep%s-%s}", gsub("_", "-", sw$tag), rule),
     "\\small",
     "\\begin{tabular}{clrrrrrrcc}", "\\toprule",
     "setting & $p$ & i.i.d. & AR(1) & AR(2) & gap & $t$ $p$ & $W$ $p$ & ds won & blk won \\\\",
@@ -371,7 +386,7 @@ sweep_body <- function(tab, rule) {
       body <- c(body, sprintf(
         "%s & %s & %s & %s & %s & %s & %s & %s & %d/10 & %d/5 \\\\",
         first, formatC(r$prob, format = "f", digits = 3),
-        fmt(r$iid), fmt(r$AR1), fmt(r$AR2), fmt_gap(r$gap_AR2_iid),
+        fmt(r$iid), fmt(r$AR1), fmt(r$AR2), fmt_gap(r$gap),
         fmt_p(r$t_p), fmt_p(r$w_p), r$datasets_won, r$blocks_won))
     }
     if (S != setting_ids[length(setting_ids)]) body <- c(body, "\\midrule")
@@ -380,11 +395,15 @@ sweep_body <- function(tab, rule) {
 }
 
 for (rule in names(RULES)) {
-  tab <- sweep_table(rule)
-  write.csv(tab, file.path(tables_dir,
-    sprintf("expA_qsweep_%s%s.csv", rule, data_suffix)), row.names = FALSE)
-  write_body(sweep_body(tab, rule),
-    file.path(tables_dir, sprintf("expA_qsweep_%s_body.tex", rule)))
+  for (sw in SWEEPS) {
+    tab <- sweep_table(rule, sw)
+    write.csv(tab, file.path(tables_dir,
+      sprintf("expA_qsweep_%s%s%s.csv", rule, sw$tag, data_suffix)),
+      row.names = FALSE)
+    write_body(sweep_body(tab, rule, sw),
+      file.path(tables_dir,
+        sprintf("expA_qsweep_%s%s_body.tex", rule, sw$tag)))
+  }
 }
 
 # =======================================================================
