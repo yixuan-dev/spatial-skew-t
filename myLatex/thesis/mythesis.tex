@@ -182,7 +182,7 @@
 \section*{\centering 摘要}
 \addcontentsline{toc}{section}{摘要} % 加入目錄
 
-\hspace*{1.5em}在環境風險治理中，決策關心的通常不是平均濃度，而是未設站位置超越高門檻的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，沿兩軸檢驗其可改進空間：潛在參數的標準化 AR(2) 先驗，與迴歸均值中的多尺度薄板樣條 (MRTS) 基底。模型比較以樣本外 Brier 分數為核心指標，於模擬與 2005 年 7 月美國 AQS 臭氧資料（CMAQ 共變數）上進行。時間軸的結果依預測任務而分：即使係數被完整回收，空間內插仍對自迴歸階數不敏感；只有當任務需要外推至觀測紀錄之外，較豐富的時間 pooling 才帶來從未顯著的增益。MRTS 均值項在非定態確實位於均值曲面、且基底足以解析它時可改善預測；於臭氧資料上其增益真實，惟幅度不大。因此本文的貢獻在於將 STP 基準擴展為可由樣本外門檻預測表現進行資料驅動選擇的候選模型類。
+\hspace*{1.5em}在環境風險治理中，決策關心的通常不是平均濃度，而是未設站位置超越高門檻的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，沿兩軸檢驗其可改進空間：潛在參數的標準化 AR(2) 先驗，與迴歸均值中的多尺度薄板樣條 (MRTS) 基底。模型比較以樣本外 Brier 分數為核心指標，於模擬與 2005 年 7 月美國 AQS 臭氧資料（CMAQ 共變數）上進行。時間軸的結果依預測任務而分：即使係數被完整回收，空間內插仍對自迴歸階數不敏感；只有當任務需要外推至觀測紀錄之外，較豐富的時間 pooling 才帶來從未顯著的增益。MRTS 均值項在非定態確實位於均值曲面、且基底足以解析它時可改善預測；於臭氧資料上其名列前茅，惟與其餘領先模型的分數差異落在顯示精度之內。因此本文的貢獻在於將 STP 基準擴展為可由樣本外門檻預測表現進行資料驅動選擇的候選模型類。
 
 \vspace{2.0\baselineskip}
 
@@ -216,8 +216,8 @@ that follows the persistence of the process, decisive at $(\phi_1, \phi_2) =
 (0.15, 0.80)$ and absent once the memory decays inside the forecast horizon. The
 MRTS mean improves prediction where
 the non-stationarity lies in the mean surface rather than the second moment
-and the basis is fine enough to resolve it; on the ozone data the gain is
-present but modest in magnitude. The contribution is therefore to enlarge the
+and the basis is fine enough to resolve it; on the ozone data it ranks among
+the leading models without separating from them. The contribution is therefore to enlarge the
 STP baseline into a candidate model class selected by held-out threshold
 predictive performance.
 
@@ -711,7 +711,7 @@ A mean Brier score is an estimate, and two such estimates computed on the same h
   \Delta(L) \;=\; \mathrm{E}\big[\mathrm{BS}_A(L)\big] \;-\; \mathrm{E}\big[\mathrm{BS}_B(L)\big],
   \label{eq:delta-estimand}
 \end{align}
-estimated by forming the difference site by site on the shared held-out set, so that the common hard-site variation cancels, and assessing its sampling variability over the $10$ simulated data sets.  Each comparison tests $H_0\!: \Delta(L) = 0$ against the two-sided alternative, summarized by a $95\%$ paired-$t$ confidence interval and a Wilcoxon signed-rank test, which does not assume normal differences; with $10$ replicates the Wilcoxon $p$-values move on a coarse grid whose smallest attainable two-sided value is $2^{-9} \approx 0.002$.  Each pair varies only the factor under test, with the analysis knot count matched to the generating design.  In the tables that follow, a star marks an interval that excludes zero; among the dozens of paired comparisons reported in this thesis, an isolated borderline star is within what chance alone would produce, and an interval that covers zero means the data fail to reject $H_0$, not that the two models have been shown equal.  In the ozone study of \sref{sec:ozonedata} there is a single data set and hence no replicate layer, so the resampling unit is instead the validation site, as described there.
+estimated by forming the difference site by site on the shared held-out set, so that the common hard-site variation cancels, and assessing its sampling variability over the $10$ simulated data sets.  Each comparison tests $H_0\!: \Delta(L) = 0$ against the two-sided alternative, summarized by a $95\%$ paired-$t$ confidence interval and a Wilcoxon signed-rank test, which does not assume normal differences; with $10$ replicates the Wilcoxon $p$-values move on a coarse grid whose smallest attainable two-sided value is $2^{-9} \approx 0.002$.  Each pair varies only the factor under test, with the analysis knot count matched to the generating design.  In the tables that follow, a star marks an interval that excludes zero; among the dozens of paired comparisons reported in this thesis, an isolated borderline star is within what chance alone would produce, and an interval that covers zero means the data fail to reject $H_0$, not that the two models have been shown equal.  In the ozone study of \sref{sec:ozonedata} there is a single data set and hence no replicate layer, so the models there are compared by their held-out ranking rather than by a test.
 
 \subsection{The AR(2) experiment}\label{sec:sim-ar2-design}
 
@@ -901,7 +901,7 @@ The transform-mix design shows the same mechanism operating from a much worse st
 
 \begin{table}[htbp]
 \centering
-\caption[Nonlinear-mean designs: relative Brier score by MRTS basis size]{Nonlinear-mean designs: Brier score at the $0.95$ threshold quantile relative to the same model's own $K_{\mathrm{MRTS}} = 0$ fit (lower is better).  Best is the smallest ratio over $K_{\mathrm{MRTS}} > 0$, with the minimizing basis size in parentheses; $\mathrm{BS}_0$ is the absolute Brier score at $K_{\mathrm{MRTS}} = 0$; thr.\ denotes the POT threshold $T = q(0.80)$.}
+\caption[Nonlinear-mean designs: relative Brier score by MRTS basis size]{Nonlinear-mean designs: Brier score at the $0.95$ threshold quantile relative to the same model's own $K_{\mathrm{MRTS}} = 0$ fit (lower is better).  Best is the smallest ratio over $K_{\mathrm{MRTS}} > 0$, with the minimizing basis size in parentheses; $\mathrm{BS}_0$ is the absolute Brier score at $K_{\mathrm{MRTS}} = 0$; thr.\ denotes the thresholding $T = q(0.80)$.}
 \label{tab:mrts-nont-brier}
 \scriptsize
 \begin{tabular}{@{}llccccc@{}}
@@ -971,7 +971,7 @@ Of the $1{,}089$ sites of \fref{fig:ozone-maps}, the comparison draws on a strat
 
 \subsection{Results}\label{sec:ozone-results}
 
-Across the upper tail, the proposed extensions appear among the best models at scattered exceedance levels rather than improving prediction uniformly, so no single extension, and no single setting, is best across the whole tail (Table~\ref{tab:ozone-top2-brier}).  The scatter is nevertheless systematic.  The MRTS extension leads at the $0.900$ level, where the spatial mean still carries predictive signal; the AR(2) extension occupies both top ranks at $0.950$ and returns at the deepest level, $0.995$, where the best settings also shift toward high censoring and large partition sizes; the intermediate levels, $0.980$ and $0.990$, belong to the baseline family.  The extensions thus appear as the leading model at several levels; how much statistical weight that ranking carries is assessed below.
+Across the upper tail, the proposed extensions appear among the best models at scattered exceedance levels rather than improving prediction uniformly, so no single extension, and no single setting, is best across the whole tail (Table~\ref{tab:ozone-top2-brier}).  The scatter is nevertheless systematic.  The MRTS extension leads at the $0.900$ level, where the spatial mean still carries predictive signal; the AR(2) extension occupies both top ranks at $0.950$ and returns at the deepest level, $0.995$, where the best settings also shift toward high censoring and large partition sizes; the intermediate levels, $0.980$ and $0.990$, belong to the baseline family.  The extensions thus appear as the leading model at several levels; whether that standing survives a change of split is examined next.
 
 \begin{table}[htbp]
 \centering
@@ -1028,39 +1028,9 @@ Level $L$ & Rank 1 & Rank 2 & Rank 3 & Rank 4 \\
 \end{tabular}
 \end{table}
 
-This picture is reproducible on smaller training samples.  Repeating the comparison under two further train/validation splits, written $N_{\text{train}}/N_{\text{test}}$ for $N_{\text{train}}$ training and $N_{\text{test}}$ validation sites (the 300/100 and 200/200 splits; Tables~\ref{tab:ozone-top4-quantile-300-100} and~\ref{tab:ozone-top4-quantile-200-200}), recovers the same qualitative ranking.  The Baseline, AR(2), and MRTS families continue to share the top ranks across the tail, even as the exact best-ranked setting shifts with the split and the level; that shifting is expected, since only a handful of validation sites exceed the highest thresholds (Table~\ref{tab:ozone-brier-ci} reports the exceedance counts) and the fine ranking there is sensitive to the held-out draw.
+This picture is reproducible on smaller training samples.  Repeating the comparison under two further train/validation splits, written $N_{\text{train}}/N_{\text{test}}$ for $N_{\text{train}}$ training and $N_{\text{test}}$ validation sites (the 300/100 and 200/200 splits; Tables~\ref{tab:ozone-top4-quantile-300-100} and~\ref{tab:ozone-top4-quantile-200-200}), recovers the same qualitative ranking.  The Baseline, AR(2), and MRTS families continue to share the top ranks across the tail, even as the exact best-ranked setting shifts with the split and the level; that shifting is expected, since only a handful of validation sites exceed the highest thresholds, with $120$ exceedance events standing behind the $0.995$ score in the main split and $27$ and $2$ in the two smaller ones, and the fine ranking there is sensitive to the held-out draw.
 
-The ranking tables also overstate how much the tail separates these models, since the leading scores agree to the displayed precision.  Table~\ref{tab:ozone-brier-ci} therefore attaches an uncertainty statement to two matched comparisons, each isolating one extension while holding everything else fixed: the AR(2) model against its AR(1) counterpart, and the MRTS model against the same setting without basis functions.  Following \sref{sec:sim-uq}, the Brier difference is formed site by site and bootstrapped over validation sites, each site resampled together with all of its days to preserve within-site dependence ($B = 2000$, stratified by fold).  For the AR(2) pair every interval covers zero under all three splits, so the added lag neither improves nor degrades held-out tail prediction.  The MRTS pair differs.  In the main comparison the difference is negative at every level and excludes zero at $0.95$ and $0.99$, and both intervals survive resampling contiguous geographic blocks in place of single sites, so the effect is not an artifact of treating nearby monitors as independent.  Its size, however, is three to four tenths of a percent of the baseline score, which the smaller splits cannot resolve; the lone starred interval of the $200/200$ split, at the sparsest level with $27$ exceedance events, fails that block check and is the kind of isolated borderline result chance alone produces.  The two extensions thus part ways on the real data.  The AR(2) prior leaves tail prediction unchanged, while the MRTS mean term buys a real but practically negligible improvement that only the largest validation set can detect, and the case for retaining both rests on the stability of the candidate class across splits and levels rather than on the size of any single gain.
-
-\begin{table}[htbp]
-\centering
-% Generated from brier_bootstrap_pairs_{400-400,300-100,200-200}.csv
-% (US-all/brier_bootstrap_400.R and US-all-auto/brier_bootstrap.R); block
-% sensitivity in US-all/block_check_400.R.
-\caption[Paired held-out Brier differences for the two extensions]{Paired held-out Brier differences for each extension against its matched baseline, with $95\%$ site-clustered bootstrap confidence intervals.  The AR(2) pair is \skewt\ with $K{=}7$ and $T{=}50$; the MRTS pair is \skewt\ with $K{=}1$, $T{=}0$, a latent time series, and $K_{\mathrm{MRTS}} = 10$.  $n_{\mathrm{exc}}$ counts the exceedance events behind each score; a star marks an interval that excludes zero.}
-\label{tab:ozone-brier-ci}
-\scriptsize
-\begin{tabular}{@{}ll r@{\ }l r@{\ }l r@{\ }l@{}}
-\toprule
-& & \multicolumn{2}{c}{$400/400$} & \multicolumn{2}{c}{$300/100$} & \multicolumn{2}{c}{$200/200$} \\
-\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
-Comparison & $L$ quant. & $\Delta\times10^{3}$ [95\% CI] & $n_{\mathrm{exc}}$ & $\Delta\times10^{3}$ [95\% CI] & $n_{\mathrm{exc}}$ & $\Delta\times10^{3}$ [95\% CI] & $n_{\mathrm{exc}}$ \\
-\midrule
-AR(2) $-$ AR(1) & $0.900$ & $-0.15$ {\tiny $[-0.38,\,+0.08]$} & 2382 & $-0.03$ {\tiny $[-0.53,\,+0.45]$} & 241 & $+0.10$ {\tiny $[-0.35,\,+0.54]$} & 630 \\
- & $0.950$ & $-0.12$ {\tiny $[-0.29,\,+0.04]$} & 1198 & $-0.03$ {\tiny $[-0.33,\,+0.32]$} & 92 & $-0.06$ {\tiny $[-0.42,\,+0.29]$} & 319 \\
- & $0.980$ & $+0.03$ {\tiny $[-0.08,\,+0.14]$} & 477 & $-0.07$ {\tiny $[-0.28,\,+0.13]$} & 28 & $-0.09$ {\tiny $[-0.25,\,+0.09]$} & 129 \\
- & $0.990$ & $-0.06$ {\tiny $[-0.14,\,+0.03]$} & 239 & $+0.01$ {\tiny $[-0.09,\,+0.10]$} & 9 & $+0.02$ {\tiny $[-0.09,\,+0.18]$} & 56 \\
- & $0.995$ & $-0.03$ {\tiny $[-0.08,\,+0.02]$} & 120 & $+0.06$ {\tiny $[-0.02,\,+0.16]$} & 2 & $-0.03$ {\tiny $[-0.08,\,+0.02]$} & 27 \\
-\addlinespace
-MRTS $-$ none & $0.900$ & $-0.03$ {\tiny $[-0.13,\,+0.07]$} & 2382 & \multicolumn{1}{c}{--} & -- & $-0.07$ {\tiny $[-0.48,\,+0.35]$} & 630 \\
- & $0.950$ & $-0.08^{*}$ {\tiny $[-0.14,\,-0.02]$} & 1198 & \multicolumn{1}{c}{--} & -- & $-0.08$ {\tiny $[-0.34,\,+0.17]$} & 319 \\
- & $0.980$ & $-0.04$ {\tiny $[-0.07,\,+0.00]$} & 477 & \multicolumn{1}{c}{--} & -- & $-0.11$ {\tiny $[-0.25,\,+0.00]$} & 129 \\
- & $0.990$ & $-0.03^{*}$ {\tiny $[-0.05,\,-0.00]$} & 239 & \multicolumn{1}{c}{--} & -- & $-0.05$ {\tiny $[-0.12,\,+0.01]$} & 56 \\
- & $0.995$ & $-0.01$ {\tiny $[-0.02,\,+0.01]$} & 120 & \multicolumn{1}{c}{--} & -- & $-0.03^{*}$ {\tiny $[-0.06,\,-0.00]$} & 27 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
+What the ranking establishes should be read for what it is.  The leading scores agree to the displayed precision, and a single month of a single pollutant supplies one data set and hence no replicate layer, so the paired inference of \sref{sec:sim-uq} has no counterpart here and no extension is shown to predict exceedances better than the baseline family it is drawn from.  What does carry across the tail, and across all three splits, is that both extensions hold their place among the leading models rather than falling behind the baseline they enlarge.  The case for retaining them accordingly rests on the standing of the candidate class across splits and levels rather than on the size of any single gain.
 
 \FloatBarrier
 \section{Discussion}\label{sec:discussion}
@@ -1078,8 +1048,8 @@ paid, and the size of the payment followed the persistence of the process: nil
 where the autocorrelation decayed inside the forecast horizon, decisive at
 $(\phi_1, \phi_2) = (0.15, 0.80)$, and there carried by the second lag rather
 than the first.  The spatial axis is favorable but small, the MRTS mean term is inert
-against second-moment non-stationarity, and the real improvement it bought on
-the ozone data was one only the largest validation set could detect.  One
+against second-moment non-stationarity, and on the ozone data it held a place
+among the leading models without separating from them.  One
 caveat bounds these conclusions: the evidence covers a single month of a single
 pollutant.
 
