@@ -330,10 +330,10 @@
       \toprule
       Protocol & Observed & Predicted & Task \\
       \midrule
-      Spatial hold-out & training sites, full record & unseen sites &
-        \alert{interpolation} \\
-      Time-block forecast & all sites, days $1$--$50$ & same sites, next $15$
-        days & \alert{extrapolation} \\
+      Site split & training sites, full record & unseen sites &
+        \alert{spatial hold-out} \\
+      Time block & all sites, up to each origin & same sites, next
+        $15$ days & \alert{future forecast} \\
       \bottomrule
     \end{tabular}
   \end{center}
@@ -344,8 +344,8 @@
   \end{itemize}
 \end{frame}
 
-% ---- p13: AR(2) result 1, interpolation ----
-\begin{frame}{AR(2), interpolation: temporal structure barely moves the scores}
+% ---- p13: AR(2) result 1, spatial hold-out ----
+\begin{frame}{AR(2), spatial hold-out: temporal structure barely moves the scores}
   \begin{center}
     \includegraphics[width=\linewidth, height=0.68\textheight,
       keepaspectratio]{../pdf/slides-bs_rel_gauss-set9_11_16.pdf}
@@ -479,32 +479,8 @@
   \begin{itemize}
     \item Deeper tail $\to$ higher censoring, larger $K$
     \item Pattern reproduces on the $300/100$ and $200/200$ splits
-  \end{itemize}
-\end{frame}
-
-% ---- p20: UQ verdict ----
-\begin{frame}{Uncertainty: the two axes part ways}
-  Site-clustered bootstrap ($B = 2000$, by fold), $400/400$ split,
-  $\Delta \times 10^{3}$ [$95\%$ CI]:
-  \medskip
-  \begin{center}
-    \begin{tabular}{@{}lcc@{}}
-      \toprule
-      $L$ quantile & AR(2) $-$ AR(1) & MRTS $-$ none \\
-      \midrule
-      $0.900$ & $-0.15$ {\tiny $[-0.38, +0.08]$} & $-0.03$ {\tiny $[-0.13, +0.07]$} \\
-      $0.950$ & $-0.12$ {\tiny $[-0.29, +0.04]$} & $\mathbf{-0.08^{*}}$ {\tiny $[-0.14, -0.02]$} \\
-      $0.980$ & $+0.03$ {\tiny $[-0.08, +0.14]$} & $-0.04$ {\tiny $[-0.07, +0.00]$} \\
-      $0.990$ & $-0.06$ {\tiny $[-0.14, +0.03]$} & $\mathbf{-0.03^{*}}$ {\tiny $[-0.05, -0.00]$} \\
-      $0.995$ & $-0.03$ {\tiny $[-0.08, +0.02]$} & $-0.01$ {\tiny $[-0.02, +0.01]$} \\
-      \bottomrule
-    \end{tabular}
-  \end{center}
-  \bigskip
-  \begin{itemize}
-    \item AR(2): every interval covers zero (all splits)
-    \item MRTS: negative everywhere; stars survive \alert{block resampling};
-          $\approx 3$--$4 \times 10^{-3}$ of baseline
+    \item Leading scores agree to the displayed precision $\to$
+          a \alert{candidate class}, not a winner
   \end{itemize}
 \end{frame}
 
@@ -516,9 +492,9 @@
 \begin{frame}{Conclusions}
   \begin{itemize}
     \item \textbf{Temporal axis}: divides along the task ---
-          identified yet inert in interpolation;
-          gains only in \alert{forecasting}, never significant
-    \item \textbf{Spatial axis}: \alert{real, though modest} ---
+          identified yet inert under the \alert{spatial hold-out};
+          decisive in \alert{future forecast} when persistence is high
+    \item \textbf{Spatial axis}: \alert{conditional, and modest} ---
           needs mean-level structure, and a basis fine enough to resolve it
     \item \textbf{Contribution}: STP baseline $\to$ \alert{candidate model
           class}, selected by held-out threshold prediction
@@ -529,7 +505,7 @@
 \begin{frame}{Limitations and future work}
   \textbf{Limitations}
   \begin{itemize}
-    \item One month, one pollutant $\cdot$ single forecast origin
+    \item One month, one pollutant $\cdot$ $15$-day horizon
   \end{itemize}
   \bigskip
   \textbf{Future work}
