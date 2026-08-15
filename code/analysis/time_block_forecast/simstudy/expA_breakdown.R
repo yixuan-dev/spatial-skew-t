@@ -135,7 +135,7 @@ one_sided <- function(d) {
     t_p = tryCatch(t.test(d, alternative = "less")$p.value,
                    error = function(err) NA_real_),
     w_p = tryCatch(suppressWarnings(
-      wilcox.test(d, alternative = "less", exact = FALSE)$p.value),
+      wilcox.test(d, alternative = "less")$p.value),
       error = function(err) NA_real_))
 }
 

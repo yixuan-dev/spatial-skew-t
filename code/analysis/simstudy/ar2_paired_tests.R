@@ -48,7 +48,9 @@ paired <- function(d) {                       # d = per-dataset Brier difference
   n <- length(d)
   if (n < 3) return(list(n = n, mean = if (n) mean(d) else NA, lo = NA, hi = NA, t_p = NA, w_p = NA))
   tt <- t.test(d)                             # two-sided; H0: mean diff = 0
-  wt <- suppressWarnings(wilcox.test(d, exact = FALSE))
+  # exact Wilcoxon at n = 10; this is the test sec:sim-uq describes when it
+  # states the smallest attainable two-sided p-value
+  wt <- suppressWarnings(wilcox.test(d))
   list(n = n, mean = mean(d), lo = tt$conf.int[1], hi = tt$conf.int[2],
        t_p = tt$p.value, w_p = wt$p.value)
 }

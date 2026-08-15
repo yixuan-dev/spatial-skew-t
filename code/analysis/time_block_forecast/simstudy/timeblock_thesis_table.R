@@ -107,7 +107,11 @@ per_dataset <- function(e, prob, leads) {
 
 paired <- function(d) {
   tt <- t.test(d)                                   # two-sided
-  wt <- suppressWarnings(wilcox.test(d, exact = FALSE))
+  # exact Wilcoxon: n = 10 is small enough, and it is the exact test that
+  # sec:sim-uq describes when it states the smallest attainable two-sided
+  # p-value. wilcox.test() chooses exact automatically below n = 50 unless
+  # there are ties, which paired Brier differences do not produce.
+  wt <- suppressWarnings(wilcox.test(d))
   list(delta = mean(d), lo = tt$conf.int[1], hi = tt$conf.int[2],
        t_p = tt$p.value, w_p = wt$p.value, n = length(d))
 }
