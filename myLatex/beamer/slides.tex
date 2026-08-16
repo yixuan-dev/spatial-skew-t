@@ -297,8 +297,10 @@
 % ---- p11: Simulation design ----
 \begin{frame}{Simulation design}
   \begin{center}
-    $144$ sites on $[0,10]^2$ \; $\cdot$ \; $50$ days \; $\cdot$ \;
-    $10$ data sets \; $\cdot$ \; $100$ train / $44$ test
+    $144$ sites on $[0,10]^2$ \; $\cdot$ \; $10$ data sets \\
+    \smallskip
+    spatial hold-out: $50$ days, $100$ train / $44$ test \\
+    future forecast: $200$ days, all sites
   \end{center}
   \bigskip
   \begin{center}
@@ -308,7 +310,7 @@
                         sym-$t$, $T{=}q(0.80)$ ($K{=}1,5$) \\
       \midrule
       AR(2) designs   & $(0.80, -0.35)$, $(0.12, -0.05)$ at $K = 1, 5$; \\
-                      & persistent $(0.15, 0.80)$; ARFIMA $d = 0.45$ \\
+                      & $(0.15, 0.80)$ at $K = 1$; ARFIMA $d = 0.45$ \\
       \addlinespace
       MRTS designs    & $2 \times$ \alert{second-moment} non-stationarity; \\
                       & $2 \times$ \alert{nonlinear mean} surface \\
@@ -390,8 +392,8 @@
       keepaspectratio]{../pdf/bs_q95_leaddiff-set4_5_7.pdf}
   \end{center}
   \begin{itemize}
-    \item (a) short memory: nil \quad (b) near-unit-root:
-          \alert{$-21\%$} at $q_{90}$ ($p = 0.007$) \quad (c) long memory: nil
+    \item (a) short memory: nil \quad (b) $(0.15, 0.80)$:
+          \alert{$-13\%$} at $q_{95}$ ($p = 0.004$) \quad (c) long memory: nil
     \item Carried by the \alert{second lag}: AR(1) $\approx$ i.i.d.
   \end{itemize}
 \end{frame}
