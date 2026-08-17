@@ -205,11 +205,11 @@ In environmental risk regulation, the inferential target is often not the field
 mean but the probability of exceeding a high threshold at unmonitored
 locations. We take the spatio-temporal \skewt process (STP) of Morris et al.
 (2017) as a baseline and examine where predictive improvement remains possible
-along two axes: a standardized AR(2) prior on the latent parameters and
+along two axes, a standardized AR(2) prior on the latent parameters and
 multi-resolution thin-plate spline (MRTS) basis functions in the regression
 mean. Models are compared by held-out Brier scores in simulation and on July
 2005 U.S. AQS ozone data with CMAQ covariates. The temporal axis divides along
-the prediction task: prediction at withheld sites is insensitive to the
+the prediction task.  Prediction at withheld sites is insensitive to the
 autoregressive order even where the coefficients are recovered closely, whereas
 forecasting days beyond the end of the record rewards the second lag by a margin
 that follows the persistence of the process, decisive at $(\phi_1, \phi_2) =
@@ -491,7 +491,7 @@ Mirroring the AR(1) block \eref{eq:ar1-w}--\eref{eq:ar1-sigma}, the AR(2) prior 
   \sigma^{2*}_{tk} \mid \sigma^{2*}_{t-1, k}, \sigma^{2*}_{t-2, k}
     &\sim N\!\left(\phi^{(\sigma)}_1\, \sigma^{2*}_{t-1, k} + \phi^{(\sigma)}_2\, \sigma^{2*}_{t-2, k},\; \sigma_{\epsilon, \sigma}^2\right), \label{eq:ar2-sigma}
 \end{align}
-where each pair $\bphi^{(\cdot)}$ lies in the stationarity triangle $\calS$ of \eref{eq:stab-triangle}, the innovation variances follow from \eref{eq:gamma12}--\eref{eq:sigeps}, and the initial pairs follow \eref{eq:joint-init} component-wise.  After the inverse PIT \eref{eq:wstar}--\eref{eq:sigmastar}, the back-transformed $\bw_{tk}, z_{tk}, \sigma^2_{tk}$ keep the same marginals as the AR(1) baseline, so the spatial \skewt model \eref{eq:fullmodel} is preserved at every $t$.  The Gibbs-within-MH full conditional that updates each $Y_t$ now carries three prior factors (self, lag-1, lag-2); its explicit form and the Metropolis--Hastings acceptance ratio are given in Appendix~\ref{app:full-cond}.
+where each pair $\bphi^{(\cdot)}$ lies in the stationarity triangle $\calS$ of \eref{eq:stab-triangle}, the innovation variances follow from \eref{eq:gamma12}--\eref{eq:sigeps}, and the initial pairs follow \eref{eq:joint-init} component-wise.  After the inverse PIT \eref{eq:wstar}--\eref{eq:sigmastar}, the back-transformed $\bw_{tk}, z_{tk}, \sigma^2_{tk}$ keep the same marginals as the AR(1) baseline, so the spatial \skewt model \eref{eq:fullmodel} is preserved at every $t$.  The Metropolis step for each $Y_t$ now targets a full conditional carrying three prior factors (self, lag-1, lag-2); its explicit form and the Metropolis--Hastings acceptance ratio are given in Appendix~\ref{app:full-cond}.
 
 \subsection{Incorporating MRTS covariates}\label{sec:meth-mrts}
 
@@ -545,9 +545,9 @@ which is identical to the STP model \eref{eq:fullmodel} on all components other 
 
 We specify the model as a three-stage Bayesian hierarchical model in the sense
 of \textcite{berliner_hierarchical_1996}, following the presentation of hierarchical spatial models
-in \textcite{gelfand_handbook_2010}: a data stage conditional on the latent
-process, a process stage conditional on the parameters, and a parameter stage
-carrying the priors.  Collect the day-$t$ latent processes as
+in \textcite{gelfand_handbook_2010}, namely a data stage conditional on the
+latent process, a process stage conditional on the parameters, and a parameter
+stage carrying the priors.  Collect the day-$t$ latent processes as
 $\calZ_t = \{(\bw_{tk},\, z_{tk},\, \sigma^2_{tk}) : k = 1, \ldots, K\}$ and the
 parameters as $\btheta = \{\bbeta, \lambda, \varphi, \nu, \eta, a, b, \bphi\}$,
 where $\bphi$ collects the AR coefficients of the three latent processes.  The
@@ -649,7 +649,11 @@ domain.  The smoothness $\nu$ receives a lognormal prior with median
 $e^{-1.2} \approx 0.30$, truncated above at $10$.  Both autoregressive
 coefficients carry the
 prior scale $\sigma_\phi$ of the AR(1) baseline, so the AR(1) and AR(2) fits
-are matched on prior scale rather than tuned separately.
+are matched on prior scale rather than tuned separately.  One set of fits
+departs from \eref{eq:stage3-priors}, namely the time-block forecast fits of
+\sref{sec:sim-ar2-design}, which truncate the prior on $\lambda$ to the
+positive half line for an identifiability reason given there; every other fit
+reported in this thesis uses \eref{eq:stage3-priors} as stated.
 
 Writing $[\,\cdot\,]$ for a generic distribution, the three stages multiply to
 the joint model, and by Bayes' Rule the posterior is proportional to that
@@ -664,14 +668,118 @@ product,
   \big[\btheta\big],
   \label{eq:bhm-posterior}
 \end{align}
-sampled by Gibbs-within-MH updates: each factor of
+sampled by a Gibbs scan that draws directly from every closed-form full
+conditional, namely those of $\bbeta$, $\lambda$, $a/2$, $b/2$, and the
+censored responses, and updates the remaining blocks by Metropolis--Hastings
+steps, namely the latent processes on the transformed scale of
+\eref{eq:wstar}--\eref{eq:sigmastar}, the autoregressive coefficients, and the
+\Matern parameters.  A Gibbs scan of this kind, with Metropolis--Hastings steps
+standing in for the intractable draws, is a Metropolis-within-Gibbs sampler.
+Each factor of
 \eref{eq:bhm-posterior} is one of the stages above, and the full conditionals
 are read off stage by stage; the full conditionals of the time-varying
 parameters and of the autoregressive coefficients, together with their
 Metropolis--Hastings acceptance ratios, are given in
-Appendix~\ref{app:full-cond}.  Predictions at
-unmonitored sites follow from the conditional Gaussian structure of
-\eref{eq:bhm-data-gauss} (Bayesian kriging).
+Appendix~\ref{app:full-cond}.  The predictive distributions that this
+posterior induces are given in \sref{sec:meth-pred}.
+
+\subsection{Posterior predictive distribution}\label{sec:meth-pred}
+
+The two validation protocols of \sref{sec:sim-scoring} both score a posterior
+predictive distribution, and they differ in which of its factors the data can
+inform.  Write $\widetilde{\bY}_{1:n_o}$ for the record observed up to time
+$n_o$, let $\bY^{\mathrm{new}}$ collect the responses to be predicted, and let
+$\calZ^{\mathrm{new}}$ collect whatever latent processes those responses
+require beyond $\calZ_{1:n_o}$.  Integrating the joint model
+\eref{eq:bhm-posterior} over the posterior gives
+\begin{align}
+  \big[\bY^{\mathrm{new}} \mid \widetilde{\bY}_{1:n_o}\big]
+  \;=\;
+  \int
+  \underbrace{\big[\bY^{\mathrm{new}} \mid \calZ^{\mathrm{new}},\, \calZ_{1:n_o},\, \btheta\big]}_{\text{data model}}\,
+  \underbrace{\big[\calZ^{\mathrm{new}} \mid \calZ_{1:n_o},\, \btheta\big]}_{\text{latent transition}}\,
+  \underbrace{\big[\calZ_{1:n_o},\, \btheta \mid \widetilde{\bY}_{1:n_o}\big]}_{\text{posterior}}
+  \;\dd\calZ^{\mathrm{new}}\, \dd\calZ_{1:n_o}\, \dd\btheta .
+  \label{eq:postpred}
+\end{align}
+Only the third factor is a posterior.  The second is the AR(2) prior
+\eref{eq:stage2-w}--\eref{eq:stage2-sigma} of the process stage, which the data
+reach only through $\bphi$ and through the states it is conditioned on.  Which
+of the two remaining factors carries the prediction is what separates the
+protocols.
+
+\paragraph{Prediction at an unmonitored site.}
+When the target is a day $t \le n_o$ at a site $\bs_0$ that was not
+monitored, $\calZ^{\mathrm{new}}$ is empty and the transition factor drops out
+of \eref{eq:postpred}.  Day $t$ is observed at the monitored sites, so
+$z_{tk}$ and $\sigma^2_{tk}$ are already part of $\calZ_{1:n_o}$ and carry a
+posterior of their own.  Within a draw, $Y_t(\bs_0)$ then follows the Gaussian
+conditional of \eref{eq:bhm-data-gauss} given the monitored responses of that
+day, whose mean adds to $\bX_t(\bs_0)^\top\bbeta + \lambda \sigma_t(\bs_0)
+|z_t(\bs_0)|$ a term proportional to the day-$t$ residuals at the monitored
+sites.  This is Bayesian kriging, and the cross-sectional information of the
+day being predicted enters through that term.
+
+\paragraph{Forecast beyond the end of the record.}
+When the target is a day $n_o + h$, no site is observed on that day, the
+kriging term of the previous paragraph has nothing to condition on, and
+$\calZ^{\mathrm{new}} = \calZ_{n_o+1:n_o+H}$ must be supplied entirely by the
+transition factor.  The AR(2) recursion is therefore run forward from the two
+seam states $\calZ_{n_o-1}$ and $\calZ_{n_o}$ of the same draw, on the
+transformed scale of \eref{eq:wstar}--\eref{eq:sigmastar} where the recursion
+is defined, and the inverse transforms return the latents to the scale on
+which \eref{eq:bhm-data-gauss} acts.  Because the autocorrelations
+\eref{eq:gamma12} decay in $h$, the forecast distribution relaxes toward the
+stationary margins of \eref{eq:wstar}--\eref{eq:sigmastar} as the lead grows,
+and the persistence of the fitted process governs how quickly.  A model whose
+latent processes are independent in time is the limiting case in which each
+lead is drawn from those margins directly, so under that model the forecast
+carries no information from the record beyond $\btheta$.
+
+Algorithm~\ref{alg:forecast} states the Monte Carlo form of the forecast.  Each
+retained draw contributes one path, so parameter uncertainty and seam-state
+uncertainty are both propagated and no posterior summary is substituted for
+either.  Conditioning on the seam states of the draw, rather than on the
+stationary distribution of the latent processes, is what makes the AR(1) and
+AR(2) forecasts differ from the independent one at short leads.  The
+exceedance probability $\widehat{P}(Y > L)$ required by the Brier score of
+\sref{sec:sim-scoring} is the proportion of the returned paths that exceed $L$
+at the site and lead being scored.
+
+\begin{algorithm}[htbp]
+\caption[Posterior predictive forecast over a held-out time block]{Posterior
+predictive forecast over the window $(n_o,\, n_o + H]$.}
+\label{alg:forecast}
+\begin{algorithmic}[1]
+  \For{each retained posterior draw $m = 1, \ldots, M$}
+    \State take $\btheta^{(m)}$ and the seam states
+           $\calZ^{(m)}_{n_o-1}, \calZ^{(m)}_{n_o}$ from the MCMC output
+    \State transform the seam states to the Gaussian scale by the PIT
+           \eref{eq:wstar}--\eref{eq:sigmastar}
+    \For{$h = 1, \ldots, H$}
+      \State draw $\bw^*, z^*, \sigma^{2*}$ at lead $h$ from the AR(2)
+             recursion \eref{eq:stage2-w}--\eref{eq:stage2-sigma} at
+             $\bphi^{(m)}$, with the innovation variances
+             \eref{eq:sigeps}
+      \State invert the PIT to obtain $\calZ^{(m)}_{n_o+h}$
+      \State draw $\bY^{(m)}_{n_o+h}$ from the conditional Gaussian field
+             \eref{eq:bhm-data-gauss} at $\calZ^{(m)}_{n_o+h}$ and
+             $\btheta^{(m)}$
+    \EndFor
+  \EndFor
+  \State \Return the predictive sample
+         $\{\bY^{(m)}_{n_o+1:n_o+H}\}_{m=1}^{M}$
+\end{algorithmic}
+\end{algorithm}
+
+Line 4 of Algorithm~\ref{alg:forecast} advances the knot locations along with
+the scale and skewness latents, and line 6 places every site in the subregion
+of \eref{eq:stage2-partition} that its forecast knots define.  At $K = 1$ the
+partition is the whole domain at every lead, so the knot locations leave the
+field unchanged and only $z$ and $\sigma^2$ carry the temporal signal into the
+forecast.  The forecast evaluation of \sref{sec:sim-ar2-design} is set at
+$K = 1$ for that reason, which also gives the AR(2), AR(1), and independent
+fits a common partition to be compared on.
 
 \section{Simulation study}\label{sec:simulation}
 
@@ -702,7 +810,9 @@ where $y$ is the held-out observation, $I(y > L)$ is the exceedance indicator, a
 
 \paragraph{Time-block forecast validation.}\label{sec:sim-timeblock-cv}
 
-The site-splitting scheme above withholds sites: when a withheld site is predicted, that same day is observed at the training sites, and the predictive distribution can borrow from it.  The time-block forecast evaluation of \sref{sec:sim-ar2-design} withdraws that support.  All $144$ sites are observed up to a forecast origin, the next $15$ days are predicted at those same sites, and no observation after the origin is available anywhere.  Each data set supplies five origins rather than one, at days $50$, $80$, $110$, $140$ and $170$ of a $200$-day record, so the evaluation does not rest on a single window of the record.  For each forecast lead $h$ the Brier score \eref{eq:brier-score} is computed with $L$ set to the empirical quantile of that data set's whole record, which is the rule the spatial hold-out already uses, so the two evaluations are measured on one scale; results are reported at the $0.90$ and $0.95$ quantiles.  Scores are averaged over sites, over the leads of a window, and over the five origins, leaving one number per data set.  That number is the unit of the paired comparisons below, so the replicate count is the $10$ data sets rather than the $50$ (data set, origin) pairs, which share training data and are not independent.  No fit is screened or excluded here: the half-normal prior of \sref{sec:sim-ar2-design} removes the failure mode that would otherwise call for screening, and all $10$ data sets enter every comparison.  Exceedance of a high level is the target throughout, so the Brier score is the only score reported; features of the predictive distribution away from the threshold are not scored.
+The site-splitting scheme above leaves the day being predicted observed at the training sites, so its predictive distribution keeps the kriging term of \sref{sec:meth-pred} and borrows from that day.  The time-block forecast evaluation of \sref{sec:sim-ar2-design} withdraws that support and scores the forecast of Algorithm~\ref{alg:forecast} instead.  All $144$ sites are observed up to a forecast origin, the next $15$ days are predicted at those same sites, and no observation after the origin is available anywhere.  Each data set supplies five origins rather than one, at days $50$, $80$, $110$, $140$ and $170$ of a $200$-day record, so the evaluation does not rest on a single window of the record.  For each forecast lead $h$ the Brier score \eref{eq:brier-score} is computed with $L$ set to the empirical quantile of that data set's whole record, which is the rule the spatial hold-out already uses, so the two evaluations are measured on one scale; results are reported at the $0.90$ and $0.95$ quantiles.  Scores are averaged over sites, over the leads of a window, and over the five origins, leaving one number per data set.  That number is the unit of the paired comparisons below, so the replicate count is the $10$ data sets rather than the $50$ (data set, origin) pairs, which share training data and are not independent.  Exceedance of a high level is the target throughout, so the Brier score is the only score reported; features of the predictive distribution away from the threshold are not scored.
+
+The forecast fits take the half-normal prior on $\lambda$ of \sref{sec:sim-ar2-design}, for the identifiability reason given there.
 
 \paragraph{Uncertainty of score comparisons.}\label{sec:sim-uq}
 
@@ -727,9 +837,9 @@ To test the AR(2) analysis model against data with a known autoregressive struct
 \end{enumerate}
 All three AR(2) coefficient pairs lie inside the stationarity triangle $\calS$.  Every design is fit by the same nine analysis models, namely the five baselines and the \skewt models with AR(1) and AR(2) coefficients at $K = 1$ and $K = 5$ knots.
 
-Designs 5 and 6 are evaluated under both protocols of \sref{sec:sim-scoring}.  The spatial hold-out evaluation fits the same nine models as the other designs; the time-block forecast evaluation fits the three $K = 1$ \skewt variants whose latent processes are i.i.d.\ in time, AR(1), and AR(2), so that the value of the second lag is read off directly as the AR(2) minus AR(1) contrast.  The fixed-AR(2) design with $(\phi_1, \phi_2) = (0.80, -0.35)$ joins them as a short-memory control, fit by the same three variants: its autocorrelation decays within six days, well inside the $15$-day forecast horizon, so a comparison that reports a gain there would be reporting the extra parameters rather than the memory.
+Designs 5 and 6 are evaluated under both protocols of \sref{sec:sim-scoring}.  The spatial hold-out evaluation fits the same nine models as the other designs; the time-block forecast evaluation fits the three $K = 1$ \skewt variants whose latent processes are i.i.d.\ in time, AR(1), and AR(2), so that the value of the second lag is read off directly as the AR(2) minus AR(1) contrast.  The fixed-AR(2) design with $(\phi_1, \phi_2) = (0.80, -0.35)$ joins them as a short-memory control, fit by the same three variants.  Its autocorrelation decays within six days, well inside the $15$-day forecast horizon, so a comparison that reports a gain there would be reporting the extra parameters rather than the memory.
 
-The forecast fits differ from the rest of the study in one respect, and for an identifiability reason.  The likelihood depends on $\beta_0$ and $\lambda$ only through $\beta_0 + \lambda z_t(\bs)$, so the posterior of $\lambda$ carries a mirror mode in which $\lambda$ changes sign and $\beta_0$ compensates; on the short prefixes that a forecast origin leaves, a chain can settle on that mode, and the predictive standard deviation grows with $|\lambda|$.  The forecast fits therefore restrict the support, $\lambda \sim \mathrm{HN}(0, 20)$, which fixes the direction of the skewness without constraining its magnitude and is drawn exactly by a truncated Gibbs step.  Right skewness is the case of interest, both in these designs, generated at $\lambda = 3$, and in the ozone data of \sref{sec:ozone-data-desc}.  The spatial hold-out fits keep the unrestricted $N(0, 20)$ prior; the mirror mode occurs there too, but it leaves the paired differences unchanged, since a score computed at a withheld site depends on the predictive only through its marginal at that site.
+The forecast fits differ from the rest of the study in one respect, and for an identifiability reason.  The likelihood depends on $\beta_0$ and $\lambda$ only through $\beta_0 + \lambda z_t(\bs)$, so the posterior of $\lambda$ carries a mirror mode in which $\lambda$ changes sign and $\beta_0$ compensates; on the short prefixes that a forecast origin leaves, a chain can settle on that mode, and the predictive standard deviation grows with $|\lambda|$.  The forecast fits therefore restrict the support, $\lambda \sim \mathrm{HN}(0, 20)$, which fixes the direction of the skewness without constraining its magnitude and is drawn exactly by a truncated Gibbs step.  Right skewness is the case of interest both in these designs, generated at $\lambda = 3$, and in the ozone data of \sref{sec:ozone-data-desc}, so fixing the sign discards no case that the evaluation needs.  The restriction is confined to the time-block forecast fits of this experiment.  Every other fit reported in this thesis keeps the unrestricted $N(0, 20)$ prior of \eref{eq:stage3-priors}, including the spatial hold-out fits of this experiment, those of \sref{sec:sim-mrts-design}, and the ozone fits of \sref{sec:ozonedata}.  The mirror mode occurs under the unrestricted prior too, but it leaves the paired differences of a spatial hold-out unchanged, since a score computed at a withheld site depends on the predictive only through its marginal at that site.
 
 \begin{figure}[p]
 \centering
@@ -781,7 +891,7 @@ ARFIMA, $d = 0.45$ & $0.90$ & $-0.03$ {\tiny $[-0.08,\,+0.01]$} & $-0.01$ {\tiny
 \end{tabular}
 \end{table}
 
-Coefficient recovery separates the two possible readings of this insensitivity (Table~\ref{tab:ar2-coef-recovery}).  In the four fixed designs the temporal signal is only weakly identified; the scale process alone is recovered with any fidelity, under strong dependence at a matched one-knot fit, and recovery deteriorates as the knot count grows and the dependence weakens.  In designs 5 and 6 the signal is identified; the matched fit recovers the generating dynamics closely, in particular the dominant second lag that an AR(1) can only compress into a single lag, and even under long memory the AR(2) fit picks up a clearly positive second lag.  Yet the hold-out scores of these two designs repeat the null pattern in sharper form (\fref{fig:bs-rel-spatial}(e)--(f); Table~\ref{tab:ar2-sim-paired}, lower block).  Identified temporal parameters with unmoved scores point to the task rather than the model, exactly what the protocol distinction of \sref{sec:sim-scoring} anticipates: when the day being predicted is already observed at the training sites, that day's cross-sectional information dominates and the temporal prior has little left to add.
+Coefficient recovery separates the two possible readings of this insensitivity (Table~\ref{tab:ar2-coef-recovery}).  In the four fixed designs the temporal signal is only weakly identified; the scale process alone is recovered with any fidelity, under strong dependence at a matched one-knot fit, and recovery deteriorates as the knot count grows and the dependence weakens.  In designs 5 and 6 the signal is identified; the matched fit recovers the generating dynamics closely, in particular the dominant second lag that an AR(1) can only compress into a single lag, and even under long memory the AR(2) fit picks up a clearly positive second lag.  Yet the hold-out scores of these two designs repeat the null pattern in sharper form (\fref{fig:bs-rel-spatial}(e)--(f); Table~\ref{tab:ar2-sim-paired}, lower block).  Identified temporal parameters with unmoved scores point to the task rather than the model, exactly what the protocol distinction of \sref{sec:sim-scoring} anticipates.  When the day being predicted is already observed at the training sites, that day's cross-sectional information dominates and the temporal prior has little left to add.
 
 \begin{table}[htbp]
 \centering
@@ -816,11 +926,11 @@ ARFIMA, $d{=}0.45$ & 1 & 1 & 0.502(0.237) & 0.200(0.239) & 0.365(0.249) & 0.156(
 \label{fig:bs-lead-timeblock}
 \end{figure}
 
-The time-block forecast evaluation answers the question the site split cannot, and it answers it differently for each generating design, in an order set by the persistence of the process (\fref{fig:bs-lead-timeblock}, Table~\ref{tab:timeblock-brier}).  Under $(\phi_1, \phi_2) = (0.15, 0.80)$ the AR(2) fit improves on both competitors at both thresholds, at both lead windows, and at every individual lead.  Pooled over the full horizon its mean Brier score is $0.0949$ against $0.1207$ for the i.i.d.\ fit at the $0.90$ quantile, a reduction of $21\%$ with a paired interval of $[-42.5,\, -9.1] \times 10^{-3}$; at the $0.95$ quantile the reduction is $13\%$ with the interval $[-14.2,\, -3.6] \times 10^{-3}$.  What pays there is the second lag rather than temporal pooling as such.  The AR(1) fit is indistinguishable from the i.i.d.\ one over the full horizon, at $+1.6 \times 10^{-3}$ with an interval covering zero, whereas AR(2) minus AR(1) is $-10.5 \times 10^{-3}$ with the interval $[-16.0,\, -5.0] \times 10^{-3}$, and that contrast separates at every threshold from $0.90$ to $0.98$.  The short-memory control fixes the scale of the claim.  Its autocorrelation decays within six days, so over a fifteen-day horizon nothing should be detectable, and nothing is: the pooled AR(2) minus i.i.d.\ difference is $-0.00 \times 10^{-3}$ at the $0.90$ quantile and $-0.08 \times 10^{-3}$ at the $0.95$, both intervals covering zero, and the same holds at every one of the eleven thresholds.  One design in which the extra lag is worth nothing returns nothing, and one in which it is worth a great deal returns a large and well separated gain, under a single protocol and a single estimator.
+The time-block forecast evaluation answers the question the site split cannot, and it answers it differently for each generating design, in an order set by the persistence of the process (\fref{fig:bs-lead-timeblock}, Table~\ref{tab:timeblock-brier}).  Under $(\phi_1, \phi_2) = (0.15, 0.80)$ the AR(2) fit improves on both competitors at both thresholds, at both lead windows, and at every individual lead.  Pooled over the full horizon its mean Brier score is $0.0949$ against $0.1207$ for the i.i.d.\ fit at the $0.90$ quantile, a reduction of $21\%$ with a paired interval of $[-42.5,\, -9.1] \times 10^{-3}$; at the $0.95$ quantile the reduction is $13\%$ with the interval $[-14.2,\, -3.6] \times 10^{-3}$.  What pays there is the second lag rather than temporal pooling as such.  The AR(1) fit is indistinguishable from the i.i.d.\ one over the full horizon, at $+1.6 \times 10^{-3}$ with an interval covering zero, whereas AR(2) minus AR(1) is $-10.5 \times 10^{-3}$ with the interval $[-16.0,\, -5.0] \times 10^{-3}$, and that contrast separates at every threshold from $0.90$ to $0.98$.  The short-memory control fixes the scale of the claim.  Its autocorrelation decays within six days, so over a fifteen-day horizon nothing should be detectable, and nothing is.  The pooled AR(2) minus i.i.d.\ difference is $-0.00 \times 10^{-3}$ at the $0.90$ quantile and $-0.08 \times 10^{-3}$ at the $0.95$, both intervals covering zero, and the same holds at every one of the eleven thresholds.  One design in which the extra lag is worth nothing returns nothing, and one in which it is worth a great deal returns a large and well separated gain, under a single protocol and a single estimator.
 
-Under long memory the Brier score does not separate at all: no interval, at either threshold or either lead window, excludes zero, and the largest difference in the block is $+1.3 \times 10^{-3}$.  The exceedance ledger locates the reason.  The rate of exceedance that the AR(2) predictive implies drifts above the realized one as the level rises, reaching $0.023$ against a realized $0.006$ at the $0.995$ quantile, so under hyperbolic decay the fitted AR(2) misplaces the upper-tail level of its predictive distribution, and a temporal structure that is fitted but mislevelled cannot convert into skill at a threshold.  The three-way comparison points the same way: over the later leads the i.i.d.\ fit scores best and the AR(1) fit worst, so a single geometric lag is the least appropriate summary of a hyperbolically decaying memory.
+Under long memory the Brier score does not separate at all.  No interval, at either threshold or either lead window, excludes zero, and the largest difference in the block is $+1.3 \times 10^{-3}$.  The exceedance ledger locates the reason.  The rate of exceedance that the AR(2) predictive implies drifts above the realized one as the level rises, reaching $0.023$ against a realized $0.006$ at the $0.995$ quantile, so under hyperbolic decay the fitted AR(2) misplaces the upper-tail level of its predictive distribution, and a temporal structure that is fitted but mislevelled cannot convert into skill at a threshold.  The three-way comparison points the same way.  Over the later leads the i.i.d.\ fit scores best and the AR(1) fit worst, so a single geometric lag is the least appropriate summary of a hyperbolically decaying memory.
 
-Two checks bound these conclusions.  Of the $24$ intervals in Table~\ref{tab:timeblock-brier}, $8$ exclude zero and all $8$ belong to the $(0.15, 0.80)$ design; the smallest two-sided $p$-value is $0.0004$, which survives a Bonferroni correction across all $24$ comparisons at $0.05/24 = 0.002$, so that result is not an artifact of multiplicity, while the two-sided Wilcoxon $p$-values, ranging from $0.002$ to $1.00$, agree with the intervals throughout.  Fitting the same designs under the unrestricted $N(0, 20)$ prior on $\lambda$, with the fit-level screening that this then requires, leaves the scores statistically indistinguishable from those reported here, so the support restriction of \sref{sec:sim-ar2-design} protects the fits without producing the result.  Read beside the spatial hold-out evaluation, which is null under the same generating designs and the same models, the contrast is a property of the prediction task: temporal structure is worth little when the day in question is observed elsewhere, and worth a great deal when it is not.
+Two checks bound these conclusions.  Of the $24$ intervals in Table~\ref{tab:timeblock-brier}, $8$ exclude zero and all $8$ belong to the $(0.15, 0.80)$ design; the smallest two-sided $p$-value is $0.0004$, which survives a Bonferroni correction across all $24$ comparisons at $0.05/24 = 0.002$, so that result is not an artifact of multiplicity, while the two-sided Wilcoxon $p$-values, ranging from $0.002$ to $1.00$, agree with the intervals throughout.  Fitting the same designs under the unrestricted $N(0, 20)$ prior on $\lambda$, with the fit-level screening that this then requires, leaves the scores statistically indistinguishable from those reported here, so the support restriction of \sref{sec:sim-ar2-design} protects the fits without producing the result.  Read beside the spatial hold-out evaluation, which is null under the same generating designs and the same models, the contrast is a property of the prediction task.  Temporal structure is worth little when the day in question is observed elsewhere, and worth a great deal when it is not.
 
 \begin{table}[htbp]
 \centering
@@ -1039,19 +1149,19 @@ This thesis asked not whether the spatio-temporal \skewt process predicts
 high-threshold exceedances well, which \textcite{morris_space-time_2017} already
 established, but where within it room for sharper upper-tail prediction
 remains.  The temporal axis divides along the prediction task.  Added memory
-leaves prediction at withheld sites unchanged, and not for want of signal:
-under $(\phi_1, \phi_2) = (0.15, 0.80)$ and under long memory the coefficients were recovered
+leaves prediction at withheld sites unchanged, and not for want of signal.
+Under $(\phi_1, \phi_2) = (0.15, 0.80)$ and under long memory the coefficients were recovered
 closely and the held-out scores still did not move, because with the day in
 question observed at the training sites the cross-sectional information
 dominates.  Forecasting days beyond the end of the record is where the memory
-paid, and the size of the payment followed the persistence of the process: nil
-where the autocorrelation decayed inside the forecast horizon, decisive at
-$(\phi_1, \phi_2) = (0.15, 0.80)$, and there carried by the second lag rather
-than the first.  The spatial axis is favorable but small, the MRTS mean term is inert
+paid, and the size of the payment followed the persistence of the process.  It
+was nil where the autocorrelation decayed inside the forecast horizon and
+decisive at $(\phi_1, \phi_2) = (0.15, 0.80)$, and there it was carried by the
+second lag rather than the first.  The spatial axis is favorable but small, the MRTS mean term is inert
 against second-moment non-stationarity, and on the ozone data it held a place
 among the leading models without separating from them.  One
-caveat bounds these conclusions: the evidence covers a single month of a single
-pollutant.
+caveat bounds these conclusions.  The evidence covers a single month of a
+single pollutant.
 
 The implication extends beyond ozone, since the same target, a spatial
 probability statement about the upper tail at unmonitored sites, arises for any
@@ -1060,12 +1170,15 @@ Temporal order and mean flexibility are not free improvements to such a model,
 but neither are they idle.  Rather than replacing the STP baseline, the
 standardized AR(2) prior and the MRTS mean enlarge it into a candidate class
 from which held-out tail scores can select the setting that fits the data at
-hand.  Where each axis fell short marks where to go next: entering the MRTS
+hand.  Where each axis fell short marks where to go next.  Entering the MRTS
 basis with random coefficients, as in fixed-rank kriging, would place the
 flexibility where the simulation showed the structure to be, while a
 reparameterized $z$ and longer records would test whether the forecast gains
 survive at horizons beyond the fifteen days examined here, and whether they
-appear on observed rather than simulated dynamics.
+appear on observed rather than simulated dynamics.  Carrying the daily
+partition forward across a forecast window, which the evaluation here fixes at
+the single subregion of \sref{sec:meth-pred}, would extend that comparison to
+the partition sizes the spatial hold-out already covers.
 
 
 % --------------------------------------------------------------
@@ -1129,7 +1242,8 @@ $\sigma_g$ & Error scale of the nonlinear-mean designs \\
 $Y_t,\ Y_t(\bs)$ & Generic scalar latent AR process in the Yule--Walker and MCMC derivations; $Y_t(\bs)$ is instead the observed response at site $\bs$ \\
 $z_{tk},\ z^*_{tk}$ & Latent skewness variable and its PIT-transformed value; $|z_t(\bs)|$ in \eref{eq:fullmodel} is the half-normal skew term \\
 \addlinespace[0.6em]
-$h$ & Spatial distance $\|\bs_1 - \bs_2\|$; also the temporal lag in the Yule--Walker context \\
+$h$ & Spatial distance $\|\bs_1 - \bs_2\|$; also the temporal lag in the Yule--Walker context, and the forecast lead in \sref{sec:meth-pred} and the time-block evaluation \\
+$H$ & Number of leads forecast from one origin \\
 \addlinespace[0.6em]
 $g(\bs)$ & Fixed nonlinear mean surface \\
 $g_j(\bs)$ & $j$-th cosine field of the random effect \\
@@ -1138,7 +1252,8 @@ $v_t(\bs)$ & Standard Gaussian (\Matern) process \\
 $\bv_k$ & $k$-th eigenvector (column of $\bV$) \\
 \addlinespace[0.6em]
 $n$ & Number of locations that build the MRTS basis \\
-$n_s,\ n_t$ & Number of sites; number of days \\
+$n_s,\ n_t,\ n_o$ & Number of sites; number of days; length of the observed record at a forecast origin \\
+$M,\ m$ & Number of retained posterior draws, and its index, in Algorithm~\ref{alg:forecast} \\
 \end{longtable}
 }
 
@@ -1150,7 +1265,7 @@ We derive the Yule--Walker moments \eref{eq:gamma12}--\eref{eq:sigeps} used to s
 \end{align}
 Evaluating \eref{eq:yw} at $h = 1$ and using the symmetry $\gamma_{-1} = \gamma_1$ with $\gamma_0 = 1$ gives $\gamma_1 = \phi_1 + \phi_2\, \gamma_1$, hence $\gamma_1 = \phi_1 / (1 - \phi_2)$, and at $h = 2$ gives $\gamma_2 = \phi_1\, \gamma_1 + \phi_2$; together these are \eref{eq:gamma12}.  Multiplying \eref{eq:ar2-recursion} instead by $Y_t$ and taking expectations, with $\mathrm{E}[Y_t\, \epsilon_t] = \sigma_\epsilon^2$ because $Y_t$ carries the current innovation, gives $\gamma_0 = \phi_1\, \gamma_1 + \phi_2\, \gamma_2 + \sigma_\epsilon^2$, and solving for $\sigma_\epsilon^2$ under $\gamma_0 = 1$ recovers \eref{eq:sigeps}.  The same normalization fixes the initial pair, which has unit variances and lag-1 covariance $\gamma_1$ and is therefore the stationary bivariate Gaussian \eref{eq:joint-init}.
 
-\section{AR(2) full conditionals for the Gibbs-within-MH update}\label{app:full-cond}
+\section{AR(2) full conditionals for the Metropolis-within-Gibbs update}\label{app:full-cond}
 
 \paragraph{Updating the time-varying parameters.}
 The AR(2) Markov structure factorizes the joint prior of $(Y_1, \ldots, Y_{n_t})$ as
@@ -1158,7 +1273,7 @@ The AR(2) Markov structure factorizes the joint prior of $(Y_1, \ldots, Y_{n_t})
   p(Y_1, \ldots, Y_{n_t})
   \;=\; p(Y_1, Y_2) \prod_{s = 3}^{n_t} p(Y_s \mid Y_{s-1}, Y_{s-2}), \label{eq:joint-prior}
 \end{align}
-with $p(Y_1, Y_2)$ given by \eref{eq:joint-init} and each conditional factor for $s \ge 3$ following \eref{eq:ar2-recursion}.  For an interior time point $3 \le t \le n_t - 2$, the value $Y_t$ enters \eref{eq:joint-prior} through three factors, namely the self factor $p(Y_t \mid Y_{t-1}, Y_{t-2})$, the lag-1 factor $p(Y_{t+1} \mid Y_t, Y_{t-1})$, and the lag-2 factor $p(Y_{t+2} \mid Y_{t+1}, Y_t)$.  The full conditional in the Gibbs-within-MH update of $Y_t$ is therefore
+with $p(Y_1, Y_2)$ given by \eref{eq:joint-init} and each conditional factor for $s \ge 3$ following \eref{eq:ar2-recursion}.  For an interior time point $3 \le t \le n_t - 2$, the value $Y_t$ enters \eref{eq:joint-prior} through three factors, namely the self factor $p(Y_t \mid Y_{t-1}, Y_{t-2})$, the lag-1 factor $p(Y_{t+1} \mid Y_t, Y_{t-1})$, and the lag-2 factor $p(Y_{t+2} \mid Y_{t+1}, Y_t)$.  The full conditional targeted by the Metropolis step for $Y_t$ is therefore
 \begin{align}
   \pi(Y_t \mid Y_{-t}, \bY)
   \;\propto\;
@@ -1169,7 +1284,7 @@ with $p(Y_1, Y_2)$ given by \eref{eq:joint-init} and each conditional factor for
   \,\cdot\,
   \underbrace{p(Y_{t+2} \mid Y_{t+1}, Y_t)}_{\text{lag-2}}, \label{eq:full-cond}
 \end{align}
-where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through the partition and Gaussian process structure of \eref{eq:fullmodel}.  The lag-2 factor is absent for $t = n_t - 1$ and both lag-1 and lag-2 factors are absent for $t = n_t$.  At the head of the series the initial-pair density \eref{eq:joint-init} plays the role of the self factor: $Y_1$ enters only the initial-pair factor $p(Y_1, Y_2)$ and the conditional $p(Y_3 \mid Y_2, Y_1)$, while $Y_2$ enters $p(Y_1, Y_2)$, $p(Y_3 \mid Y_2, Y_1)$, and $p(Y_4 \mid Y_3, Y_2)$; in each case the factors referencing a non-existent time index are simply dropped.  Under a symmetric Gaussian random-walk proposal $Y_t^{(c)} \sim N(Y_t, s^2)$, the Metropolis--Hastings acceptance ratio is
+where $L(\bY \mid Y_t)$ is the spatial likelihood contributed by $Y_t$ through the partition and Gaussian process structure of \eref{eq:fullmodel}.  The lag-2 factor is absent for $t = n_t - 1$ and both lag-1 and lag-2 factors are absent for $t = n_t$.  At the head of the series the initial-pair density \eref{eq:joint-init} plays the role of the self factor.  Accordingly, $Y_1$ enters only the initial-pair factor $p(Y_1, Y_2)$ and the conditional $p(Y_3 \mid Y_2, Y_1)$, while $Y_2$ enters $p(Y_1, Y_2)$, $p(Y_3 \mid Y_2, Y_1)$, and $p(Y_4 \mid Y_3, Y_2)$; in each case the factors referencing a non-existent time index are simply dropped.  Under a symmetric Gaussian random-walk proposal $Y_t^{(c)} \sim N(Y_t, s^2)$, the Metropolis--Hastings acceptance ratio is
 \begin{align}
   R \;=\; \min\!\left(1,\; \frac{\pi(Y_t^{(c)} \mid Y_{-t}, \bY)}{\pi(Y_t \mid Y_{-t}, \bY)}\right), \label{eq:mh-ratio}
 \end{align}
