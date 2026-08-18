@@ -1,0 +1,65 @@
+% !TeX program = xelatex
+% 口試委員意見回覆（單頁）
+\documentclass[11pt]{article}
+
+% -------------------------------
+% 套件
+% -------------------------------
+\usepackage{amsmath, amssymb}
+\usepackage{xeCJK}                    % 繁體中文
+\setCJKmainfont[AutoFakeSlant=.2, AutoFakeBold=3]{AR PL KaitiM Big5}
+\setmainfont{Times New Roman}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{geometry}
+\geometry{left=2.0cm, right=2.0cm, top=1.6cm, bottom=1.4cm}
+\linespread{1.08}
+\setlength{\parskip}{0.25em}
+\setlength{\parindent}{2em}
+\captionsetup{font=footnotesize, labelformat=empty, skip=4pt}
+
+% 與論文共用的符號巨集（\bphi, \calS, \calZ, \bY, \bZero, \bI, \skewt 等）
+\input{../thesis/mycommands.sty}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+  {\Large \textbf{口試委員意見回覆}}\par \vspace{0.35em}
+  {\small 研究生：謝易軒\quad\textbar\quad 論文：時空 \skewt 過程於門檻超標預測之延伸}
+\end{center}
+
+\noindent\textbf{問題一（吳老師）：時間參數 $\bphi$ 是怎麼估計的？未來又是怎麼預測的？}
+
+\smallskip
+\noindent 論文已針對此點新增兩處說明：\S 2.6 \textit{Posterior predictive distribution}（第 11 頁，含 Algorithm 1）與附錄 C \textit{AR(2) full conditionals for the Metropolis-within-Gibbs update}（第 39 頁）。
+
+\textbf{估計。}給定三個時間變係數潛在過程的 transformed form 後，$\bphi$ 與資料條件獨立，其全條件分布
+\begin{equation*}
+  \pi\big(\bphi \mid Y\big)
+  \;\propto\;
+  \Big[ \prod_{k=1}^{K} p\big(Y_{1k}, \ldots, Y_{n_t k} \mid \bphi\big) \Big]\,
+  N_2\big(\bphi;\, \bZero,\, \sigma_\phi^2 \bI_2\big)\,
+  I\big(\bphi \in \calS\big)
+\end{equation*}
+只由 AR(2) 聯合先驗（含平穩初始對 $p(Y_1, Y_2)$，因 $\gamma_1 = \phi_1/(1-\phi_2)$ 依賴係數而不可捨去）與係數先驗構成；$\phi_1$、$\phi_2$ 以對稱隨機漫步 Metropolis 逐一更新，候選值落在平穩三角區 $\calS$ 之外即直接拒絕。
+
+\textbf{預測。}對每個保留的後驗抽樣 $m$，取同一抽樣的參數 $\bphi^{(m)}$ 與前兩期的潛在狀態 $\calZ^{(m)}_{n_o-1}, \calZ^{(m)}_{n_o}$，在 probability integral transform 後的 Gaussian 尺度上把 AR(2) 遞迴向前推 $h = 1, \ldots, H$ 步、逆轉換回原尺度，再由條件 Gaussian 場抽出 $\bY^{(m)}_{n_o+h}$；超標機率 $\widehat{P}(Y > L)$ 即為這些路徑在該站、該前置期超過門檻 $L$ 的比例（Algorithm 1）。每個抽樣各貢獻一條路徑，參數不確定性與前兩期潛在狀態的不確定性因而同時被傳遞。
+
+\smallskip
+\noindent\textbf{問題二（蕭老師）：在模擬上，能否找到一個情境凸顯本模型的優勢？}
+
+\smallskip
+\noindent 有。在 time-block 前推預測（預測日在所有站點皆未觀測）之下，生成設計為近單根、第二階主導的 AR(2) $(\phi_1, \phi_2) = (0.15,\, 0.80)$ 時，AR(2) 配適在兩個門檻、兩個前置期窗、以及每一個別前置期上都優於 i.i.d.\ 與 AR(1)（下圖 (b)；論文 Table 4）。
+
+兩個對照設計界定了此一宣稱的範圍：短記憶的 $(0.80,\, -0.35)$（自相關六日內衰盡，圖 (a)）與長記憶的 ARFIMA $d = 0.45$（圖 (c)）皆測不到差異。論文 Table 4 的 $24$ 個區間中有 $8$ 個排除 $0$，全部屬於 $(0.15,\, 0.80)$ 設計，最小雙尾 $p$ 值為 $0.0004$，通過 Bonferroni 門檻 $0.05/24 = 0.002$。同一批生成設計在空間 hold-out 下卻是 null，差別因此在預測任務：預測日若已於其他站點被觀測，當日的其他站點的資訊即主導，時間先驗所能再加的有限。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{../pdf/bs_q95_leaddiff-set4_5_7.pdf}
+\caption{論文 Figure 2：$0.95$ 門檻下逐一前置期的配對 Brier 差（單位 $10^{-3}$，負值有利 AR(2)）。生成設計 (a) AR(2) $(0.80, -0.35)$；(b) AR(2) $(0.15, 0.80)$；(c) 長記憶 ARFIMA$(0,\, 0.45,\, 0)$。}
+\end{figure}
+
+\end{document}

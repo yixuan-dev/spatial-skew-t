@@ -372,14 +372,15 @@
       \midrule
       Persistent $(0.15,\, 0.80)$ & $0.112\,(0.132)$ & $\mathbf{0.742}\,(0.117)$
         & $0.175\,(0.152)$ & $\mathbf{0.728}\,(0.112)$ \\
-      ARFIMA, $d = 0.45$ & $0.502\,(0.237)$ & $\mathbf{0.200}\,(0.239)$
-        & $0.365\,(0.249)$ & $\mathbf{0.156}\,(0.169)$ \\
+      ARFIMA, $d = 0.45$ & $\mathbf{0.502}\,(0.237)$ & $0.200\,(0.239)$
+        & $\mathbf{0.365}\,(0.249)$ & $0.156\,(0.169)$ \\
       \bottomrule
     \end{tabular}
   \end{center}
   \bigskip
   \begin{itemize}
-    \item Second lag \alert{recovered} --- even under long memory
+    \item $(0.15,\, 0.80)$: second lag \alert{recovered}
+    \item Long memory: persistence on the \alert{first} lag
     \item Hold-out scores: still unmoved $\;\to\;$ the \alert{task}, not the
           model
   \end{itemize}
@@ -457,6 +458,7 @@
           \alert{pre-specified}
     \item $1{,}089 \to 800$ \alert{region-stratified} sites $\cdot$
           two-fold CV ($400/400$) $\cdot$ splits $300/100$, $200/200$
+          (same $800$, single fold)
     \item MCMC: $30{,}000$ iterations, $25{,}000$ burn-in
   \end{itemize}
 \end{frame}

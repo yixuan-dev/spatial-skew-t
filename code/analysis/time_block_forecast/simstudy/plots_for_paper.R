@@ -2,14 +2,14 @@
 # plots_for_paper.R - paper-ready figures for the TIME-BLOCK experiment.
 #
 # Companion to code/analysis/simstudy/plots_for_paper.R, which owns the
-# spatial hold-out figures. The time-block arm keeps its own script so
+# spatial hold-out figures. The time-block forecast evaluation keeps its own script so
 # that a figure and the campaign it summarises live in the same
 # directory: this file reads only this study's caches.
 #
 # Figure - paired Brier difference by forecast lead, Experiment A.
 #   Reads output/results/scores{4,5,7}_hn.RData (lambda ~ HN(0, 20),
-#   full-series thresholds, five expanding-window blocks, ten data sets,
-#   methods 1 = i.i.d. / 4 = AR(1) / 2 = AR(2)). The five blocks are
+#   full-series thresholds, five expanding forecast windows, ten data sets,
+#   methods 1 = i.i.d. / 4 = AR(1) / 2 = AR(2)). The five windows are
 #   averaged within a data set BEFORE the difference is formed, so the
 #   quantity drawn is the quantity the paired tests use (n = 10).
 #   Point estimates only: as in the spatial figures, the intervals live

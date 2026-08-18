@@ -224,3 +224,23 @@ $R = "C:\Program Files\R\R-4.5.1\bin\Rscript.exe"
   validated by a run. Run the
   smoke test before scaling out, and check the three diagnostics of
   Remark 9 (`H=0` parity, `phi=0` collapse, long-horizon `N(0,1)`).
+
+## Vocabulary: code names vs thesis names
+
+The thesis reserves `block` for a group of table rows, so its time unit has a
+different name from the one these scripts use. The mapping is fixed:
+
+| thesis (`myLatex/thesis`) | code and cached data | what it is |
+|---|---|---|
+| forecast origin | `seam`, `block_seams` | the day the record is cut at (50, 80, 110, 140, 170) |
+| forecast window | `block`, `block_id`, `block_H`, `tbf_blocks()`, `forecast_block()`, the `block` margin of the score arrays and the `block` column of the CSVs | the `H = 15` days after an origin; five per data set |
+| lead window | `lead` ranges 1-5 and 1-15 | the reported sub-range of leads |
+| block | -- | a group of rows in a thesis table; never a time unit |
+| full-series threshold rule | `full` | `L` from the quantile of the whole record (the rule the thesis reports) |
+| per-window threshold rule | `blockq` | `L` from the quantile of each window's own validation days (appendix sweep only) |
+
+The code names are load-bearing: `block_seams`, `block_H` and the `block`
+margin are stored inside `output/results/scores*.RData` and the generated
+CSVs, so renaming them means re-scoring from the fits, which live only on
+DESKTOP-61SBCCI. They are therefore left as they are, and this table is the
+bridge. Human-facing text in these scripts says "forecast window".

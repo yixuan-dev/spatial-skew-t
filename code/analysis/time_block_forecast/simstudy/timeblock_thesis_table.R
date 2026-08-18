@@ -1,5 +1,5 @@
 #########################################################################
-# timeblock_thesis_table.R -- the thesis table for the time-block arm.
+# timeblock_thesis_table.R -- the thesis table for the time-block forecast evaluation.
 #
 # Emits the body of tab:timeblock-brier from the Experiment A caches, so
 # that no number in the thesis is transcribed by hand. Shape mirrors the
@@ -11,7 +11,7 @@
 #   columns i.i.d. | AR(1) | AR(2) | AR(2)-i.i.d. [CI] | AR(2)-AR(1) [CI]
 #
 # Pairing unit is the DATA SET (n = 10): the lead window is averaged
-# first, then the five blocks, leaving one number per data set. Blocks
+# first, then the five forecast windows, leaving one number per data set.  Windows
 # share training data and are not independent replicates, so they are
 # never used as the unit. Tests are TWO-sided here, matching the thesis
 # convention of sec:sim-uq; expA_breakdown.R reports the one-sided form
@@ -92,12 +92,12 @@ for (S in setting_ids) {
     stop(sprintf("%s: brier.lead has NA cells", f), call. = FALSE)
   }
   CACHE[[as.character(S)]] <- e
-  cat(sprintf("loaded %s: %d data sets, methods [%s], %d blocks\n",
+  cat(sprintf("loaded %s: %d data sets, methods [%s], %d forecast windows\n",
     f, length(e$datasets), paste(e$methods, collapse = ","),
     dim(e$brier.lead)[5]))
 }
 
-# per data set: average the lead window, then the blocks
+# per data set: average the lead window, then the forecast windows
 per_dataset <- function(e, prob, leads) {
   qi <- which.min(abs(e$probs - prob))
   a <- apply(e$brier.lead[leads, qi, , , , drop = FALSE], c(3, 4), mean)

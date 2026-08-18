@@ -2,6 +2,12 @@
 # time_block_helpers.R - shared CLI / filename / seed / catalog helpers
 # for the time-block forecast simulation study.
 #
+# Vocabulary: what the thesis calls a forecast window (Sec. 4.2 -- the H days
+# after a forecast origin) is a "block" in these identifiers and in the cached
+# fields (block_seams, block_H, block_id, and the block margin of the score
+# arrays). In the thesis "block" is reserved for a group of table rows, so read
+# every "block" below as "forecast window".
+#
 # Mirrors code/analysis/simstudy/helpers.R, with the MRTS-basis
 # axis replaced by the time-block axis. The generic CLI / path helpers are
 # copied verbatim so the two studies parse arguments identically.
@@ -386,7 +392,7 @@ tbf_blocks <- function(block_seams, block_H, nt) {
 
 #########################################################################
 # forecast_block() - posterior predictive forecast over one held-out
-# time block (Algorithm 1 of the note).
+# forecast window (Algorithm 1 of the note).
 #
 # Implements the three requirements of Section 4.2:
 #   (i)   condition on the posterior of the seam state, extracted from
