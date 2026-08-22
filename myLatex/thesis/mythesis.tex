@@ -182,7 +182,7 @@
 \section*{\centering 摘要}
 \addcontentsline{toc}{section}{摘要} % 加入目錄
 
-\hspace*{1.5em}在環境風險治理中，決策關心的通常不是平均濃度，而是未設站位置超越高門檻的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，沿兩軸檢驗其可改進空間，一是潛在參數的標準化 AR(2) 先驗，二是迴歸均值中的多尺度薄板樣條 (MRTS) 基底。模型比較以樣本外 Brier 分數為核心指標，於模擬與 2005 年 7 月美國 AQS 臭氧資料（CMAQ 共變數）上進行。時間軸的結果依預測任務而分。空間內插對自迴歸階數不敏感；唯有當預測需外推至觀測紀錄之外，且生成機制的記憶延伸超過預測期距、其形式又能為 AR(2) 先驗所刻畫時，第二階落後項才有回報。此增益在 $(\phi_1, \phi_2) = (0.15, 0.80)$ 下明確，而在自相關於預測期距內衰減與雙曲式衰減兩種情形下皆不存在。MRTS 均值項在非定態出現於均值曲面而非二階動差、且基底細緻到足以解析它時可改善預測；於臭氧資料上其名列前茅，惟未與其餘領先模型拉開差距。因此本文的貢獻不在於取代 STP 基準，而在於界定這兩項擴展各自在何種預測任務與何種非定態下值得採用，並以樣本外超標預測表現作為取捨的依據。
+\hspace*{1.5em}空氣品質法規行之有年，汙染物濃度監測的目的，即在於判定各地是否超過法規標準。然而測站僅覆蓋少數地點，未設測站的地方則需要一套方法，量化其超過該標準的機率。本文以 Morris et al. (2017) 的時空 \skewt 過程 (STP) 為基準，沿兩軸檢驗其可改進空間，一是潛在參數的標準化 AR(2) 先驗，二是迴歸均值中的多尺度薄板樣條 (MRTS) 基底。模型比較以樣本外 Brier 分數為核心指標，於模擬與 2005 年 7 月美國 AQS 臭氧資料（CMAQ 共變數）上進行。時間軸的結果依預測任務而分。空間內插對自迴歸階數不敏感；唯有當預測需外推至觀測紀錄之外，且生成機制的記憶延伸超過預測期距、其形式又能為 AR(2) 先驗所刻畫時，第二階落後項才有回報。此增益在 $(\phi_1, \phi_2) = (0.15, 0.80)$ 下明確，而在自相關於預測期距內衰減與雙曲式衰減兩種情形下皆不存在。MRTS 均值項在非定態出現於均值曲面而非二階動差、且基底細緻到足以解析它時可改善預測；於臭氧資料上其名列前茅，惟未與其餘領先模型拉開差距。因此本文的貢獻不在於取代 STP 基準，而在於界定這兩項擴展各自在何種預測任務與何種非定態下值得採用，並以樣本外超標預測表現作為取捨的依據。
 
 \vspace{2.0\baselineskip}
 
@@ -201,25 +201,28 @@
 \section*{\centering Abstract}
 \addcontentsline{toc}{section}{Abstract} % 加入目錄
 
-In environmental risk regulation, the inferential target is often not the field
-mean but the probability of exceeding a high threshold at unmonitored
-locations. We take the spatio-temporal \skewt process (STP) of Morris et al.
-(2017) as a baseline and examine where predictive improvement remains possible
-along two axes, a standardized AR(2) prior on the latent parameters and
-multi-resolution thin-plate spline (MRTS) basis functions in the regression
-mean. Models are compared by held-out Brier scores in simulation and on July
-2005 U.S. AQS ozone data with CMAQ covariates. The temporal axis divides along
-the prediction task. Prediction at withheld sites is insensitive to the
-autoregressive order, whereas forecasting days beyond the end of the record
-rewards the second lag when the generating memory reaches past the horizon in a
-form the AR(2) prior can represent. The gain is decisive at $(\phi_1, \phi_2) =
-(0.15, 0.80)$ and absent both when the memory decays inside the horizon and
-under hyperbolic decay. The MRTS mean improves prediction where the
-non-stationarity lies in the mean surface rather than the second moment and the
-basis is fine enough to resolve it; on the ozone data it ranks among the leading
-models without separating from them. The contribution is therefore to enlarge
-the STP baseline into a candidate model class selected by held-out exceedance
-predictive performance.
+Air quality regulation has long been enforced by monitoring whether
+concentrations at a site exceed the standard. Monitors cover few locations,
+however, and unmonitored sites call for a method that quantifies the
+probability of exceeding that standard. We take the spatio-temporal \skewt
+process (STP) of Morris et al. (2017) as a baseline and examine where
+predictive improvement remains possible along two axes, a standardized AR(2)
+prior on the latent parameters and multi-resolution thin-plate spline (MRTS)
+basis functions in the regression mean. Models are compared by held-out Brier
+scores in simulation and on July 2005 U.S. AQS ozone data with CMAQ
+covariates. The temporal axis divides along the prediction task. Prediction at
+withheld sites is insensitive to the autoregressive order, whereas forecasting
+days beyond the end of the record rewards the second lag when the generating
+memory reaches past the horizon in a form the AR(2) prior can represent. The
+gain is decisive at $(\phi_1, \phi_2) = (0.15, 0.80)$ and absent both when the
+memory decays inside the horizon and under hyperbolic decay. The MRTS mean
+improves prediction where the non-stationarity lies in the mean surface rather
+than the second moment and the basis is fine enough to resolve it; on the ozone
+data it ranks among the leading models without separating from them. The
+contribution is therefore not to replace the STP baseline but to delimit the
+prediction tasks and the forms of non-stationarity under which each extension
+is worth adopting, with held-out exceedance predictive performance as the
+criterion.
 
 \vspace{2.0\baselineskip}
 
