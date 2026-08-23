@@ -182,7 +182,7 @@
 \section*{\centering 摘要}
 \addcontentsline{toc}{section}{摘要} % 加入目錄
 
-\hspace*{1.5em}空氣品質法規行之有年，汙染物濃度監測的目的，即在於判定各地是否超過法規標準。然而測站僅覆蓋少數地點，未設測站的地方則需要一套方法，量化其超過該標準的機率。本文將 Morris et al. (2017) 的時空 \skewt 過程 (STP) 沿兩軸擴展，一是潛在過程的 AR(2) 時間序列，二是作為迴歸共變數的多尺度薄板樣條 (MRTS) 基底。模型比較以 Brier 分數為依據。在模擬中，我們發現 AR(2) 擴展在第二階落後依賴較強時可改善未來日期的預報；MRTS 擴展則在非定態出現於均值曲面、且基底細緻到足以解析它時改善預測。於 2005 年 7 月的美國臭氧資料上，各模型的作用是以 AQS 測站觀測校正 CMAQ 數值模式輸出，兩項擴展在五個超標水準與三組訓練與驗證的資料切分下，皆維持在領先模型之列。MRTS 配適在所測試的每個水準上都優於基準，惟無任何單一增益能通過多重比較的校正。因此本文的貢獻不在於取代 STP 基準，而在於界定這兩項擴展各自在何種預測任務與何種非定態下值得採用，並以超標預測表現作為取捨的依據。
+\hspace*{1.5em}空氣品質法規行之有年，汙染物濃度監測的目的，即在於判定各地是否超過法規標準。然而測站僅覆蓋少數地點，未設測站的地方則需要一套方法，量化其超過該標準的機率。本文將 Morris et al. (2017) 的時空 \skewt 過程沿兩軸擴展，一是潛在過程的 AR(2) 時間序列，二是作為迴歸共變數的多尺度薄板樣條 (MRTS) 基底。模型比較以 Brier 分數為依據。在模擬中，我們發現 AR(2) 擴展在第二階落後依賴較強時可改善未來日期的預報；MRTS 擴展則在非定態出現於均值曲面、且基底細緻到足以解析它時改善預測。於 2005 年 7 月的美國臭氧資料上，各模型的作用是以 AQS 測站觀測校正 CMAQ 數值模式輸出，兩項擴展在五個超標水準與三組訓練與驗證的資料切分下，皆維持在領先模型之列。MRTS 配適在所測試的每個水準上都優於基準，惟無任何單一增益能通過多重比較的校正。因此本文的貢獻在於界定這兩項擴展各自在何種預測任務與何種非定態下值得採用，並以超標預測表現作為取捨的依據。
 
 \vspace{2.0\baselineskip}
 
@@ -205,7 +205,7 @@ Air quality regulation has long been enforced by monitoring whether
 concentrations at a site exceed the standard. Monitors cover few locations,
 however, and unmonitored sites call for a method that quantifies the
 probability of exceeding that standard. We extend the spatio-temporal \skewt
-process (STP) of Morris et al. (2017) along two axes, an AR(2) time series for
+process of Morris et al. (2017) along two axes, an AR(2) time series for
 the latent processes and multi-resolution thin-plate spline (MRTS) basis
 functions as regression covariates. Models are compared by Brier score. In
 simulation, we find the AR(2) extension improves forecasts of future days under
@@ -216,9 +216,9 @@ CMAQ model output against the AQS monitors, both extensions hold their place
 among the leading models across five exceedance levels and three
 train-validation splits. The MRTS fits improve on the baseline at every level
 tested, though no single gain survives a correction for multiplicity. The
-contribution is therefore not to replace the STP baseline but to delimit the
-prediction tasks and the forms of non-stationarity under which each extension
-is worth adopting, with exceedance predictive performance as the criterion.
+contribution is therefore to delimit the prediction tasks and the forms of
+non-stationarity under which each extension is worth adopting, with exceedance
+predictive performance as the criterion.
 
 \vspace{2.0\baselineskip}
 
