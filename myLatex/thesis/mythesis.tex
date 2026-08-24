@@ -123,7 +123,7 @@
     % \end{tikzpicture}
     % \setcounter{page}{1}                % 將頁碼重設為 1
     \thispagestyle{empty}               % 不顯示頁碼
-    }]{../pdf/學位考試委員會審定書.pdf}
+    }]{../pdf/certificate.pdf}
 
 %% 空白頁
 \newpage
@@ -131,19 +131,32 @@
 \WatermarkOff                           % 不要浮水印
 ~
 
-%% 論文原創性聲明書
-\includepdf[
-    pages={1}, 
-    pagecommand={
-    % \phantomsection
-    % \addcontentsline{toc}{section}{Declaration of Thesis/Dissertation Originality}
-    % \begin{tikzpicture}[remember picture,overlay]
-    %     \node[opacity=0.1] at (current page.center) 
-    %     {\includegraphics[width=5cm]{../pdf/NDHU_logo.pdf}};
-    % \end{tikzpicture}
-    % \setcounter{page}{2}                % 將頁碼重設為 2
-    \thispagestyle{empty}               % 不顯示頁碼
-    }]{../pdf/學位論文原創性聲明書.pdf}
+%% 論文原創性聲明書（在表單上疊印論文題目）
+% 題目文字只寫在這裡，日後換題目只要改這兩行
+\newcommand{\ThesisTitleZh}{時空 skew-t 過程於門檻超標預測之延伸：AR(2) 時間先驗與多尺度樣條基底函數}
+\newcommand{\ThesisTitleEn}{Extending the Spatio-Temporal Skew-t Process for Threshold Exceedance Prediction: AR(2) Temporal Priors and Multi-Resolution Spline Basis Functions}
+
+\newpage
+\thispagestyle{empty}                   % 不顯示頁碼
+\WatermarkOff                           % 不要浮水印
+\begin{tikzpicture}[remember picture, overlay]
+\node[anchor=center, inner sep=0pt] at (current page.center) {%
+    % 依頁高等比縮放整張 A4 表單，效果與原本的 \includepdf 相同
+    \resizebox{!}{\paperheight}{%
+    % 內層用表單自己的 PDF 座標 (bp)：原點在左上角，y 向下為正
+    \begin{tikzpicture}[x=1bp, y=-1bp, inner sep=0pt]
+        \node[anchor=north west] at (0,0)
+            {\includegraphics[width=595.32bp]{../pdf/學位論文原創性聲明書.pdf}};
+        % 中文題目：接在「學位論文題目：」後面，只能放一行（字級調大會超出右邊界）
+        \node[anchor=base west, font=\fontsize{10.5}{12}\selectfont]
+            at (158,176.6) {\ThesisTitleZh};
+        % 英文題目：第一行接在「Thesis/Dissertation Title：」後面，第二行起回到左邊界
+        \node[anchor=base west, font=\fontsize{10.5}{12.5}\selectfont] at (71,194.5)
+            {\parbox[t]{460bp}{\parshape 2 134bp 326bp 0bp 460bp
+                \hyphenpenalty=10000\exhyphenpenalty=10000\relax
+                \noindent\ThesisTitleEn\par}};
+    \end{tikzpicture}}};
+\end{tikzpicture}
 
 %% 空白頁
 \newpage
@@ -1211,7 +1224,6 @@ whether they appear on observed rather than simulated dynamics.
 \addcontentsline{toc}{section}{Appendix}
 
 % --------------------------------------------------------------
-\newpage
 \section{Notation}\label{app:notation}
 
 Several letters carry more than one meaning in this thesis.  Table~\ref{tab:notation} lists those reused symbols together to make the intended reading explicit; symbols not listed here are used with a single meaning.
